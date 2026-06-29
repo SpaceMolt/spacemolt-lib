@@ -76,16 +76,25 @@ scripts/
 src/
   index.ts                public surface
   protocol.ts             hand-written WS v2 frame envelopes (stable layer)
+  errors.ts               SpacemoltError / ConnectionClosedError
+  account.ts              Account — one authenticated connection (M1)
+  transport/
+    socket.ts             WS lifecycle over an injectable WebSocket
+    correlator.ts         request_id ⇄ promise; two-phase mutation flow
   generated/              AUTO-GENERATED — do not edit
-  transport/ auth/ state/ events/   runtime client (built out across milestones)
+  auth/ state/ events/    built out in later milestones
 tests/
+  mock-socket.ts          scriptable WebSocketLike for transport tests
 ```
 
 ## Milestones
 
 - **M0 (done):** scaffold + self-maintaining codegen; protocol frame types.
-- **M1:** WS transport — connect/welcome/auth (raw creds), request_id
-  correlation, query vs two-phase mutation, typed errors.
+- **M1 (done):** WS transport (`Account`) — connect/welcome/auth (raw creds),
+  request_id correlation, query vs two-phase mutation, typed errors. Auth frames
+  (`registered`/`logged_in`) are sequenced by frame type, not request_id, since
+  the post-`register` `logged_in` is an unsolicited push. Driven in tests by an
+  injected mock WebSocket (`tests/mock-socket.ts`).
 - **M2:** per-account state cache from `logged_in` + deltas.
 - **M3:** typed push-frame events / async iterators + market/observation subs.
 - **M4:** multi-account manager, pluggable credential store, rate-limit pacing,

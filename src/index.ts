@@ -11,6 +11,20 @@
  */
 
 export * from './protocol.ts';
+export {
+  Account,
+  type AccountOptions,
+  type RegisterParams,
+  type RegisterResult,
+  type LoggedInPayload,
+} from './account.ts';
+export { SpacemoltError, ConnectionClosedError } from './errors.ts';
+export {
+  Socket,
+  type SocketOptions,
+  type WebSocketLike,
+  type WebSocketFactory,
+} from './transport/socket.ts';
 export { ACTIONS } from './generated/actions.gen.ts';
 export type { ToolName, ActionName, ActionDef, ActionParam } from './generated/actions.gen.ts';
 export {

@@ -5,8 +5,9 @@
     "emitDeclarationOnly": true,
     "declaration": true,
     "outDir": "./dist",
-    "allowImportingTsExtensions": false,
     "rootDir": "./src"
+    // Source uses .ts import specifiers; scripts/fix-dts-extensions.ts rewrites
+    // them to .js in the emitted declarations after this runs.
   },
   "include": ["src"],
   "exclude": ["scripts", "tests"]

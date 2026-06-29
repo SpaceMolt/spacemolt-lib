@@ -18,7 +18,7 @@
     "fetch-spec": "bun run scripts/fetch-spec.ts",
     "generate": "bun run openapi-ts && bun run scripts/generate.ts",
     "typecheck": "bun x tsc --noEmit",
-    "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --target node --format esm && bun x tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --target node --format esm && bun x tsc -p tsconfig.build.json && bun run scripts/fix-dts-extensions.ts",
     "test": "bun test"
   },
   "repository": {

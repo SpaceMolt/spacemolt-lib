@@ -114,12 +114,24 @@ export interface RegisteredFrame {
 }
 
 /**
- * A server-initiated push frame. `type` is the msg_type; when it is one the
- * server publishes a schema for, the payload is typed accordingly.
+ * A server-initiated push frame whose msg_type has a published payload schema.
+ * Unknown/untyped pushes are delivered as `RawFrame` (see below) until the
+ * server types them.
  */
-export type NotificationFrame =
-  | { [K in TypedNotificationType]: { type: K; payload: NotificationPayloads[K] } }[TypedNotificationType]
-  | { type: string; payload: Record<string, unknown> };
+export type NotificationFrame = {
+  [K in TypedNotificationType]: { type: K; payload: NotificationPayloads[K] };
+}[TypedNotificationType];
+
+/**
+ * Any inbound frame as parsed off the wire, before classification. The router
+ * narrows this to a specific frame type by `type`. A bare-`string` discriminant
+ * is kept out of the typed `OutboundFrame` union so its members narrow cleanly.
+ */
+export interface RawFrame {
+  type: string;
+  request_id?: string;
+  payload?: unknown;
+}
 
 export type OutboundFrame =
   | ResultFrame
@@ -150,6 +162,31 @@ export interface StateDelta {
   message?: string;
   details?: Record<string, unknown>;
   credits?: number;
+}
+
+/** Resolved value of a synchronous query command. */
+export interface QueryResult {
+  /** Human-readable rendered text (or raw object when no renderer applies). */
+  result: unknown;
+  /** Raw JSON for programmatic consumption. */
+  structuredContent?: Record<string, unknown>;
+}
+
+/** The immediate `pending: true` acknowledgement for a queued mutation. */
+export interface MutationAck {
+  command: string;
+  message: string;
+}
+
+/** Resolved value of a two-phase mutation, delivered when the action executes. */
+export interface MutationResult {
+  command: string;
+  /** Game tick on which the action executed. */
+  tick: number;
+  /** The V2GameState delta — only the sections that changed. */
+  delta: StateDelta;
+  autoDocked?: boolean;
+  autoUndocked?: boolean;
 }
 
 export const STATE_SECTIONS = [
