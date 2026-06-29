@@ -36,6 +36,8 @@ interface OpenAPIOperation {
   operationId?: string;
   summary?: string;
   description?: string;
+  /** Authoritative: true when the command is queued for the next tick (two-phase). */
+  'x-is-mutation'?: boolean;
   requestBody?: {
     content?: {
       'application/json'?: {
@@ -91,19 +93,6 @@ function tsType(p: OpenAPIProperty): string {
   }
 }
 
-/**
- * Read-only commands resolve synchronously over the WS; everything else is a
- * mutation queued for the next tick. The spec does not carry this flag yet, so
- * we infer it from the action name. This heuristic is the one piece of this
- * generator that the gameserver could make authoritative by publishing an
- * `x-mutation` / `x-state-sections` extension per operation (incremental
- * server work — see M3/M5). Until then, infer.
- */
-const QUERY_PREFIXES = ['get_', 'view_', 'list_', 'scan', 'search_', 'help', 'analyze_', 'check_', 'lookup_', 'describe_'];
-function inferKind(action: string): 'query' | 'mutation' {
-  return QUERY_PREFIXES.some((p) => action === p || action.startsWith(p)) ? 'query' : 'mutation';
-}
-
 function extractActions(spec: OpenAPISpec): ActionDef[] {
   const actions: ActionDef[] = [];
   for (const [path, methods] of Object.entries(spec.paths)) {
@@ -125,7 +114,10 @@ function extractActions(spec: OpenAPISpec): ActionDef[] {
       positional: prop['x-positional-index'],
     }));
 
-    actions.push({ tool, action, kind: inferKind(action), summary: op.summary, params });
+    // `x-is-mutation` is authoritative: true => queued for next tick (two-phase
+    // result + action_result). Absent/false => synchronous result.
+    const kind: ActionDef['kind'] = op['x-is-mutation'] ? 'mutation' : 'query';
+    actions.push({ tool, action, kind, summary: op.summary, params });
   }
   actions.sort((a, b) => (a.tool + a.action).localeCompare(b.tool + b.action));
   return actions;

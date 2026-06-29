@@ -52,16 +52,20 @@ bun run build         # bundle + emit .d.ts to dist/
 Everything under `src/generated/` is auto-generated — **do not edit**. Re-run
 `bun run generate` after `bun run fetch-spec`.
 
-### Known generator heuristic
+### Spec-driven classification
 
-The spec does not yet flag which actions are mutations vs queries, so
-`scripts/generate.ts` infers it from the action name (`get_`/`view_`/`scan`/…
-are queries). Making this authoritative — e.g. an `x-mutation` /
-`x-state-sections` extension per operation, and typed schemas for the push
-frames that are still untyped (only 13 of ~50 carry a `Notification_*` schema
-today) — is the incremental gameserver-side work that backs this library.
-When the server publishes that metadata, replace the heuristic with the spec
-value; don't grow the heuristic.
+Query vs mutation comes straight from the spec: operations carry
+`x-is-mutation: true` when the command is queued for the next tick (the
+two-phase `result` ack + later `action_result`). Absent/false means it
+resolves synchronously. `scripts/generate.ts` reads this directly — do not
+re-introduce a name-based heuristic.
+
+The remaining incremental gameserver-side work that backs this library:
+- typed schemas for the push frames that are still untyped (only 13 of ~50
+  carry a `Notification_<msg_type>` schema today);
+- optionally, an `x-state-sections` extension per mutation so the state cache
+  knows which delta sections a command may touch without waiting for the
+  outcome. Not published yet; M2/M3 will say whether it's worth adding.
 
 ## Layout
 
