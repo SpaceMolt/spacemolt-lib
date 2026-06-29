@@ -60,12 +60,10 @@ two-phase `result` ack + later `action_result`). Absent/false means it
 resolves synchronously. `scripts/generate.ts` reads this directly — do not
 re-introduce a name-based heuristic.
 
-The remaining incremental gameserver-side work that backs this library:
-- typed schemas for the push frames that are still untyped (only 13 of ~50
-  carry a `Notification_<msg_type>` schema today);
-- optionally, an `x-state-sections` extension per mutation so the state cache
-  knows which delta sections a command may touch without waiting for the
-  outcome. Not published yet; M2/M3 will say whether it's worth adding.
+The incremental gameserver-side work that backs this library is tracked in
+[`docs/gameserver-todo.md`](docs/gameserver-todo.md) — push-frame schemas, auth
+frame payloads, optional `x-state-sections`. Add to it whenever we hit a gap the
+server is the right place to fix; open the PR only when a milestone needs it.
 
 ## Layout
 
