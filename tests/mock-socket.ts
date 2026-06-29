@@ -5,7 +5,7 @@
  */
 
 import type { WebSocketLike, WebSocketFactory } from '../src/transport/socket.ts';
-import type { InboundFrame, OutboundFrame } from '../src/protocol.ts';
+import type { InboundFrame, RawFrame } from '../src/protocol.ts';
 
 type Listeners = {
   open: Array<() => void>;
@@ -49,8 +49,8 @@ export class MockSocket implements WebSocketLike {
     for (const cb of this.listeners.close) cb({ code, reason });
   }
 
-  /** Push a server frame to the client. */
-  serverSend(frame: OutboundFrame): void {
+  /** Push a server frame to the client (loosely typed — simulates raw bytes). */
+  serverSend(frame: RawFrame): void {
     const data = JSON.stringify(frame);
     for (const cb of this.listeners.message) cb({ data });
   }

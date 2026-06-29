@@ -20,6 +20,14 @@ export {
 } from './account.ts';
 export { SpacemoltError, ConnectionClosedError } from './errors.ts';
 export { StateCache } from './state/cache.ts';
+export { MarketCache, type MarketBook, type MarketItem } from './state/market.ts';
+export {
+  ObservationCache,
+  type ObservationView,
+  type ObservedPlayer,
+  type CloakedContact,
+} from './state/observation.ts';
+export { TypedEmitter, EventStream } from './events/emitter.ts';
 export {
   Socket,
   type SocketOptions,

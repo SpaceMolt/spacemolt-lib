@@ -2,8 +2,8 @@
  * A single authenticated SpaceMolt connection.
  *
  * Owns one WebSocket, performs raw-credential auth, and exposes the
- * query/mutation command API. State caching (M2) and typed push events (M3)
- * layer on top of the `onPush` seam and the resolved deltas here.
+ * query/mutation command API, the local state cache (M2), and the typed push
+ * event system + market/observation subscriptions (M3).
  *
  * Auth frames (`registered`, `logged_in`) are handled out-of-band from the
  * `request_id` correlator: after `register` the `logged_in` frame is an
@@ -12,8 +12,18 @@
  */
 
 import { ACTIONS } from './generated/actions.gen.ts';
-import type { V2GameState } from './generated/openapi/types.gen.ts';
+import type {
+  NotificationMarketUpdate,
+  NotificationObservationUpdate,
+  SubscribeMarketResponse,
+  SubscribeObservationResponse,
+  V2GameState,
+} from './generated/openapi/types.gen.ts';
+import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import { ConnectionClosedError, errorFromFrame, SpacemoltError } from './errors.ts';
+import { TypedEmitter } from './events/emitter.ts';
+import { MarketCache, type MarketBook } from './state/market.ts';
+import { ObservationCache, type ObservationView } from './state/observation.ts';
 import type {
   ActionResultFrame,
   ErrorFrame,
@@ -72,6 +82,9 @@ export class Account {
   private readonly socket: Socket;
   private readonly correlator = new Correlator();
   private readonly cache = new StateCache();
+  private readonly emitter = new TypedEmitter();
+  private readonly marketCache = new MarketCache();
+  private readonly observationCache = new ObservationCache();
   private readonly seedState: boolean;
   private requestSeq = 0;
 
@@ -80,7 +93,6 @@ export class Account {
   private _loginPayload: LoggedInPayload | null = null;
   private welcomeWaiter: ((w: WelcomeFrame['payload']) => void) | null = null;
   private pendingAuth: PendingAuth | null = null;
-  private pushListener: ((frame: RawFrame) => void) | null = null;
   private stateListener: ((changed: StateSection[]) => void) | null = null;
 
   constructor(opts: AccountOptions = {}) {
@@ -91,6 +103,13 @@ export class Account {
     });
     this.socket.onFrame = (frame) => this.routeFrame(frame);
     this.socket.onClose = (err) => this.handleClose(err);
+
+    // Keep the subscription caches current as their pushes arrive. Registered
+    // before any user listener so the cache is updated first.
+    this.emitter.on('market_update', (p) => this.marketCache.applyUpdate(p as NotificationMarketUpdate));
+    this.emitter.on('observation_update', (p) =>
+      this.observationCache.applyUpdate(p as NotificationObservationUpdate),
+    );
   }
 
   /** Live view of the cached game state. Treat as read-only. */
@@ -229,9 +248,87 @@ export class Account {
     return def?.kind === 'mutation' ? this.mutate(tool, action, payload) : this.query(tool, action, payload);
   }
 
-  /** Register a listener for server push frames (welcome/auth excluded). */
-  onPush(listener: (frame: RawFrame) => void): void {
-    this.pushListener = listener;
+  /**
+   * Listen for a specific server push by msg_type. The handler receives the
+   * typed payload for published notification types, or a loosely-typed object
+   * for not-yet-typed pushes. Returns an unsubscribe function.
+   */
+  on<K extends TypedNotificationType>(type: K, handler: (payload: NotificationPayloads[K]) => void): () => void;
+  on(type: string, handler: (payload: Record<string, unknown>) => void): () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(type: string, handler: (payload: any) => void): () => void {
+    return this.emitter.on(type, handler as (payload: unknown) => void);
+  }
+
+  /** Listen for every server push frame. Returns an unsubscribe function. */
+  onAny(handler: (frame: RawFrame) => void): () => void {
+    return this.emitter.onAny(handler);
+  }
+
+  /**
+   * Async-iterate one push msg_type's payloads:
+   * `for await (const msg of account.events('chat_message')) { ... }`.
+   * Buffered, so a slow consumer won't drop frames; `break` unsubscribes.
+   */
+  events<K extends TypedNotificationType>(type: K): AsyncIterableIterator<NotificationPayloads[K]>;
+  events(type: string): AsyncIterableIterator<Record<string, unknown>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  events(type: string): AsyncIterableIterator<any> {
+    return this.emitter.stream(type);
+  }
+
+  /** Async-iterate every push frame. */
+  anyEvents(): AsyncIterableIterator<RawFrame> {
+    return this.emitter.anyStream();
+  }
+
+  // --- subscriptions ---
+
+  /**
+   * Subscribe to the order book of the station you're docked at. Returns the
+   * baseline snapshot and seeds the market cache; `market_update` pushes are
+   * merged automatically. Read with `account.market(baseId)`.
+   */
+  async subscribeMarket(): Promise<SubscribeMarketResponse> {
+    const res = await this.query('spacemolt_market', 'subscribe_market');
+    const snapshot = res.structuredContent as SubscribeMarketResponse | undefined;
+    if (snapshot) this.marketCache.seed(snapshot);
+    return snapshot ?? ({} as SubscribeMarketResponse);
+  }
+
+  /** Unsubscribe from the current station's market and drop its cached book. */
+  async unsubscribeMarket(): Promise<void> {
+    const baseId = this.location?.docked_at ?? this.marketCache.bases()[0];
+    await this.query('spacemolt_market', 'unsubscribe_market');
+    if (baseId) this.marketCache.drop(baseId);
+  }
+
+  /** The cached order book for a base, if subscribed. */
+  market(baseId: string): MarketBook | undefined {
+    return this.marketCache.book(baseId);
+  }
+
+  /**
+   * Subscribe to a change-feed of player presence at your current POI/system.
+   * Returns the baseline and seeds the observation cache; `observation_update`
+   * pushes are merged automatically. Read with `account.observation()`.
+   */
+  async subscribeObservation(activeScan = false): Promise<SubscribeObservationResponse> {
+    const res = await this.query('spacemolt', 'subscribe_observation', activeScan ? { active_scan: true } : undefined);
+    const snapshot = res.structuredContent as SubscribeObservationResponse | undefined;
+    if (snapshot) this.observationCache.seed(snapshot);
+    return snapshot ?? ({} as SubscribeObservationResponse);
+  }
+
+  /** Unsubscribe from the observation watch and clear its cache. */
+  async unsubscribeObservation(): Promise<void> {
+    await this.query('spacemolt', 'unsubscribe_observation');
+    this.observationCache.clear();
+  }
+
+  /** The current observation watch view, if subscribed. */
+  observation(): ObservationView | null {
+    return this.observationCache.current();
   }
 
   /** Close the connection. In-flight requests reject with ConnectionClosedError. */
@@ -308,7 +405,7 @@ export class Account {
           this._authenticated = true;
           auth.onLoggedIn(payload, auth.registered);
         } else {
-          this.pushListener?.(frame);
+          this.emitter.emit(frame);
         }
         return;
       }
@@ -318,12 +415,12 @@ export class Account {
           const changed = this.cache.applyDelta(delta);
           if (changed.length) this.stateListener?.(changed);
         }
-        if (!this.correlator.handle(frame)) this.pushListener?.(frame);
+        if (!this.correlator.handle(frame)) this.emitter.emit(frame);
         return;
       }
       case 'result':
       case 'action_error':
-        if (!this.correlator.handle(frame)) this.pushListener?.(frame);
+        if (!this.correlator.handle(frame)) this.emitter.emit(frame);
         return;
       case 'error': {
         if (this.correlator.handle(frame)) return;
@@ -333,17 +430,18 @@ export class Account {
           auth.onError(errorFromFrame(frame as ErrorFrame));
           return;
         }
-        this.pushListener?.(frame);
+        this.emitter.emit(frame);
         return;
       }
       default:
-        this.pushListener?.(frame);
+        this.emitter.emit(frame);
     }
   }
 
   private handleClose(err: ConnectionClosedError): void {
     this._authenticated = false;
     this.correlator.rejectAll(err);
+    this.emitter.closeStreams();
     if (this.pendingAuth) {
       const auth = this.pendingAuth;
       this.pendingAuth = null;

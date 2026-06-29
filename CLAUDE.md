@@ -83,8 +83,12 @@ src/
     correlator.ts         request_id ⇄ promise; two-phase mutation flow
   state/
     cache.ts              StateCache — 8-section cache, seed + applyDelta (M2)
+    market.ts             MarketCache — subscribed order books (M3)
+    observation.ts        ObservationCache — subscribed presence watch (M3)
+  events/
+    emitter.ts            TypedEmitter + EventStream async iterator (M3)
   generated/              AUTO-GENERATED — do not edit
-  auth/ events/           built out in later milestones
+  auth/                   built out in later milestones
 tests/
   mock-socket.ts          scriptable WebSocketLike for transport tests
 ```
@@ -104,7 +108,13 @@ tests/
   (`system`+`poi`, login extras) so it is not used to seed the section cache —
   it is exposed raw as `account.loginPayload`. `account.state` + section getters
   expose the cache; `onStateChange` reports changed sections.
-- **M3:** typed push-frame events / async iterators + market/observation subs.
+- **M3 (done):** typed push-frame events + subscriptions. `account.on(type,cb)`
+  (typed payload for published notification types), `onAny`, and async iterators
+  `account.events(type)`/`anyEvents()` (buffered; `break` unsubscribes) over a
+  `TypedEmitter`. `subscribeMarket`/`subscribeObservation` (+ unsubscribe) seed
+  `MarketCache`/`ObservationCache` from the baseline snapshot; `market_update`/
+  `observation_update` pushes merge automatically (internal handlers registered
+  before user listeners). Read via `account.market(baseId)` / `observation()`.
 - **M4:** multi-account manager, pluggable credential store, rate-limit pacing,
   reconnect + re-auth.
 - **M5:** generated ergonomic action methods; bulk catalog/map caches.
