@@ -77,7 +77,8 @@ scripts/
   fetch-spec.ts           pull live spec
   generate.ts             stage-2 custom codegen
 src/
-  index.ts                public surface
+  index.ts                public surface (browser-safe — no Node built-ins)
+  node.ts                 Node/Bun-only entry (@spacemolt/lib/node)
   protocol.ts             hand-written WS v2 frame envelopes (stable layer)
   errors.ts               SpacemoltError / ConnectionClosedError
   client.ts               SpacemoltClient — multi-account manager (M4)
@@ -144,7 +145,12 @@ tests/
   the doc's `target_system`). `CatalogCache`/`MapCache` (`src/data/`) fetch
   `/api/catalog.json` and `/api/map` over HTTP with id-keyed lookups;
   `client.catalog()`/`client.map()` fetch-once-and-cache.
-- **M6:** browser packaging pass, examples, tests, docs.
+- **M6 (done):** browser packaging + examples + docs. The main entry imports no
+  Node built-ins; `FileCredentialStore` moved to a `@spacemolt/lib/node` subpath
+  (`src/node.ts`) so the browser bundle stays clean — enforced by
+  `tests/browser-safe.test.ts` and the `build:browser-check` script. `build`
+  emits both entries (`dist/index.js` + `dist/node.js`) with `.d.ts`. Runnable
+  `examples/` (typechecked) and a full README.
 
 ## Auth
 

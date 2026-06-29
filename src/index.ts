@@ -26,7 +26,8 @@ export {
   type AuthCredentials,
   MemoryCredentialStore,
 } from './auth/credentials.ts';
-export { FileCredentialStore } from './auth/file-store.ts';
+// FileCredentialStore imports node:fs — exported from '@spacemolt/lib/node'
+// to keep this entry point browser-safe.
 export { SpacemoltError, ConnectionClosedError } from './errors.ts';
 export { StateCache } from './state/cache.ts';
 export { MarketCache, type MarketBook, type MarketItem } from './state/market.ts';
