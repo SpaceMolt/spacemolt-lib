@@ -158,6 +158,63 @@ becomes a pure fallback.
 
 ---
 
+## 5. Publish bulk-data + `registered` frame schemas (catalog, map, mobile base)
+**Status:** done (gameserver PR pending merge) · pending deploy · **Needed by:** M5 (bulk caches) + auth · **Priority:** medium
+
+> **Update (2026-06-29):** Implemented server-side. A new `BulkDataSchemas()`
+> (`internal/openapi/bulk_data_schemas.go`) reflects the three public bulk HTTP
+> endpoint bodies and the last untyped auth frame into both specs'
+> `components.schemas`, mirroring `AuthFramePayloadSchemas`:
+>
+> - `CatalogDump` — `GET /api/catalog.json` (version + ships/skills/recipes/
+>   items/facilities). `items` stays `unknown[]` (the server merges Item|Module
+>   into one `[]interface{}` list); everything else is fully typed.
+> - `MapData` — `GET /api/map` (`systems` + `empires` id→colour map).
+> - `MobileBaseLocation` — `GET /wheres-mobile-base` (the single moving
+>   capital's current system id: `{ system }`).
+> - `RegisteredPayload` — the `registered` WS frame (`{ password, player_id }`).
+>
+> Also fixed a latent codegen blocker: invopop emits `"items": true` (the
+> JSON-Schema-2020 "any" form) for `[]interface{}` fields, which is invalid in
+> OpenAPI 3.0 and **crashes** openapi-ts (`Cannot use 'in' operator … in true`).
+> `schemaForType` now normalizes boolean `items` to an empty schema object,
+> guarded by `TestSpec_NoBooleanArrayItems`. Verified end-to-end: regenerating
+> the lib off the branch spec produces `CatalogDump`/`MapData`/
+> `MobileBaseLocation`/`RegisteredPayload` types and typechecks.
+>
+> **Lib follow-up once deployed (one-time consumption, then self-maintaining):**
+> replace the loosely-typed `CatalogEntry`/`MapSystem` (`[key: string]: unknown`)
+> in `src/data/{catalog,map}.ts` with the generated section element types; add a
+> small `MobileBaseLocation` fetch (the lib does not track it yet); type
+> `RegisteredFrame.payload` from generated `RegisteredPayload`. After that the
+> sync CI keeps them current with no edits.
+
+---
+
+## Self-maintaining CI (the closing piece)
+
+**Status:** done — `.github/workflows/sync-spec.yml`
+
+The library now ships a spec-sync workflow (ported from client-v2's
+`sync-spec.yml`): on a schedule / manual dispatch / `gameserver-deployed`
+repository_dispatch it fetches the live v2 spec, diffs it **normalized**
+(ignoring `info.x-gameserver-version`, which the server re-stamps every deploy),
+and on a real change regenerates, typechecks, runs the tests, and commits the
+result. This is the mechanism that makes "self-maintaining" automatic rather
+than a manual chore — type/payload/tool/notification changes flow in on their
+own; a spec change that breaks the hand-written layer fails the run instead of
+landing broken.
+
+The remaining hand-written payload shapes are deliberate, deploy-gated
+**one-time consumption** steps (items #2 and #5 above): once the schemas are
+live, wire the hand-written types to the generated ones and delete the
+fallbacks. Consuming a generated type directly is also what locks the invariant
+in — a future spec regression then breaks `typecheck` loudly instead of
+silently rotting a hand-maintained shape.
+
+---
+
 ## Done
 
-_(nothing yet)_
+_(items above are merged/implemented; lib consumption is gated on the
+gameserver deploy)_
