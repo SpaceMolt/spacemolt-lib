@@ -8,6 +8,7 @@
  */
 
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
+import type { V2GameState } from './generated/openapi/types.gen.ts';
 
 /** Inbound frame: client -> server. `payload` is omitted when an action takes none. */
 export interface InboundFrame {
@@ -144,25 +145,21 @@ export type OutboundFrame =
   | NotificationFrame;
 
 /**
- * A V2GameState delta carried on `action_result`. Only changed sections are
- * present; an absent section means unchanged (keep prior local state). The
- * eight tracked sections plus the convenience fields. Section payloads are
- * loosely typed here and tightened against the spec in M2.
+ * The cacheable game-state sections — the eight independently-tracked sections
+ * the server emits deltas for. Section shapes are derived from the spec's
+ * `V2GameState`, so they stay correct as the spec evolves.
  */
-export interface StateDelta {
-  player?: Record<string, unknown>;
-  ship?: Record<string, unknown>;
-  modules?: unknown[];
-  cargo?: unknown[];
-  location?: Record<string, unknown>;
-  missions?: Record<string, unknown>;
-  queue?: { has_pending: boolean };
-  skills?: Record<string, unknown>;
-  // convenience fields
-  message?: string;
-  details?: Record<string, unknown>;
-  credits?: number;
-}
+export type GameState = Pick<
+  V2GameState,
+  'player' | 'ship' | 'modules' | 'cargo' | 'location' | 'missions' | 'queue' | 'skills'
+>;
+
+/**
+ * A `V2GameState` delta carried on `action_result`. Only changed sections are
+ * present; an absent section means unchanged (keep prior local state). Carries
+ * the same eight sections as `GameState` plus the per-action convenience fields.
+ */
+export type StateDelta = GameState & Pick<V2GameState, 'message' | 'details' | 'credits'>;
 
 /** Resolved value of a synchronous query command. */
 export interface QueryResult {

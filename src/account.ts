@@ -12,17 +12,22 @@
  */
 
 import { ACTIONS } from './generated/actions.gen.ts';
+import type { V2GameState } from './generated/openapi/types.gen.ts';
 import { ConnectionClosedError, errorFromFrame, SpacemoltError } from './errors.ts';
 import type {
+  ActionResultFrame,
   ErrorFrame,
+  GameState,
   LoggedInFrame,
   MutationAck,
   MutationResult,
   QueryResult,
   RawFrame,
   RegisteredFrame,
+  StateSection,
   WelcomeFrame,
 } from './protocol.ts';
+import { StateCache } from './state/cache.ts';
 import { Correlator } from './transport/correlator.ts';
 import { Socket, type WebSocketFactory } from './transport/socket.ts';
 
@@ -33,6 +38,12 @@ export interface AccountOptions {
   url?: string;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
   webSocketFactory?: WebSocketFactory;
+  /**
+   * After authenticating, issue a `get_status` query to seed the local state
+   * cache with the canonical full state. Default `true`. Disable to avoid the
+   * extra round-trip; the cache then fills from the first mutation delta.
+   */
+  seedState?: boolean;
 }
 
 export interface RegisterParams {
@@ -60,21 +71,59 @@ const DEFAULT_URL = 'wss://game.spacemolt.com/ws/v2';
 export class Account {
   private readonly socket: Socket;
   private readonly correlator = new Correlator();
+  private readonly cache = new StateCache();
+  private readonly seedState: boolean;
   private requestSeq = 0;
 
   private _welcome: WelcomeFrame['payload'] | null = null;
   private _authenticated = false;
+  private _loginPayload: LoggedInPayload | null = null;
   private welcomeWaiter: ((w: WelcomeFrame['payload']) => void) | null = null;
   private pendingAuth: PendingAuth | null = null;
   private pushListener: ((frame: RawFrame) => void) | null = null;
+  private stateListener: ((changed: StateSection[]) => void) | null = null;
 
   constructor(opts: AccountOptions = {}) {
+    this.seedState = opts.seedState ?? true;
     this.socket = new Socket({
       url: opts.url ?? DEFAULT_URL,
       webSocketFactory: opts.webSocketFactory,
     });
     this.socket.onFrame = (frame) => this.routeFrame(frame);
     this.socket.onClose = (err) => this.handleClose(err);
+  }
+
+  /** Live view of the cached game state. Treat as read-only. */
+  get state(): Readonly<GameState> {
+    return this.cache.snapshot();
+  }
+
+  get player(): GameState['player'] {
+    return this.cache.player;
+  }
+  get ship(): GameState['ship'] {
+    return this.cache.ship;
+  }
+  get location(): GameState['location'] {
+    return this.cache.location;
+  }
+  get cargo(): GameState['cargo'] {
+    return this.cache.cargo;
+  }
+  get skills(): GameState['skills'] {
+    return this.cache.skills;
+  }
+  get credits(): number | undefined {
+    return this.cache.credits;
+  }
+  /** True when a tick-deferred action is queued for this account. */
+  get hasPendingAction(): boolean {
+    return this.cache.hasPendingAction;
+  }
+
+  /** The raw `logged_in` payload from the last successful auth (login extras). */
+  get loginPayload(): LoggedInPayload | null {
+    return this._loginPayload;
   }
 
   /** The server's `welcome` payload, available after `connect()` resolves. */
@@ -96,8 +145,8 @@ export class Account {
   }
 
   /** Register a new account; resolves with the generated credentials + state. */
-  register(params: RegisterParams): Promise<RegisterResult> {
-    return new Promise<RegisterResult>((resolve, reject) => {
+  async register(params: RegisterParams): Promise<RegisterResult> {
+    const result = await new Promise<RegisterResult>((resolve, reject) => {
       this.beginAuth((state, registered) => {
         if (!registered) {
           reject(new SpacemoltError('missing_credentials', 'register succeeded but no credentials frame was received'));
@@ -107,6 +156,9 @@ export class Account {
       }, reject);
       this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
     });
+    this._loginPayload = result.state;
+    await this.maybeSeedState();
+    return result;
   }
 
   /** Authenticate an existing account with username + password. */
@@ -117,6 +169,25 @@ export class Account {
   /** Authenticate with a short-lived single-use token (web/Clerk path). */
   loginToken(token: string): Promise<LoggedInPayload> {
     return this.authExchange('login_token', { token });
+  }
+
+  /**
+   * Re-seed the cache from the canonical full state (`get_status`). Returns the
+   * cached state. Called automatically after auth unless `seedState` is false.
+   */
+  async refresh(): Promise<Readonly<GameState>> {
+    const res = await this.query('spacemolt', 'get_status');
+    const snapshot = res.structuredContent as V2GameState | undefined;
+    if (snapshot) {
+      const changed = this.cache.seed(snapshot);
+      if (changed.length) this.stateListener?.(changed);
+    }
+    return this.cache.snapshot();
+  }
+
+  /** Register a listener fired with the sections that changed on each update. */
+  onStateChange(listener: (changed: StateSection[]) => void): void {
+    this.stateListener = listener;
   }
 
   /** Log out, releasing the connection's authenticated session. */
@@ -170,11 +241,28 @@ export class Account {
 
   // --- internals ---
 
-  private authExchange(action: 'login' | 'login_token', payload: Record<string, unknown>): Promise<LoggedInPayload> {
-    return new Promise<LoggedInPayload>((resolve, reject) => {
+  private async authExchange(
+    action: 'login' | 'login_token',
+    payload: Record<string, unknown>,
+  ): Promise<LoggedInPayload> {
+    const state = await new Promise<LoggedInPayload>((resolve, reject) => {
       this.beginAuth(resolve, reject);
       this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
     });
+    this._loginPayload = state;
+    await this.maybeSeedState();
+    return state;
+  }
+
+  /** Best-effort seed of the state cache after auth; failures are non-fatal. */
+  private async maybeSeedState(): Promise<void> {
+    if (!this.seedState) return;
+    try {
+      await this.refresh();
+    } catch {
+      // The connection is authenticated; a failed seed just leaves the cache
+      // to fill from the first mutation delta. Don't fail auth over it.
+    }
   }
 
   private beginAuth(
@@ -224,8 +312,16 @@ export class Account {
         }
         return;
       }
+      case 'action_result': {
+        const delta = (frame as ActionResultFrame).payload.result;
+        if (delta) {
+          const changed = this.cache.applyDelta(delta);
+          if (changed.length) this.stateListener?.(changed);
+        }
+        if (!this.correlator.handle(frame)) this.pushListener?.(frame);
+        return;
+      }
       case 'result':
-      case 'action_result':
       case 'action_error':
         if (!this.correlator.handle(frame)) this.pushListener?.(frame);
         return;

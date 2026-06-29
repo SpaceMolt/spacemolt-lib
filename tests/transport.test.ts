@@ -21,7 +21,7 @@ function welcomePayload(): WelcomeFrame['payload'] {
 
 async function connected(): Promise<{ account: Account; socket: MockSocket }> {
   const { factory, sockets } = mockFactory();
-  const account = new Account({ url: 'ws://mock/ws/v2', webSocketFactory: factory });
+  const account = new Account({ url: 'ws://mock/ws/v2', webSocketFactory: factory, seedState: false });
   const connectP = account.connect();
   const socket = sockets[0]!;
   socket.serverSend({ type: 'welcome', payload: welcomePayload() });

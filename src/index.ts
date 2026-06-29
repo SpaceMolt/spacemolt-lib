@@ -19,6 +19,7 @@ export {
   type LoggedInPayload,
 } from './account.ts';
 export { SpacemoltError, ConnectionClosedError } from './errors.ts';
+export { StateCache } from './state/cache.ts';
 export {
   Socket,
   type SocketOptions,

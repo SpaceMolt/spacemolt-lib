@@ -81,8 +81,10 @@ src/
   transport/
     socket.ts             WS lifecycle over an injectable WebSocket
     correlator.ts         request_id ⇄ promise; two-phase mutation flow
+  state/
+    cache.ts              StateCache — 8-section cache, seed + applyDelta (M2)
   generated/              AUTO-GENERATED — do not edit
-  auth/ state/ events/    built out in later milestones
+  auth/ events/           built out in later milestones
 tests/
   mock-socket.ts          scriptable WebSocketLike for transport tests
 ```
@@ -95,7 +97,13 @@ tests/
   (`registered`/`logged_in`) are sequenced by frame type, not request_id, since
   the post-`register` `logged_in` is an unsolicited push. Driven in tests by an
   injected mock WebSocket (`tests/mock-socket.ts`).
-- **M2:** per-account state cache from `logged_in` + deltas.
+- **M2 (done):** per-account state cache (`StateCache`). Seeded canonically via
+  a `get_status` query after auth (its `structuredContent` is `V2GameState` —
+  the same shape deltas patch), then kept current by applying the 8-section
+  deltas from every `action_result`. `logged_in` has a *different* shape
+  (`system`+`poi`, login extras) so it is not used to seed the section cache —
+  it is exposed raw as `account.loginPayload`. `account.state` + section getters
+  expose the cache; `onStateChange` reports changed sections.
 - **M3:** typed push-frame events / async iterators + market/observation subs.
 - **M4:** multi-account manager, pluggable credential store, rate-limit pacing,
   reconnect + re-auth.
