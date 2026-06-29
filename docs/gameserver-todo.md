@@ -20,7 +20,27 @@ Baseline spec when this file started: gameserver **v0.452.0**.
 ---
 
 ## 1. Publish payload schemas for the untyped push frames
-**Status:** todo · **Needed by:** M3 (typed push events) · **Priority:** high
+**Status:** in-progress (server change pushed; pending merge/deploy) · **Needed by:** M3 (typed push events) · **Priority:** high
+
+> **Update (2026-06-29):** Implemented gameserver-side on branch
+> `claude/spacemolt-typescript-lib-tnlldh` (commit `d317d56`). Adds typed
+> `Notification_<msg_type>` schemas for the 22 remaining push frames that fire
+> today — 13 → **35** total. Struct-backed frames (battle_*, drone_update,
+> drone_destroyed, base_raid_update, base_destroyed) reflect their
+> `internal/protocol` structs; the map-literal emitters (drone_scan,
+> drone_survey, facility_rent_warning, facility_reclaimed, trade_complete,
+> trade_declined, trade_cancelled, player_kill, pirate_destroyed, pirate_radio,
+> achievement_unlocked) are described inline from their verified emission sites,
+> matching the existing chat_message/skill_level_up precedent (no Go struct, so
+> nothing to reflect; no game-logic emit sites touched). `go test`, `go vet`,
+> `golangci-lint` all clean.
+>
+> Pipeline verified: generating the v2 spec off that branch and running
+> `bun run generate` here lifts `notifications.gen.ts` to 35 typed
+> notifications and typechecks. **Lib follow-up once the server change is
+> merged + deployed:** `bun run fetch-spec && bun run generate` — the new
+> schemas flow into `notifications.gen.ts` automatically (no lib code change).
+> Until then the committed `openapi.json` snapshot tracks deployed prod (13).
 
 Only **13** push frames currently publish a `Notification_<msg_type>` schema in
 `components.schemas` (chat_message, combat_update, crafting_update,
