@@ -14,10 +14,19 @@ export * from './protocol.ts';
 export {
   Account,
   type AccountOptions,
+  type ReconnectOptions,
   type RegisterParams,
   type RegisterResult,
   type LoggedInPayload,
 } from './account.ts';
+export { SpacemoltClient, type SpacemoltClientOptions } from './client.ts';
+export {
+  type CredentialStore,
+  type StoredAccount,
+  type AuthCredentials,
+  MemoryCredentialStore,
+} from './auth/credentials.ts';
+export { FileCredentialStore } from './auth/file-store.ts';
 export { SpacemoltError, ConnectionClosedError } from './errors.ts';
 export { StateCache } from './state/cache.ts';
 export { MarketCache, type MarketBook, type MarketItem } from './state/market.ts';

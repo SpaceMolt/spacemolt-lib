@@ -77,7 +77,9 @@ src/
   index.ts                public surface
   protocol.ts             hand-written WS v2 frame envelopes (stable layer)
   errors.ts               SpacemoltError / ConnectionClosedError
-  account.ts              Account — one authenticated connection (M1)
+  client.ts               SpacemoltClient — multi-account manager (M4)
+  account.ts              Account — one authenticated connection; pacing +
+                          reconnect (M1/M4)
   transport/
     socket.ts             WS lifecycle over an injectable WebSocket
     correlator.ts         request_id ⇄ promise; two-phase mutation flow
@@ -87,8 +89,10 @@ src/
     observation.ts        ObservationCache — subscribed presence watch (M3)
   events/
     emitter.ts            TypedEmitter + EventStream async iterator (M3)
+  auth/
+    credentials.ts        CredentialStore iface + MemoryCredentialStore (M4)
+    file-store.ts         FileCredentialStore (Node/Bun; imports node:fs) (M4)
   generated/              AUTO-GENERATED — do not edit
-  auth/                   built out in later milestones
 tests/
   mock-socket.ts          scriptable WebSocketLike for transport tests
 ```
@@ -115,8 +119,17 @@ tests/
   `MarketCache`/`ObservationCache` from the baseline snapshot; `market_update`/
   `observation_update` pushes merge automatically (internal handlers registered
   before user listeners). Read via `account.market(baseId)` / `observation()`.
-- **M4:** multi-account manager, pluggable credential store, rate-limit pacing,
-  reconnect + re-auth.
+- **M4 (done):** multi-account + resilience. `SpacemoltClient` manages N
+  `Account`s, persisting credentials via a pluggable `CredentialStore`
+  (`MemoryCredentialStore`, `FileCredentialStore`); `connectAll` staggers to
+  respect login rate limits. Per-account pacing: `rate_limited` auto-retry
+  (parses the interval; see gameserver-todo #4) and mutation serialization (one
+  in flight at a time, matching the server's `action_pending`). Close-code-aware
+  reconnect + re-auth + resubscribe (4001 `session_replaced` / 4002
+  `auth_timeout` / deliberate `close()` are terminal; abnormal closes reconnect
+  with backoff). Liveness watchdog deferred — a web-standard `WebSocket` can't
+  observe the server's protocol-level pings, so an opt-in heartbeat query is the
+  planned approach; today we rely on the socket `close` event.
 - **M5:** generated ergonomic action methods; bulk catalog/map caches.
 - **M6:** browser packaging pass, examples, tests, docs.
 

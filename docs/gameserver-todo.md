@@ -93,6 +93,26 @@ registry entry that already carries the bitmask
 
 ---
 
+## 4. Surface `retry_after` in the WS `rate_limited` error details
+**Status:** todo · **Needed by:** M4 (done, with a workaround) · **Priority:** low
+
+The HTTP 429 body carries a structured `retry_after` (seconds), but the
+WebSocket `rate_limited` error frame does not — `rejectWSRateLimit` →
+`respondError` sends only `code` + `message`, and the retry interval is buried
+in the message string ("…Retry in N seconds."). The library currently parses
+the seconds out of the message (with a floor/default fallback). Adding
+`retry_after` to the WS error `details` (the way `ResponseBody` does) would let
+the client pace precisely without string-parsing.
+
+**Where it lives:** `internal/server/server.go` `rejectWSRateLimit` /
+`respondError`; the value is already on `ratelimit.Decision.RetryAfter`.
+
+**Lib follow-up when done:** `retryAfterMs` in `src/account.ts` already prefers
+`details.retry_after` when present — once the server sends it, the string parse
+becomes a pure fallback.
+
+---
+
 ## Done
 
 _(nothing yet)_

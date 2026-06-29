@@ -12,6 +12,7 @@
  */
 
 import { ACTIONS } from './generated/actions.gen.ts';
+import type { AuthCredentials } from './auth/credentials.ts';
 import type {
   NotificationMarketUpdate,
   NotificationObservationUpdate,
@@ -43,6 +44,15 @@ import { Socket, type WebSocketFactory } from './transport/socket.ts';
 
 export type LoggedInPayload = Record<string, unknown>;
 
+export interface ReconnectOptions {
+  /** Max reconnect attempts before giving up and emitting `disconnected`. Default 10. */
+  maxRetries?: number;
+  /** Base backoff in ms (doubles per attempt). Default 1000. */
+  baseDelayMs?: number;
+  /** Backoff ceiling in ms. Default 30000. */
+  maxDelayMs?: number;
+}
+
 export interface AccountOptions {
   /** WebSocket URL of the v2 endpoint. Defaults to the production server. */
   url?: string;
@@ -54,6 +64,16 @@ export interface AccountOptions {
    * extra round-trip; the cache then fills from the first mutation delta.
    */
   seedState?: boolean;
+  /**
+   * Auto-reconnect + re-auth on an unexpected disconnect. Requires
+   * `credentials`. Off unless enabled. Never reconnects after a deliberate
+   * `close()`, a `session_replaced` (4001), or an `auth_timeout` (4002).
+   */
+  reconnect?: boolean | ReconnectOptions;
+  /** Supplies credentials for re-auth on reconnect (the token must be reusable). */
+  credentials?: () => AuthCredentials | Promise<AuthCredentials>;
+  /** Max automatic retries when a command is `rate_limited`. Default 5. */
+  maxRateLimitRetries?: number;
 }
 
 export interface RegisterParams {
@@ -78,14 +98,39 @@ interface PendingAuth {
 
 const DEFAULT_URL = 'wss://game.spacemolt.com/ws/v2';
 
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+function normalizeReconnect(opt: AccountOptions['reconnect']): Required<ReconnectOptions> | null {
+  if (!opt) return null;
+  const o = typeof opt === 'object' ? opt : {};
+  return {
+    maxRetries: o.maxRetries ?? 10,
+    baseDelayMs: o.baseDelayMs ?? 1000,
+    maxDelayMs: o.maxDelayMs ?? 30000,
+  };
+}
+
+/** Parse a retry interval from a `rate_limited` error (ms). */
+function retryAfterMs(err: SpacemoltError): number {
+  const fromDetails = typeof err.details?.['retry_after'] === 'number' ? (err.details['retry_after'] as number) : undefined;
+  const match = err.message.match(/retry in (\d+)\s*second/i);
+  const seconds = fromDetails ?? (match ? Number(match[1]) : undefined);
+  return Math.max(250, (seconds ?? 1) * 1000);
+}
+
 export class Account {
-  private readonly socket: Socket;
+  private socket!: Socket;
   private readonly correlator = new Correlator();
   private readonly cache = new StateCache();
   private readonly emitter = new TypedEmitter();
   private readonly marketCache = new MarketCache();
   private readonly observationCache = new ObservationCache();
   private readonly seedState: boolean;
+  private readonly url: string;
+  private readonly webSocketFactory?: WebSocketFactory;
+  private readonly reconnectConfig: Required<ReconnectOptions> | null;
+  private readonly credentialsProvider?: () => AuthCredentials | Promise<AuthCredentials>;
+  private readonly maxRateLimitRetries: number;
   private requestSeq = 0;
 
   private _welcome: WelcomeFrame['payload'] | null = null;
@@ -95,14 +140,25 @@ export class Account {
   private pendingAuth: PendingAuth | null = null;
   private stateListener: ((changed: StateSection[]) => void) | null = null;
 
+  // resilience state
+  private userClosing = false;
+  private reconnecting = false;
+  private mutationLane: Promise<unknown> = Promise.resolve();
+  private marketSubscribed = false;
+  private observationSubscribed = false;
+  private observationActiveScan = false;
+  private reconnectedListener: (() => void) | null = null;
+  private reconnectingListener: ((attempt: number) => void) | null = null;
+  private disconnectedListener: ((err: ConnectionClosedError) => void) | null = null;
+
   constructor(opts: AccountOptions = {}) {
     this.seedState = opts.seedState ?? true;
-    this.socket = new Socket({
-      url: opts.url ?? DEFAULT_URL,
-      webSocketFactory: opts.webSocketFactory,
-    });
-    this.socket.onFrame = (frame) => this.routeFrame(frame);
-    this.socket.onClose = (err) => this.handleClose(err);
+    this.url = opts.url ?? DEFAULT_URL;
+    this.webSocketFactory = opts.webSocketFactory;
+    this.credentialsProvider = opts.credentials;
+    this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
+    this.reconnectConfig = normalizeReconnect(opts.reconnect);
+    this.makeSocket();
 
     // Keep the subscription caches current as their pushes arrive. Registered
     // before any user listener so the cache is updated first.
@@ -110,6 +166,12 @@ export class Account {
     this.emitter.on('observation_update', (p) =>
       this.observationCache.applyUpdate(p as NotificationObservationUpdate),
     );
+  }
+
+  private makeSocket(): void {
+    this.socket = new Socket({ url: this.url, webSocketFactory: this.webSocketFactory });
+    this.socket.onFrame = (frame) => this.routeFrame(frame);
+    this.socket.onClose = (err) => this.handleClose(err);
   }
 
   /** Live view of the cached game state. Treat as read-only. */
@@ -155,7 +217,12 @@ export class Account {
   }
 
   /** Open the connection and resolve once the `welcome` frame arrives. */
-  async connect(): Promise<WelcomeFrame['payload']> {
+  connect(): Promise<WelcomeFrame['payload']> {
+    return this.open();
+  }
+
+  private async open(): Promise<WelcomeFrame['payload']> {
+    this._welcome = null;
     await this.socket.connect();
     if (this._welcome) return this._welcome;
     return new Promise<WelcomeFrame['payload']>((resolve) => {
@@ -190,6 +257,25 @@ export class Account {
     return this.authExchange('login_token', { token });
   }
 
+  /** Authenticate from a stored `AuthCredentials` (dispatches by kind). */
+  async authenticate(creds: AuthCredentials): Promise<void> {
+    switch (creds.kind) {
+      case 'login':
+        await this.login({ username: creds.username, password: creds.password });
+        return;
+      case 'login_token':
+        await this.loginToken(creds.token);
+        return;
+      case 'register':
+        await this.register({
+          username: creds.username,
+          empire: creds.empire,
+          registration_code: creds.registration_code,
+        });
+        return;
+    }
+  }
+
   /**
    * Re-seed the cache from the canonical full state (`get_status`). Returns the
    * cached state. Called automatically after auth unless `seedState` is false.
@@ -215,17 +301,27 @@ export class Account {
     this._authenticated = false;
   }
 
-  /** Run a read-only command; resolves synchronously with the result. */
+  /**
+   * Run a read-only command; resolves synchronously with the result.
+   * Auto-retries on `rate_limited` (waiting the server's interval).
+   */
   query(tool: string, action: string, payload?: Record<string, unknown>): Promise<QueryResult> {
-    const requestId = this.nextRequestId();
-    const promise = this.correlator.awaitQuery(requestId);
-    this.sendFrame(tool, action, payload, requestId);
-    return promise;
+    return this.withRateLimitRetry(() => {
+      const requestId = this.nextRequestId();
+      const promise = this.correlator.awaitQuery(requestId);
+      this.sendFrame(tool, action, payload, requestId);
+      return promise;
+    });
   }
 
   /**
    * Run a mutation; resolves when the action executes on a later tick (after
    * the immediate pending ack). `onAck` fires when the pending ack arrives.
+   *
+   * Mutations are serialized per account — the next is sent only after the
+   * previous resolves — because the server queues one action per tick and
+   * rejects a concurrent mutation with `action_pending`. Also auto-retries on
+   * `rate_limited`.
    */
   mutate(
     tool: string,
@@ -233,10 +329,14 @@ export class Account {
     payload?: Record<string, unknown>,
     onAck?: (ack: MutationAck) => void,
   ): Promise<MutationResult> {
-    const requestId = this.nextRequestId();
-    const promise = this.correlator.awaitMutation(requestId, onAck);
-    this.sendFrame(tool, action, payload, requestId);
-    return promise;
+    return this.enqueueMutation(() =>
+      this.withRateLimitRetry(() => {
+        const requestId = this.nextRequestId();
+        const promise = this.correlator.awaitMutation(requestId, onAck);
+        this.sendFrame(tool, action, payload, requestId);
+        return promise;
+      }),
+    );
   }
 
   /**
@@ -293,12 +393,14 @@ export class Account {
     const res = await this.query('spacemolt_market', 'subscribe_market');
     const snapshot = res.structuredContent as SubscribeMarketResponse | undefined;
     if (snapshot) this.marketCache.seed(snapshot);
+    this.marketSubscribed = true;
     return snapshot ?? ({} as SubscribeMarketResponse);
   }
 
   /** Unsubscribe from the current station's market and drop its cached book. */
   async unsubscribeMarket(): Promise<void> {
     const baseId = this.location?.docked_at ?? this.marketCache.bases()[0];
+    this.marketSubscribed = false;
     await this.query('spacemolt_market', 'unsubscribe_market');
     if (baseId) this.marketCache.drop(baseId);
   }
@@ -317,11 +419,14 @@ export class Account {
     const res = await this.query('spacemolt', 'subscribe_observation', activeScan ? { active_scan: true } : undefined);
     const snapshot = res.structuredContent as SubscribeObservationResponse | undefined;
     if (snapshot) this.observationCache.seed(snapshot);
+    this.observationSubscribed = true;
+    this.observationActiveScan = activeScan;
     return snapshot ?? ({} as SubscribeObservationResponse);
   }
 
   /** Unsubscribe from the observation watch and clear its cache. */
   async unsubscribeObservation(): Promise<void> {
+    this.observationSubscribed = false;
     await this.query('spacemolt', 'unsubscribe_observation');
     this.observationCache.clear();
   }
@@ -331,9 +436,23 @@ export class Account {
     return this.observationCache.current();
   }
 
-  /** Close the connection. In-flight requests reject with ConnectionClosedError. */
+  /** Close the connection deliberately. Suppresses auto-reconnect. */
   close(): void {
+    this.userClosing = true;
     this.socket.close();
+  }
+
+  /** Fired after a successful reconnect + re-auth. */
+  onReconnected(listener: () => void): void {
+    this.reconnectedListener = listener;
+  }
+  /** Fired at the start of each reconnect attempt (1-based). */
+  onReconnecting(listener: (attempt: number) => void): void {
+    this.reconnectingListener = listener;
+  }
+  /** Fired when the connection is gone for good (non-reconnectable or retries exhausted). */
+  onDisconnected(listener: (err: ConnectionClosedError) => void): void {
+    this.disconnectedListener = listener;
   }
 
   // --- internals ---
@@ -447,5 +566,88 @@ export class Account {
       this.pendingAuth = null;
       auth.onError(new SpacemoltError('connection_closed', err.message));
     }
+    if (this.shouldReconnect(err)) {
+      void this.reconnectLoop(err);
+    } else if (!this.userClosing) {
+      this.disconnectedListener?.(err);
+    }
+  }
+
+  private shouldReconnect(err: ConnectionClosedError): boolean {
+    if (!this.reconnectConfig || this.userClosing || this.reconnecting) return false;
+    if (!this.credentialsProvider) return false;
+    // 4001 session_replaced: another connection took our slot — reconnecting
+    // would just fight it. 4002 auth_timeout: we failed to auth in time.
+    if (err.code === 4001 || err.code === 4002) return false;
+    return true;
+  }
+
+  private async reconnectLoop(err: ConnectionClosedError): Promise<void> {
+    if (this.reconnecting || !this.reconnectConfig || !this.credentialsProvider) return;
+    this.reconnecting = true;
+    const cfg = this.reconnectConfig;
+    for (let attempt = 1; attempt <= cfg.maxRetries; attempt++) {
+      this.reconnectingListener?.(attempt);
+      const backoff = Math.min(cfg.baseDelayMs * 2 ** (attempt - 1), cfg.maxDelayMs);
+      await delay(backoff);
+      if (this.userClosing) {
+        this.reconnecting = false;
+        return;
+      }
+      try {
+        this.makeSocket();
+        await this.open();
+        await this.authenticate(await this.credentialsProvider());
+        await this.resubscribe();
+        this.reconnecting = false;
+        this.reconnectedListener?.();
+        return;
+      } catch {
+        // try again until retries are exhausted
+      }
+    }
+    this.reconnecting = false;
+    this.disconnectedListener?.(err);
+  }
+
+  private async resubscribe(): Promise<void> {
+    if (this.marketSubscribed) {
+      try {
+        await this.subscribeMarket();
+      } catch {
+        /* best-effort */
+      }
+    }
+    if (this.observationSubscribed) {
+      try {
+        await this.subscribeObservation(this.observationActiveScan);
+      } catch {
+        /* best-effort */
+      }
+    }
+  }
+
+  private async withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        if (err instanceof SpacemoltError && err.code === 'rate_limited' && attempt < this.maxRateLimitRetries) {
+          await delay(retryAfterMs(err));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
+  /** Serialize mutations: each runs only after the previous settles. */
+  private enqueueMutation<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.mutationLane.then(task, task);
+    this.mutationLane = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 }
