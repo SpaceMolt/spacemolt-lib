@@ -20,10 +20,9 @@ Baseline spec when this file started: gameserver **v0.452.0**.
 ---
 
 ## 1. Publish payload schemas for the untyped push frames
-**Status:** in-progress (server change pushed; pending merge/deploy) · **Needed by:** M3 (typed push events) · **Priority:** high
+**Status:** merged (gameserver PR #1563) · pending deploy · **Needed by:** M3 (typed push events) · **Priority:** high
 
-> **Update (2026-06-29):** Implemented gameserver-side on branch
-> `claude/spacemolt-typescript-lib-tnlldh` (commit `d317d56`). Adds typed
+> **Update (2026-06-29):** Merged in gameserver PR #1563. Adds typed
 > `Notification_<msg_type>` schemas for the 22 remaining push frames that fire
 > today — 13 → **35** total. Struct-backed frames (battle_*, drone_update,
 > drone_destroyed, base_raid_update, base_destroyed) reflect their
@@ -76,7 +75,15 @@ schemas flow into `notifications.gen.ts` automatically (no lib code change).
 ---
 
 ## 2. Publish the auth/welcome frame payload schemas
-**Status:** todo · **Needed by:** M1–M2 · **Priority:** medium
+**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M1–M2 · **Priority:** medium
+
+> **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
+> `AuthFramePayloadSchemas()` (`internal/openapi/auth_schemas.go`) reflects
+> `WelcomePayload` and `LoggedInPayload` into both specs' `components.schemas`.
+> **Lib follow-up once deployed:** `bun run fetch-spec && bun run generate`,
+> then replace the hand-written `LoggedInFrame.payload` (`Record<string,
+> unknown>`) in `src/protocol.ts` with the generated `LoggedInPayload` type
+> (and optionally swap the hand-typed welcome payload for `WelcomePayload`).
 
 `V2GameState` **is** published (good — the action_result delta can ref it), but
 the WS auth frames are not:
@@ -97,7 +104,17 @@ the WS auth frames are not:
 ---
 
 ## 3. (Optional) `x-state-sections` per mutation operation
-**Status:** todo · **Needed by:** M2/M3 (decide there) · **Priority:** low
+**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M2/M3 · **Priority:** low
+
+> **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
+> `v2.go` emits `x-state-sections: [...]` on every mutation operation (103 of
+> them) alongside `x-is-mutation`, sourced from the registry's `StateSections`
+> bitmask via a new `StateSections.SectionNames()`. Section names match the 8
+> `V2GameState` keys exactly (player/ship/modules/cargo/location/missions/queue/
+> skills). **Lib follow-up once deployed:** decide whether to surface this in
+> the generated `ACTIONS` catalog (a `stateSections?: StateSection[]` field per
+> mutation) for optimistic-UI / delta-validation; `scripts/generate.ts` reads
+> the operation extensions, so it's a codegen-only change.
 
 Each mutation handler declares a `StateSections` bitmask of which of the 8
 delta sections it may touch (`internal/handlers/delta_wrapper.go`). Exposing
@@ -114,7 +131,15 @@ registry entry that already carries the bitmask
 ---
 
 ## 4. Surface `retry_after` in the WS `rate_limited` error details
-**Status:** todo · **Needed by:** M4 (done, with a workaround) · **Priority:** low
+**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M4 (done, with a workaround) · **Priority:** low
+
+> **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
+> `rejectWSRateLimit` now sends `Decision.Details()` (limit/scope/limit_per_min/
+> current) plus `retry_after` (seconds, int) in the error envelope's `details`,
+> via a new `respondErrorWithDetails` helper. **Lib follow-up:** none required —
+> `retryAfterMs` in `src/account.ts` already prefers `details.retry_after` when
+> present, so once deployed the string parse becomes a pure fallback. No lib
+> change needed.
 
 The HTTP 429 body carries a structured `retry_after` (seconds), but the
 WebSocket `rate_limited` error frame does not — `rejectWSRateLimit` →
