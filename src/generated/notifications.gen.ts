@@ -5,67 +5,155 @@
 // to `Record<string, unknown>` until the server types them (incremental work).
 
 import type {
+  NotificationAchievementUnlocked,
+  NotificationBaseDestroyed,
+  NotificationBaseRaidUpdate,
+  NotificationBattleAlert,
+  NotificationBattleDamage,
+  NotificationBattleEnded,
+  NotificationBattleJoined,
+  NotificationBattleLeft,
+  NotificationBattleStarted,
+  NotificationBattleUpdate,
   NotificationChatMessage,
   NotificationCombatUpdate,
   NotificationCraftingUpdate,
+  NotificationDroneDestroyed,
+  NotificationDroneScan,
+  NotificationDroneSurvey,
+  NotificationDroneUpdate,
+  NotificationFacilityReclaimed,
+  NotificationFacilityRentWarning,
   NotificationMarketUpdate,
   NotificationMiningYield,
   NotificationObservationUpdate,
   NotificationPilotlessShip,
+  NotificationPirateDestroyed,
+  NotificationPirateRadio,
   NotificationPlayerDied,
+  NotificationPlayerKill,
   NotificationReconnected,
   NotificationScanDetected,
   NotificationScanResult,
   NotificationSkillLevelUp,
+  NotificationTradeCancelled,
+  NotificationTradeComplete,
+  NotificationTradeDeclined,
   NotificationTradeOfferReceived,
 } from './openapi/types.gen.ts';
 
 /** msg_type values that have a published payload schema. */
 export type TypedNotificationType =
+  | "achievement_unlocked"
+  | "base_destroyed"
+  | "base_raid_update"
+  | "battle_alert"
+  | "battle_damage"
+  | "battle_ended"
+  | "battle_joined"
+  | "battle_left"
+  | "battle_started"
+  | "battle_update"
   | "chat_message"
   | "combat_update"
   | "crafting_update"
+  | "drone_destroyed"
+  | "drone_scan"
+  | "drone_survey"
+  | "drone_update"
+  | "facility_reclaimed"
+  | "facility_rent_warning"
   | "market_update"
   | "mining_yield"
   | "observation_update"
   | "pilotless_ship"
+  | "pirate_destroyed"
+  | "pirate_radio"
   | "player_died"
+  | "player_kill"
   | "reconnected"
   | "scan_detected"
   | "scan_result"
   | "skill_level_up"
+  | "trade_cancelled"
+  | "trade_complete"
+  | "trade_declined"
   | "trade_offer_received";
 
 /** Maps a typed push msg_type to its payload type. */
 export interface NotificationPayloads {
+  "achievement_unlocked": NotificationAchievementUnlocked;
+  "base_destroyed": NotificationBaseDestroyed;
+  "base_raid_update": NotificationBaseRaidUpdate;
+  "battle_alert": NotificationBattleAlert;
+  "battle_damage": NotificationBattleDamage;
+  "battle_ended": NotificationBattleEnded;
+  "battle_joined": NotificationBattleJoined;
+  "battle_left": NotificationBattleLeft;
+  "battle_started": NotificationBattleStarted;
+  "battle_update": NotificationBattleUpdate;
   "chat_message": NotificationChatMessage;
   "combat_update": NotificationCombatUpdate;
   "crafting_update": NotificationCraftingUpdate;
+  "drone_destroyed": NotificationDroneDestroyed;
+  "drone_scan": NotificationDroneScan;
+  "drone_survey": NotificationDroneSurvey;
+  "drone_update": NotificationDroneUpdate;
+  "facility_reclaimed": NotificationFacilityReclaimed;
+  "facility_rent_warning": NotificationFacilityRentWarning;
   "market_update": NotificationMarketUpdate;
   "mining_yield": NotificationMiningYield;
   "observation_update": NotificationObservationUpdate;
   "pilotless_ship": NotificationPilotlessShip;
+  "pirate_destroyed": NotificationPirateDestroyed;
+  "pirate_radio": NotificationPirateRadio;
   "player_died": NotificationPlayerDied;
+  "player_kill": NotificationPlayerKill;
   "reconnected": NotificationReconnected;
   "scan_detected": NotificationScanDetected;
   "scan_result": NotificationScanResult;
   "skill_level_up": NotificationSkillLevelUp;
+  "trade_cancelled": NotificationTradeCancelled;
+  "trade_complete": NotificationTradeComplete;
+  "trade_declined": NotificationTradeDeclined;
   "trade_offer_received": NotificationTradeOfferReceived;
 }
 
 /** Names of every push msg_type with a published schema, for runtime checks. */
 export const TYPED_NOTIFICATION_TYPES = [
+  "achievement_unlocked",
+  "base_destroyed",
+  "base_raid_update",
+  "battle_alert",
+  "battle_damage",
+  "battle_ended",
+  "battle_joined",
+  "battle_left",
+  "battle_started",
+  "battle_update",
   "chat_message",
   "combat_update",
   "crafting_update",
+  "drone_destroyed",
+  "drone_scan",
+  "drone_survey",
+  "drone_update",
+  "facility_reclaimed",
+  "facility_rent_warning",
   "market_update",
   "mining_yield",
   "observation_update",
   "pilotless_ship",
+  "pirate_destroyed",
+  "pirate_radio",
   "player_died",
+  "player_kill",
   "reconnected",
   "scan_detected",
   "scan_result",
   "skill_level_up",
+  "trade_cancelled",
+  "trade_complete",
+  "trade_declined",
   "trade_offer_received",
 ] as const;
