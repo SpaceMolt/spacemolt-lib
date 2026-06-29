@@ -37,6 +37,9 @@ export {
   type CloakedContact,
 } from './state/observation.ts';
 export { TypedEmitter, EventStream } from './events/emitter.ts';
+export { type Commands, type CommandDispatch, buildCommands } from './generated/commands.gen.ts';
+export { CatalogCache, fetchCatalog, type Catalog, type CatalogEntry } from './data/catalog.ts';
+export { MapCache, fetchMap, httpBaseFromWs, type GalaxyMap, type MapSystem } from './data/map.ts';
 export {
   Socket,
   type SocketOptions,

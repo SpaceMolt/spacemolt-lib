@@ -17,6 +17,10 @@ import {
 } from './auth/credentials.ts';
 import type { WebSocketFactory } from './transport/socket.ts';
 import type { ReconnectOptions, RegisterParams, RegisterResult } from './account.ts';
+import { CatalogCache } from './data/catalog.ts';
+import { MapCache, httpBaseFromWs } from './data/map.ts';
+
+const DEFAULT_HTTP_BASE = 'https://game.spacemolt.com';
 
 export interface SpacemoltClientOptions {
   /** WebSocket URL of the v2 endpoint. */
@@ -35,6 +39,8 @@ export interface SpacemoltClientOptions {
    * Token-only accounts can't reconnect (the token is single-use).
    */
   reconnect?: boolean | ReconnectOptions;
+  /** HTTP origin for bulk data fetches. Defaults to the origin of `url`. */
+  httpBaseUrl?: string;
 }
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,9 +48,28 @@ const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 export class SpacemoltClient {
   private readonly store: CredentialStore;
   private readonly connected = new Map<string, Account>();
+  private catalogCache?: CatalogCache;
+  private mapCache?: MapCache;
 
   constructor(private readonly opts: SpacemoltClientOptions = {}) {
     this.store = opts.store ?? new MemoryCredentialStore();
+  }
+
+  /** HTTP origin used for bulk data fetches (catalog, map). */
+  get httpBaseUrl(): string {
+    return this.opts.httpBaseUrl ?? (this.opts.url ? httpBaseFromWs(this.opts.url) : DEFAULT_HTTP_BASE);
+  }
+
+  /** The bulk catalog, fetched once and cached. Pass `force` to refetch. */
+  async catalog(force = false): Promise<CatalogCache> {
+    if (force || !this.catalogCache) this.catalogCache = await CatalogCache.load(this.httpBaseUrl);
+    return this.catalogCache;
+  }
+
+  /** The static galaxy map, fetched once and cached. Pass `force` to refetch. */
+  async map(force = false): Promise<MapCache> {
+    if (force || !this.mapCache) this.mapCache = await MapCache.load(this.httpBaseUrl);
+    return this.mapCache;
   }
 
   /** The credential store backing this client. */

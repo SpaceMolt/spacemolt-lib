@@ -201,12 +201,86 @@ function emitNotifications(spec: OpenAPISpec): string {
   return out;
 }
 
+/** Method/param identifier base for a tool/action, e.g. spacemolt_market/view_market -> SpacemoltMarketViewMarket. */
+function commandTypeName(tool: string, action: string): string {
+  return tsIdentifier(`${tool}_${action}`);
+}
+
+/**
+ * Emit the ergonomic command facade: a typed param interface per parameterized
+ * action, a `Commands` interface grouping every action under its tool (with the
+ * right query/mutation return type), and a `buildCommands(dispatch)` runtime.
+ */
+function emitCommands(actions: ActionDef[]): string {
+  const byTool = new Map<string, ActionDef[]>();
+  for (const a of actions) {
+    const list = byTool.get(a.tool) ?? [];
+    list.push(a);
+    byTool.set(a.tool, list);
+  }
+  const tools = [...byTool.keys()].sort();
+
+  let out = BANNER;
+  out += `import type { MutationResult, QueryResult } from '../protocol.ts';\n\n`;
+
+  // Param interfaces (only for actions that take parameters).
+  for (const a of actions) {
+    if (!a.params.length) continue;
+    out += `export interface ${commandTypeName(a.tool, a.action)}Params {\n`;
+    for (const p of a.params) {
+      if (p.description) out += `  /** ${p.description.replace(/\*\//g, '*\\/')} */\n`;
+      out += `  ${p.name}${p.required ? '' : '?'}: ${p.type};\n`;
+    }
+    out += `}\n\n`;
+  }
+
+  const ret = (a: ActionDef): string => (a.kind === 'mutation' ? 'MutationResult' : 'QueryResult');
+  const signature = (a: ActionDef): string => {
+    if (!a.params.length) return `(): Promise<${ret(a)}>`;
+    const paramsType = `${commandTypeName(a.tool, a.action)}Params`;
+    const optional = a.params.every((p) => !p.required);
+    return `(params${optional ? '?' : ''}: ${paramsType}): Promise<${ret(a)}>`;
+  };
+
+  // Commands interface, grouped by tool.
+  out += `export interface Commands {\n`;
+  for (const tool of tools) {
+    out += `  ${tool}: {\n`;
+    for (const a of byTool.get(tool)!) {
+      if (a.summary) out += `    /** ${a.summary.replace(/\*\//g, '*\\/')} */\n`;
+      out += `    ${a.action}${signature(a)};\n`;
+    }
+    out += `  };\n`;
+  }
+  out += `}\n\n`;
+
+  out += `export type CommandDispatch = (\n`;
+  out += `  tool: string,\n  action: string,\n  payload?: Record<string, unknown>,\n`;
+  out += `) => Promise<QueryResult | MutationResult>;\n\n`;
+
+  // Runtime: bind each tool/action to the dispatcher. Types come from Commands.
+  out += `export function buildCommands(dispatch: CommandDispatch): Commands {\n`;
+  out += `  const bind = (tool: string, action: string) => (params?: Record<string, unknown>) => dispatch(tool, action, params);\n`;
+  out += `  return {\n`;
+  for (const tool of tools) {
+    out += `    ${tool}: {\n`;
+    for (const a of byTool.get(tool)!) {
+      out += `      ${a.action}: bind(${JSON.stringify(tool)}, ${JSON.stringify(a.action)}),\n`;
+    }
+    out += `    },\n`;
+  }
+  out += `  } as unknown as Commands;\n`;
+  out += `}\n`;
+  return out;
+}
+
 function main() {
   const spec: OpenAPISpec = JSON.parse(readFileSync(SPEC_PATH, 'utf-8'));
   const actions = extractActions(spec);
 
   writeFileSync(join(OUT_DIR, 'actions.gen.ts'), emitActions(spec, actions));
   writeFileSync(join(OUT_DIR, 'notifications.gen.ts'), emitNotifications(spec));
+  writeFileSync(join(OUT_DIR, 'commands.gen.ts'), emitCommands(actions));
 
   const queries = actions.filter((a) => a.kind === 'query').length;
   const mutations = actions.length - queries;

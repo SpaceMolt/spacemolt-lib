@@ -48,6 +48,9 @@ bun run build         # bundle + emit .d.ts to dist/
    - `src/generated/notifications.gen.ts` — the `msg_type -> payload type` map
      (`NotificationPayloads`, `TypedNotificationType`) built from the
      `Notification_<msg_type>` schemas the server publishes.
+   - `src/generated/commands.gen.ts` — the ergonomic command facade: a typed
+     param interface per action + a `Commands` interface grouped by tool, plus
+     `buildCommands(dispatch)`. Backs `account.commands`.
 
 Everything under `src/generated/` is auto-generated — **do not edit**. Re-run
 `bun run generate` after `bun run fetch-spec`.
@@ -92,6 +95,9 @@ src/
   auth/
     credentials.ts        CredentialStore iface + MemoryCredentialStore (M4)
     file-store.ts         FileCredentialStore (Node/Bun; imports node:fs) (M4)
+  data/
+    catalog.ts            CatalogCache — /api/catalog.json copy (M5)
+    map.ts                MapCache — /api/map copy + httpBaseFromWs (M5)
   generated/              AUTO-GENERATED — do not edit
 tests/
   mock-socket.ts          scriptable WebSocketLike for transport tests
@@ -130,7 +136,14 @@ tests/
   with backoff). Liveness watchdog deferred — a web-standard `WebSocket` can't
   observe the server's protocol-level pings, so an opt-in heartbeat query is the
   planned approach; today we rely on the socket `close` event.
-- **M5:** generated ergonomic action methods; bulk catalog/map caches.
+- **M5 (done):** generated ergonomic command facade + bulk caches. A third
+  codegen output (`commands.gen.ts`) emits a typed param interface per action
+  and a `Commands` interface grouped by tool, plus `buildCommands(dispatch)`;
+  `account.commands.spacemolt.jump({ id })` dispatches through `send` (so pacing
+  + state cache apply). Param names come from the spec (`jump` takes `id`, not
+  the doc's `target_system`). `CatalogCache`/`MapCache` (`src/data/`) fetch
+  `/api/catalog.json` and `/api/map` over HTTP with id-keyed lookups;
+  `client.catalog()`/`client.map()` fetch-once-and-cache.
 - **M6:** browser packaging pass, examples, tests, docs.
 
 ## Auth

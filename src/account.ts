@@ -12,6 +12,7 @@
  */
 
 import { ACTIONS } from './generated/actions.gen.ts';
+import { buildCommands, type Commands } from './generated/commands.gen.ts';
 import type { AuthCredentials } from './auth/credentials.ts';
 import type {
   NotificationMarketUpdate,
@@ -136,6 +137,7 @@ export class Account {
   private _welcome: WelcomeFrame['payload'] | null = null;
   private _authenticated = false;
   private _loginPayload: LoggedInPayload | null = null;
+  private _commands: Commands | null = null;
   private welcomeWaiter: ((w: WelcomeFrame['payload']) => void) | null = null;
   private pendingAuth: PendingAuth | null = null;
   private stateListener: ((changed: StateSection[]) => void) | null = null;
@@ -205,6 +207,19 @@ export class Account {
   /** The raw `logged_in` payload from the last successful auth (login extras). */
   get loginPayload(): LoggedInPayload | null {
     return this._loginPayload;
+  }
+
+  /**
+   * Typed, generated command facade grouped by tool:
+   * `account.commands.spacemolt.jump({ id: 'sol' })`,
+   * `account.commands.spacemolt_market.view_market({ item_id: 'iron_ore' })`.
+   * Each method dispatches through `send`, so pacing and the state cache apply.
+   */
+  get commands(): Commands {
+    if (!this._commands) {
+      this._commands = buildCommands((tool, action, payload) => this.send(tool, action, payload));
+    }
+    return this._commands;
   }
 
   /** The server's `welcome` payload, available after `connect()` resolves. */
