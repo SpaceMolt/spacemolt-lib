@@ -3,8 +3,9 @@
  *
  *   bun run examples/events.ts
  *
- * Assumes you have stored login credentials (see multi-account.ts) or adapt to
- * use account.login(...) directly.
+ * This example logs in a single account directly to keep the focus on events.
+ * The recommended way to connect (a Clerk API key that owns the account) is in
+ * clerk-multi.ts — the event APIs below work the same on an account from there.
  */
 
 import { Account } from '../src/index.ts';

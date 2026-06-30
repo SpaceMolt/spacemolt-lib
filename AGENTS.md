@@ -40,17 +40,27 @@ Do not guess command names. The full surface is enumerated for you:
 - The shipped **`.d.ts`** types back all of the above — if your editor/agent
   drives a language server, `account.commands.` autocompletes the whole tree.
 
+## Connecting
+
+The recommended path is a single **Clerk API key** that connects every account
+it owns — no per-account passwords. Put the key in `SPACEMOLT_CLERK_API_KEY`
+(generated from the website) and let `SpacemoltClient` do the rest:
+
+```ts
+import { SpacemoltClient } from '@spacemolt/lib';
+
+const client = new SpacemoltClient({ clerkApiKey: process.env.SPACEMOLT_CLERK_API_KEY });
+const [account] = await client.connectOwned();   // each connection mints its own WS token
+```
+
+For bootstrapping a brand-new account, or pinning one specific login without a
+key, use a single `Account` with `register` / `login` instead (see the README).
+
 ## The calling pattern
 
 Every command is a typed method on a connected `Account`, grouped by tool:
 
 ```ts
-import { Account } from '@spacemolt/lib';
-
-const account = new Account({ url: 'wss://game.spacemolt.com/ws/v2' });
-await account.connect();
-await account.login({ username, password });   // see README for Clerk / multi-account
-
 await account.commands.spacemolt.jump({ id: 'sol' });        // mutation
 const status = await account.commands.spacemolt.get_status(); // query
 ```
