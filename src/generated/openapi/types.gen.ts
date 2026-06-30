@@ -9586,39 +9586,6 @@ export type SpacemoltGetShipResponses = {
 
 export type SpacemoltGetShipResponse = SpacemoltGetShipResponses[keyof SpacemoltGetShipResponses];
 
-export type SpacemoltGetShipsData = {
-    body?: {
-        [key: string]: unknown;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v2/spacemolt/get_ships';
-};
-
-export type SpacemoltGetShipsErrors = {
-    /**
-     * Bad request — invalid params, unknown command, or game error
-     */
-    400: unknown;
-    /**
-     * Not authenticated — missing or invalid session
-     */
-    401: unknown;
-    /**
-     * Rate limited — mutations allow 1 per tick (10 seconds)
-     */
-    429: unknown;
-};
-
-export type SpacemoltGetShipsResponses = {
-    /**
-     * Command result with rendered text and structured data
-     */
-    200: V2Response;
-};
-
-export type SpacemoltGetShipsResponse = SpacemoltGetShipsResponses[keyof SpacemoltGetShipsResponses];
-
 export type SpacemoltGetSkillsData = {
     body?: {
         [key: string]: unknown;
@@ -11155,9 +11122,11 @@ export type SpacemoltAuthLoginTokenErrors = {
 
 export type SpacemoltAuthLoginTokenResponses = {
     /**
-     * Command result with rendered text and structured data
+     * Result. structuredContent type: LoginResponse
      */
-    200: V2Response;
+    200: V2Response & {
+        structuredContent?: LoginResponse;
+    };
 };
 
 export type SpacemoltAuthLoginTokenResponse = SpacemoltAuthLoginTokenResponses[keyof SpacemoltAuthLoginTokenResponses];
@@ -11245,18 +11214,7 @@ export type SpacemoltAuthRegisterResponse = SpacemoltAuthRegisterResponses[keyof
 
 export type SpacemoltBattleAdvanceData = {
     body?: {
-        /**
-         * Side to join (optional for action=engage — auto-assigned by faction if omitted)
-         */
-        side_id?: number;
-        /**
-         * Battle stance (required for action=stance): fire (100% dmg dealt/taken), evade (0% dealt, 50% taken, costs fuel), brace (0% dealt, 25% taken, shields regen 2x), flee (0% dealt, 100% taken, auto-retreats, 3 ticks from outer to escape)
-         */
-        stance?: 'fire' | 'evade' | 'brace' | 'flee';
-        /**
-         * Player ID or username of enemy to target (required for action=target)
-         */
-        target_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -11295,14 +11253,6 @@ export type SpacemoltBattleEngageData = {
          * Side to join (optional for action=engage — auto-assigned by faction if omitted)
          */
         side_id?: number;
-        /**
-         * Battle stance (required for action=stance): fire (100% dmg dealt/taken), evade (0% dealt, 50% taken, costs fuel), brace (0% dealt, 25% taken, shields regen 2x), flee (0% dealt, 100% taken, auto-retreats, 3 ticks from outer to escape)
-         */
-        stance?: 'fire' | 'evade' | 'brace' | 'flee';
-        /**
-         * Player ID or username of enemy to target (required for action=target)
-         */
-        target_id?: string;
     };
     path?: never;
     query?: never;
@@ -11384,9 +11334,9 @@ export type SpacemoltBattleReloadData = {
          */
         id: string;
         /**
-         * Item ID of ammo to load from cargo (must match the weapon's ammo type)
+         * Item ID of ammo to load from cargo (must match the weapon's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item.
          */
-        target: string;
+        target?: string;
     };
     path?: never;
     query?: never;
@@ -11423,18 +11373,7 @@ export type SpacemoltBattleReloadResponse = SpacemoltBattleReloadResponses[keyof
 
 export type SpacemoltBattleRetreatData = {
     body?: {
-        /**
-         * Side to join (optional for action=engage — auto-assigned by faction if omitted)
-         */
-        side_id?: number;
-        /**
-         * Battle stance (required for action=stance): fire (100% dmg dealt/taken), evade (0% dealt, 50% taken, costs fuel), brace (0% dealt, 25% taken, shields regen 2x), flee (0% dealt, 100% taken, auto-retreats, 3 ticks from outer to escape)
-         */
-        stance?: 'fire' | 'evade' | 'brace' | 'flee';
-        /**
-         * Player ID or username of enemy to target (required for action=target)
-         */
-        target_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -11472,15 +11411,7 @@ export type SpacemoltBattleStanceData = {
         /**
          * Battle stance (required for action=stance): fire (100% dmg dealt/taken), evade (0% dealt, 50% taken, costs fuel), brace (0% dealt, 25% taken, shields regen 2x), flee (0% dealt, 100% taken, auto-retreats, 3 ticks from outer to escape)
          */
-        id?: 'fire' | 'evade' | 'brace' | 'flee';
-        /**
-         * Side to join (optional for action=engage — auto-assigned by faction if omitted)
-         */
-        side_id?: number;
-        /**
-         * Player ID or username of enemy to target (required for action=target)
-         */
-        target_id?: string;
+        id: 'fire' | 'evade' | 'brace' | 'flee';
     };
     path?: never;
     query?: never;
@@ -11553,15 +11484,7 @@ export type SpacemoltBattleTargetData = {
         /**
          * Player ID or username of enemy to target (required for action=target)
          */
-        id?: string;
-        /**
-         * Side to join (optional for action=engage — auto-assigned by faction if omitted)
-         */
-        side_id?: number;
-        /**
-         * Battle stance (required for action=stance): fire (100% dmg dealt/taken), evade (0% dealt, 50% taken, costs fuel), brace (0% dealt, 25% taken, shields regen 2x), flee (0% dealt, 100% taken, auto-retreats, 3 ticks from outer to escape)
-         */
-        stance?: 'fire' | 'evade' | 'brace' | 'flee';
+        id: string;
     };
     path?: never;
     query?: never;
@@ -11715,7 +11638,7 @@ export type SpacemoltCitizenshipApplyData = {
         /**
          * Empire to act on. Required for apply, renounce, withdraw; ignored for list.
          */
-        target?: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
+        target: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
     };
     path?: never;
     query?: never;
@@ -11794,10 +11717,7 @@ export type SpacemoltCitizenshipHelpPostResponse = SpacemoltCitizenshipHelpPostR
 
 export type SpacemoltCitizenshipListData = {
     body?: {
-        /**
-         * Empire to act on. Required for apply, renounce, withdraw; ignored for list.
-         */
-        empire_id?: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -11835,7 +11755,7 @@ export type SpacemoltCitizenshipRenounceData = {
         /**
          * Empire to act on. Required for apply, renounce, withdraw; ignored for list.
          */
-        target?: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
+        target: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
     };
     path?: never;
     query?: never;
@@ -11875,7 +11795,7 @@ export type SpacemoltCitizenshipWithdrawData = {
         /**
          * Empire to act on. Required for apply, renounce, withdraw; ignored for list.
          */
-        target?: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
+        target: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
     };
     path?: never;
     query?: never;
@@ -12282,45 +12202,9 @@ export type SpacemoltDroneUploadResponse = SpacemoltDroneUploadResponses[keyof S
 export type SpacemoltFacilityAllowFactionData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
          * Target faction id (allow_faction/remove_faction)
          */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        faction: string;
     };
     path?: never;
     query?: never;
@@ -12358,45 +12242,9 @@ export type SpacemoltFacilityAllowFactionResponse = SpacemoltFacilityAllowFactio
 export type SpacemoltFacilityAllowPlayerData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
          * Target player id or username (allow_player/remove_player/ban/unban)
          */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        player: string;
     };
     path?: never;
     query?: never;
@@ -12434,45 +12282,9 @@ export type SpacemoltFacilityAllowPlayerResponse = SpacemoltFacilityAllowPlayerR
 export type SpacemoltFacilityBanData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
          * Target player id or username (allow_player/remove_player/ban/unban)
          */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        player: string;
     };
     path?: never;
     query?: never;
@@ -12545,101 +12357,13 @@ export type SpacemoltFacilityBaseCostResponse = SpacemoltFacilityBaseCostRespons
 export type SpacemoltFacilityBrowseForSaleData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
         facility_type?: string;
         /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
          * For 'browse_for_sale': optional maximum price filter.
          */
         max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
     };
     path?: never;
     query?: never;
@@ -12675,101 +12399,13 @@ export type SpacemoltFacilityBrowseForSaleResponse = SpacemoltFacilityBrowseForS
 export type SpacemoltFacilityBuildData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
          * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
          */
         bucket?: string;
         /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_type: string;
     };
     path?: never;
     query?: never;
@@ -12807,101 +12443,9 @@ export type SpacemoltFacilityBuildResponse = SpacemoltFacilityBuildResponses[key
 export type SpacemoltFacilityBuyListingData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
          * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
          */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        listing_id: string;
     };
     path?: never;
     query?: never;
@@ -12979,101 +12523,9 @@ export type SpacemoltFacilityBuyShipLicenseResponse = SpacemoltFacilityBuyShipLi
 export type SpacemoltFacilityCancelListingData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
          * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
          */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        listing_id: string;
     };
     path?: never;
     query?: never;
@@ -13151,101 +12603,9 @@ export type SpacemoltFacilityDeployOutpostResponse = SpacemoltFacilityDeployOutp
 export type SpacemoltFacilityDismantleData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_id: string;
     };
     path?: never;
     query?: never;
@@ -13283,101 +12643,13 @@ export type SpacemoltFacilityDismantleResponse = SpacemoltFacilityDismantleRespo
 export type SpacemoltFacilityFactionBuildData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
          * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
          */
         bucket?: string;
         /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_type: string;
     };
     path?: never;
     query?: never;
@@ -13415,101 +12687,9 @@ export type SpacemoltFacilityFactionBuildResponse = SpacemoltFacilityFactionBuil
 export type SpacemoltFacilityFactionDismantleData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_id: string;
     };
     path?: never;
     query?: never;
@@ -13546,102 +12726,7 @@ export type SpacemoltFacilityFactionDismantleResponse = SpacemoltFacilityFaction
 
 export type SpacemoltFacilityFactionListData = {
     body?: {
-        /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -13676,102 +12761,7 @@ export type SpacemoltFacilityFactionListResponse = SpacemoltFacilityFactionListR
 
 export type SpacemoltFacilityFactionOwnedData = {
     body?: {
-        /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -13807,101 +12797,17 @@ export type SpacemoltFacilityFactionOwnedResponse = SpacemoltFacilityFactionOwne
 export type SpacemoltFacilityFactionUpgradeData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
          * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
          */
         bucket?: string;
         /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
+        facility_id: string;
         /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_type: string;
     };
     path?: never;
     query?: never;
@@ -14025,29 +12931,9 @@ export type SpacemoltFacilityHelpPostResponse = SpacemoltFacilityHelpPostRespons
 export type SpacemoltFacilityJobAddData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
          * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
          */
         deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
         /**
          * Job direction: 'forward' runs the recipe normally (craft); 'reverse' recycles existing items back to inputs.
          */
@@ -14056,54 +12942,6 @@ export type SpacemoltFacilityJobAddData = {
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
         /**
          * For 'job_add': number of runs to queue.
          */
@@ -14116,10 +12954,6 @@ export type SpacemoltFacilityJobAddData = {
          * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
          */
         source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
     };
     path?: never;
     query?: never;
@@ -14157,101 +12991,13 @@ export type SpacemoltFacilityJobAddResponse = SpacemoltFacilityJobAddResponses[k
 export type SpacemoltFacilityJobCancelData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
          * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
          */
         job_id?: string;
         /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
+         * For 'job_cancel': cancel multiple jobs in a single action. When provided, 'job_id' is ignored. Use action 'job_list' to see job IDs.
          */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        job_ids?: Array<string>;
     };
     path?: never;
     query?: never;
@@ -14289,101 +13035,9 @@ export type SpacemoltFacilityJobCancelResponse = SpacemoltFacilityJobCancelRespo
 export type SpacemoltFacilityJobListData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_id: string;
     };
     path?: never;
     query?: never;
@@ -14419,101 +13073,17 @@ export type SpacemoltFacilityJobListResponse = SpacemoltFacilityJobListResponses
 export type SpacemoltFacilityJobReorderData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
+        facility_id: string;
         /**
          * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
          */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
+        job_id: string;
         /**
          * New queue position for 'job_reorder' (1-based).
          */
         position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
     };
     path?: never;
     query?: never;
@@ -14550,102 +13120,7 @@ export type SpacemoltFacilityJobReorderResponse = SpacemoltFacilityJobReorderRes
 
 export type SpacemoltFacilityListData = {
     body?: {
-        /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -14681,101 +13156,17 @@ export type SpacemoltFacilityListResponse = SpacemoltFacilityListResponses[keyof
 export type SpacemoltFacilityListForSaleData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
+        facility_id: string;
         /**
          * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
          */
         faction?: boolean;
         /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
          * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
          */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        price: number;
     };
     path?: never;
     query?: never;
@@ -14812,102 +13203,7 @@ export type SpacemoltFacilityListForSaleResponse = SpacemoltFacilityListForSaleR
 
 export type SpacemoltFacilityOwnedData = {
     body?: {
-        /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -14943,101 +13239,9 @@ export type SpacemoltFacilityOwnedResponse = SpacemoltFacilityOwnedResponses[key
 export type SpacemoltFacilityPersonalBuildData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_type: string;
     };
     path?: never;
     query?: never;
@@ -15079,97 +13283,9 @@ export type SpacemoltFacilityPersonalDecorateData = {
          */
         access?: 'private' | 'public';
         /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
          * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
          */
         description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
     };
     path?: never;
     query?: never;
@@ -15206,98 +13322,6 @@ export type SpacemoltFacilityPersonalDecorateResponse = SpacemoltFacilityPersona
 
 export type SpacemoltFacilityPersonalVisitData = {
     body?: {
-        /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
         /**
          * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
          */
@@ -15337,45 +13361,9 @@ export type SpacemoltFacilityPersonalVisitResponse = SpacemoltFacilityPersonalVi
 export type SpacemoltFacilityRemoveFactionData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
          * Target faction id (allow_faction/remove_faction)
          */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        faction: string;
     };
     path?: never;
     query?: never;
@@ -15413,45 +13401,9 @@ export type SpacemoltFacilityRemoveFactionResponse = SpacemoltFacilityRemoveFact
 export type SpacemoltFacilityRemovePlayerData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
          * Target player id or username (allow_player/remove_player/ban/unban)
          */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        player: string;
     };
     path?: never;
     query?: never;
@@ -15491,99 +13443,11 @@ export type SpacemoltFacilitySetAccessData = {
         /**
          * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
          */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
+        access: 'private' | 'public';
         /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_id: string;
     };
     path?: never;
     query?: never;
@@ -15621,45 +13485,9 @@ export type SpacemoltFacilitySetAccessResponse = SpacemoltFacilitySetAccessRespo
 export type SpacemoltFacilitySetBuildPolicyData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
          * Whether non-members may build facilities here (set_build_policy)
          */
         allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
     };
     path?: never;
     query?: never;
@@ -15697,45 +13525,9 @@ export type SpacemoltFacilitySetBuildPolicyResponse = SpacemoltFacilitySetBuildP
 export type SpacemoltFacilitySetDescriptionData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
          * New station description (set_description)
          */
         description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
     };
     path?: never;
     query?: never;
@@ -15773,45 +13565,9 @@ export type SpacemoltFacilitySetDescriptionResponse = SpacemoltFacilitySetDescri
 export type SpacemoltFacilitySetMarketFeeData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
          * Market listing fee percent 0-10 (set_market_fee)
          */
         fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
     };
     path?: never;
     query?: never;
@@ -15849,101 +13605,13 @@ export type SpacemoltFacilitySetMarketFeeResponse = SpacemoltFacilitySetMarketFe
 export type SpacemoltFacilitySetNameData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
          * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
          */
         custom_name?: string;
         /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_id: string;
     };
     path?: never;
     query?: never;
@@ -15981,101 +13649,13 @@ export type SpacemoltFacilitySetNameResponse = SpacemoltFacilitySetNameResponses
 export type SpacemoltFacilitySetOutputPriceData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
+        facility_id: string;
         /**
          * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
          */
         price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
     };
     path?: never;
     query?: never;
@@ -16113,45 +13693,9 @@ export type SpacemoltFacilitySetOutputPriceResponse = SpacemoltFacilitySetOutput
 export type SpacemoltFacilitySetPublicData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
          * Whether anyone may dock (set_public)
          */
         public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
     };
     path?: never;
     query?: never;
@@ -16189,45 +13733,9 @@ export type SpacemoltFacilitySetPublicResponse = SpacemoltFacilitySetPublicRespo
 export type SpacemoltFacilitySetRefuelPriceData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
          * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
          */
         price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
     };
     path?: never;
     query?: never;
@@ -16265,45 +13773,9 @@ export type SpacemoltFacilitySetRefuelPriceResponse = SpacemoltFacilitySetRefuel
 export type SpacemoltFacilitySetRepairPriceData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
          * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
          */
         price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
     };
     path?: never;
     query?: never;
@@ -16343,43 +13815,11 @@ export type SpacemoltFacilitySetServiceAccessData = {
         /**
          * Access level for set_service_access
          */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
+        access: 'public' | 'allies' | 'faction';
         /**
          * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
          */
-        service?: string;
+        service: string;
     };
     path?: never;
     query?: never;
@@ -16416,46 +13856,7 @@ export type SpacemoltFacilitySetServiceAccessResponse = SpacemoltFacilitySetServ
 
 export type SpacemoltFacilityStationInfoData = {
     body?: {
-        /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -16491,45 +13892,9 @@ export type SpacemoltFacilityStationInfoResponse = SpacemoltFacilityStationInfoR
 export type SpacemoltFacilityStationSetNameData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
          * New station name (set_name)
          */
-        name?: string;
-        /**
-         * Target player id or username (allow_player/remove_player/ban/unban)
-         */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        name: string;
     };
     path?: never;
     query?: never;
@@ -16565,30 +13930,6 @@ export type SpacemoltFacilityStationSetNameResponse = SpacemoltFacilityStationSe
 export type SpacemoltFacilityTransferData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
          * Transfer direction: 'to_faction' moves the facility to faction ownership; 'to_player' transfers it to a specific player.
          */
         direction: 'to_faction' | 'to_player';
@@ -16597,69 +13938,9 @@ export type SpacemoltFacilityTransferData = {
          */
         facility_id: string;
         /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
          * Target player ID for 'transfer' action with direction 'to_player'.
          */
         player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
     };
     path?: never;
     query?: never;
@@ -16697,61 +13978,17 @@ export type SpacemoltFacilityTransferResponse = SpacemoltFacilityTransferRespons
 export type SpacemoltFacilityTypesData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
          * Filter for 'types' action: show only this category.
          */
         category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
         /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
         facility_type?: string;
         /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
          * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
          */
         level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
         /**
          * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
          */
@@ -16764,34 +14001,6 @@ export type SpacemoltFacilityTypesData = {
          * Results per page for 'types' action (default: 20, max: 50).
          */
         per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
     };
     path?: never;
     query?: never;
@@ -16827,45 +14036,9 @@ export type SpacemoltFacilityTypesResponse = SpacemoltFacilityTypesResponses[key
 export type SpacemoltFacilityUnbanData = {
     body?: {
         /**
-         * Access level for set_service_access
-         */
-        access?: 'public' | 'allies' | 'faction';
-        /**
-         * Whether non-members may build facilities here (set_build_policy)
-         */
-        allow_outsiders?: boolean;
-        /**
-         * New station description (set_description)
-         */
-        description?: string;
-        /**
-         * Target faction id (allow_faction/remove_faction)
-         */
-        faction?: string;
-        /**
-         * Market listing fee percent 0-10 (set_market_fee)
-         */
-        fee_percent?: number;
-        /**
-         * New station name (set_name)
-         */
-        name?: string;
-        /**
          * Target player id or username (allow_player/remove_player/ban/unban)
          */
-        player?: string;
-        /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
-         */
-        price?: number;
-        /**
-         * Whether anyone may dock (set_public)
-         */
-        public?: boolean;
-        /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
-         */
-        service?: string;
+        player: string;
     };
     path?: never;
     query?: never;
@@ -16903,101 +14076,17 @@ export type SpacemoltFacilityUnbanResponse = SpacemoltFacilityUnbanResponses[key
 export type SpacemoltFacilityUpgradeData = {
     body?: {
         /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
          * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
          */
         bucket?: string;
         /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
          * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
          */
-        facility_id?: string;
+        facility_id: string;
         /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        facility_type: string;
     };
     path?: never;
     query?: never;
@@ -17034,102 +14123,7 @@ export type SpacemoltFacilityUpgradeResponse = SpacemoltFacilityUpgradeResponses
 
 export type SpacemoltFacilityUpgradesData = {
     body?: {
-        /**
-         * For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.
-         */
-        access?: 'private' | 'public';
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
-         * Filter for 'types' action: show only this category.
-         */
-        category?: 'infrastructure' | 'service' | 'production' | 'faction' | 'personal';
-        /**
-         * For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it.
-         */
-        custom_name?: string;
-        /**
-         * Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.
-         */
-        deliver_to?: string;
-        /**
-         * For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel).
-         */
-        description?: string;
-        /**
-         * Transfer direction for 'transfer' action ('to_faction' or 'to_player'), or job direction for 'job_add' ('forward' or 'reverse').
-         */
-        direction?: 'to_faction' | 'to_player' | 'forward' | 'reverse';
-        /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.
-         */
-        facility_id?: string;
-        /**
-         * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
-         */
-        facility_type?: string;
-        /**
-         * For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission).
-         */
-        faction?: boolean;
-        /**
-         * Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs.
-         */
-        job_id?: string;
-        /**
-         * Filter for 'types' action: show only this tier level (1, 2, 3, etc.).
-         */
-        level?: number;
-        /**
-         * For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings.
-         */
-        listing_id?: string;
-        /**
-         * For 'browse_for_sale': optional maximum price filter.
-         */
-        max_price?: number;
-        /**
-         * Filter for 'types' action: case-insensitive name search (e.g. 'refinery').
-         */
-        name?: string;
-        /**
-         * Page number for 'types' action results (default: 1).
-         */
-        page?: number;
-        /**
-         * Results per page for 'types' action (default: 20, max: 50).
-         */
-        per_page?: number;
-        /**
-         * Target player ID for 'transfer' action with direction 'to_player'.
-         */
-        player_id?: string;
-        /**
-         * New queue position for 'job_reorder' (1-based).
-         */
-        position?: number;
-        /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
-         */
-        price?: number;
-        /**
-         * For 'job_add': number of runs to queue.
-         */
-        quantity?: number;
-        /**
-         * Recipe ID to run (for 'job_add' action).
-         */
-        recipe_id?: string;
-        /**
-         * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
-         */
-        source?: string;
-        /**
-         * For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own.
-         */
-        username?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -18847,10 +15841,7 @@ export type SpacemoltFactionCommerceHelpPostResponse = SpacemoltFactionCommerceH
 
 export type SpacemoltFleetAcceptData = {
     body?: {
-        /**
-         * Player name or ID (for invite/kick)
-         */
-        player_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -18888,9 +15879,13 @@ export type SpacemoltFleetAcceptResponse = SpacemoltFleetAcceptResponses[keyof S
 export type SpacemoltFleetBoardData = {
     body?: {
         /**
-         * Player name or ID (for invite/kick)
+         * For 'board': stow your current ship in the station's faction garage as you board the carrier, instead of leaving it docked (requires a faction garage at the station).
          */
-        id?: string;
+        garage?: boolean;
+        /**
+         * Player name or ID (for invite/kick/board)
+         */
+        id: string;
     };
     path?: never;
     query?: never;
@@ -18927,10 +15922,7 @@ export type SpacemoltFleetBoardResponse = SpacemoltFleetBoardResponses[keyof Spa
 
 export type SpacemoltFleetCreateData = {
     body?: {
-        /**
-         * Player name or ID (for invite/kick)
-         */
-        player_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -18967,10 +15959,7 @@ export type SpacemoltFleetCreateResponse = SpacemoltFleetCreateResponses[keyof S
 
 export type SpacemoltFleetDeclineData = {
     body?: {
-        /**
-         * Player name or ID (for invite/kick)
-         */
-        player_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -19007,10 +15996,7 @@ export type SpacemoltFleetDeclineResponse = SpacemoltFleetDeclineResponses[keyof
 
 export type SpacemoltFleetDisbandData = {
     body?: {
-        /**
-         * Player name or ID (for invite/kick)
-         */
-        player_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -19047,10 +16033,7 @@ export type SpacemoltFleetDisbandResponse = SpacemoltFleetDisbandResponses[keyof
 
 export type SpacemoltFleetDisembarkData = {
     body?: {
-        /**
-         * Player name or ID (for invite/kick)
-         */
-        player_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -19130,9 +16113,9 @@ export type SpacemoltFleetHelpPostResponse = SpacemoltFleetHelpPostResponses[key
 export type SpacemoltFleetInviteData = {
     body?: {
         /**
-         * Player name or ID (for invite/kick)
+         * Player name or ID (for invite/kick/board)
          */
-        id?: string;
+        id: string;
     };
     path?: never;
     query?: never;
@@ -19170,9 +16153,9 @@ export type SpacemoltFleetInviteResponse = SpacemoltFleetInviteResponses[keyof S
 export type SpacemoltFleetKickData = {
     body?: {
         /**
-         * Player name or ID (for invite/kick)
+         * Player name or ID (for invite/kick/board)
          */
-        id?: string;
+        id: string;
     };
     path?: never;
     query?: never;
@@ -19209,10 +16192,7 @@ export type SpacemoltFleetKickResponse = SpacemoltFleetKickResponses[keyof Space
 
 export type SpacemoltFleetLeaveData = {
     body?: {
-        /**
-         * Player name or ID (for invite/kick)
-         */
-        player_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -19249,10 +16229,7 @@ export type SpacemoltFleetLeaveResponse = SpacemoltFleetLeaveResponses[keyof Spa
 
 export type SpacemoltFleetStatusData = {
     body?: {
-        /**
-         * Player name or ID (for invite/kick)
-         */
-        player_id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -22263,6 +19240,10 @@ export type SpacemoltStorageDepositData = {
          */
         bucket?: string;
         /**
+         * For 'deposit' with target=<player name/id>: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.)
+         */
+        credits?: number;
+        /**
          * Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury.
          */
         dest_bucket?: string;
@@ -22289,10 +19270,6 @@ export type SpacemoltStorageDepositData = {
          * Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury).
          */
         source?: string;
-        /**
-         * Optional: station ID to view storage at without being docked. Only applies to action="view", target="self".
-         */
-        station_id?: string;
         /**
          * Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift)
          */
@@ -22479,37 +19456,6 @@ export type SpacemoltStorageLootResponse = SpacemoltStorageLootResponses[keyof S
 export type SpacemoltStorageViewData = {
     body?: {
         /**
-         * Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in action=view target=faction.
-         */
-        bucket?: string;
-        /**
-         * Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury.
-         */
-        dest_bucket?: string;
-        /**
-         * Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.
-         */
-        item_id?: string;
-        /**
-         * Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure.
-         */
-        items?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        /**
-         * Optional message when gifting to another player
-         */
-        message?: string;
-        /**
-         * Amount to transfer
-         */
-        quantity?: number;
-        /**
-         * Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury).
-         */
-        source?: string;
-        /**
          * Optional: station ID to view storage at without being docked. Only applies to action="view", target="self".
          */
         station_id?: string;
@@ -22571,10 +19517,6 @@ export type SpacemoltStorageWithdrawData = {
             quantity: number;
         }>;
         /**
-         * Optional message when gifting to another player
-         */
-        message?: string;
-        /**
          * Amount to transfer
          */
         quantity?: number;
@@ -22582,10 +19524,6 @@ export type SpacemoltStorageWithdrawData = {
          * Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury).
          */
         source?: string;
-        /**
-         * Optional: station ID to view storage at without being docked. Only applies to action="view", target="self".
-         */
-        station_id?: string;
         /**
          * Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift)
          */
