@@ -171,5 +171,16 @@ tests/
 
 Raw credentials first: `register` (returns a one-time generated password),
 `login` (username + password), `login_token` (short-lived token from the
-Clerk-authenticated `POST /api/player/{id}/ws-token`). Clerk OAuth is a planned
-later option for browser clients — leave the seam, don't build it yet.
+Clerk-authenticated `POST /api/player/{id}/ws-token`).
+
+**Clerk multi-account** (`src/auth/clerk.ts`): authenticate with a Clerk **API
+key** (Bearer) to connect every account the Clerk user owns without storing
+per-account passwords. `ClerkSource.listPlayers()` reads `GET
+/api/registration-code` (owned players); the `clerk` credential kind mints a
+fresh single-use ws-token via `POST /api/player/{id}/ws-token` on each
+(re)connect, then logs in with `login_token`. `client.connectOwned()` enumerates
+and connects them all (staggered). The API key comes from an env var
+(`SPACEMOLT_CLERK_API_KEY`); generate it from the website's `POST
+/api/auth/create-key`. The token mint uses a separate per-user rate budget, so
+it never competes with gameplay. Clerk *browser OAuth* (interactive sign-in) is
+still a future seam — the API-key path is the headless/agent one.

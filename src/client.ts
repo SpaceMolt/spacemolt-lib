@@ -19,6 +19,7 @@ import type { WebSocketFactory } from './transport/socket.ts';
 import type { ReconnectOptions, RegisterParams, RegisterResult } from './account.ts';
 import { CatalogCache } from './data/catalog.ts';
 import { MapCache, httpBaseFromWs } from './data/map.ts';
+import { ClerkSource, type ClerkPlayer } from './auth/clerk.ts';
 
 const DEFAULT_HTTP_BASE = 'https://game.spacemolt.com';
 
@@ -41,6 +42,14 @@ export interface SpacemoltClientOptions {
   reconnect?: boolean | ReconnectOptions;
   /** HTTP origin for bulk data fetches. Defaults to the origin of `url`. */
   httpBaseUrl?: string;
+  /**
+   * Clerk API key for `connectOwned()` / `listOwnedPlayers()` — connect every
+   * game account the Clerk user owns without storing per-account passwords.
+   * Generate one from the website; keep it secret.
+   */
+  clerkApiKey?: string;
+  /** Inject a `fetch` implementation (tests, custom runtimes). */
+  fetchImpl?: typeof fetch;
 }
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,6 +59,7 @@ export class SpacemoltClient {
   private readonly connected = new Map<string, Account>();
   private catalogCache?: CatalogCache;
   private mapCache?: MapCache;
+  private clerkSource?: ClerkSource;
 
   constructor(private readonly opts: SpacemoltClientOptions = {}) {
     this.store = opts.store ?? new MemoryCredentialStore();
@@ -132,12 +142,65 @@ export class SpacemoltClient {
 
   /** Connect every stored account, staggered to respect rate limits. */
   async connectAll(): Promise<Account[]> {
-    const stagger = this.opts.connectStaggerMs ?? 250;
     const stored = await this.store.list();
+    return this.connectIds(stored.map((s) => s.id));
+  }
+
+  // --- Clerk multi-account (connect every account you own) ---
+
+  /** List the player accounts the Clerk user owns. Requires `clerkApiKey`. */
+  async listOwnedPlayers(): Promise<ClerkPlayer[]> {
+    return this.requireClerkSource().listPlayers();
+  }
+
+  /**
+   * Connect every account the Clerk user owns (optionally filtered), staggered
+   * to respect rate limits. Stores a `clerk` credential per player — each
+   * account mints a fresh single-use WS token on connect and reconnect, so no
+   * passwords are persisted. Requires `clerkApiKey`.
+   */
+  async connectOwned(opts: { filter?: (player: ClerkPlayer) => boolean } = {}): Promise<Account[]> {
+    const source = this.requireClerkSource();
+    const players = await source.listPlayers();
+    const selected = opts.filter ? players.filter(opts.filter) : players;
+    const ids: string[] = [];
+    for (const player of selected) {
+      await this.store.put({
+        id: player.username,
+        credentials: {
+          kind: 'clerk',
+          apiKey: source.apiKey,
+          playerId: player.id,
+          httpBaseUrl: source.httpBaseUrl,
+        },
+        playerId: player.id,
+      });
+      ids.push(player.username);
+    }
+    return this.connectIds(ids);
+  }
+
+  private requireClerkSource(): ClerkSource {
+    if (!this.clerkSource) {
+      if (!this.opts.clerkApiKey) {
+        throw new Error('connectOwned/listOwnedPlayers require `clerkApiKey` in SpacemoltClientOptions');
+      }
+      this.clerkSource = new ClerkSource({
+        apiKey: this.opts.clerkApiKey,
+        httpBaseUrl: this.httpBaseUrl,
+        fetchImpl: this.opts.fetchImpl,
+      });
+    }
+    return this.clerkSource;
+  }
+
+  /** Connect the given stored ids, staggered to respect rate limits. */
+  private async connectIds(ids: string[]): Promise<Account[]> {
+    const stagger = this.opts.connectStaggerMs ?? 250;
     const accounts: Account[] = [];
-    for (let i = 0; i < stored.length; i++) {
+    for (let i = 0; i < ids.length; i++) {
       if (i > 0 && stagger > 0) await delay(stagger);
-      accounts.push(await this.connect(stored[i]!.id));
+      accounts.push(await this.connect(ids[i]!));
     }
     return accounts;
   }
@@ -178,6 +241,7 @@ export class SpacemoltClient {
       webSocketFactory: this.opts.webSocketFactory,
       seedState: this.opts.seedState,
       reconnect: this.opts.reconnect ?? true,
+      fetchImpl: this.opts.fetchImpl,
       credentials: async () => {
         const stored = await this.store.get(id);
         if (!stored) throw new Error(`no stored credentials for account "${id}"`);

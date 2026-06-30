@@ -21,6 +21,12 @@ export {
 } from './account.ts';
 export { SpacemoltClient, type SpacemoltClientOptions } from './client.ts';
 export {
+  ClerkSource,
+  mintWsToken,
+  type ClerkPlayer,
+  type ClerkSourceOptions,
+} from './auth/clerk.ts';
+export {
   type CredentialStore,
   type StoredAccount,
   type AuthCredentials,

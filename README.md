@@ -121,6 +121,25 @@ Reconnect is close-code-aware: a `session_replaced` (someone else logged in as
 that player) or a deliberate `close()` is terminal; transient drops reconnect
 with backoff and restore subscriptions.
 
+### Connect every account you own (Clerk)
+
+Instead of storing a password per account, authenticate once with a **Clerk API
+key** and connect every account that key owns. Each connection mints its own
+short-lived, single-use WS token (re-minted on reconnect), so no game passwords
+are persisted. Generate the API key from the website — see
+[Live testing](./docs/live-testing.md).
+
+```ts
+const client = new SpacemoltClient({ clerkApiKey: process.env.SPACEMOLT_CLERK_API_KEY });
+
+const players = await client.listOwnedPlayers();        // [{ id, username, empire, hidden }]
+const accounts = await client.connectOwned({ filter: (p) => !p.hidden });
+```
+
+Token minting draws on a separate per-user rate budget from gameplay, and
+`connectOwned` staggers the connects, so a large fleet won't trip limits. The
+password/`CredentialStore` path below still works as a fallback.
+
 ### Credential storage
 
 `MemoryCredentialStore` is the default. For persistence on Node/Bun, use the
@@ -153,7 +172,8 @@ map.system('sol');
 ## Examples
 
 Runnable scripts in [`examples/`](./examples): `quickstart.ts`,
-`multi-account.ts`, `events.ts`, `smoke.ts`. Run with `bun run examples/<name>.ts`.
+`multi-account.ts`, `clerk-multi.ts`, `events.ts`, `smoke.ts`. Run with
+`bun run examples/<name>.ts`.
 
 To validate the library against a real server (and the Clerk-gated registration
 flow), see **[Live testing](./docs/live-testing.md)** — `examples/smoke.ts` runs

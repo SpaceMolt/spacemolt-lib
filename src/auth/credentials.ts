@@ -7,10 +7,15 @@
  * the file-backed store does, and lives here in `src/auth/` for that reason.
  */
 
-/** How an account authenticates. Raw credentials first; Clerk is a later seam. */
+/**
+ * How an account authenticates. Raw credentials (login / login_token / register)
+ * plus `clerk`: a Clerk API key + the owned player's id, from which the account
+ * mints a fresh single-use WS token on each (re)connect (see `src/auth/clerk.ts`).
+ */
 export type AuthCredentials =
   | { kind: 'login'; username: string; password: string }
   | { kind: 'login_token'; token: string }
+  | { kind: 'clerk'; apiKey: string; playerId: string; httpBaseUrl: string }
   | { kind: 'register'; username: string; empire: string; registration_code?: string };
 
 export interface StoredAccount {
