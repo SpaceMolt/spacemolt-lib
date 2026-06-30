@@ -63,6 +63,19 @@ two-phase `result` ack + later `action_result`). Absent/false means it
 resolves synchronously. `scripts/generate.ts` reads this directly — do not
 re-introduce a name-based heuristic.
 
+### Spec sync (CI)
+
+`.github/workflows/sync-spec.yml` keeps `openapi.json` + `src/generated/` in
+lockstep with the live server automatically — this is what makes
+"self-maintaining" real rather than a manual chore. On a schedule / manual
+dispatch / `gameserver-deployed` repository_dispatch it runs `fetch-spec`, diffs
+the result **normalized** (stripping `info.x-gameserver-version`, which the
+server re-stamps on every deploy even when the API is unchanged), and on a real
+change runs `generate` → `typecheck` → `test` and commits. A spec change that
+breaks the hand-written layer fails the run instead of committing a broken sync.
+Don't hand-run `fetch-spec`/`generate` to "catch up" — let the workflow do it;
+run them locally only when iterating on the codegen itself.
+
 The incremental gameserver-side work that backs this library is tracked in
 [`docs/gameserver-todo.md`](docs/gameserver-todo.md) — push-frame schemas, auth
 frame payloads, optional `x-state-sections`. Add to it whenever we hit a gap the
@@ -71,6 +84,8 @@ server is the right place to fix; open the PR only when a milestone needs it.
 ## Layout
 
 ```
+.github/workflows/
+  sync-spec.yml           CI: auto fetch-spec + generate + commit on spec change
 openapi.json              committed spec snapshot (synced via fetch-spec)
 openapi-ts.config.ts      stage-1 codegen config
 scripts/

@@ -1939,9 +1939,9 @@ export interface SpacemoltFactionAdminPostMissionParams {
 
 export interface SpacemoltFactionAdminPromoteParams {
   /** Player ID to promote/demote */
-  id: string;
+  player_id: string;
   /** New role (recruit, member, officer, leader) */
-  text: "recruit" | "member" | "officer" | "leader";
+  role_id: "recruit" | "member" | "officer" | "leader";
 }
 
 export interface SpacemoltFactionAdminWriteRoomParams {

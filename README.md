@@ -153,7 +153,11 @@ map.system('sol');
 ## Examples
 
 Runnable scripts in [`examples/`](./examples): `quickstart.ts`,
-`multi-account.ts`, `events.ts`. Run with `bun run examples/<name>.ts`.
+`multi-account.ts`, `events.ts`, `smoke.ts`. Run with `bun run examples/<name>.ts`.
+
+To validate the library against a real server (and the Clerk-gated registration
+flow), see **[Live testing](./docs/live-testing.md)** — `examples/smoke.ts` runs
+the full pipeline with `PASS`/`FAIL` per stage.
 
 ## Self-maintaining
 

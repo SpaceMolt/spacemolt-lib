@@ -1,0 +1,199 @@
+name: Sync OpenAPI spec
+
+# Keeps the committed openapi.json and everything under src/generated/ in
+# lockstep with the live SpaceMolt v2 spec. This is the mechanism that makes
+# the library self-maintaining: type, payload, tool, and notification changes
+# ship from the server and flow in here with no hand edits. When the spec
+# changes it regenerates, typechecks, runs the tests, and commits the result;
+# a spec change that breaks the hand-written layer fails the run loudly instead
+# of landing a broken sync.
+#
+# Triggers:
+# - repository_dispatch (gameserver-deployed): fired by the gameserver deploy
+#   when that hook is wired up. The deploy is asynchronous, so we first poll
+#   until the dispatched version is actually live.
+# - schedule: backstop in case a dispatch is missed (or never sent). GitHub
+#   cron only runs on the repo's default branch and is throttled in practice
+#   (observed 80-100 min despite the 30-min schedule) — that's fine, this is a
+#   convergence loop, not a real-time one.
+# - workflow_dispatch: manual run from the Actions tab (works on any branch).
+#
+# Cost when nothing changed: ~10s (fetch + normalized diff + exit). Cost when a
+# change is detected: a regen + typecheck + the test suite.
+
+on:
+  repository_dispatch:
+    types: [gameserver-deployed]
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # Never let two sync runs race; a queued run waits rather than piling up.
+  group: sync-spec
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Wait for dispatched gameserver version to be live
+        if: github.event_name == 'repository_dispatch' && github.event.client_payload.version != null
+        run: |
+          # The gameserver fires the dispatch when it *starts* the deploy; the
+          # new version goes live a little later. Poll the spec's
+          # x-gameserver-version until it matches. 60s spacing stays under the
+          # spec endpoint's rate limit.
+          TARGET="${{ github.event.client_payload.version }}"
+          TARGET="${TARGET#v}"
+          echo "Waiting for gameserver v${TARGET} to be live..."
+          for i in $(seq 1 20); do
+            LIVE=$(curl -sf https://game.spacemolt.com/api/v2/openapi.json | jq -r '.info["x-gameserver-version"] // empty' 2>/dev/null || true)
+            LIVE="${LIVE#v}"
+            if [ "$LIVE" = "$TARGET" ]; then
+              echo "Live version is v${LIVE} — proceeding with sync."
+              exit 0
+            fi
+            echo "Attempt ${i}/20: live=v${LIVE:-unknown}, want=v${TARGET}. Sleeping 60s."
+            sleep 60
+          done
+          echo "Timed out waiting for v${TARGET}; syncing whatever is live. The cron backstop will catch any miss."
+
+      - name: Fetch live spec
+        run: bun run fetch-spec
+
+      - name: Diff against tracked spec
+        id: diff
+        run: |
+          # The server stamps info.x-gameserver-version into the spec on every
+          # deploy, even when the API surface is identical. A raw file diff
+          # would therefore churn a commit for every gameserver deploy. Compare
+          # with that field stripped so only real API changes trigger a sync.
+          # Nothing in the library consumes x-gameserver-version, so letting it
+          # go stale in the tracked spec is harmless; it catches up on the next
+          # real change.
+          git show HEAD:openapi.json > /tmp/tracked-spec.json
+          if bun -e "
+            const fs = require('fs');
+            const sort = (x) => Array.isArray(x) ? x.map(sort)
+              : x && typeof x === 'object'
+                ? Object.fromEntries(Object.keys(x).sort().map(k => [k, sort(x[k])]))
+                : x;
+            const norm = (f) => {
+              const spec = JSON.parse(fs.readFileSync(f, 'utf-8'));
+              if (spec.info) delete spec.info['x-gameserver-version'];
+              return JSON.stringify(sort(spec));
+            };
+            process.exit(norm('/tmp/tracked-spec.json') === norm('openapi.json') ? 0 : 1);
+          "; then
+            echo "Spec unchanged (ignoring x-gameserver-version)."
+            # Discard the version-only delta so the tree stays clean.
+            git checkout -- openapi.json
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Spec changed."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Summarize spec diff
+        if: steps.diff.outputs.changed == 'true'
+        id: summary
+        run: |
+          # Compare the OLD tracked spec (HEAD) with the NEW fetched one. The
+          # library is driven as much by components.schemas (notification and
+          # payload types) as by paths, so report both.
+          git show HEAD:openapi.json > /tmp/old-spec.json
+          bun -e "
+            const fs = require('fs');
+            const oldSpec = JSON.parse(fs.readFileSync('/tmp/old-spec.json','utf-8'));
+            const newSpec = JSON.parse(fs.readFileSync('openapi.json','utf-8'));
+            const keys = (o) => new Set(Object.keys(o || {}));
+            const oldPaths = keys(oldSpec.paths), newPaths = keys(newSpec.paths);
+            const oldSchemas = keys((oldSpec.components||{}).schemas), newSchemas = keys((newSpec.components||{}).schemas);
+            const diff = (a, b) => [...b].filter(x => !a.has(x)).sort();
+            const addedP = diff(oldPaths, newPaths), removedP = diff(newPaths, oldPaths);
+            const addedS = diff(oldSchemas, newSchemas), removedS = diff(newSchemas, oldSchemas);
+            let body = '';
+            body += 'Spec version: ' + (oldSpec.info?.version || '?') + ' -> ' + (newSpec.info?.version || '?') + '\n';
+            body += 'Gameserver:   ' + (oldSpec.info?.['x-gameserver-version'] || '?') + ' -> ' + (newSpec.info?.['x-gameserver-version'] || '?') + '\n';
+            body += 'Paths: ' + oldPaths.size + ' -> ' + newPaths.size + '; Schemas: ' + oldSchemas.size + ' -> ' + newSchemas.size + '\n';
+            if (addedP.length) body += '\nAdded paths (' + addedP.length + '):\n' + addedP.map(p => '  + ' + p).join('\n') + '\n';
+            if (removedP.length) body += '\nRemoved paths (' + removedP.length + '):\n' + removedP.map(p => '  - ' + p).join('\n') + '\n';
+            if (addedS.length) body += '\nAdded schemas (' + addedS.length + '):\n' + addedS.map(s => '  + ' + s).join('\n') + '\n';
+            if (removedS.length) body += '\nRemoved schemas (' + removedS.length + '):\n' + removedS.map(s => '  - ' + s).join('\n') + '\n';
+            if (!addedP.length && !removedP.length && !addedS.length && !removedS.length) body += '\n(Schema-internal change; no paths or schema names added or removed.)\n';
+            fs.writeFileSync('/tmp/spec-summary.txt', body);
+          "
+          cat /tmp/spec-summary.txt
+          {
+            echo 'summary<<SPEC_SUMMARY_EOF'
+            cat /tmp/spec-summary.txt
+            echo 'SPEC_SUMMARY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Regenerate
+        if: steps.diff.outputs.changed == 'true'
+        run: bun run generate
+
+      - name: Typecheck
+        if: steps.diff.outputs.changed == 'true'
+        run: bun run typecheck
+
+      - name: Test
+        if: steps.diff.outputs.changed == 'true'
+        run: bun test
+
+      - name: Commit
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          SPEC_SUMMARY: ${{ steps.summary.outputs.summary }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Stage the whole generated tree, not a hand-picked subset: `bun run
+          # generate` rewrites all of src/generated/, and the committed spec
+          # snapshot itself. Any of those can legitimately change on a sync.
+          git add openapi.json src/generated
+
+          # Belt-and-suspenders: we already saw a normalized diff, but if regen
+          # somehow produced no file change, don't cut an empty commit.
+          if git diff --staged --quiet; then
+            echo "No staged changes after regen. Skipping commit."
+            exit 0
+          fi
+
+          git commit -m "chore: sync OpenAPI spec" -m "$SPEC_SUMMARY" -m "Auto-generated by .github/workflows/sync-spec.yml."
+
+          # Push back to whatever ref this ran on (default branch on cron, the
+          # current branch on a manual dispatch) so the workflow is branch-agnostic.
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.diff.outputs.changed }}" = "true" ]; then
+            echo "### OpenAPI spec sync" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/spec-summary.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Spec unchanged; no action taken." >> "$GITHUB_STEP_SUMMARY"
+          fi

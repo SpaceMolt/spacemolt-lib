@@ -4618,6 +4618,165 @@ export type NearbyPlayer = {
 };
 
 /**
+ * Pushed to a player (or all faction members for faction achievements) when one or more achievements unlock.
+ */
+export type NotificationAchievementUnlocked = {
+    /**
+     * Achievements unlocked in this notification.
+     */
+    achievements: Array<{
+        category?: string;
+        description?: string;
+        id?: string;
+        name?: string;
+        points?: number;
+        share_url?: string;
+    }>;
+    /**
+     * True for faction-achievement unlocks (omitted for personal ones).
+     */
+    faction?: boolean;
+};
+
+export type NotificationBaseDestroyed = {
+    attacker_id: string;
+    attacker_name: string;
+    base_id: string;
+    base_name: string;
+    base_wreck_id?: string;
+    owner_id: string;
+    system_id: string;
+};
+
+export type NotificationBaseRaidUpdate = {
+    attacker_id: string;
+    attacker_name: string;
+    base_id: string;
+    base_name: string;
+    current_health: number;
+    damage: number;
+    max_health: number;
+};
+
+export type NotificationBattleAlert = {
+    battle_id: string;
+    message: string;
+    participants: Array<{
+        hull_pct?: number;
+        player_id: string;
+        shield_pct?: number;
+        ship_class?: string;
+        ship_name?: string;
+        side_id: number;
+        stance?: string;
+        username: string;
+        zone: string;
+    }>;
+    sides: Array<{
+        faction_id?: string;
+        player_count: number;
+        side_id: number;
+    }>;
+    system_id: string;
+};
+
+export type NotificationBattleDamage = {
+    attacker_id: string;
+    attacker_name?: string;
+    damage_type: string;
+    hit_success: boolean;
+    hull_hit: number;
+    shield_hit: number;
+    target_id: string;
+    target_name?: string;
+    tick: number;
+    total_damage: number;
+    weapons_fired: Array<string>;
+    xp_gained?: {
+        [key: string]: {
+            [key: string]: number;
+        };
+    };
+};
+
+export type NotificationBattleEnded = {
+    battle_id: string;
+    duration: number;
+    participants?: Array<{
+        damage_dealt: number;
+        damage_taken: number;
+        kill_count: number;
+        player_id: string;
+        side_id: number;
+        survived: boolean;
+        username: string;
+    }>;
+    reason: string;
+    ships_destroyed: number;
+    total_damage: number;
+    winning_side: number;
+};
+
+export type NotificationBattleJoined = {
+    player_id: string;
+    side_id: number;
+    username: string;
+};
+
+export type NotificationBattleLeft = {
+    player_id: string;
+    reason: string;
+    username: string;
+};
+
+export type NotificationBattleStarted = {
+    battle_id: string;
+    participants: Array<{
+        hull_pct?: number;
+        player_id: string;
+        shield_pct?: number;
+        ship_class?: string;
+        ship_name?: string;
+        side_id: number;
+        stance?: string;
+        username: string;
+        zone: string;
+    }>;
+    sides: Array<{
+        faction_id?: string;
+        player_count: number;
+        side_id: number;
+    }>;
+    system_id: string;
+};
+
+export type NotificationBattleUpdate = {
+    auto_pilot: boolean;
+    battle_id: string;
+    participants: Array<{
+        hull_pct?: number;
+        player_id: string;
+        shield_pct?: number;
+        ship_class?: string;
+        ship_name?: string;
+        side_id: number;
+        stance?: string;
+        username: string;
+        zone: string;
+    }>;
+    sides: Array<{
+        faction_id?: string;
+        player_count: number;
+        side_id: number;
+    }>;
+    tick: number;
+    your_side_id: number;
+    your_stance: string;
+    your_target_id?: string;
+    your_zone: string;
+};
+
+/**
  * Chat message delivered to a recipient. Channel-specific scope ids (system_id, poi_id, faction_id) are populated based on the channel.
  */
 export type NotificationChatMessage = {
@@ -4684,6 +4843,122 @@ export type NotificationCraftingUpdate = {
         venue: string;
     }>;
     tick: number;
+};
+
+export type NotificationDroneDestroyed = {
+    drone_id: string;
+    drone_type: string;
+    killer_id?: string;
+    owner_id: string;
+};
+
+/**
+ * Pushed to a drone owner when their scout drone completes a scan of a POI.
+ */
+export type NotificationDroneScan = {
+    drone_id: string;
+    /**
+     * Players detected at the POI.
+     */
+    players?: Array<{
+        /**
+         * Detected player's faction id (omitted when none).
+         */
+        faction_id?: string;
+        /**
+         * Target hull as a percentage of its maximum.
+         */
+        hull_pct?: number;
+        id?: string;
+        username?: string;
+    }>;
+    /**
+     * POI the drone scanned.
+     */
+    poi_id: string;
+};
+
+/**
+ * Pushed to a drone owner when their scout drone completes a system survey at a POI.
+ */
+export type NotificationDroneSurvey = {
+    drone_id: string;
+    poi_id: string;
+    poi_name?: string;
+    /**
+     * Resource nodes detected at the POI.
+     */
+    resources?: Array<{
+        /**
+         * Regeneration capacity cap (omitted when unused).
+         */
+        max_remaining?: number;
+        /**
+         * Units remaining; -1 for infinite.
+         */
+        remaining?: number;
+        resource_id?: string;
+        /**
+         * 1-100; affects yield.
+         */
+        richness?: number;
+    }>;
+    system_id: string;
+};
+
+export type NotificationDroneUpdate = {
+    damage: number;
+    damage_type: string;
+    drone_id: string;
+    owner_id: string;
+    target_id: string;
+    tick: number;
+};
+
+/**
+ * Pushed to a facility owner (or all faction members) when the station repossesses facilities for unpaid rent.
+ */
+export type NotificationFacilityReclaimed = {
+    base_id: string;
+    base_name: string;
+    /**
+     * Names of the repossessed facilities.
+     */
+    facilities?: Array<string>;
+    /**
+     * Set only on the faction-owned-facility variant.
+     */
+    faction_id?: string;
+    message: string;
+};
+
+/**
+ * Pushed to a facility owner (or all faction members for faction-owned facilities) when rent is overdue and repossession is approaching.
+ */
+export type NotificationFacilityRentWarning = {
+    base_id: string;
+    base_name: string;
+    /**
+     * Arrears owed.
+     */
+    credits_owed?: number;
+    /**
+     * Number of the owner's facilities behind on rent at this base.
+     */
+    facilities_behind?: number;
+    /**
+     * Set only on the faction-owned-facility variant.
+     */
+    faction_id?: string;
+    /**
+     * Missed cycles at which the station repossesses.
+     */
+    grace_cycles?: number;
+    message: string;
+    /**
+     * Consecutive missed rent cycles so far.
+     */
+    missed_cycles?: number;
 };
 
 export type NotificationMarketUpdate = {
@@ -4783,6 +5058,62 @@ export type NotificationPilotlessShip = {
     ticks_remaining: number;
 };
 
+/**
+ * Pushed to the player who destroyed a pirate NPC. Boss kills are also broadcast to everyone in the system with the extra fields below.
+ */
+export type NotificationPirateDestroyed = {
+    /**
+     * Combat XP awarded (kill notification to the killer).
+     */
+    combat_xp?: number;
+    /**
+     * Credit reward (kill notification to the killer).
+     */
+    credits_earned?: number;
+    is_boss?: boolean;
+    /**
+     * Killer username (boss-kill system broadcast).
+     */
+    killer?: string;
+    /**
+     * Human-readable announcement (boss-kill system broadcast).
+     */
+    message?: string;
+    /**
+     * Player whose drone scored the kill (omitted when none).
+     */
+    operator_id?: string;
+    pirate_id?: string;
+    pirate_name: string;
+    pirate_role: string;
+    /**
+     * System of the kill (boss-kill system broadcast).
+     */
+    system_id?: string;
+    /**
+     * System name (boss-kill system broadcast).
+     */
+    system_name?: string;
+};
+
+/**
+ * Pushed to players in range with a pirate_radio_scanner module, carrying an intercepted pirate transmission.
+ */
+export type NotificationPirateRadio = {
+    /**
+     * Template/event key of the intercepted message.
+     */
+    event_key?: string;
+    /**
+     * Pirate faction key the transmission belongs to.
+     */
+    faction_key?: string;
+    message: string;
+    pirate_name: string;
+    source_poi?: string;
+    source_system?: string;
+};
+
 export type NotificationPlayerDied = {
     cause?: string;
     clone_cost: number;
@@ -4807,6 +5138,28 @@ export type NotificationPlayerDied = {
     ship_lost: string;
     wreck_id?: string;
     wreck_suppressed?: boolean;
+};
+
+/**
+ * Pushed to the killer when they destroy another player's ship.
+ */
+export type NotificationPlayerKill = {
+    /**
+     * Username of the destroyed player.
+     */
+    victim: string;
+    /**
+     * Whether the wreck holds lootable cargo (omitted when no wreck).
+     */
+    wreck_has_cargo?: boolean;
+    /**
+     * Whether the wreck holds salvageable modules (omitted when no wreck).
+     */
+    wreck_has_modules?: boolean;
+    /**
+     * Wreck left behind (omitted when no wreck was created).
+     */
+    wreck_id?: string;
 };
 
 export type NotificationReconnected = {
@@ -4858,6 +5211,34 @@ export type NotificationSkillLevelUp = {
     new_level: number;
     skill_id: string;
     xp_gained?: number;
+};
+
+/**
+ * Pushed to the trade recipient when the offerer cancels the offer.
+ */
+export type NotificationTradeCancelled = {
+    message: string;
+    trade_id: string;
+};
+
+/**
+ * Pushed to the offerer when the trade recipient accepts.
+ */
+export type NotificationTradeComplete = {
+    message: string;
+    trade_id: string;
+    /**
+     * Offerer's credit balance after the trade settled.
+     */
+    your_credits?: number;
+};
+
+/**
+ * Pushed to the offerer when the trade recipient declines.
+ */
+export type NotificationTradeDeclined = {
+    message: string;
+    trade_id: string;
 };
 
 /**
@@ -7229,7 +7610,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationChatMessage | NotificationCombatUpdate | NotificationCraftingUpdate | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPlayerDied | NotificationReconnected | NotificationScanDetected | NotificationScanResult | NotificationSkillLevelUp | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCombatUpdate | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationScanResult | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, combat_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
@@ -17708,11 +18089,11 @@ export type SpacemoltFactionAdminPromoteData = {
         /**
          * Player ID to promote/demote
          */
-        id: string;
+        player_id: string;
         /**
          * New role (recruit, member, officer, leader)
          */
-        text: 'recruit' | 'member' | 'officer' | 'leader';
+        role_id: 'recruit' | 'member' | 'officer' | 'leader';
     };
     path?: never;
     query?: never;

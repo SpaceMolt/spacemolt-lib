@@ -20,7 +20,26 @@ Baseline spec when this file started: gameserver **v0.452.0**.
 ---
 
 ## 1. Publish payload schemas for the untyped push frames
-**Status:** todo · **Needed by:** M3 (typed push events) · **Priority:** high
+**Status:** merged (gameserver PR #1563) · pending deploy · **Needed by:** M3 (typed push events) · **Priority:** high
+
+> **Update (2026-06-29):** Merged in gameserver PR #1563. Adds typed
+> `Notification_<msg_type>` schemas for the 22 remaining push frames that fire
+> today — 13 → **35** total. Struct-backed frames (battle_*, drone_update,
+> drone_destroyed, base_raid_update, base_destroyed) reflect their
+> `internal/protocol` structs; the map-literal emitters (drone_scan,
+> drone_survey, facility_rent_warning, facility_reclaimed, trade_complete,
+> trade_declined, trade_cancelled, player_kill, pirate_destroyed, pirate_radio,
+> achievement_unlocked) are described inline from their verified emission sites,
+> matching the existing chat_message/skill_level_up precedent (no Go struct, so
+> nothing to reflect; no game-logic emit sites touched). `go test`, `go vet`,
+> `golangci-lint` all clean.
+>
+> Pipeline verified: generating the v2 spec off that branch and running
+> `bun run generate` here lifts `notifications.gen.ts` to 35 typed
+> notifications and typechecks. **Lib follow-up once the server change is
+> merged + deployed:** `bun run fetch-spec && bun run generate` — the new
+> schemas flow into `notifications.gen.ts` automatically (no lib code change).
+> Until then the committed `openapi.json` snapshot tracks deployed prod (13).
 
 Only **13** push frames currently publish a `Notification_<msg_type>` schema in
 `components.schemas` (chat_message, combat_update, crafting_update,
@@ -56,7 +75,15 @@ schemas flow into `notifications.gen.ts` automatically (no lib code change).
 ---
 
 ## 2. Publish the auth/welcome frame payload schemas
-**Status:** todo · **Needed by:** M1–M2 · **Priority:** medium
+**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M1–M2 · **Priority:** medium
+
+> **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
+> `AuthFramePayloadSchemas()` (`internal/openapi/auth_schemas.go`) reflects
+> `WelcomePayload` and `LoggedInPayload` into both specs' `components.schemas`.
+> **Lib follow-up once deployed:** `bun run fetch-spec && bun run generate`,
+> then replace the hand-written `LoggedInFrame.payload` (`Record<string,
+> unknown>`) in `src/protocol.ts` with the generated `LoggedInPayload` type
+> (and optionally swap the hand-typed welcome payload for `WelcomePayload`).
 
 `V2GameState` **is** published (good — the action_result delta can ref it), but
 the WS auth frames are not:
@@ -77,7 +104,17 @@ the WS auth frames are not:
 ---
 
 ## 3. (Optional) `x-state-sections` per mutation operation
-**Status:** todo · **Needed by:** M2/M3 (decide there) · **Priority:** low
+**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M2/M3 · **Priority:** low
+
+> **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
+> `v2.go` emits `x-state-sections: [...]` on every mutation operation (103 of
+> them) alongside `x-is-mutation`, sourced from the registry's `StateSections`
+> bitmask via a new `StateSections.SectionNames()`. Section names match the 8
+> `V2GameState` keys exactly (player/ship/modules/cargo/location/missions/queue/
+> skills). **Lib follow-up once deployed:** decide whether to surface this in
+> the generated `ACTIONS` catalog (a `stateSections?: StateSection[]` field per
+> mutation) for optimistic-UI / delta-validation; `scripts/generate.ts` reads
+> the operation extensions, so it's a codegen-only change.
 
 Each mutation handler declares a `StateSections` bitmask of which of the 8
 delta sections it may touch (`internal/handlers/delta_wrapper.go`). Exposing
@@ -94,7 +131,15 @@ registry entry that already carries the bitmask
 ---
 
 ## 4. Surface `retry_after` in the WS `rate_limited` error details
-**Status:** todo · **Needed by:** M4 (done, with a workaround) · **Priority:** low
+**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M4 (done, with a workaround) · **Priority:** low
+
+> **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
+> `rejectWSRateLimit` now sends `Decision.Details()` (limit/scope/limit_per_min/
+> current) plus `retry_after` (seconds, int) in the error envelope's `details`,
+> via a new `respondErrorWithDetails` helper. **Lib follow-up:** none required —
+> `retryAfterMs` in `src/account.ts` already prefers `details.retry_after` when
+> present, so once deployed the string parse becomes a pure fallback. No lib
+> change needed.
 
 The HTTP 429 body carries a structured `retry_after` (seconds), but the
 WebSocket `rate_limited` error frame does not — `rejectWSRateLimit` →
@@ -113,6 +158,63 @@ becomes a pure fallback.
 
 ---
 
+## 5. Publish bulk-data + `registered` frame schemas (catalog, map, mobile base)
+**Status:** done (gameserver PR pending merge) · pending deploy · **Needed by:** M5 (bulk caches) + auth · **Priority:** medium
+
+> **Update (2026-06-29):** Implemented server-side. A new `BulkDataSchemas()`
+> (`internal/openapi/bulk_data_schemas.go`) reflects the three public bulk HTTP
+> endpoint bodies and the last untyped auth frame into both specs'
+> `components.schemas`, mirroring `AuthFramePayloadSchemas`:
+>
+> - `CatalogDump` — `GET /api/catalog.json` (version + ships/skills/recipes/
+>   items/facilities). `items` stays `unknown[]` (the server merges Item|Module
+>   into one `[]interface{}` list); everything else is fully typed.
+> - `MapData` — `GET /api/map` (`systems` + `empires` id→colour map).
+> - `MobileBaseLocation` — `GET /wheres-mobile-base` (the single moving
+>   capital's current system id: `{ system }`).
+> - `RegisteredPayload` — the `registered` WS frame (`{ password, player_id }`).
+>
+> Also fixed a latent codegen blocker: invopop emits `"items": true` (the
+> JSON-Schema-2020 "any" form) for `[]interface{}` fields, which is invalid in
+> OpenAPI 3.0 and **crashes** openapi-ts (`Cannot use 'in' operator … in true`).
+> `schemaForType` now normalizes boolean `items` to an empty schema object,
+> guarded by `TestSpec_NoBooleanArrayItems`. Verified end-to-end: regenerating
+> the lib off the branch spec produces `CatalogDump`/`MapData`/
+> `MobileBaseLocation`/`RegisteredPayload` types and typechecks.
+>
+> **Lib follow-up once deployed (one-time consumption, then self-maintaining):**
+> replace the loosely-typed `CatalogEntry`/`MapSystem` (`[key: string]: unknown`)
+> in `src/data/{catalog,map}.ts` with the generated section element types; add a
+> small `MobileBaseLocation` fetch (the lib does not track it yet); type
+> `RegisteredFrame.payload` from generated `RegisteredPayload`. After that the
+> sync CI keeps them current with no edits.
+
+---
+
+## Self-maintaining CI (the closing piece)
+
+**Status:** done — `.github/workflows/sync-spec.yml`
+
+The library now ships a spec-sync workflow (ported from client-v2's
+`sync-spec.yml`): on a schedule / manual dispatch / `gameserver-deployed`
+repository_dispatch it fetches the live v2 spec, diffs it **normalized**
+(ignoring `info.x-gameserver-version`, which the server re-stamps every deploy),
+and on a real change regenerates, typechecks, runs the tests, and commits the
+result. This is the mechanism that makes "self-maintaining" automatic rather
+than a manual chore — type/payload/tool/notification changes flow in on their
+own; a spec change that breaks the hand-written layer fails the run instead of
+landing broken.
+
+The remaining hand-written payload shapes are deliberate, deploy-gated
+**one-time consumption** steps (items #2 and #5 above): once the schemas are
+live, wire the hand-written types to the generated ones and delete the
+fallbacks. Consuming a generated type directly is also what locks the invariant
+in — a future spec regression then breaks `typecheck` loudly instead of
+silently rotting a hand-maintained shape.
+
+---
+
 ## Done
 
-_(nothing yet)_
+_(items above are merged/implemented; lib consumption is gated on the
+gameserver deploy)_
