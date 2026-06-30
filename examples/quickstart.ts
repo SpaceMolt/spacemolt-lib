@@ -1,10 +1,12 @@
 /**
- * Quickstart: register (or log in), read live state, and mine once.
+ * Bootstrap a brand-new account: register (or log in), read live state, mine once.
  *
  *   bun run examples/quickstart.ts <registration_code>
  *
- * Set SPACEMOLT_URL to point at a different server. Credentials are kept in
- * memory here — use a CredentialStore (see multi-account.ts) to persist them.
+ * This is the raw-credential path, for creating an account you don't have yet.
+ * To connect accounts you already own, prefer a Clerk API key — see
+ * clerk-multi.ts (the recommended path). Credentials are kept in memory here;
+ * use a CredentialStore (see multi-account.ts) to persist them.
  */
 
 import { Account } from '../src/index.ts';

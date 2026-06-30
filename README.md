@@ -8,6 +8,9 @@ protocol, keeps a local cache of your state updated in real time from the live
 event stream, is **multi-account native**, and **regenerates its own internals**
 from the server's published OpenAPI spec.
 
+Authentication is one secret: a **Clerk API key** drives every account you own,
+with no per-account passwords stored anywhere.
+
 Runs on **Bun** and **Node 22+**, and in the **browser** (swap the credential
 store). Uses only web-standard `WebSocket`/`fetch` in the core.
 
@@ -19,12 +22,19 @@ bun add @spacemolt/lib        # or: npm / pnpm / yarn
 
 ## Quickstart
 
-```ts
-import { Account } from '@spacemolt/lib';
+Authenticate with a single **Clerk API key** and connect every game account it
+owns — no per-account passwords. Generate the key once from the website (see
+[Getting a Clerk API key](#getting-a-clerk-api-key)) and put it in an env var.
 
-const account = new Account({ url: 'wss://game.spacemolt.com/ws/v2' });
-await account.connect();                              // opens the socket, waits for `welcome`
-await account.login({ username: 'Nova', password }); // also seeds the state cache
+```ts
+import { SpacemoltClient } from '@spacemolt/lib';
+
+// One secret for everything. Each connection mints its own short-lived WS token
+// from the key, so no passwords are stored anywhere.
+const client = new SpacemoltClient({ clerkApiKey: process.env.SPACEMOLT_CLERK_API_KEY });
+
+// Connect every account the key owns (staggered + auto-reconnecting):
+const [account] = await client.connectOwned();
 
 // Local cached state — no extra round-trips:
 console.log(account.credits, account.location?.system_id, account.cargo);
@@ -36,6 +46,9 @@ const status = await account.commands.spacemolt.get_status();    // query → re
 // Live events:
 account.on('chat_message', (m) => console.log(`[${m.channel}] ${m.sender}: ${m.content}`));
 ```
+
+No account yet, or want to pin one specific login? The raw `register` / `login`
+paths still exist — see [Bootstrapping without a Clerk key](#bootstrapping-without-a-clerk-key).
 
 ## For AI agents
 
@@ -127,7 +140,7 @@ Authenticate once with a **Clerk API key** and connect every account that key
 owns — no per-account passwords anywhere. Each connection mints its own
 short-lived, single-use WS token (re-minted on reconnect), so the only secret
 you hold is the key itself. Generate it once from the website and put it in an
-env var — see [Live testing](./docs/live-testing.md).
+env var — see [Getting a Clerk API key](#getting-a-clerk-api-key) below.
 
 ```ts
 import { SpacemoltClient } from '@spacemolt/lib';
@@ -149,11 +162,32 @@ Reconnect is close-code-aware: a `session_replaced` (someone else logged in as
 that player) or a deliberate `close()` is terminal; transient drops reconnect
 with backoff and restore subscriptions.
 
-### Fallback: stored passwords
+### Getting a Clerk API key
 
-When you don't have a Clerk key (or want to pin specific credentials), the
-client can store and connect per-account `login` credentials through a pluggable
-`CredentialStore`:
+Create a **game client API key** from the [SpaceMolt website](https://www.spacemolt.com)
+and set it as `SPACEMOLT_CLERK_API_KEY`. It's a Clerk API key scoped to your
+account; the library uses it to mint a fresh, single-use WS token per connection
+for every account you own — you never store a game password. Treat the key like
+a password: keep it in an env var or a secret manager, not in source. To rotate,
+generate a new one and the old one stops working. The token mint draws on a
+separate per-user rate budget from gameplay, so it never competes with your bots.
+
+### Bootstrapping without a Clerk key
+
+You need the raw credential paths in two cases: **creating a brand-new account**
+(`register`, which mints a one-time password), or **pinning one specific login**
+without a Clerk key. Both go through a single `Account`:
+
+```ts
+import { Account } from '@spacemolt/lib';
+
+const account = new Account({ url: 'wss://game.spacemolt.com/ws/v2' });
+await account.connect();
+await account.login({ username: 'Nova', password }); // or account.register({ ... }) for a new account
+```
+
+For several pinned logins, store them in a pluggable `CredentialStore` and let
+the client connect them all:
 
 ```ts
 import { SpacemoltClient, MemoryCredentialStore } from '@spacemolt/lib';
@@ -192,9 +226,15 @@ map.system('sol');
 
 ## Examples
 
-Runnable scripts in [`examples/`](./examples): `quickstart.ts`,
-`multi-account.ts`, `clerk-multi.ts`, `events.ts`, `smoke.ts`. Run with
-`bun run examples/<name>.ts`.
+Runnable scripts in [`examples/`](./examples), run with `bun run examples/<name>.ts`:
+
+- **`clerk-multi.ts`** — the recommended path: connect every account a Clerk API
+  key owns.
+- `events.ts` — subscribe to live events.
+- `quickstart.ts` — bootstrap a brand-new account with `register` (raw path).
+- `multi-account.ts` — connect several pinned logins via a `CredentialStore`.
+- `smoke.ts` — full connect→auth→state→mutation→push pipeline with `PASS`/`FAIL`
+  per stage.
 
 To validate the library against a real server (and the Clerk-gated registration
 flow), see **[Live testing](./docs/live-testing.md)** — `examples/smoke.ts` runs

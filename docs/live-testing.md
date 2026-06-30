@@ -6,6 +6,11 @@ against production, run it against the real server — that's where first-contac
 issues surface: the WS handshake, auth, state seeding, the two-phase mutation
 flow, and push-frame parsing.
 
+> **Normal usage connects with a Clerk API key**, not a password — see
+> [Connecting accounts you already own](#connecting-accounts-you-already-own).
+> The smoke test below deliberately exercises the raw `register` / `login` path
+> as well, because that's the lower-level flow worth validating end-to-end.
+
 ## Prerequisites: a registration code (Clerk)
 
 Creating a **new** account requires a `registration_code`. On production that
@@ -21,8 +26,10 @@ account** — but you still need the code to mint that first account.
 There is no safe way to share a Clerk credential into a hosted agent session, so
 live testing is something to run on your own machine with the secrets in env.
 
-**Connecting accounts you already own (no registration code needed):** generate
-a Clerk **API key** from the website (`POST /api/auth/create-key`), put it in
+### Connecting accounts you already own
+
+This is the recommended path and needs **no registration code**: generate a
+Clerk **API key** from the website (`POST /api/auth/create-key`), put it in
 `SPACEMOLT_CLERK_API_KEY`, and use `client.connectOwned()` — it lists the
 accounts the key owns and connects them all, minting a fresh single-use ws-token
 per connection (no passwords stored). See the README's *Multi-account → Connect
