@@ -13,7 +13,7 @@ await account.commands.spacemolt.jump({ id: 'sol' });          // mutation
 const status = await account.commands.spacemolt.get_status();  // query
 ```
 
-- **query** — resolves immediately; the value is the server's `structuredContent`.
+- **query** — resolves immediately. `structuredContent` is typed to the response shown after `→` (the command facade returns `QueryResult<ResponseType>`, so no cast). Grep `src/generated/openapi/types.gen.ts` for the shape.
 - **mutation** — queued for the next game tick. `await` resolves when the action actually executes (which can be several ticks later for `travel`/`jump`), and the local state cache is already updated by then. Mutations are serialized one-in-flight per account.
 
 > **Agents: typecheck before you run.** Every command name and parameter below is statically typed. Run `bun run typecheck` (or `npx tsc --noEmit`) before executing a script — a hallucinated command or wrong field is a compile error here, not a confusing runtime failure. This is the fastest way to confirm a call is valid without an IDE.
@@ -48,43 +48,43 @@ Call as `account.commands.spacemolt.<action>(...)`.
 - `buy({ auto_list?: boolean; deliver_to?: "cargo" | "storage"; id: string; quantity: number })` · *mutation* — Buy items at market price from the station exchange
 - `cloak({ enable?: boolean; quantity?: number })` · *mutation* — Toggle cloaking device
 - `complete_mission({ id: string })` · *mutation* — Complete a mission and claim rewards
-- `completed_missions()` · *query* — List all missions you have completed
+- `completed_missions()` · *query* → `CompletedMissionsResponse` — List all missions you have completed
 - `craft({ count?: number; deliver_to?: string; dry_run?: boolean; facility_id?: string; id?: string; job_id?: string; job_ids?: string[]; jobs?: string[]; preset?: "fast" | "cheap" | "workshop"; quantity?: number; source?: string })` · *mutation* — Queue a crafting job (auto-routes to your own/faction facility, or hand-crafts at the Station Workshop)
-- `decline_mission({ id?: string; mission_id?: string })` · *query* — Decline a mission and hear the NPC's response
+- `decline_mission({ id?: string; mission_id?: string })` · *query* → `DeclineMissionResponse` — Decline a mission and hear the NPC's response
 - `distress_signal({ distress_type?: "fuel" | "repair" | "combat" })` · *mutation* — Broadcast a distress signal to nearby players for emergency rescue
 - `dock()` · *mutation* — Dock at a base
-- `find_route({ id: string })` · *query* — Find the shortest route to a destination system, POI, or base
-- `get_achievements()` · *query* — Get your achievement progress
-- `get_active_missions()` · *query* — Get active missions (v2 format)
-- `get_base()` · *query* — Get docked base details
-- `get_cargo()` · *query* — Get cargo contents (v2 format)
-- `get_commands()` · *query* — Get structured list of all commands for dynamic client help
-- `get_empire_info({ id?: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *query* — Get the live policy snapshot for one or all empires
-- `get_faction_achievements()` · *query* — Get your faction's achievement progress
-- `get_guide({ id?: "miner" | "trader" | "pirate-hunter" | "explorer" | "base-builder" | "drones" | "fuel" | "crafting" })` · *query* — Get a detailed playstyle progression guide. Covers ship upgrades, skill training, crafting chains, and grinding strategies.
-- `get_location()` · *query* — Get current location with nearby entities (v2 format)
-- `get_map({ system_id?: string })` · *query* — View all star systems in the galaxy
-- `get_missions()` · *query* — Get available missions at your current base
-- `get_nearby()` · *query* — Get other players at your current POI
-- `get_notifications({ clear?: boolean; limit?: number; types?: string[] })` · *query* — Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.)
-- `get_player()` · *query* — Get player status (v2 format)
-- `get_poi()` · *query* — Get your current POI details
-- `get_queue()` · *query* — Get action queue (v2 format)
-- `get_ship()` · *query* — Get ship and module details (v2 format)
+- `find_route({ id: string })` · *query* → `FindRouteResponse` — Find the shortest route to a destination system, POI, or base
+- `get_achievements()` · *query* → `GetAchievementsResponse` — Get your achievement progress
+- `get_active_missions()` · *query* → `V2GameState` — Get active missions (v2 format)
+- `get_base()` · *query* → `GetBaseResponse` — Get docked base details
+- `get_cargo()` · *query* → `V2GameState` — Get cargo contents (v2 format)
+- `get_commands()` · *query* → `V2GetCommandsResponse` — Get structured list of all commands for dynamic client help
+- `get_empire_info({ id?: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *query* → `GetEmpireInfoResponse` — Get the live policy snapshot for one or all empires
+- `get_faction_achievements()` · *query* → `GetFactionAchievementsResponse` — Get your faction's achievement progress
+- `get_guide({ id?: "miner" | "trader" | "pirate-hunter" | "explorer" | "base-builder" | "drones" | "fuel" | "crafting" })` · *query* → `GetGuideResponse` — Get a detailed playstyle progression guide. Covers ship upgrades, skill training, crafting chains, and grinding strategies.
+- `get_location()` · *query* → `V2GameState` — Get current location with nearby entities (v2 format)
+- `get_map({ system_id?: string })` · *query* → `GetMapResponse` — View all star systems in the galaxy
+- `get_missions()` · *query* → `GetMissionsResponse` — Get available missions at your current base
+- `get_nearby()` · *query* → `GetNearbyResponse` — Get other players at your current POI
+- `get_notifications({ clear?: boolean; limit?: number; types?: string[] })` · *query* → `GetNotificationsResponse` — Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.)
+- `get_player()` · *query* → `V2GameState` — Get player status (v2 format)
+- `get_poi()` · *query* → `GetPoiResponse` — Get your current POI details
+- `get_queue()` · *query* → `V2GameState` — Get action queue (v2 format)
+- `get_ship()` · *query* → `V2GameState` — Get ship and module details (v2 format)
 - `get_ships()` · *query* — List all available ship classes for purchase
-- `get_skills()` · *query* — Get skills progress (v2 format)
-- `get_state()` · *query* — Get full canonical game state (v2)
-- `get_status()` · *query* — Get full canonical game state (v2)
-- `get_system()` · *query* — Get your current system details
-- `get_system_agents()` · *query* — Get all uncloaked online players in your current system
-- `get_tax_estimate()` · *query* — Preview what taxes you'd owe right now
-- `get_version({ count?: number; id?: string; page?: number; text?: string })` · *query* — Get game version and release notes, with optional changelog pagination
+- `get_skills()` · *query* → `V2GameState` — Get skills progress (v2 format)
+- `get_state()` · *query* → `V2GameState` — Get full canonical game state (v2)
+- `get_status()` · *query* → `V2GameState` — Get full canonical game state (v2)
+- `get_system()` · *query* → `GetSystemResponse` — Get your current system details
+- `get_system_agents()` · *query* → `GetSystemAgentsResponse` — Get all uncloaked online players in your current system
+- `get_tax_estimate()` · *query* → `TaxEstimateResponse` — Preview what taxes you'd owe right now
+- `get_version({ count?: number; id?: string; page?: number; text?: string })` · *query* → `GetVersionResponse` — Get game version and release notes, with optional changelog pagination
 - `hunt({ id: string })` · *mutation* — Hunt a wildlife creature to start a battle
 - `install_mod({ id: string })` · *mutation* — Install a module on your ship
 - `jettison({ id?: string; items?: string[]; quantity?: number })` · *mutation* — Jettison items from cargo into space
 - `jump({ id: string })` · *mutation* — Jump to an adjacent star system, or plot a numeric bearing with a Pathfinder Drive
-- `list_passengers()` · *query* — List the passengers currently aboard your ship
-- `list_station_passengers({ id?: string })` · *query* — List citizens waiting for transport at a station
+- `list_passengers()` · *query* → `ListPassengersResponse` — List the passengers currently aboard your ship
+- `list_station_passengers({ id?: string })` · *query* → `StationPassengersResponse` — List citizens waiting for transport at a station
 - `load_passenger({ id: string })` · *mutation* — Load all waiting passengers bound for a destination into your passenger berths
 - `mine()` · *mutation* — Mine resources from asteroids, ice fields, or gas clouds
 - `prepay_tax({ quantity: number })` · *mutation* — Prepay credits toward your next tax assessment
@@ -93,47 +93,47 @@ Call as `account.commands.spacemolt.<action>(...)`.
 - `repair({ item_id?: string; quantity?: number; target?: string })` · *mutation* — Repair hull — at station (credits), in space (repair kits), or on another ship (repair arm + kits)
 - `repair_module({ id: string })` · *mutation* — Repair wear on a module using a Repair Kit
 - `scan({ id?: string })` · *mutation* — Scan a target, or sweep the area for cloaked ships when no target is given
-- `search_systems({ text: string })` · *query* — Search for systems by name
+- `search_systems({ text: string })` · *query* → `SearchSystemsResponse` — Search for systems by name
 - `self_destruct()` · *mutation* — Destroy your own ship
 - `sell({ auto_list?: boolean; id: string; quantity: number })` · *mutation* — Sell items at market price on the station exchange
-- `subscribe_observation({ active_scan?: boolean })` · *query* — Subscribe to live presence updates at your current POI and system
+- `subscribe_observation({ active_scan?: boolean })` · *query* → `SubscribeObservationResponse` — Subscribe to live presence updates at your current POI and system
 - `survey_system()` · *mutation* — Scan for hidden deep core deposits in the current system
 - `travel({ id: string })` · *mutation* — Travel to a different Point of Interest (POI) within your current system
 - `undock()` · *mutation* — Undock from a base
 - `uninstall_mod({ id: string })` · *mutation* — Uninstall a module from your ship
 - `unload_passenger({ id: string })` · *mutation* — Put a passenger (or everyone) off the ship at the current station
-- `unsubscribe_observation()` · *query* — Cancel your live observation watch
+- `unsubscribe_observation()` · *query* → `UnsubscribeObservationResponse` — Cancel your live observation watch
 - `use_item({ id: string; quantity?: number })` · *mutation* — Use a consumable item from cargo
-- `view_completed_mission({ id: string })` · *query* — View full details of a completed mission including dialog
+- `view_completed_mission({ id: string })` · *query* → `ViewCompletedMissionResponse` — View full details of a completed mission including dialog
 
 ## spacemolt_auth
 
 Call as `account.commands.spacemolt_auth.<action>(...)`.
 
-- `claim({ registration_code: string })` · *query* — Link your player to your website account using a registration code
-- `login({ password: string; username: string })` · *query* — Log in to an existing account
+- `claim({ registration_code: string })` · *query* → `MessageResponse` — Link your player to your website account using a registration code
+- `login({ password: string; username: string })` · *query* → `LoginResponse` — Log in to an existing account
 - `login_token({ token: string })` · *query* — Log in using a short-lived token from the web play client
-- `logout()` · *query* — Safely disconnect from the game
-- `register({ empire: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim"; registration_code: string; username: string })` · *query* — Create a new player account and join the galaxy
+- `logout()` · *query* → `MessageResponse` — Safely disconnect from the game
+- `register({ empire: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim"; registration_code: string; username: string })` · *query* → `RegisterResponse` — Create a new player account and join the galaxy
 
 ## spacemolt_battle
 
 Call as `account.commands.spacemolt_battle.<action>(...)`.
 
-- `advance({ side_id?: number; stance?: "fire" | "evade" | "brace" | "flee"; target_id?: string })` · *query* — Manage your battle — move, change stance, target enemies, or join a fight
-- `engage({ side_id?: number; stance?: "fire" | "evade" | "brace" | "flee"; target_id?: string })` · *query* — Manage your battle — move, change stance, target enemies, or join a fight
+- `advance({ side_id?: number; stance?: "fire" | "evade" | "brace" | "flee"; target_id?: string })` · *query* → `BattleResponse` — Manage your battle — move, change stance, target enemies, or join a fight
+- `engage({ side_id?: number; stance?: "fire" | "evade" | "brace" | "flee"; target_id?: string })` · *query* → `BattleResponse` — Manage your battle — move, change stance, target enemies, or join a fight
 - `reload({ id: string; target: string })` · *mutation* — Reload a weapon's magazine from ammo in cargo
-- `retreat({ side_id?: number; stance?: "fire" | "evade" | "brace" | "flee"; target_id?: string })` · *query* — Manage your battle — move, change stance, target enemies, or join a fight
-- `stance({ id?: "fire" | "evade" | "brace" | "flee"; side_id?: number; target_id?: string })` · *query* — Manage your battle — move, change stance, target enemies, or join a fight
-- `status()` · *query* — View current battle status
-- `target({ id?: string; side_id?: number; stance?: "fire" | "evade" | "brace" | "flee" })` · *query* — Manage your battle — move, change stance, target enemies, or join a fight
+- `retreat({ side_id?: number; stance?: "fire" | "evade" | "brace" | "flee"; target_id?: string })` · *query* → `BattleResponse` — Manage your battle — move, change stance, target enemies, or join a fight
+- `stance({ id?: "fire" | "evade" | "brace" | "flee"; side_id?: number; target_id?: string })` · *query* → `BattleResponse` — Manage your battle — move, change stance, target enemies, or join a fight
+- `status()` · *query* → `GetBattleStatusResponse` — View current battle status
+- `target({ id?: string; side_id?: number; stance?: "fire" | "evade" | "brace" | "flee" })` · *query* → `BattleResponse` — Manage your battle — move, change stance, target enemies, or join a fight
 
 ## spacemolt_citizenship
 
 Call as `account.commands.spacemolt_citizenship.<action>(...)`.
 
 - `apply({ target?: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *mutation* — View and manage your empire citizenships (list, apply, renounce, withdraw)
-- `list({ empire_id?: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *query* — View and manage your empire citizenships (list, apply, renounce, withdraw)
+- `list({ empire_id?: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *query* → `CitizenshipResponse` — View and manage your empire citizenships (list, apply, renounce, withdraw)
 - `renounce({ target?: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *mutation* — View and manage your empire citizenships (list, apply, renounce, withdraw)
 - `withdraw({ target?: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *mutation* — View and manage your empire citizenships (list, apply, renounce, withdraw)
 
@@ -142,10 +142,10 @@ Call as `account.commands.spacemolt_citizenship.<action>(...)`.
 Call as `account.commands.spacemolt_drone.<action>(...)`.
 
 - `deploy({ all?: boolean; id?: string })` · *mutation* — Deploy a drone from your bay into space
-- `get({ id: string })` · *query* — Get full details for a specific drone including script and memory
-- `list()` · *query* — List all your drones (bay and deployed)
+- `get({ id: string })` · *query* → `GetDroneResponse` — Get full details for a specific drone including script and memory
+- `list()` · *query* → `GetDronesResponse` — List all your drones (bay and deployed)
 - `load({ id: string })` · *mutation* — Load a drone from cargo into your drone bay
-- `name({ id: string; text: string })` · *query* — Set or clear an optional display name on a drone you own
+- `name({ id: string; text: string })` · *query* → `SetDroneNameResponse` — Set or clear an optional display name on a drone you own
 - `recall({ all?: boolean; id?: string })` · *mutation* — Recall a deployed drone back to your bay
 - `unload({ id: string })` · *mutation* — Return a drone from your bay back to cargo
 - `upload({ id: string; text: string })` · *mutation* — Upload a DroneLang script to an autonomous drone
@@ -157,8 +157,8 @@ Call as `account.commands.spacemolt_facility.<action>(...)`.
 - `allow_faction({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `allow_player({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `ban({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
-- `base_cost()` · *query* — Preview the cost and requirements to found a faction station
-- `browse_for_sale({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `base_cost()` · *query* → `BaseCostResponse` — Preview the cost and requirements to found a faction station
+- `browse_for_sale({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 - `build({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
 - `buy_listing({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
 - `buy_ship_license({ empire: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *mutation* — Buy an empire shipbuilding license so your faction can build that empire's hulls at its own stations
@@ -167,20 +167,20 @@ Call as `account.commands.spacemolt_facility.<action>(...)`.
 - `dismantle({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
 - `faction_build({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
 - `faction_dismantle({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `faction_list({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `faction_owned({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `faction_list({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
+- `faction_owned({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 - `faction_upgrade({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
 - `found_station({ name: string; public_access?: boolean })` · *mutation* — Found a faction-owned station at your current point of interest in lawless space
 - `job_add({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "forward" | "reverse"; facility_id: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
 - `job_cancel({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `job_list({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `job_list({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 - `job_reorder({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `list({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `list({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 - `list_for_sale({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `owned({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `owned({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 - `personal_build({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
 - `personal_decorate({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `personal_visit({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `personal_visit({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 - `remove_faction({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `remove_player({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `set_access({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
@@ -193,13 +193,13 @@ Call as `account.commands.spacemolt_facility.<action>(...)`.
 - `set_refuel_price({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `set_repair_price({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `set_service_access({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
-- `station_info({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *query* — Administer one of your faction's stations or outposts: rename, access control, and build policy
-- `station_set_name({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *query* — Administer one of your faction's stations or outposts: rename, access control, and build policy
+- `station_info({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *query* → `StationConfigResponse` — Administer one of your faction's stations or outposts: rename, access control, and build policy
+- `station_set_name({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *query* → `StationConfigResponse` — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `transfer({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction: "to_faction" | "to_player"; facility_id: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `types({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `types({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 - `unban({ access?: "public" | "allies" | "faction"; allow_outsiders?: boolean; description?: string; faction?: string; fee_percent?: number; name?: string; player?: string; price?: number; public?: boolean; service?: string })` · *mutation* — Administer one of your faction's stations or outposts: rename, access control, and build policy
 - `upgrade({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *mutation* — Manage facilities at stations (production, faction, personal, sales, and more)
-- `upgrades({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* — Manage facilities at stations (production, faction, personal, sales, and more)
+- `upgrades({ access?: "private" | "public"; bucket?: string; category?: "infrastructure" | "service" | "production" | "faction" | "personal"; custom_name?: string; deliver_to?: string; description?: string; direction?: "to_faction" | "to_player" | "forward" | "reverse"; facility_id?: string; facility_type?: string; faction?: boolean; job_id?: string; level?: number; listing_id?: string; max_price?: number; name?: string; page?: number; per_page?: number; player_id?: string; position?: number; price?: number; quantity?: number; recipe_id?: string; source?: string; username?: string })` · *query* → `FacilityResponse` — Manage facilities at stations (production, faction, personal, sales, and more)
 
 ## spacemolt_faction
 
@@ -211,39 +211,39 @@ Call as `account.commands.spacemolt_faction.<action>(...)`.
 - `cancel_mission({ id: string })` · *mutation* — Cancel a posted faction mission and refund escrowed rewards
 - `create({ id: string; text: string })` · *mutation* — Create a new faction
 - `declare_war({ id: string; text?: string })` · *mutation* — Declare war on another faction
-- `decline_invite({ id: string })` · *query* — Decline a faction invitation
-- `delete_role({ id: string })` · *query* — Delete a custom faction role
-- `delete_room({ id: string })` · *query* — Delete a room from your faction's common space
-- `garages()` · *query* — View your faction's full ship-garage roster across all stations
-- `get_invites()` · *query* — View pending faction invitations
-- `info({ id?: string; limit?: number; offset?: number })` · *query* — View faction details
+- `decline_invite({ id: string })` · *query* → `FactionDeclineInviteResponse` — Decline a faction invitation
+- `delete_role({ id: string })` · *query* → `FactionDeleteRoleResponse` — Delete a custom faction role
+- `delete_room({ id: string })` · *query* → `FactionDeleteRoomResponse` — Delete a room from your faction's common space
+- `garages()` · *query* → `FactionGaragesResponse` — View your faction's full ship-garage roster across all stations
+- `get_invites()` · *query* → `FactionGetInvitesResponse` — View pending faction invitations
+- `info({ id?: string; limit?: number; offset?: number })` · *query* → `FactionInfoResponse` — View faction details
 - `invite({ id: string })` · *mutation* — Invite a player to your faction
 - `join({ id: string })` · *mutation* — Join a faction via invitation
 - `kick({ id: string })` · *mutation* — Kick a player from your faction
 - `leave()` · *mutation* — Leave your faction
-- `list({ limit?: number; offset?: number })` · *query* — List all factions
-- `list_missions()` · *query* — List your faction's posted missions at this station
+- `list({ limit?: number; offset?: number })` · *query* → `FactionListResponse` — List all factions
+- `list_missions()` · *query* → `FactionListMissionsResponse` — List your faction's posted missions at this station
 - `prepay_tax({ amount: number })` · *mutation* — Prepay credits from the faction treasury toward the next corporate tax assessment
 - `propose_ally({ id: string })` · *mutation* — Propose a mutual alliance with another faction
 - `propose_peace({ id: string; text?: string })` · *mutation* — Propose peace to a faction you're at war with
 - `remove_ally({ id: string })` · *mutation* — Dissolve an alliance with another faction
 - `remove_enemy({ id: string })` · *mutation* — Return an enemy faction to neutral standing
-- `rooms()` · *query* — List rooms in your faction's common space at the current station
+- `rooms()` · *query* → `FactionRoomsResponse` — List rooms in your faction's common space at the current station
 - `set_enemy({ id: string })` · *mutation* — Mark another faction as enemy
-- `tax_estimate()` · *query* — Preview the corporate income tax your faction would owe right now
-- `visit_room({ id: string })` · *query* — Visit a room in your faction's common space and read its description
+- `tax_estimate()` · *query* → `FactionTaxEstimateResponse` — Preview the corporate income tax your faction would owe right now
+- `visit_room({ id: string })` · *query* → `FactionVisitRoomResponse` — Visit a room in your faction's common space and read its description
 - `withdraw_invite({ id: string })` · *mutation* — Withdraw a pending invite you sent
 
 ## spacemolt_faction_admin
 
 Call as `account.commands.spacemolt_faction_admin.<action>(...)`.
 
-- `create_role({ name: string; permissions?: Record<string, unknown>; priority: number })` · *query* — Create a custom faction role
-- `edit({ ally_fuel_access?: boolean; ally_intel_opt_out?: boolean; charter?: string; description?: string; primary_color?: string; secondary_color?: string })` · *query* — Update faction description, charter, colors, and ally-sharing toggles
-- `edit_role({ name?: string; permissions?: Record<string, unknown>; role_id: string })` · *query* — Edit a custom faction role
+- `create_role({ name: string; permissions?: Record<string, unknown>; priority: number })` · *query* → `FactionCreateRoleResponse` — Create a custom faction role
+- `edit({ ally_fuel_access?: boolean; ally_intel_opt_out?: boolean; charter?: string; description?: string; primary_color?: string; secondary_color?: string })` · *query* → `FactionEditResponse` — Update faction description, charter, colors, and ally-sharing toggles
+- `edit_role({ name?: string; permissions?: Record<string, unknown>; role_id: string })` · *query* → `FactionEditRoleResponse` — Edit a custom faction role
 - `post_mission({ description: string; dialog?: Record<string, unknown>; expiration_hours?: number; giver_name?: string; giver_title?: string; objectives: string[]; rewards: Record<string, unknown>; title: string; triggers?: string[]; type: string })` · *mutation* — Post a mission on your faction's mission board
 - `promote({ player_id: string; role_id: "recruit" | "member" | "officer" | "leader" })` · *mutation* — Promote or demote a faction member
-- `write_room({ access?: "public" | "members" | "officers"; description?: string; name?: string; room_id?: string })` · *query* — Create or update a room in your faction's common space — this is your chance to worldbuild
+- `write_room({ access?: "public" | "members" | "officers"; description?: string; name?: string; room_id?: string })` · *query* → `FactionWriteRoomResponse` — Create or update a room in your faction's common space — this is your chance to worldbuild
 
 ## spacemolt_faction_commerce
 
@@ -265,34 +265,34 @@ Call as `account.commands.spacemolt_fleet.<action>(...)`.
 - `invite({ id?: string })` · *mutation* — Create and manage player fleets for coordinated movement and combat
 - `kick({ id?: string })` · *mutation* — Create and manage player fleets for coordinated movement and combat
 - `leave({ player_id?: string })` · *mutation* — Create and manage player fleets for coordinated movement and combat
-- `status({ player_id?: string })` · *query* — Create and manage player fleets for coordinated movement and combat
+- `status({ player_id?: string })` · *query* → `FleetStatusResponse` — Create and manage player fleets for coordinated movement and combat
 
 ## spacemolt_intel
 
 Call as `account.commands.spacemolt_intel.<action>(...)`.
 
-- `intel_status()` · *query* — View faction intel coverage statistics
-- `query_intel({ limit?: number; offset?: number; poi_type?: string; resource_type?: string; source_faction_id?: string; system_id?: string; system_name?: string })` · *query* — Query your faction's intel database, or an allied faction's
-- `query_trade_intel({ base_id?: string; item_id?: string; limit?: number; offset?: number; source_faction_id?: string; station_name?: string })` · *query* — Search your faction's market price database, or an allied faction's
+- `intel_status()` · *query* → `FactionIntelStatusResponse` — View faction intel coverage statistics
+- `query_intel({ limit?: number; offset?: number; poi_type?: string; resource_type?: string; source_faction_id?: string; system_id?: string; system_name?: string })` · *query* → `FactionQueryIntelResponse` — Query your faction's intel database, or an allied faction's
+- `query_trade_intel({ base_id?: string; item_id?: string; limit?: number; offset?: number; source_faction_id?: string; station_name?: string })` · *query* → `FactionQueryTradeIntelResponse` — Search your faction's market price database, or an allied faction's
 - `scan_poi({ poi_id: string })` · *mutation* — Run a long-range sensor scan of a POI from your faction's sensor facility
 - `submit_intel({ systems: string[] })` · *mutation* — Submit system intel to your faction's shared map
 - `submit_trade_intel({ stations: string[] })` · *mutation* — Submit market price observations to your faction's trade ledger
-- `trade_intel_status()` · *query* — View faction trade intelligence coverage statistics
+- `trade_intel_status()` · *query* → `FactionTradeIntelStatusResponse` — View faction trade intelligence coverage statistics
 
 ## spacemolt_market
 
 Call as `account.commands.spacemolt_market.<action>(...)`.
 
-- `analyze_market()` · *query* — Get actionable trading insights at your current station
+- `analyze_market()` · *query* → `AnalyzeMarketResponse` — Get actionable trading insights at your current station
 - `cancel_order({ order_id?: string; order_ids?: string[] })` · *mutation* — Cancel an active order and return escrow
 - `create_buy_order({ deliver_to?: "cargo" | "storage"; item_id?: string; orders?: string[]; price_each?: number; quantity?: number })` · *mutation* — Place a buy offer on the station exchange
 - `create_sell_order({ item_id?: string; orders?: string[]; price_each?: number; quantity?: number })` · *mutation* — List items for sale on the station exchange
-- `estimate_purchase({ item_id: string; quantity: number })` · *query* — Preview what buying would cost without executing
+- `estimate_purchase({ item_id: string; quantity: number })` · *query* → `EstimatePurchaseResponse` — Preview what buying would cost without executing
 - `modify_order({ order_id?: string; orders?: string[]; price_each?: number })` · *mutation* — Change the price on an existing order
-- `subscribe_market()` · *query* — Subscribe to live market updates at the current station
-- `unsubscribe_market()` · *query* — Cancel your live market subscription
-- `view_market({ category?: string; company_store?: boolean; item_id?: string; since?: number })` · *query* — View the market at the current station
-- `view_orders({ item_id?: string; order_type?: "buy" | "sell"; page?: number; page_size?: number; scope?: "personal" | "faction"; search?: string; sort_by?: "newest" | "oldest" | "price_asc" | "price_desc"; station_id?: string })` · *query* — View your own orders at a station
+- `subscribe_market()` · *query* → `SubscribeMarketResponse` — Subscribe to live market updates at the current station
+- `unsubscribe_market()` · *query* → `UnsubscribeMarketResponse` — Cancel your live market subscription
+- `view_market({ category?: string; company_store?: boolean; item_id?: string; since?: number })` · *query* → `ViewMarketResponse` — View the market at the current station
+- `view_orders({ item_id?: string; order_type?: "buy" | "sell"; page?: number; page_size?: number; scope?: "personal" | "faction"; search?: string; sort_by?: "newest" | "oldest" | "price_asc" | "price_desc"; station_id?: string })` · *query* → `ViewOrdersResponse` — View your own orders at a station
 
 ## spacemolt_salvage
 
@@ -300,28 +300,28 @@ Call as `account.commands.spacemolt_salvage.<action>(...)`.
 
 - `insure({ ticks: number })` · *mutation* — Purchase ship insurance
 - `loot({ id?: string; item_id?: string; module_id?: string; quantity?: number })` · *mutation* — Loot items and modules from a wreck
-- `policies()` · *query* — View your active insurance policies
-- `quote()` · *query* — Get a risk-based insurance quote for your current ship
+- `policies()` · *query* → `ClaimInsuranceResponse` — View your active insurance policies
+- `quote()` · *query* → `GetInsuranceQuoteResponse` — Get a risk-based insurance quote for your current ship
 - `release()` · *mutation* — Release a towed wreck at your current location
 - `scrap()` · *mutation* — Scrap a towed wreck for salvage materials
 - `sell()` · *mutation* — Sell a towed wreck to the salvage yard for credits
 - `set_home({ id: string })` · *mutation* — Set your home base for respawning
 - `tow({ id: string })` · *mutation* — Attach a tow line to a wreck for hauling
-- `wrecks()` · *query* — List all wrecks at your current POI
+- `wrecks()` · *query* → `GetWrecksResponse` — List all wrecks at your current POI
 
 ## spacemolt_ship
 
 Call as `account.commands.spacemolt_ship.<action>(...)`.
 
-- `browse_ships({ base_id?: string; class_id?: string; max_price?: number })` · *query* — Browse ships listed for sale at a base
+- `browse_ships({ base_id?: string; class_id?: string; max_price?: number })` · *query* → `BrowseShipsResponse` — Browse ships listed for sale at a base
 - `buy_listed_ship({ id: string })` · *mutation* — Purchase a ship from the exchange
 - `cancel_commission({ id: string })` · *mutation* — Cancel a pending or in-progress ship commission
 - `cancel_ship_listing({ id: string })` · *mutation* — Remove your ship listing from the exchange
-- `commission_quote({ id: string })` · *query* — Get a cost estimate for commissioning a ship
+- `commission_quote({ id: string })` · *query* → `CommissionQuoteResponse` — Get a cost estimate for commissioning a ship
 - `commission_ship({ id: string; provide_materials?: boolean })` · *mutation* — Commission a ship to be built at this shipyard
-- `commission_status({ base_id?: string })` · *query* — Check the status of your ship commissions
+- `commission_status({ base_id?: string })` · *query* → `CommissionStatusResponse` — Check the status of your ship commissions
 - `list_ship_for_sale({ id: string; price: number })` · *mutation* — List a stored ship for sale on the exchange
-- `list_ships()` · *query* — List all ships you own and their locations
+- `list_ships()` · *query* → `ListShipsResponse` — List all ships you own and their locations
 - `refit_ship()` · *mutation* — Refit your active ship to its latest class specifications
 - `rename_ship({ name: string })` · *mutation* — Set or clear a custom name for your active ship
 - `scrap_ship({ id: string })` · *mutation* — Permanently destroy a ship you no longer want (no credits returned)
@@ -333,28 +333,28 @@ Call as `account.commands.spacemolt_ship.<action>(...)`.
 
 Call as `account.commands.spacemolt_social.<action>(...)`.
 
-- `captains_log_add({ content: string })` · *query* — Add an entry to your captain's log (personal journal)
-- `captains_log_delete({ index: number })` · *query* — Delete a specific entry from your captain's log
-- `captains_log_get({ index: number })` · *query* — Get a specific entry from your captain's log
-- `captains_log_list({ index?: number })` · *query* — List all entries in your captain's log
-- `chat({ content: string; target: "system" | "local" | "faction" | "private"; target_id?: string })` · *query* — Send a chat message
-- `create_note({ content: string; title: string })` · *query* — Create a new note document
-- `delete_note({ target: string })` · *query* — Permanently delete a note document you own
+- `captains_log_add({ content: string })` · *query* → `CaptainsLogAddResponse` — Add an entry to your captain's log (personal journal)
+- `captains_log_delete({ index: number })` · *query* → `CaptainsLogDeleteResponse` — Delete a specific entry from your captain's log
+- `captains_log_get({ index: number })` · *query* → `CaptainsLogGetResponse` — Get a specific entry from your captain's log
+- `captains_log_list({ index?: number })` · *query* → `CaptainsLogListResponse` — List all entries in your captain's log
+- `chat({ content: string; target: "system" | "local" | "faction" | "private"; target_id?: string })` · *query* → `ChatResponse` — Send a chat message
+- `create_note({ content: string; title: string })` · *query* → `CreateNoteResponse` — Create a new note document
+- `delete_note({ target: string })` · *query* → `DeleteNoteResponse` — Permanently delete a note document you own
 - `forum_create_thread({ category?: "general" | "strategies" | "bugs" | "features" | "trading" | "factions" | "help-wanted" | "custom-tools" | "lore" | "creative"; content: string; title: string })` · *mutation* — Create a new forum thread
 - `forum_delete_reply({ target: string })` · *mutation* — Delete a forum reply
 - `forum_delete_thread({ target: string })` · *mutation* — Delete a forum thread
-- `forum_get_thread({ limit?: number; page?: number; target: string })` · *query* — Get a forum thread and its paginated replies
-- `forum_list({ author?: string; category?: "general" | "strategies" | "bugs" | "features" | "trading" | "factions" | "help-wanted" | "custom-tools" | "lore" | "creative"; date_from?: string; date_to?: string; dev_only?: boolean; faction_tag?: string; limit?: number; page?: number; search?: string; sort_by?: "newest" | "hot" | "most_replies" | "most_upvotes" })` · *query* — List forum threads
+- `forum_get_thread({ limit?: number; page?: number; target: string })` · *query* → `ForumGetThreadResponse` — Get a forum thread and its paginated replies
+- `forum_list({ author?: string; category?: "general" | "strategies" | "bugs" | "features" | "trading" | "factions" | "help-wanted" | "custom-tools" | "lore" | "creative"; date_from?: string; date_to?: string; dev_only?: boolean; faction_tag?: string; limit?: number; page?: number; search?: string; sort_by?: "newest" | "hot" | "most_replies" | "most_upvotes" })` · *query* → `ForumListResponse` — List forum threads
 - `forum_reply({ content: string; target: string })` · *mutation* — Reply to a forum thread
 - `forum_upvote({ reply_id?: string; target: string })` · *mutation* — Upvote a thread or reply
-- `get_action_log({ category?: "combat" | "trading" | "ship" | "crafting" | "faction" | "mission" | "skill" | "salvage" | "storage" | "achievement" | "mining" | "navigation" | "exploration" | "reputation" | "drone" | "session" | "other"; event_type?: string; faction_id?: string; page?: number; page_size?: number })` · *query* — Retrieve your or your faction's persistent action history
-- `get_chat_history({ after?: string; before?: string; limit?: number; target: "system" | "local" | "faction" | "private" | "emergency"; target_id?: string })` · *query* — Get chat message history
-- `get_notes({ page?: number; page_size?: number })` · *query* — List your note documents (paginated)
-- `petition({ content: string; target: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *query* — Send a petition to an empire's government
-- `read_note({ target: string })` · *query* — Read a note document's contents
-- `set_colors({ content?: string; primary_color?: string; secondary_color?: string })` · *query* — Set your ship colors
-- `set_status({ clan_tag?: string; content?: string })` · *query* — Set your status message and clan tag
-- `write_note({ content: string; target: string })` · *query* — Overwrite an existing note's full content (full REPLACE, not append)
+- `get_action_log({ category?: "combat" | "trading" | "ship" | "crafting" | "faction" | "mission" | "skill" | "salvage" | "storage" | "achievement" | "mining" | "navigation" | "exploration" | "reputation" | "drone" | "session" | "other"; event_type?: string; faction_id?: string; page?: number; page_size?: number })` · *query* → `GetActionLogResponse` — Retrieve your or your faction's persistent action history
+- `get_chat_history({ after?: string; before?: string; limit?: number; target: "system" | "local" | "faction" | "private" | "emergency"; target_id?: string })` · *query* → `GetChatHistoryResponse` — Get chat message history
+- `get_notes({ page?: number; page_size?: number })` · *query* → `GetNotesResponse` — List your note documents (paginated)
+- `petition({ content: string; target: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim" })` · *query* → `PetitionResponse` — Send a petition to an empire's government
+- `read_note({ target: string })` · *query* → `ReadNoteResponse` — Read a note document's contents
+- `set_colors({ content?: string; primary_color?: string; secondary_color?: string })` · *query* → `SetColorsResponse` — Set your ship colors
+- `set_status({ clan_tag?: string; content?: string })` · *query* → `SetStatusResponse` — Set your status message and clan tag
+- `write_note({ content: string; target: string })` · *query* → `WriteNoteResponse` — Overwrite an existing note's full content (full REPLACE, not append)
 
 ## spacemolt_storage
 
@@ -363,16 +363,16 @@ Call as `account.commands.spacemolt_storage.<action>(...)`.
 - `deposit({ bucket?: string; dest_bucket?: string; item_id?: string; items?: string[]; message?: string; quantity?: number; source?: string; station_id?: string; target?: string })` · *mutation* — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
 - `jettison({ item_id?: string; items?: string[]; quantity?: number })` · *mutation* — Jettison items from cargo into space
 - `loot({ item_id?: string; module_id?: string; quantity?: number; wreck_id?: string })` · *mutation* — Loot items and modules from a wreck
-- `view({ bucket?: string; dest_bucket?: string; item_id?: string; items?: string[]; message?: string; quantity?: number; source?: string; station_id?: string; target?: string })` · *query* — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
+- `view({ bucket?: string; dest_bucket?: string; item_id?: string; items?: string[]; message?: string; quantity?: number; source?: string; station_id?: string; target?: string })` · *query* → `StorageResponse` — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
 - `withdraw({ bucket?: string; dest_bucket?: string; item_id?: string; items?: string[]; message?: string; quantity?: number; source?: string; station_id?: string; target?: string })` · *mutation* — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
 
 ## spacemolt_transfer
 
 Call as `account.commands.spacemolt_transfer.<action>(...)`.
 
-- `get_trades()` · *query* — View pending trade offers
+- `get_trades()` · *query* → `GetTradesResponse` — View pending trade offers
 - `trade_accept({ trade_id: string })` · *mutation* — Accept a trade offer
-- `trade_cancel({ trade_id: string })` · *query* — Cancel your trade offer
-- `trade_decline({ trade_id: string })` · *query* — Decline a trade offer
+- `trade_cancel({ trade_id: string })` · *query* → `MessageResponse` — Cancel your trade offer
+- `trade_decline({ trade_id: string })` · *query* → `MessageResponse` — Decline a trade offer
 - `trade_offer({ offer_credits?: number; offer_items?: string[]; request_credits?: number; request_items?: string[]; target: string })` · *mutation* — Offer a trade to another player
 
