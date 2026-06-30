@@ -53,7 +53,7 @@ export {
   type WebSocketLike,
   type WebSocketFactory,
 } from './transport/socket.ts';
-export { ACTIONS } from './generated/actions.gen.ts';
+export { ACTIONS, GENERATED_SPEC_VERSION } from './generated/actions.gen.ts';
 export type { ToolName, ActionName, ActionDef, ActionParam } from './generated/actions.gen.ts';
 export {
   TYPED_NOTIFICATION_TYPES,

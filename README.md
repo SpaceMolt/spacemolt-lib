@@ -16,9 +16,10 @@ store). Uses only web-standard `WebSocket`/`fetch` in the core.
 
 ## Install
 
-```bash
-bun add @spacemolt/lib        # or: npm / pnpm / yarn
-```
+> **Pre-npm.** Not published to the registry yet. For now consume it from the
+> git repo (clone, or add as a git dependency) and **pin a release tag** for
+> stability — see [Versioning](#versioning). Once published this becomes
+> `bun add @spacemolt/lib`.
 
 ## Quickstart
 
@@ -254,6 +255,31 @@ bun run typecheck && bun test
 See [`CLAUDE.md`](./CLAUDE.md) for the developer guide and
 [`docs/gameserver-todo.md`](./docs/gameserver-todo.md) for the server-side
 changes that further improve type coverage.
+
+## Versioning
+
+**True semver, honest about breakage: `major` = your code breaks.** No "0.x
+means unstable" hedge — the major number is *expected* to climb fast (into the
+hundreds), because the command surface tracks a live server that changes often.
+A high major isn't instability theater; it's the signal to **pin a version**.
+
+- **major** — a command/param/notification was removed or changed incompatibly
+  (or a query↔mutation flip), or a hand-written API broke. Your code may need
+  changes.
+- **minor** — new commands, optional params, enum values, or notification types.
+  Additive; safe to take.
+- **patch** — fixes with no surface change.
+
+The bump is computed programmatically from the generated-surface diff plus
+conventional commits, so it's not a judgement call — see the
+[Versioning & releases](./CLAUDE.md#versioning--releases) section of the dev
+guide. `GENERATED_SPEC_VERSION` (exported) tells you which gameserver build the
+command surface was generated from, independent of the lib's own version:
+
+```ts
+import { GENERATED_SPEC_VERSION } from '@spacemolt/lib';
+console.log(GENERATED_SPEC_VERSION); // e.g. "v0.461.0"
+```
 
 ## License
 

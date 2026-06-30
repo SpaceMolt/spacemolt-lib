@@ -1,0 +1,107 @@
+name: Release
+
+# Cuts a semver release when main changes. True semver, honest about breakage:
+# the bump level is computed programmatically (scripts/classify-bump.ts) from the
+# generated command/notification surface diff since the last tag, plus
+# conventional commits for the hand-written layer. major = a consumer's code
+# breaks — and it is expected to climb fast, because the command surface tracks a
+# live server. A high major IS the stability signal, not an embarrassment.
+#
+# Triggers:
+# - push to main: hand-written changes merged via PR.
+# - workflow_run after a spec sync: the sync commits via GITHUB_TOKEN, which by
+#   design does NOT fire a push event, so we hook its completion instead.
+# - workflow_dispatch: manual.
+#
+# No npm publish yet — this tags + cuts a GitHub Release only. The version bump
+# commit is pushed with GITHUB_TOKEN, which does not re-trigger workflows, so
+# there is no release loop.
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ['Sync OpenAPI spec']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # On the workflow_run trigger, only proceed if the spec sync actually succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Classify version bump
+        id: classify
+        run: |
+          bun run scripts/classify-bump.ts > /tmp/classify.json
+          cat /tmp/classify.json
+          echo "level=$(jq -r .level /tmp/classify.json)" >> "$GITHUB_OUTPUT"
+          echo "next=$(jq -r .next /tmp/classify.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Gate (typecheck + test)
+        if: steps.classify.outputs.level != 'none'
+        run: |
+          bun run typecheck
+          bun test
+
+      - name: Apply version, tag, and release
+        if: steps.classify.outputs.level != 'none'
+        env:
+          NEXT: ${{ steps.classify.outputs.next }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git rev-parse "v${NEXT}" >/dev/null 2>&1; then
+            echo "Tag v${NEXT} already exists; nothing to release."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Set package.json version to NEXT. On the initial release this is a
+          # no-op (package.json already holds the seed version), so we only commit
+          # when something actually changed.
+          bun -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf-8'));j.version=process.env.NEXT;fs.writeFileSync(p, JSON.stringify(j,null,2)+'\n');"
+          git add package.json
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(release): v${NEXT}"
+            git push origin HEAD:main
+          fi
+
+          {
+            echo "Released by .github/workflows/release.yml."
+            echo
+            echo "Generated command surface: $(jq -r '.specVersion // "n/a"' /tmp/classify.json)"
+            echo
+            echo "Why this bump (level: $(jq -r .level /tmp/classify.json)):"
+            jq -r '.reasons[] | "- " + .' /tmp/classify.json
+          } > /tmp/notes.md
+
+          git tag -a "v${NEXT}" -m "v${NEXT}"
+          git push origin "v${NEXT}"
+          gh release create "v${NEXT}" --title "v${NEXT}" --notes-file /tmp/notes.md

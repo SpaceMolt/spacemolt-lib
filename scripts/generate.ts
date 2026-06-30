@@ -61,7 +61,7 @@ interface OpenAPISpec {
   components: { schemas: Record<string, unknown> };
 }
 
-interface ParamDef {
+export interface ParamDef {
   name: string;
   type: string;
   required: boolean;
@@ -70,7 +70,7 @@ interface ParamDef {
   positional?: number;
 }
 
-interface ActionDef {
+export interface ActionDef {
   tool: string;
   action: string;
   /** Mutations are POSTs that queue for a tick; queries resolve synchronously. */
@@ -134,6 +134,9 @@ function emitActions(spec: OpenAPISpec, actions: ActionDef[]): string {
 
   let out = BANNER;
   out += `// Source spec: ${spec.info['x-gameserver-version'] ?? spec.info.version}\n\n`;
+
+  out += `/** The gameserver spec version this command surface was generated from. */\n`;
+  out += `export const GENERATED_SPEC_VERSION = ${JSON.stringify(spec.info['x-gameserver-version'] ?? spec.info.version)};\n\n`;
 
   out += `export type ToolName =\n  | ${tools.map((t) => JSON.stringify(t)).join('\n  | ')};\n\n`;
   out += `export type ActionName =\n  | ${actionNames.map((a) => JSON.stringify(a)).join('\n  | ')};\n\n`;
