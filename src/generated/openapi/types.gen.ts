@@ -331,6 +331,149 @@ export type CargoItem = {
     size?: number;
 };
 
+export type CatalogDump = {
+    facilities: Array<{
+        allows_contraband?: boolean;
+        always_on: boolean;
+        battery_capacity?: number;
+        build_cost: number;
+        build_materials?: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        build_time: number;
+        category: string;
+        degraded_description?: string;
+        deposit_to_empire_reserves?: boolean;
+        description: string;
+        empire?: string;
+        expansion_of?: string;
+        expansion_scale?: number;
+        faction_cap?: number;
+        faction_service_type?: string;
+        fleet_upkeep?: boolean;
+        fuel_capacity?: number;
+        fuel_output?: boolean;
+        id: string;
+        is_recycler?: boolean;
+        labor_cost: number;
+        level: number;
+        life_support_draw?: number;
+        life_support_supply?: number;
+        lore?: string;
+        maintenance_inputs?: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        name: string;
+        personal_bonus_type?: string;
+        personal_bonus_value?: number;
+        personal_service_type?: string;
+        pirate_base_only?: boolean;
+        power_draw?: number;
+        power_supply?: number;
+        recipe_id?: string;
+        requires_service_type?: string;
+        satisfied_description?: string;
+        scan_falloff?: number;
+        scan_power?: number;
+        service_type?: string;
+        station_or_faction_only?: boolean;
+        unique?: boolean;
+        upgrades_from?: string;
+    }>;
+    items: Array<unknown>;
+    recipes: Array<{
+        category: string;
+        crafting_time: number;
+        description: string;
+        facility_only?: boolean;
+        fuel_output?: number;
+        hidden?: boolean;
+        id: string;
+        inputs: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        name: string;
+        no_recycle?: boolean;
+        outputs: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+    }>;
+    ships: Array<{
+        base_armor: number;
+        base_fuel: number;
+        base_hull: number;
+        base_shield: number;
+        base_shield_recharge: number;
+        base_speed: number;
+        based_on?: string;
+        build_materials?: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        build_time: number;
+        cargo_capacity: number;
+        category?: string;
+        class: string;
+        cpu_capacity: number;
+        default_loadout_version?: number;
+        default_modules?: Array<string>;
+        defense_slots: number;
+        description: string;
+        faction?: string;
+        flavor_tags?: Array<string>;
+        hidden?: boolean;
+        id: string;
+        inherent_capabilities?: Array<{
+            flag?: string;
+            type: string;
+            value?: number;
+        }>;
+        legacy?: boolean;
+        lore?: string;
+        name: string;
+        npc_role?: string;
+        passive_recipes?: Array<string>;
+        piloting_required?: number;
+        power_capacity: number;
+        prestige_lock?: string;
+        price: number;
+        required_achievement?: string;
+        required_faction_achievement?: string;
+        required_faction_leader?: boolean;
+        required_items?: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        required_reputation?: number;
+        scale: number;
+        shipyard_tier: number;
+        special?: string;
+        starter_ship?: boolean;
+        tier: number;
+        tow_speed_bonus?: number;
+        utility_slots: number;
+        weapon_slots: number;
+    }>;
+    skills: Array<{
+        bonus_per_level?: {
+            [key: string]: number;
+        };
+        category: string;
+        description: string;
+        empire_restriction?: string;
+        id: string;
+        max_level: number;
+        name: string;
+        training_source?: string;
+        xp_per_level: Array<number>;
+    }>;
+    version: string;
+};
+
 export type CatalogResponse = {
     analysis?: {
         alternates?: {
@@ -1575,6 +1718,14 @@ export type FacilityResponse = {
         type: string;
         under_construction?: boolean;
     }>;
+    faction_rent?: {
+        arrears_owed?: number;
+        est_rent_per_day: number;
+        facilities: number;
+        grace_cycles?: number;
+        note?: string;
+        total_rent_per_cycle: number;
+    };
     player_facilities: Array<{
         bonus_type?: string;
         bonus_value?: number;
@@ -3512,6 +3663,7 @@ export type GetGuideResponse = {
         title: string;
     }>;
     hint?: string;
+    server_version?: string;
 };
 
 export type GetInsuranceQuoteResponse = {
@@ -4156,6 +4308,324 @@ export type LoadPassengersResponse = {
     total_fare: number;
 };
 
+export type LoggedInPayload = {
+    pending_trades?: Array<{
+        created_at: string;
+        expires_at: string;
+        id: string;
+        offer_credits: number;
+        offer_items: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        offerer_id: string;
+        poi_id: string;
+        request_credits: number;
+        request_items: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        status: string;
+        target_id: string;
+    }>;
+    player: {
+        achievements?: {
+            [key: string]: string;
+        };
+        captains_log?: Array<{
+            created_at: string;
+            entry: string;
+            index: number;
+        }>;
+        citizenships?: {
+            [key: string]: {
+                empire_id: string;
+                granted_at: string;
+                granted_by?: string;
+            };
+        };
+        clan_tag: string;
+        completed_missions?: {
+            [key: string]: string;
+        };
+        created_at: string;
+        credits: number;
+        current_poi: string;
+        current_ship_id: string;
+        current_system: string;
+        discovered_systems?: {
+            [key: string]: {
+                discovered_at: string;
+                system_id: string;
+            };
+        };
+        distress_last_sent_at?: string;
+        docked_at_base?: string;
+        empire: string;
+        empire_rep?: {
+            [key: string]: {
+                criminal: number;
+                criminal_encounters: number;
+                fame: number;
+                fear: number;
+                hate: number;
+                love: number;
+                need: number;
+            };
+        };
+        experience: number;
+        faction_id?: string;
+        faction_rank?: string;
+        fleet_id?: string;
+        home_base: string;
+        id: string;
+        is_cloaked: boolean;
+        jail?: {
+            bounty_owed: number;
+            empire_id: string;
+            jailed_until: string;
+            rep_restoration: number;
+        };
+        last_active_at: string;
+        last_chat_check: string;
+        last_chat_check_map?: {
+            [key: string]: string;
+        };
+        last_command_at: string;
+        last_login_at: string;
+        primary_color: string;
+        provided_items_granted?: {
+            [key: string]: string;
+        };
+        purchased_ship_classes?: {
+            [key: string]: boolean;
+        };
+        reputation?: {
+            [key: string]: number;
+        };
+        reputation_baseline?: {
+            [key: string]: number;
+        };
+        revealed_pois?: {
+            [key: string]: boolean;
+        };
+        riding_ship_id?: string;
+        secondary_color: string;
+        skill_xp: {
+            [key: string]: number;
+        };
+        skills: {
+            [key: string]: number;
+        };
+        stats: {
+            bases_destroyed: number;
+            battles_fled: number;
+            battles_started: number;
+            captains_log_entries: number;
+            chat_messages_sent: number;
+            cloak_activations: number;
+            consumables_used: number;
+            contraband_sold: number;
+            credits_earned: number;
+            credits_earned_taxable: number;
+            credits_earned_taxable_by_category?: {
+                [key: string]: number;
+            };
+            credits_earned_taxable_by_category_snapshot?: {
+                [key: string]: number;
+            };
+            credits_earned_taxable_snapshot: number;
+            credits_gifted: number;
+            credits_spent: number;
+            customs_evaded: number;
+            damage_dealt: number;
+            damage_taken: number;
+            deaths_by_pirate: number;
+            deaths_by_player: number;
+            deaths_by_self_destruct: number;
+            deep_core_pois_discovered: number;
+            distance_traveled: number;
+            exchange_credits_earned: number;
+            exchange_items_bought: number;
+            exchange_items_sold: number;
+            facilities_built: number;
+            facility_items_produced: number;
+            forum_posts_created: number;
+            gifts_received: number;
+            gifts_sent: number;
+            insurance_claims_made: number;
+            insurance_payouts_received: number;
+            insurance_policies_bought: number;
+            items_crafted: number;
+            items_jettisoned: number;
+            items_sold_by_type?: {
+                [key: string]: number;
+            };
+            jumps_completed: number;
+            last_income_tax_assessed_at?: number;
+            last_property_tax_assessed_at?: number;
+            market_purchases_deductible?: number;
+            market_purchases_deductible_snapshot?: number;
+            market_tax_loss_carryforward?: number;
+            missions_abandoned: number;
+            missions_accepted: number;
+            missions_completed: number;
+            modules_installed: number;
+            npcs_destroyed: number;
+            ore_mined: number;
+            pirates_destroyed: number;
+            prayer_distance_traveled: number;
+            refuels_given: number;
+            repairs_given: number;
+            scans_performed: number;
+            self_destructs: number;
+            ships_commissioned: number;
+            ships_destroyed: number;
+            ships_lost: number;
+            ships_purchased: number;
+            systems_explored: number;
+            tax_prepaid?: number;
+            time_played: number;
+            times_docked: number;
+            trades_completed: number;
+            void_drifts: number;
+            wormholes_traversed: number;
+            wreck_items_looted: number;
+            wrecks_scrapped: number;
+            wrecks_sold: number;
+        };
+        status_message: string;
+        titles?: Array<string>;
+        towing_wreck_id?: string;
+        trading_restricted_until?: string;
+        transported_citizens?: {
+            [key: string]: boolean;
+        };
+        username: string;
+    };
+    poi: {
+        base_id?: string;
+        base_name?: string;
+        class?: string;
+        faction_fuel_capacity?: number;
+        faction_fuel_reserve?: number;
+        fuel_capacity?: number;
+        fuel_price?: number;
+        fuel_reserve: number;
+        has_base: boolean;
+        id: string;
+        name: string;
+        online: number;
+        position: {
+            x: number;
+            y: number;
+        };
+        type: string;
+    };
+    recent_chat?: Array<{
+        channel: string;
+        content: string;
+        empire_official?: boolean;
+        faction_id?: string;
+        id: string;
+        poi_id?: string;
+        sender: string;
+        sender_id: string;
+        system_id?: string;
+        target_id?: string;
+        target_name?: string;
+        timestamp_utc: string;
+    }>;
+    ship: {
+        active_buffs?: Array<{
+            amount: number;
+            expires_at: number;
+            item_id: string;
+            stat: string;
+        }>;
+        armor: number;
+        armor_melt_pct?: number;
+        armor_melt_ticks_remaining?: number;
+        burn_damage_per_tick?: number;
+        burn_source_id?: string;
+        burn_ticks_remaining?: number;
+        cargo: Array<{
+            item_id: string;
+            name?: string;
+            quantity: number;
+            size?: number;
+        }>;
+        cargo_capacity: number;
+        cargo_used: number;
+        class_id: string;
+        cpu_capacity: number;
+        cpu_used: number;
+        created_at: string;
+        custom_name?: string;
+        damage_penalty?: number;
+        defense_slots: number;
+        disruption_ticks_remaining?: number;
+        docked_at_base?: string;
+        fuel: number;
+        gas_cargo_efficiency: number;
+        hull: number;
+        ice_cargo_efficiency: number;
+        id: string;
+        in_faction_garage?: string;
+        last_process_tick?: number;
+        loaded_on_carrier_id?: string;
+        loadout_version?: number;
+        max_fuel: number;
+        max_hull: number;
+        max_shield: number;
+        modules: Array<string>;
+        name: string;
+        ore_cargo_efficiency: number;
+        owner_id: string;
+        power_capacity: number;
+        power_used: number;
+        shield: number;
+        shield_recharge: number;
+        speed: number;
+        speed_penalty?: number;
+        utility_slots: number;
+        weapon_slots: number;
+    };
+    system: {
+        connections: Array<{
+            distance?: number;
+            name: string;
+            system_id: string;
+        }>;
+        description?: string;
+        empire?: string;
+        id: string;
+        is_stronghold: boolean;
+        name: string;
+        pois: Array<{
+            base_id?: string;
+            base_name?: string;
+            class?: string;
+            faction_fuel_capacity?: number;
+            faction_fuel_reserve?: number;
+            fuel_capacity?: number;
+            fuel_price?: number;
+            fuel_reserve: number;
+            has_base: boolean;
+            id: string;
+            name: string;
+            online: number;
+            position: {
+                x: number;
+                y: number;
+            };
+            type: string;
+        }>;
+        police_level: number;
+        security_status?: string;
+    };
+};
+
 export type LoginResponse = {
     message: string;
     pending_trades: Array<{
@@ -4511,6 +4981,26 @@ export type LootWreckResponse = {
     };
 };
 
+export type MapData = {
+    empires: {
+        [key: string]: string;
+    };
+    systems: Array<{
+        battle_id?: string;
+        connections: Array<string>;
+        empire?: string;
+        empire_color?: string;
+        has_battle?: boolean;
+        id: string;
+        is_home?: boolean;
+        is_stronghold?: boolean;
+        name: string;
+        online: number;
+        x: number;
+        y: number;
+    }>;
+};
+
 /**
  * A system entry from the player's discovered map.
  */
@@ -4557,6 +5047,10 @@ export type MineResponse = {
     auto_undocked?: boolean;
     filtered: boolean;
     message: string;
+};
+
+export type MobileBaseLocation = {
+    system: string;
 };
 
 export type ModifyOrderResponse = {
@@ -6021,6 +6515,11 @@ export type RegisterResponse = {
         security_status?: string;
     };
     username?: string;
+};
+
+export type RegisteredPayload = {
+    password: string;
+    player_id: string;
 };
 
 export type ReleaseTowResponse = {
@@ -7752,6 +8251,20 @@ export type ViewOrdersResponse = {
     sort_by: string;
     total: number;
     total_pages: number;
+};
+
+export type WelcomePayload = {
+    current_tick: number;
+    game_info: string;
+    help_text: string;
+    motd?: string;
+    release_date: string;
+    release_notes: Array<string>;
+    server_time: number;
+    terms: string;
+    tick_rate: number;
+    version: string;
+    website: string;
 };
 
 export type WithdrawItemsResponse = {
