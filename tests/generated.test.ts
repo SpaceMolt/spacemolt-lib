@@ -19,6 +19,17 @@ test('known commands resolve with the expected kind', () => {
   expect(ACTIONS['spacemolt/get_status']?.kind).toBe('query');
 });
 
+test('queries carry their response type; mutations do not', () => {
+  // A representative query exposes the typed structuredContent response.
+  expect(ACTIONS['spacemolt/find_route']?.responseType).toBe('FindRouteResponse');
+  // Mutations resolve via the delta, not a structuredContent response schema.
+  expect(ACTIONS['spacemolt/jump']?.responseType).toBeUndefined();
+  // Coverage: most queries should be typed (spec publishes their responses).
+  const queries = Object.values(ACTIONS).filter((a) => a.kind === 'query');
+  const typed = queries.filter((a) => a.responseType);
+  expect(typed.length).toBeGreaterThan(queries.length * 0.9);
+});
+
 test('auth actions are present', () => {
   expect(ACTIONS['spacemolt_auth/login']).toBeDefined();
   expect(ACTIONS['spacemolt_auth/register']).toBeDefined();

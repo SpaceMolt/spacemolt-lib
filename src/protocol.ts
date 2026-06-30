@@ -161,12 +161,17 @@ export type GameState = Pick<
  */
 export type StateDelta = GameState & Pick<V2GameState, 'message' | 'details' | 'credits'>;
 
-/** Resolved value of a synchronous query command. */
-export interface QueryResult {
+/**
+ * Resolved value of a synchronous query command. `T` is the command's specific
+ * `structuredContent` shape; the generated command facade binds it per command
+ * (e.g. `find_route` → `QueryResult<FindRouteResponse>`), so reads are typed with
+ * no cast. Defaults to untyped JSON for the low-level `query`/`send` paths.
+ */
+export interface QueryResult<T = Record<string, unknown>> {
   /** Human-readable rendered text (or raw object when no renderer applies). */
   result: unknown;
-  /** Raw JSON for programmatic consumption. */
-  structuredContent?: Record<string, unknown>;
+  /** Raw JSON for programmatic consumption, typed to the command's response. */
+  structuredContent?: T;
 }
 
 /** The immediate `pending: true` acknowledgement for a queued mutation. */

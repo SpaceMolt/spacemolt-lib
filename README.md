@@ -231,6 +231,8 @@ Runnable scripts in [`examples/`](./examples), run with `bun run examples/<name>
 
 - **`clerk-multi.ts`** — the recommended path: connect every account a Clerk API
   key owns.
+- `gameplay-loops.ts` — mine-until-full, multi-hop jump, dock-and-load (see
+  [Gameplay loops](./docs/gameplay-loops.md)).
 - `events.ts` — subscribe to live events.
 - `quickstart.ts` — bootstrap a brand-new account with `register` (raw path).
 - `multi-account.ts` — connect several pinned logins via a `CredentialStore`.

@@ -94,5 +94,25 @@ account.on('mining_yield', (y) => console.log(y.quantity, y.resource_id));
 - **Don't hand-edit anything generated** (`src/generated/`, `COMMANDS.md`); it's
   regenerated from the spec.
 
+## Command results are typed
+
+- **Mutations** resolve to `MutationResult` (`.delta` is the typed `V2GameState`
+  patch; the local cache is already updated when the `await` returns).
+- **Queries** resolve to `QueryResult<ResponseType>` — `.structuredContent` is
+  typed to that command's response, no cast:
+  ```ts
+  const plan = (await account.commands.spacemolt.find_route({ id })).structuredContent; // FindRouteResponse | undefined
+  ```
+  `COMMANDS.md` shows each query's response type after `→`. Every response/game
+  type is also re-exported from the package (`import type { FindRouteResponse } from '@spacemolt/lib'`).
+
+## Common loops
+
+Reference implementations for mine-until-full, multi-hop jump (`find_route` →
+`jump` each hop), and dock-and-load-from-storage are in
+[`docs/gameplay-loops.md`](./docs/gameplay-loops.md) — copy them as starting
+points. They return structured results and stay silent (no `console.log` in the
+loop) so a fleet can run many concurrently and render however it likes.
+
 For the full guide see [`README.md`](./README.md); for live-server testing see
 [`docs/live-testing.md`](./docs/live-testing.md).
