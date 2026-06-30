@@ -169,13 +169,17 @@ tests/
 
 ## Auth
 
-Raw credentials first: `register` (returns a one-time generated password),
-`login` (username + password), `login_token` (short-lived token from the
-Clerk-authenticated `POST /api/player/{id}/ws-token`).
+**Clerk API key is the recommended path** for connecting accounts — especially
+multi-account. Raw credentials remain for bootstrapping and single accounts:
+`register` (returns a one-time generated password), `login` (username +
+password), `login_token` (short-lived token from the Clerk-authenticated `POST
+/api/player/{id}/ws-token`). Reach for stored passwords only as a fallback when
+no Clerk key is available.
 
-**Clerk multi-account** (`src/auth/clerk.ts`): authenticate with a Clerk **API
-key** (Bearer) to connect every account the Clerk user owns without storing
-per-account passwords. `ClerkSource.listPlayers()` reads `GET
+**Clerk multi-account** (`src/auth/clerk.ts`) — the first-class path:
+authenticate with a Clerk **API key** (Bearer) to connect every account the
+Clerk user owns without storing per-account passwords. `ClerkSource.listPlayers()`
+reads `GET
 /api/registration-code` (owned players); the `clerk` credential kind mints a
 fresh single-use ws-token via `POST /api/player/{id}/ws-token` on each
 (re)connect, then logs in with `login_token`. `client.connectOwned()` enumerates
