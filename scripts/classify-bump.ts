@@ -150,7 +150,15 @@ export function nextVersion(current: string, level: Level): string {
 
 function git(args: string): string {
   // Capture stderr (don't inherit) so a non-fatal `git describe` miss stays quiet.
-  return execSync(`git ${args}`, { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  // maxBuffer well above the committed openapi.json size (~2MB): the default 1MB
+  // would make `git show <tag>:openapi.json` throw, silently skipping the catalog
+  // diff — which is exactly the half that detects breaking (major) spec changes.
+  return execSync(`git ${args}`, {
+    cwd: ROOT,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 256 * 1024 * 1024,
+  }).trim();
 }
 
 function lastReleaseTag(): string | null {
@@ -184,8 +192,10 @@ function main() {
   try {
     const oldSpec: Spec = JSON.parse(git(`show ${tag}:openapi.json`));
     cat = classifyCatalog(oldSpec, newSpec);
-  } catch {
-    cat = { level: 'none', reasons: ['(no openapi.json at last tag — skipped catalog diff)'] };
+  } catch (err) {
+    // Surface WHY the diff was skipped — a silent skip once hid the catalog diff
+    // never running at all (default execSync maxBuffer vs a ~2MB spec).
+    cat = { level: 'none', reasons: [`(catalog diff skipped: ${(err as Error).message.split('\n')[0]})`] };
   }
 
   const raw = git(`log ${tag}..HEAD --format=%B%x00`);
