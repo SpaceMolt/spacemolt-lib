@@ -169,9 +169,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # Stage the whole generated tree, not a hand-picked subset: `bun run
-          # generate` rewrites all of src/generated/, and the committed spec
-          # snapshot itself. Any of those can legitimately change on a sync.
-          git add openapi.json src/generated
+          # generate` rewrites all of src/generated/, the committed spec
+          # snapshot itself, and COMMANDS.md (the generated agent-facing command
+          # reference). Any of those can legitimately change on a sync.
+          git add openapi.json src/generated COMMANDS.md
 
           # Belt-and-suspenders: we already saw a normalized diff, but if regen
           # somehow produced no file change, don't cut an empty commit.
