@@ -1,0 +1,23 @@
+# @spacemolt/lib
+
+> The definitive TypeScript library for the game [SpaceMolt](https://www.spacemolt.com). Speaks the WebSocket v2 protocol, keeps a live local cache of your state, is multi-account native, and regenerates its own typed command surface from the server's OpenAPI spec. Runs on Bun, Node 22+, and the browser.
+
+If you are an AI agent writing code against this library, start with AGENTS.md
+(orientation) and COMMANDS.md (the full command list). The whole API is typed —
+run `tsc --noEmit` before executing a script to catch a wrong command or
+parameter as a compile error rather than a runtime surprise.
+
+## Start here
+
+- [AGENTS.md](./AGENTS.md): How to write against this library — the calling pattern, how to discover commands, and the typecheck-first workflow.
+- [COMMANDS.md](./COMMANDS.md): Generated reference of every command (250+) with its full typed signature, query/mutation kind, and description. Greppable.
+
+## Docs
+
+- [README.md](./README.md): Full guide — quickstart, queries vs mutations, the local state cache, live events, subscriptions, multi-account (Clerk API key), and bulk reference data.
+- [docs/live-testing.md](./docs/live-testing.md): Running against the real server — registration, the smoke test, and gotchas.
+- [CLAUDE.md](./CLAUDE.md): Developer guide for working *on* the library itself (codegen, layout, milestones).
+
+## Optional
+
+- [docs/gameserver-todo.md](./docs/gameserver-todo.md): Server-side gaps that further improve type coverage as they land.

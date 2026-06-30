@@ -16,7 +16,10 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "COMMANDS.md",
+    "AGENTS.md",
+    "llms.txt"
   ],
   "scripts": {
     "fetch-spec": "bun run scripts/fetch-spec.ts",

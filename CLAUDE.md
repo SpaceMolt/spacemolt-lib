@@ -51,9 +51,24 @@ bun run build         # bundle + emit .d.ts to dist/
    - `src/generated/commands.gen.ts` — the ergonomic command facade: a typed
      param interface per action + a `Commands` interface grouped by tool, plus
      `buildCommands(dispatch)`. Backs `account.commands`.
+   - `COMMANDS.md` (repo root) — a flat, greppable markdown reference of every
+     command and its typed signature (query/mutation + params). This is the
+     discovery surface for coding agents that don't drive a live LSP; it's
+     generated from the same `ACTIONS` data, so it never drifts. Guarded by
+     `tests/commands-doc.test.ts` (regenerate-and-compare).
 
-Everything under `src/generated/` is auto-generated — **do not edit**. Re-run
-`bun run generate` after `bun run fetch-spec`.
+Everything under `src/generated/`, plus the generated `COMMANDS.md`, is
+auto-generated — **do not edit**. Re-run `bun run generate` after
+`bun run fetch-spec`. The sync CI stages `COMMANDS.md` alongside the spec.
+
+### Agent-facing docs
+
+`AGENTS.md` and `llms.txt` (repo root, hand-written) orient an AI coding agent
+*consuming* the published package: the calling pattern, how to discover commands
+(grep `COMMANDS.md` / enumerate `ACTIONS`), and the typecheck-first loop (the
+type system is the agent's substitute for IDE hints). All three ship in the npm
+package (`package.json` `files`). These are distinct from this file, which is the
+guide for working *on* the library.
 
 ### Spec-driven classification
 
@@ -86,6 +101,9 @@ server is the right place to fix; open the PR only when a milestone needs it.
 ```
 .github/workflows/
   sync-spec.yml           CI: auto fetch-spec + generate + commit on spec change
+AGENTS.md                 agent-facing orientation (hand-written; ships in pkg)
+llms.txt                  agent-facing doc index (hand-written; ships in pkg)
+COMMANDS.md               AUTO-GENERATED command reference (ships in pkg)
 openapi.json              committed spec snapshot (synced via fetch-spec)
 openapi-ts.config.ts      stage-1 codegen config
 scripts/

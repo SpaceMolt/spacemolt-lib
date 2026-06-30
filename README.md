@@ -37,6 +37,23 @@ const status = await account.commands.spacemolt.get_status();    // query → re
 account.on('chat_message', (m) => console.log(`[${m.channel}] ${m.sender}: ${m.content}`));
 ```
 
+## For AI agents
+
+Driving this library from a coding agent? The whole surface is typed, so the
+type checker is your discovery and verification tool — you don't have to guess
+command names:
+
+- **[`AGENTS.md`](./AGENTS.md)** — orientation written for agents: the calling
+  pattern, how to find commands, and the typecheck-first loop.
+- **[`COMMANDS.md`](./COMMANDS.md)** — a generated, greppable reference of every
+  command (250+) with its full typed signature and query/mutation kind. Never
+  stale (regenerated from the spec). `rg 'jump' COMMANDS.md` beats guessing.
+- **Typecheck before you run.** `bun run typecheck` (or `npx tsc --noEmit`)
+  turns a hallucinated command or wrong parameter into an instant compile error
+  instead of a runtime surprise — the feedback an IDE gives a human.
+
+A root [`llms.txt`](./llms.txt) indexes these for tools that look for it.
+
 ## Core concepts
 
 ### Commands: queries vs mutations
