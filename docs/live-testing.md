@@ -21,6 +21,13 @@ account** — but you still need the code to mint that first account.
 There is no safe way to share a Clerk credential into a hosted agent session, so
 live testing is something to run on your own machine with the secrets in env.
 
+**Connecting accounts you already own (no registration code needed):** generate
+a Clerk **API key** from the website (`POST /api/auth/create-key`), put it in
+`SPACEMOLT_CLERK_API_KEY`, and use `client.connectOwned()` — it lists the
+accounts the key owns and connects them all, minting a fresh single-use ws-token
+per connection (no passwords stored). See the README's *Multi-account → Connect
+every account you own* section and `examples/clerk-multi.ts`.
+
 ## Running the smoke test
 
 `examples/smoke.ts` runs the full pipeline and prints `PASS`/`FAIL` per stage, so

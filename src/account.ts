@@ -14,6 +14,7 @@
 import { ACTIONS } from './generated/actions.gen.ts';
 import { buildCommands, type Commands } from './generated/commands.gen.ts';
 import type { AuthCredentials } from './auth/credentials.ts';
+import { mintWsToken } from './auth/clerk.ts';
 import type {
   NotificationMarketUpdate,
   NotificationObservationUpdate,
@@ -71,8 +72,14 @@ export interface AccountOptions {
    * `close()`, a `session_replaced` (4001), or an `auth_timeout` (4002).
    */
   reconnect?: boolean | ReconnectOptions;
-  /** Supplies credentials for re-auth on reconnect (the token must be reusable). */
+  /**
+   * Supplies credentials for re-auth on reconnect. `login_token` credentials
+   * are single-use and can't reconnect; `clerk` credentials re-mint a fresh
+   * token each time, so they reconnect cleanly.
+   */
   credentials?: () => AuthCredentials | Promise<AuthCredentials>;
+  /** Inject a `fetch` implementation, used by `clerk` auth (tests, runtimes). */
+  fetchImpl?: typeof fetch;
   /** Max automatic retries when a command is `rate_limited`. Default 5. */
   maxRateLimitRetries?: number;
 }
@@ -131,6 +138,7 @@ export class Account {
   private readonly webSocketFactory?: WebSocketFactory;
   private readonly reconnectConfig: Required<ReconnectOptions> | null;
   private readonly credentialsProvider?: () => AuthCredentials | Promise<AuthCredentials>;
+  private readonly fetchImpl?: typeof fetch;
   private readonly maxRateLimitRetries: number;
   private requestSeq = 0;
 
@@ -158,6 +166,7 @@ export class Account {
     this.url = opts.url ?? DEFAULT_URL;
     this.webSocketFactory = opts.webSocketFactory;
     this.credentialsProvider = opts.credentials;
+    this.fetchImpl = opts.fetchImpl;
     this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
     this.reconnectConfig = normalizeReconnect(opts.reconnect);
     this.makeSocket();
@@ -281,6 +290,18 @@ export class Account {
       case 'login_token':
         await this.loginToken(creds.token);
         return;
+      case 'clerk': {
+        // Mint a fresh single-use WS token from the Clerk key, then log in with
+        // it. Re-runs on every reconnect, so each connection gets a new token.
+        const token = await mintWsToken({
+          httpBaseUrl: creds.httpBaseUrl,
+          apiKey: creds.apiKey,
+          playerId: creds.playerId,
+          fetchImpl: this.fetchImpl,
+        });
+        await this.loginToken(token);
+        return;
+      }
       case 'register':
         await this.register({
           username: creds.username,
