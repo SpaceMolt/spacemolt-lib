@@ -96,6 +96,41 @@ The incremental gameserver-side work that backs this library is tracked in
 frame payloads, optional `x-state-sections`. Add to it whenever we hit a gap the
 server is the right place to fix; open the PR only when a milestone needs it.
 
+## Versioning & releases
+
+**True semver, honest about breakage. `major` = a consumer's code breaks.** There
+is no "0.x means unstable" hedge — we started at `1.0.0` and the major number is
+*expected* to climb fast, because a self-maintaining lib whose command surface
+tracks a live server breaks things regularly. A high major (we'll be in the
+hundreds soon enough) is the honest stability signal: pin a version.
+
+The bump level is computed programmatically — `scripts/classify-bump.ts` prints
+`{ next, level, reasons }` as `max(catalog-diff, commit-signal)`:
+
+- **Catalog diff** (deterministic): compares the generated command/notification
+  surface at the last release tag against the current spec.
+  - `major` — command/tool removed, param removed, a param made required, an
+    enum value removed, a non-enum param type change, a query↔mutation kind flip
+    (changes `await` semantics), a notification type removed.
+  - `minor` — command/tool added, new optional param, new enum value, new
+    notification type.
+- **Commit signal**: conventional commits since the last tag for the hand-written
+  layer the spec can't see — `feat!:`/`BREAKING CHANGE` → major, `feat:` → minor,
+  `fix:`/`perf:` → patch, everything else → none.
+
+`.github/workflows/release.yml` runs the classifier on every change to `main`
+(PR merges via `push`; spec syncs via `workflow_run`, since the sync's
+`GITHUB_TOKEN` commit doesn't fire a `push`), gates on typecheck + tests, then
+bumps `package.json`, tags `vX.Y.Z`, and cuts a GitHub Release whose notes are
+the classifier's reasons. The bump commit is pushed with `GITHUB_TOKEN`, which
+does not re-trigger workflows — so there's no release loop. **No npm publish
+yet** (consume from git/tags); wiring `npm publish` is a later step. Rules guarded
+by `tests/classify-bump.test.ts`.
+
+`GENERATED_SPEC_VERSION` (exported) records the gameserver spec version the
+command surface was generated from, so a consumer can introspect which server
+build their commands match independently of the lib's own version.
+
 ## Layout
 
 ```
