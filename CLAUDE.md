@@ -246,5 +246,10 @@ accounts connecting once each from one IP doesn't compete for a shared budget
 — only an individual account re-authenticating repeatedly still gets
 throttled. `authenticate()` auto-retries on `rate_limited` (minting a fresh
 token per retry for `clerk` credentials), matching the retry behavior of
-`query`/`mutate`. Clerk *browser OAuth* (interactive sign-in) is still a
+`query`/`mutate`. The WS connection cap itself (checked at the HTTP upgrade,
+before any credentials are read — can't be scoped per player) is a separate,
+generously-sized per-IP budget (100/min) so a fleet's connect burst doesn't
+trip it either; a rejection there surfaces as `ConnectionClosedError`, not a
+retryable `SpacemoltError`, so it isn't something the lib retries around —
+see gameserver-todo #6. Clerk *browser OAuth* (interactive sign-in) is still a
 future seam — the API-key path is the headless/agent one.

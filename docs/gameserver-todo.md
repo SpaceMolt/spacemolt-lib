@@ -217,15 +217,25 @@ becomes a pure fallback.
 > unchanged — the per-player budget alone is generous enough for normal
 > fleet sizes without needing a longer stagger.
 
-The unrelated per-IP `connection` bucket (WS upgrade, 20/min per IP) still
-applies to every new socket regardless of auth kind — a fleet larger than
-~20 accounts connecting within the same minute can still see a transient
-`rate_limited` there before `login_token` is ever reached. The auth-retry
-above covers that case too (it retries the whole `authenticate()` call, and
-`SpacemoltClient.connect()` opens the socket immediately before it), though
-a very large fleet's first batch may still trickle in over slightly more
-than a minute. Not addressed here — flagged for a future item if it turns
-out to matter in practice.
+> **Update (2026-07-02, part 2):** The unrelated per-IP `connection` bucket
+> (WS upgrade, was 20/min per IP) still applied to every new socket
+> regardless of auth kind, defeating the point above for fleets over ~20
+> accounts — and unlike `login_token`, this one can't be scoped per player:
+> it's checked at the HTTP upgrade, before any credentials are read, so
+> there's no identity to key on yet. It's also **not** something the lib's
+> `authenticate()` retry helps with — a rejection here is an HTTP 429 on the
+> WebSocket handshake itself, which surfaces to the lib as a generic
+> `ConnectionClosedError` (`transport/socket.ts`), not a `SpacemoltError`
+> with `code: 'rate_limited'`, so `withRateLimitRetry` never sees it. Fixed
+> by raising the default `ConnLimit` from 20/min to 100/min
+> (`internal/ratelimit/ip_limiter.go`) — generous enough that a fleet up to
+> ~100 accounts completes within one window at the lib's default 250ms
+> connect stagger, while real reconnect-thrashing abuse still accumulates
+> rate-limit violations and gets IP-timed-out via the existing escalation
+> path. **Lib follow-up:** none — no lib code depended on the old limit.
+> A fleet larger than ~100 accounts connecting inside the same minute could
+> still see this, but that's arguably legitimate protection at that scale;
+> revisit if it turns out to matter in practice.
 
 **Where it lives:** `internal/ratelimit/decision.go` (`CatClerkLoginToken`),
 `internal/ratelimit/ip_limiter.go` (`ClerkLoginTokenLimit`, default 10),
