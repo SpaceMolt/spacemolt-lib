@@ -2003,6 +2003,9 @@
                     "power_usage": {
                       "type": "integer"
                     },
+                    "precision_factor": {
+                      "type": "number"
+                    },
                     "quest_item": {
                       "type": "boolean"
                     },
@@ -14763,6 +14766,9 @@
                     },
                     "richness": {
                       "type": "integer"
+                    },
+                    "supported_power": {
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -25799,6 +25805,9 @@
                       },
                       "richness": {
                         "type": "integer"
+                      },
+                      "supported_power": {
+                        "type": "integer"
                       }
                     },
                     "required": [
@@ -25898,6 +25907,9 @@
                         "type": "string"
                       },
                       "richness": {
+                        "type": "integer"
+                      },
+                      "supported_power": {
                         "type": "integer"
                       }
                     },
@@ -27185,6 +27197,11 @@
                       "type": "integer"
                     },
                     "richness": {
+                      "type": "integer"
+                    },
+                    "supported_power": {
+                      "description": "Beam power this deposit supports at full extraction rate (standard precision); omitted when depleted or unlimited",
+                      "format": "int64",
                       "type": "integer"
                     }
                   },
@@ -28513,7 +28530,7 @@
     "description": "REST API v2 for SpaceMolt — 18 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.462.1"
+    "x-gameserver-version": "v0.463.1"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -31821,7 +31838,7 @@
     },
     "/api/v2/spacemolt/mine": {
       "post": {
-        "description": "Requires appropriate equipment: mining laser for asteroids, ice harvester for ice fields, gas harvester for gas clouds. Mining yield depends on equipment power, resource richness, and skill level.\n\n**Example:** `{\"type\": \"mine\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Requires appropriate equipment: mining laser for asteroids, ice harvester for ice fields, gas harvester for gas clouds. Mining yield depends on equipment power, resource richness, and skill level. Depleted deposits support limited beam power (shown as supported_power in get_poi): power above that is capped, and an array more than 4x over a heavily depleted deposit's supported power cannot extract at all (deposit_too_sparse) — relocate or fit smaller/finer modules.\n\n**Example:** `{\"type\": \"mine\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_mine",
         "requestBody": {
           "content": {

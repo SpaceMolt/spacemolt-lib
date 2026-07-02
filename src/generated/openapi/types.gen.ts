@@ -585,6 +585,7 @@ export type CatalogResponse = {
         passive_recipe?: string;
         power_bonus?: number;
         power_usage: number;
+        precision_factor?: number;
         quest_item?: boolean;
         range?: number;
         reach?: number;
@@ -3947,6 +3948,7 @@ export type GetPoiResponse = {
         remaining_display: string;
         resource_id: string;
         richness: number;
+        supported_power?: number;
     }>;
     services?: Array<string>;
     wormhole_destination?: string;
@@ -7360,6 +7362,7 @@ export type SurveySystemResponse = {
             remaining_display: string;
             resource_id: string;
             richness: number;
+            supported_power?: number;
         }>;
         type: string;
     }>;
@@ -7385,6 +7388,7 @@ export type SurveySystemResponse = {
             remaining_display: string;
             resource_id: string;
             richness: number;
+            supported_power?: number;
         }>;
         type: string;
     }>;
@@ -7820,6 +7824,10 @@ export type V2GameState = {
             item_name?: string;
             remaining?: number;
             richness?: number;
+            /**
+             * Beam power this deposit supports at full extraction rate (standard precision); omitted when depleted or unlimited
+             */
+            supported_power?: number;
         }>;
         security_status?: string;
         system_id?: string;
