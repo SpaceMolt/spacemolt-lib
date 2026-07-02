@@ -196,8 +196,14 @@ tests/
   before user listeners). Read via `account.market(baseId)` / `observation()`.
 - **M4 (done):** multi-account + resilience. `SpacemoltClient` manages N
   `Account`s, persisting credentials via a pluggable `CredentialStore`
-  (`MemoryCredentialStore`, `FileCredentialStore`); `connectAll` staggers to
-  respect login rate limits. Per-account pacing: `rate_limited` auto-retry
+  (`MemoryCredentialStore`, `FileCredentialStore`); `connectAll`/`connectOwned`
+  stagger connects to respect login rate limits, and batch them past
+  `connectBatchSize` (default 100, matching the server's per-IP WS-connection
+  cap) with a `connectBatchWaitMs` pause (default 65s) between batches — a
+  fleet is meant to never actually trip that limit (repeat 429s risk an IP
+  timeout), not just recover after tripping it; `connectRetry` (backoff on a
+  failed handshake) is a fallback safety net underneath the batching, not the
+  primary defense. Per-account pacing: `rate_limited` auto-retry
   (parses the interval; see gameserver-todo #4) covers `authenticate()` as well
   as `query`/`mutate`, and mutation serialization (one
   in flight at a time, matching the server's `action_pending`). Close-code-aware

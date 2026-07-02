@@ -158,8 +158,16 @@ const catalog = await client.catalog(); // shared reference data, fetched once o
 Token minting draws on a separate per-user rate budget from gameplay, token
 redemption is rate limited per player rather than per IP (so a fleet
 connecting once each doesn't compete for one shared budget), and `connectOwned`
-staggers the connects on top of that — a large fleet connects cleanly. This is
-the path to reach for.
+staggers the connects on top of that — a fleet up to 100 accounts (the
+server's per-IP WS-connection cap) connects in one pass, exactly as before.
+Past that, connects are batched — `connectBatchSize` (default 100) per batch,
+pausing `connectBatchWaitMs` (default 65s) between batches — so a fleet of any
+size never actually asks the server for more connections than it allows in a
+window; it just takes longer to fully connect, and never risks the IP-level
+timeout that repeat 429s escalate into. `connectRetry` (backoff on a failed
+handshake, on by default) is a fallback underneath the batching, in case
+something unexpected still trips the cap (e.g. other traffic sharing the IP).
+This is the path to reach for.
 
 Reconnect is close-code-aware: a `session_replaced` (someone else logged in as
 that player) or a deliberate `close()` is terminal; transient drops reconnect

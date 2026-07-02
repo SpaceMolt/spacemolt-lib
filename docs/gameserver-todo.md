@@ -232,10 +232,22 @@ becomes a pure fallback.
 > ~100 accounts completes within one window at the lib's default 250ms
 > connect stagger, while real reconnect-thrashing abuse still accumulates
 > rate-limit violations and gets IP-timed-out via the existing escalation
-> path. **Lib follow-up:** none — no lib code depended on the old limit.
-> A fleet larger than ~100 accounts connecting inside the same minute could
-> still see this, but that's arguably legitimate protection at that scale;
-> revisit if it turns out to matter in practice.
+> path.
+>
+> **Lib follow-up (2026-07-02, part 3):** a fleet larger than ~100 accounts
+> would still trip this — one fixed number always has a fleet size that
+> exceeds it eventually, and repeatedly tripping a rate limit risks an
+> IP-level timeout, not just a slower connect. `SpacemoltClient` now avoids
+> asking in the first place instead of reacting after the fact:
+> `connectAll`/`connectOwned` batch connects at `connectBatchSize` (default
+> 100, matching `ConnLimit` above) and pause `connectBatchWaitMs` (default
+> 65s, a margin over the server's 1-minute window) between batches, so a
+> fleet of any size never actually exceeds the server's per-IP window. A
+> fleet at or under 100 behaves exactly as before (one stagger pass, no
+> pause). `connectRetry` (backoff on a failed handshake, added in part 2)
+> stays as a fallback underneath the batching for the unexpected case — e.g.
+> other traffic sharing the IP eating into the budget — rather than the
+> primary defense.
 
 **Where it lives:** `internal/ratelimit/decision.go` (`CatClerkLoginToken`),
 `internal/ratelimit/ip_limiter.go` (`ClerkLoginTokenLimit`, default 10),
