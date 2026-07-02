@@ -155,9 +155,11 @@ client.account('TraderBot')?.commands.spacemolt.get_status();
 const catalog = await client.catalog(); // shared reference data, fetched once over HTTP
 ```
 
-Token minting draws on a separate per-user rate budget from gameplay, and
-`connectOwned` staggers the connects, so a large fleet won't trip limits. This
-is the path to reach for.
+Token minting draws on a separate per-user rate budget from gameplay, token
+redemption is rate limited per player rather than per IP (so a fleet
+connecting once each doesn't compete for one shared budget), and `connectOwned`
+staggers the connects on top of that — a large fleet connects cleanly. This is
+the path to reach for.
 
 Reconnect is close-code-aware: a `session_replaced` (someone else logged in as
 that player) or a deliberate `close()` is terminal; transient drops reconnect

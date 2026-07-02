@@ -191,6 +191,49 @@ becomes a pure fallback.
 
 ---
 
+## 6. Rate limit `login_token` per player instead of per IP
+**Status:** merged (gameserver branch `claude/spacemolt-clerk-ratelimit-frjp3a`) · pending deploy · **Needed by:** M4 (Clerk multi-account) · **Priority:** high
+
+> **Update (2026-07-02):** Shipped server-side. `login_token` (WS
+> `spacemolt_auth/login_token` and HTTP v2 `POST /api/v2/spacemolt_auth/
+> login_token`) previously shared the single per-IP `session_auth` bucket
+> (30/min) with every other login/session-creation path, so a fleet of
+> accounts connecting from one IP via `connectOwned()` competed for one
+> shared budget and failed outright past ~30 accounts. Redemption is now
+> checked against a new `clerk_login_token` bucket keyed on the token's
+> target player ID (10/min per player, `internal/ratelimit`), so a large
+> fleet connecting once each no longer competes with itself; a single
+> account re-authenticating repeatedly (e.g. a bad harness re-logging in
+> for every command) still trips its own limit quickly. Both handlers now
+> look up the token's owning player non-destructively before the rate-limit
+> check, so a rejected attempt doesn't burn the single-use token.
+>
+> **Lib follow-up:** `Account.authenticate()` now auto-retries on
+> `rate_limited` the same way `query`/`mutate` already do — for `clerk`
+> credentials each retry mints a fresh ws-token (the server change above
+> means a rate-limited attempt no longer wastes the previous one either).
+> Already implemented in this same change; no further lib work needed once
+> the server change deploys. `connectStaggerMs` (default 250ms) is
+> unchanged — the per-player budget alone is generous enough for normal
+> fleet sizes without needing a longer stagger.
+
+The unrelated per-IP `connection` bucket (WS upgrade, 20/min per IP) still
+applies to every new socket regardless of auth kind — a fleet larger than
+~20 accounts connecting within the same minute can still see a transient
+`rate_limited` there before `login_token` is ever reached. The auth-retry
+above covers that case too (it retries the whole `authenticate()` call, and
+`SpacemoltClient.connect()` opens the socket immediately before it), though
+a very large fleet's first batch may still trickle in over slightly more
+than a minute. Not addressed here — flagged for a future item if it turns
+out to matter in practice.
+
+**Where it lives:** `internal/ratelimit/decision.go` (`CatClerkLoginToken`),
+`internal/ratelimit/ip_limiter.go` (`ClerkLoginTokenLimit`, default 10),
+`internal/server/clerk.go` (`peekWSToken`, WS `handleLoginToken`),
+`internal/httpapiv2/handlers.go` (HTTP v2 `handleLoginToken`).
+
+---
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`

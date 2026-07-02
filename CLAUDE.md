@@ -198,7 +198,8 @@ tests/
   `Account`s, persisting credentials via a pluggable `CredentialStore`
   (`MemoryCredentialStore`, `FileCredentialStore`); `connectAll` staggers to
   respect login rate limits. Per-account pacing: `rate_limited` auto-retry
-  (parses the interval; see gameserver-todo #4) and mutation serialization (one
+  (parses the interval; see gameserver-todo #4) covers `authenticate()` as well
+  as `query`/`mutate`, and mutation serialization (one
   in flight at a time, matching the server's `action_pending`). Close-code-aware
   reconnect + re-auth + resubscribe (4001 `session_replaced` / 4002
   `auth_timeout` / deliberate `close()` are terminal; abnormal closes reconnect
@@ -239,5 +240,11 @@ fresh single-use ws-token via `POST /api/player/{id}/ws-token` on each
 and connects them all (staggered). The API key comes from an env var
 (`SPACEMOLT_CLERK_API_KEY`); generate it from the website's `POST
 /api/auth/create-key`. The token mint uses a separate per-user rate budget, so
-it never competes with gameplay. Clerk *browser OAuth* (interactive sign-in) is
-still a future seam — the API-key path is the headless/agent one.
+it never competes with gameplay; token redemption (`login_token`) is rate
+limited per player rather than per IP (see gameserver-todo #6), so a fleet of
+accounts connecting once each from one IP doesn't compete for a shared budget
+— only an individual account re-authenticating repeatedly still gets
+throttled. `authenticate()` auto-retries on `rate_limited` (minting a fresh
+token per retry for `clerk` credentials), matching the retry behavior of
+`query`/`mutate`. Clerk *browser OAuth* (interactive sign-in) is still a
+future seam — the API-key path is the headless/agent one.

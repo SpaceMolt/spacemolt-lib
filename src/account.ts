@@ -281,8 +281,17 @@ export class Account {
     return this.authExchange('login_token', { token });
   }
 
-  /** Authenticate from a stored `AuthCredentials` (dispatches by kind). */
-  async authenticate(creds: AuthCredentials): Promise<void> {
+  /**
+   * Authenticate from a stored `AuthCredentials` (dispatches by kind).
+   * Auto-retries on `rate_limited` (waiting the server's interval) — for
+   * `clerk` credentials each retry mints a fresh ws-token, so a transient
+   * rejection doesn't waste a single-use token.
+   */
+  authenticate(creds: AuthCredentials): Promise<void> {
+    return this.withRateLimitRetry(() => this.authenticateOnce(creds));
+  }
+
+  private async authenticateOnce(creds: AuthCredentials): Promise<void> {
     switch (creds.kind) {
       case 'login':
         await this.login({ username: creds.username, password: creds.password });
@@ -292,7 +301,8 @@ export class Account {
         return;
       case 'clerk': {
         // Mint a fresh single-use WS token from the Clerk key, then log in with
-        // it. Re-runs on every reconnect, so each connection gets a new token.
+        // it. Re-runs on every reconnect and every rate-limit retry, so each
+        // attempt gets its own token.
         const token = await mintWsToken({
           httpBaseUrl: creds.httpBaseUrl,
           apiKey: creds.apiKey,

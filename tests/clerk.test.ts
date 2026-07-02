@@ -96,6 +96,46 @@ test('Account authenticates via clerk: mints a ws-token, then logs in with it', 
   expect(calls.find((c) => c.url.includes('/ws-token'))!.url).toContain('/api/player/plr_1/ws-token');
 });
 
+test('authenticate retries a clerk login on rate_limited, minting a fresh token each attempt', async () => {
+  const { factory, sockets } = mockFactory();
+  const { fetchImpl, calls } = mockFetch({ '/api/player/plr_1/ws-token': { token: 'tok_xyz', expires_in: 300 } });
+  const account = new Account({
+    url: 'wss://game.spacemolt.com/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    fetchImpl,
+    maxRateLimitRetries: 3,
+  });
+
+  const connectP = account.connect();
+  const socket = sockets[0]!;
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+
+  let attempts = 0;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'login_token') {
+      attempts++;
+      if (attempts === 1) {
+        s.serverSend({
+          type: 'error',
+          request_id: frame.request_id,
+          payload: { code: 'rate_limited', message: 'Too many requests. Retry in 0 seconds.' },
+        });
+      } else {
+        s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+      }
+    }
+  };
+  await account.authenticate({ kind: 'clerk', apiKey: 'sk_test', playerId: 'plr_1', httpBaseUrl: 'https://game.spacemolt.com' });
+
+  expect(account.authenticated).toBe(true);
+  expect(attempts).toBe(2);
+  // A fresh token was minted for the retry rather than reusing the rejected one.
+  expect(calls.filter((c) => c.url.includes('/ws-token')).length).toBe(2);
+  expect(socket.sent.filter((f) => f.action === 'login_token').length).toBe(2);
+});
+
 test('connectOwned connects every owned account via clerk (clerk creds, no passwords)', async () => {
   const { factory, sockets } = mockFactory();
   const { fetchImpl } = mockFetch({
