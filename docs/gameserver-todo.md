@@ -191,6 +191,71 @@ becomes a pure fallback.
 
 ---
 
+## 6. Rate limit `login_token` per player instead of per IP
+**Status:** merged (gameserver branch `claude/spacemolt-clerk-ratelimit-frjp3a`) · pending deploy · **Needed by:** M4 (Clerk multi-account) · **Priority:** high
+
+> **Update (2026-07-02):** Shipped server-side. `login_token` (WS
+> `spacemolt_auth/login_token` and HTTP v2 `POST /api/v2/spacemolt_auth/
+> login_token`) previously shared the single per-IP `session_auth` bucket
+> (30/min) with every other login/session-creation path, so a fleet of
+> accounts connecting from one IP via `connectOwned()` competed for one
+> shared budget and failed outright past ~30 accounts. Redemption is now
+> checked against a new `clerk_login_token` bucket keyed on the token's
+> target player ID (10/min per player, `internal/ratelimit`), so a large
+> fleet connecting once each no longer competes with itself; a single
+> account re-authenticating repeatedly (e.g. a bad harness re-logging in
+> for every command) still trips its own limit quickly. Both handlers now
+> look up the token's owning player non-destructively before the rate-limit
+> check, so a rejected attempt doesn't burn the single-use token.
+>
+> **Lib follow-up:** `Account.authenticate()` now auto-retries on
+> `rate_limited` the same way `query`/`mutate` already do — for `clerk`
+> credentials each retry mints a fresh ws-token (the server change above
+> means a rate-limited attempt no longer wastes the previous one either).
+> Already implemented in this same change; no further lib work needed once
+> the server change deploys. `connectStaggerMs` (default 250ms) is
+> unchanged — the per-player budget alone is generous enough for normal
+> fleet sizes without needing a longer stagger.
+
+> **Update (2026-07-02, part 2):** The unrelated per-IP `connection` bucket
+> (WS upgrade, was 20/min per IP) still applied to every new socket
+> regardless of auth kind, defeating the point above for fleets over ~20
+> accounts — and unlike `login_token`, this one can't be scoped per player:
+> it's checked at the HTTP upgrade, before any credentials are read, so
+> there's no identity to key on yet. It's also **not** something the lib's
+> `authenticate()` retry helps with — a rejection here is an HTTP 429 on the
+> WebSocket handshake itself, which surfaces to the lib as a generic
+> `ConnectionClosedError` (`transport/socket.ts`), not a `SpacemoltError`
+> with `code: 'rate_limited'`, so `withRateLimitRetry` never sees it. Fixed
+> by raising the default `ConnLimit` from 20/min to 100/min
+> (`internal/ratelimit/ip_limiter.go`) — generous enough that a fleet up to
+> ~100 accounts completes within one window at the lib's default 250ms
+> connect stagger, while real reconnect-thrashing abuse still accumulates
+> rate-limit violations and gets IP-timed-out via the existing escalation
+> path.
+>
+> **Lib follow-up (2026-07-02, part 3):** a fleet larger than ~100 accounts
+> would still trip this — one fixed number always has a fleet size that
+> exceeds it eventually, and repeatedly tripping a rate limit risks an
+> IP-level timeout, not just a slower connect. `SpacemoltClient` now avoids
+> asking in the first place instead of reacting after the fact:
+> `connectAll`/`connectOwned` batch connects at `connectBatchSize` (default
+> 100, matching `ConnLimit` above) and pause `connectBatchWaitMs` (default
+> 65s, a margin over the server's 1-minute window) between batches, so a
+> fleet of any size never actually exceeds the server's per-IP window. A
+> fleet at or under 100 behaves exactly as before (one stagger pass, no
+> pause). `connectRetry` (backoff on a failed handshake, added in part 2)
+> stays as a fallback underneath the batching for the unexpected case — e.g.
+> other traffic sharing the IP eating into the budget — rather than the
+> primary defense.
+
+**Where it lives:** `internal/ratelimit/decision.go` (`CatClerkLoginToken`),
+`internal/ratelimit/ip_limiter.go` (`ClerkLoginTokenLimit`, default 10),
+`internal/server/clerk.go` (`peekWSToken`, WS `handleLoginToken`),
+`internal/httpapiv2/handlers.go` (HTTP v2 `handleLoginToken`).
+
+---
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`

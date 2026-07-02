@@ -35,6 +35,23 @@ export interface SpacemoltClientOptions {
   /** Delay between connecting accounts in `connectAll`. Default 250ms. */
   connectStaggerMs?: number;
   /**
+   * Max accounts to connect before pausing for `connectBatchWaitMs`, so a
+   * fleet never actually trips the server's per-IP WS-connection rate limit
+   * (hitting it risks an IP-level timeout/ban on repeat offense — better to
+   * never ask). Matches the server's default connection cap (100/min), so a
+   * fleet at or under this size behaves exactly like a single stagger pass,
+   * same as before; a larger fleet connects in batches of this size instead.
+   * Default 100.
+   */
+  connectBatchSize?: number;
+  /**
+   * Pause between batches once `connectBatchSize` is exceeded, letting the
+   * server's per-IP rate-limit window (1 minute by default) fully roll over
+   * before the next batch starts. Default 65000 (65s — a margin over the
+   * server's 1-minute window).
+   */
+  connectBatchWaitMs?: number;
+  /**
    * Auto-reconnect each account on an unexpected disconnect, re-authenticating
    * from the stored credentials. Default `true` (the store can supply creds).
    * Token-only accounts can't reconnect (the token is single-use).
@@ -50,7 +67,23 @@ export interface SpacemoltClientOptions {
   clerkApiKey?: string;
   /** Inject a `fetch` implementation (tests, custom runtimes). */
   fetchImpl?: typeof fetch;
+  /**
+   * Fallback safety net: retry a failed `connect()` (the raw WebSocket
+   * handshake, before any auth frame) with backoff instead of dropping the
+   * account. `connectBatchSize`/`connectBatchWaitMs` above are the primary
+   * defense — they're sized to avoid ever tripping the server's per-IP
+   * WS-connection rate limit in the first place — but this covers the
+   * unexpected case anyway (e.g. other traffic sharing the IP eating into
+   * the budget), since a 429 on the handshake surfaces as a plain
+   * `ConnectionClosedError` — not a `SpacemoltError` with `code:
+   * 'rate_limited'` — so it can't be told apart from a genuine connection
+   * failure and isn't covered by `Account`'s targeted rate-limit retry.
+   * Default `true` (enabled). Pass `false` to disable and fail fast instead.
+   */
+  connectRetry?: boolean | ReconnectOptions;
 }
+
+const DEFAULT_CONNECT_RETRY: Required<ReconnectOptions> = { maxRetries: 8, baseDelayMs: 2000, maxDelayMs: 60_000 };
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -120,24 +153,43 @@ export class SpacemoltClient {
     return { account, result };
   }
 
-  /** Connect and authenticate one stored account. Idempotent per id. */
+  /**
+   * Connect and authenticate one stored account. Idempotent per id.
+   *
+   * Retries the whole connect+authenticate sequence with backoff on failure
+   * (see `connectRetry`) — a fleet large enough to exceed the per-IP
+   * WS-connection rate limit sees some accounts rejected at the handshake,
+   * which self-heals once the server's rate-limit window rolls over.
+   */
   async connect(id: string): Promise<Account> {
     const existing = this.connected.get(id);
     if (existing) return existing;
     const stored = await this.store.get(id);
     if (!stored) throw new Error(`no stored credentials for account "${id}"`);
-    const account = this.createAccount(id);
-    this.connected.set(id, account);
-    try {
-      await account.connect();
-      await account.authenticate(stored.credentials);
-    } catch (err) {
-      this.connected.delete(id);
-      account.close();
-      throw err;
+
+    const retryOpt = this.opts.connectRetry ?? true;
+    const retry: Required<ReconnectOptions> =
+      retryOpt === false ? { maxRetries: 0, baseDelayMs: 0, maxDelayMs: 0 } : { ...DEFAULT_CONNECT_RETRY, ...(retryOpt === true ? {} : retryOpt) };
+
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= retry.maxRetries; attempt++) {
+      const account = this.createAccount(id);
+      this.connected.set(id, account);
+      try {
+        await account.connect();
+        await account.authenticate(stored.credentials);
+        await this.capturePlayerId(stored);
+        return account;
+      } catch (err) {
+        this.connected.delete(id);
+        account.close();
+        lastErr = err;
+        if (attempt < retry.maxRetries) {
+          await delay(Math.min(retry.baseDelayMs * 2 ** attempt, retry.maxDelayMs));
+        }
+      }
     }
-    await this.capturePlayerId(stored);
-    return account;
+    throw lastErr;
   }
 
   /** Connect every stored account, staggered to respect rate limits. */
@@ -194,12 +246,26 @@ export class SpacemoltClient {
     return this.clerkSource;
   }
 
-  /** Connect the given stored ids, staggered to respect rate limits. */
+  /**
+   * Connect the given stored ids, staggered to respect rate limits. At or
+   * under `connectBatchSize` accounts this is a single stagger pass — the
+   * same behavior as before batching existed. Past that, it pauses for
+   * `connectBatchWaitMs` between batches so the fleet never actually asks
+   * for more connections than the server's per-IP window allows.
+   */
   private async connectIds(ids: string[]): Promise<Account[]> {
     const stagger = this.opts.connectStaggerMs ?? 250;
+    const batchSize = this.opts.connectBatchSize ?? 100;
+    const batchWaitMs = this.opts.connectBatchWaitMs ?? 65_000;
     const accounts: Account[] = [];
     for (let i = 0; i < ids.length; i++) {
-      if (i > 0 && stagger > 0) await delay(stagger);
+      if (i > 0) {
+        if (batchSize > 0 && i % batchSize === 0) {
+          await delay(batchWaitMs);
+        } else if (stagger > 0) {
+          await delay(stagger);
+        }
+      }
       accounts.push(await this.connect(ids[i]!));
     }
     return accounts;

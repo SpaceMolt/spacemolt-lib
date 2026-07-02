@@ -21,9 +21,19 @@ export class MockSocket implements WebSocketLike {
   private readonly listeners: Listeners = { open: [], message: [], close: [], error: [] };
   private open = false;
 
-  constructor(readonly url: string) {
+  constructor(
+    readonly url: string,
+    private readonly opts: { failToOpen?: boolean } = {},
+  ) {
     // Open asynchronously so the Socket can register listeners first.
     queueMicrotask(() => {
+      if (this.opts.failToOpen) {
+        // Simulate a rejected WS upgrade (e.g. a 429 from a per-IP rate
+        // limit): the handshake never completes, so only error+close fire.
+        for (const cb of this.listeners.error) cb({ message: 'rejected' });
+        for (const cb of this.listeners.close) cb({ code: 1006, reason: 'rejected' });
+        return;
+      }
       this.open = true;
       for (const cb of this.listeners.open) cb();
     });

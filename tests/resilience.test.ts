@@ -43,6 +43,34 @@ test('query auto-retries after a rate_limited error', async () => {
   expect(attempts).toBe(2);
 });
 
+test('authenticate auto-retries a login after a rate_limited error', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, maxRateLimitRetries: 3 });
+  const cp = account.connect();
+  const socket = sockets[0]!;
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  let attempts = 0;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'login') {
+      attempts++;
+      if (attempts === 1) {
+        s.serverSend({
+          type: 'error',
+          request_id: frame.request_id,
+          payload: { code: 'rate_limited', message: 'Too many requests. Retry in 0 seconds.' },
+        });
+      } else {
+        s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+      }
+    }
+  };
+  await account.authenticate({ kind: 'login', username: 'Nova', password: 'pw' });
+  expect(account.authenticated).toBe(true);
+  expect(attempts).toBe(2);
+});
+
 // --- mutation serialization ---
 
 test('mutations are serialized: the second sends only after the first resolves', async () => {
