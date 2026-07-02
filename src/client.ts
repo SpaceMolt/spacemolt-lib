@@ -303,6 +303,7 @@ export class SpacemoltClient {
 
   private createAccount(id: string): Account {
     return new Account({
+      id,
       url: this.opts.url,
       webSocketFactory: this.opts.webSocketFactory,
       seedState: this.opts.seedState,
