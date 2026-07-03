@@ -199,6 +199,54 @@ test('connectRetry: false fails fast on a rejected handshake', async () => {
   await expect(client.connect('Nova')).rejects.toBeDefined();
 });
 
+test('connectAll tolerates one account failing to connect', async () => {
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0 });
+  await client.addLogin('Nova', 'pw');
+  await client.addLogin('Bad', 'pw');
+  await client.addLogin('Rex', 'pw');
+
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
+  try {
+    const allP = client.connectAll();
+    const order = ['Nova', 'Bad', 'Rex'];
+    for (let i = 0; i < order.length; i++) {
+      // wait for the next socket to appear
+      while (sockets.length <= i) await new Promise((r) => setTimeout(r, 1));
+      const name = order[i]!;
+      const socket = sockets[i]!;
+      if (name === 'Bad') {
+        socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+        socket.onClientSend = (frame, s) => {
+          if (frame.action === 'login') {
+            s.serverSend({
+              type: 'error',
+              request_id: frame.request_id,
+              payload: { code: 'invalid_credentials', message: 'nope' },
+            });
+          }
+        };
+      } else {
+        autoServe(socket, name);
+      }
+    }
+
+    const accounts = await allP;
+    expect(accounts.length).toBe(2);
+    expect(client.ids().sort()).toEqual(['Nova', 'Rex']);
+    expect(client.account('Bad')).toBeUndefined();
+    expect(warnings.length).toBe(1);
+    expect(String(warnings[0]?.[0])).toContain('Bad');
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test('remove closes and forgets an account', async () => {
   const { factory, sockets } = mockFactory();
   const client = new SpacemoltClient({ webSocketFactory: factory });

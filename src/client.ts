@@ -251,7 +251,9 @@ export class SpacemoltClient {
    * under `connectBatchSize` accounts this is a single stagger pass — the
    * same behavior as before batching existed. Past that, it pauses for
    * `connectBatchWaitMs` between batches so the fleet never actually asks
-   * for more connections than the server's per-IP window allows.
+   * for more connections than the server's per-IP window allows. A single
+   * account failing to connect must not abort the rest of the batch — it's
+   * logged and skipped so the caller still gets every account that succeeded.
    */
   private async connectIds(ids: string[]): Promise<Account[]> {
     const stagger = this.opts.connectStaggerMs ?? 250;
@@ -266,7 +268,11 @@ export class SpacemoltClient {
           await delay(stagger);
         }
       }
-      accounts.push(await this.connect(ids[i]!));
+      try {
+        accounts.push(await this.connect(ids[i]!));
+      } catch (err) {
+        console.warn(`[spacemolt] failed to connect "${ids[i]}": ${err}`);
+      }
     }
     return accounts;
   }
