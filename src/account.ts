@@ -82,6 +82,8 @@ export interface AccountOptions {
   fetchImpl?: typeof fetch;
   /** Max automatic retries when a command is `rate_limited`. Default 5. */
   maxRateLimitRetries?: number;
+  /** Stable id this account is managed under (e.g. the credential-store key / username). Exposed as `account.id`. */
+  id?: string;
 }
 
 export interface RegisterParams {
@@ -140,6 +142,7 @@ export class Account {
   private readonly credentialsProvider?: () => AuthCredentials | Promise<AuthCredentials>;
   private readonly fetchImpl?: typeof fetch;
   private readonly maxRateLimitRetries: number;
+  private readonly _id: string | undefined;
   private requestSeq = 0;
 
   private _welcome: WelcomeFrame['payload'] | null = null;
@@ -168,6 +171,7 @@ export class Account {
     this.credentialsProvider = opts.credentials;
     this.fetchImpl = opts.fetchImpl;
     this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
+    this._id = opts.id;
     this.reconnectConfig = normalizeReconnect(opts.reconnect);
     this.makeSocket();
 
@@ -188,6 +192,11 @@ export class Account {
   /** Live view of the cached game state. Treat as read-only. */
   get state(): Readonly<GameState> {
     return this.cache.snapshot();
+  }
+
+  /** The id this account is managed under (store key / username), if any. */
+  get id(): string | undefined {
+    return this._id;
   }
 
   get player(): GameState['player'] {

@@ -30,6 +30,34 @@ test('queries carry their response type; mutations do not', () => {
   expect(typed.length).toBeGreaterThan(queries.length * 0.9);
 });
 
+test('bulk array-of-object params render their element shape, not string[]', () => {
+  const paramType = (key: string, param: string): string | undefined =>
+    ACTIONS[key]?.params.find((p) => p.name === param)?.type;
+
+  // Storage/market bulk params declare arrays of {item_id, quantity, ...} objects
+  // in the spec; the generator must emit that element shape, never collapse to string[].
+  expect(paramType('spacemolt_storage/deposit', 'items')).toBe(
+    '{ item_id: string; quantity: number }[]',
+  );
+  expect(paramType('spacemolt_market/create_sell_order', 'orders')).toBe(
+    '{ item_id: string; price_each: number; quantity: number }[]',
+  );
+  // Optional nested fields stay optional; nested enums are preserved.
+  expect(paramType('spacemolt_transfer/trade_offer', 'offer_items')).toBe(
+    '{ item_id?: string; quantity?: number }[]',
+  );
+  expect(paramType('spacemolt_market/create_buy_order', 'orders')).toBe(
+    '{ deliver_to?: "cargo" | "storage"; item_id: string; price_each: number; quantity: number }[]',
+  );
+  // A shapeless object array (no declared properties) stays Record<string, unknown>[].
+  expect(paramType('spacemolt/craft', 'jobs')).toBe('Record<string, unknown>[]');
+  // An array of enum values must parenthesize the union: `(...)[]`, not `... | "x"[]`
+  // (postfix `[]` binds tighter than `|`, which would change the type's meaning).
+  expect(paramType('spacemolt/get_notifications', 'types')).toBe(
+    '("chat" | "combat" | "trade" | "market" | "crafting" | "system")[]',
+  );
+});
+
 test('auth actions are present', () => {
   expect(ACTIONS['spacemolt_auth/login']).toBeDefined();
   expect(ACTIONS['spacemolt_auth/register']).toBeDefined();

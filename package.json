@@ -25,6 +25,7 @@
     "fetch-spec": "bun run scripts/fetch-spec.ts",
     "generate": "bun run openapi-ts && bun run scripts/generate.ts",
     "typecheck": "bun x tsc --noEmit",
+    "prepare": "bun run build",
     "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --target node --format esm && bun build src/node.ts --outfile dist/node.js --target node --format esm && bun x tsc -p tsconfig.build.json && bun run scripts/fix-dts-extensions.ts",
     "build:browser-check": "bun build src/index.ts --target browser --outfile /dev/null",
     "test": "bun test"

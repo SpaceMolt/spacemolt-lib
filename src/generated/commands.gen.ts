@@ -498,9 +498,9 @@ export interface SpacemoltFactionAdminPostMissionParams {
   /** Optional: NPC title */
   giver_title?: string;
   /** List of mission objectives */
-  objectives: string[];
+  objectives: { description: string; item_id?: string; quantity?: number; system_id?: string; target_id?: string; type: string }[];
   /** Mission rewards (credits, items, reputation) */
-  rewards: Record<string, unknown>;
+  rewards: { credits?: number; items?: Record<string, unknown>[] };
   /** Mission title */
   title: string;
   /** Optional: triggers like 'open_to_all' to allow non-members */
@@ -731,12 +731,12 @@ export interface SpacemoltIntelScanPoiParams {
 
 export interface SpacemoltIntelSubmitIntelParams {
   /** Array of system intel reports. Each entry: system_id (required), name (required), description, empire, police_level, connections (array of {system_id, name, distance} objects or bare ID strings), pois (array of {id, type, name, description, class, position:{x,y}, base_id, base_name, resources:[{resource_id, richness, remaining, max_remaining}]}) */
-  systems: string[];
+  systems: Record<string, unknown>[];
 }
 
 export interface SpacemoltIntelSubmitTradeIntelParams {
   /** Array of station market reports (max 20 stations per submission) */
-  stations: string[];
+  stations: Record<string, unknown>[];
 }
 
 export interface SpacemoltMarketCancelOrderParams {
@@ -752,7 +752,7 @@ export interface SpacemoltMarketCreateBuyOrderParams {
   /** ID of the item to buy (e.g., iron_ore, steel_plate). Required for single mode. */
   item_id?: string;
   /** Bulk mode: array of buy orders to create (max 50). Each entry needs item_id, quantity, price_each. When provided, the top-level item_id/quantity/price_each are ignored. */
-  orders?: string[];
+  orders?: { deliver_to?: "cargo" | "storage"; item_id: string; price_each: number; quantity: number }[];
   /** Maximum price per unit in credits. Required for single mode. */
   price_each?: number;
   /** Number of items to buy. Required for single mode. */
@@ -763,7 +763,7 @@ export interface SpacemoltMarketCreateSellOrderParams {
   /** ID of the item to sell (e.g., iron_ore, steel_plate). Required for single mode. */
   item_id?: string;
   /** Bulk mode: array of sell orders to create (max 50). Each entry needs item_id, quantity, price_each. When provided, the top-level item_id/quantity/price_each are ignored. */
-  orders?: string[];
+  orders?: { item_id: string; price_each: number; quantity: number }[];
   /** Price per unit in credits. Required for single mode. */
   price_each?: number;
   /** Number of items to list for sale. Required for single mode. */
@@ -781,7 +781,7 @@ export interface SpacemoltMarketModifyOrderParams {
   /** ID of the order to modify. Required for single mode. */
   order_id?: string;
   /** Bulk mode: array of order modifications (max 50). Each entry needs order_id and new_price. When provided, the top-level order_id/new_price are ignored. */
-  orders?: string[];
+  orders?: { new_price: number; order_id: string }[];
   /** New price per unit in credits. Required for single mode. */
   price_each?: number;
 }
@@ -1103,7 +1103,7 @@ export interface SpacemoltStorageDepositParams {
   /** Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
   item_id?: string;
   /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure. */
-  items?: string[];
+  items?: { item_id: string; quantity: number }[];
   /** Optional message when gifting to another player */
   message?: string;
   /** Amount to transfer */
@@ -1118,7 +1118,7 @@ export interface SpacemoltStorageJettisonParams {
   /** ID of the item to jettison (e.g., iron_ore, steel_plate). Required for single mode. */
   item_id?: string;
   /** Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored. */
-  items?: string[];
+  items?: { item_id: string; quantity: number }[];
   /** Quantity to jettison. Required for single mode. */
   quantity?: number;
 }
@@ -1149,7 +1149,7 @@ export interface SpacemoltStorageWithdrawParams {
   /** Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
   item_id?: string;
   /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure. */
-  items?: string[];
+  items?: { item_id: string; quantity: number }[];
   /** Amount to transfer */
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
@@ -1177,11 +1177,11 @@ export interface SpacemoltTransferTradeOfferParams {
   /** Credits you GIVE (optional) */
   offer_credits?: number;
   /** Items you GIVE: [{"item_id": "iron_ore", "quantity": 50}] */
-  offer_items?: string[];
+  offer_items?: { item_id?: string; quantity?: number }[];
   /** Credits you WANT in return (optional) */
   request_credits?: number;
   /** Items you WANT in return: [{"item_id": "fuel_cell", "quantity": 5}] */
-  request_items?: string[];
+  request_items?: { item_id?: string; quantity?: number }[];
   /** Player ID or username to trade with */
   target: string;
 }
@@ -1242,7 +1242,7 @@ export interface SpacemoltCraftParams {
   /** Bulk cancel: cancel many queued jobs in one action. Each ID is cancelled independently with per-job success/failure, so one bad ID doesn't sink the batch. Refunds the unconsumed escrow of every cancelled job. */
   job_ids?: string[];
   /** Bulk mode: queue many crafts in one action. Each entry: {recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is queued independently (partial success). Max 50. */
-  jobs?: string[];
+  jobs?: Record<string, unknown>[];
   /** Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee). Auto-routing prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility. */
   preset?: "fast" | "cheap" | "workshop";
   /** Number of output items to make (default 1). Rounded up to a whole number of production runs, so a recipe that yields several items per run may produce a few extra. */
@@ -1289,7 +1289,7 @@ export interface SpacemoltGetNotificationsParams {
   /** Max notifications to return (default: 50, max: 100). */
   limit?: number;
   /** Filter by notification types. Omit for all types. */
-  types?: string[];
+  types?: ("chat" | "combat" | "trade" | "market" | "crafting" | "system")[];
 }
 
 export interface SpacemoltGetVersionParams {
@@ -1317,7 +1317,7 @@ export interface SpacemoltJettisonParams {
   /** ID of the item to jettison (e.g., iron_ore, steel_plate). Required for single mode. */
   id?: string;
   /** Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored. */
-  items?: string[];
+  items?: { item_id: string; quantity: number }[];
   /** Quantity to jettison. Required for single mode. */
   quantity?: number;
 }
@@ -1356,7 +1356,7 @@ export interface SpacemoltRecycleParams {
   /** Bulk cancel: cancel many queued jobs in one action. Each ID is cancelled independently with per-job success/failure, so one bad ID doesn't sink the batch. Refunds the unconsumed escrow of every cancelled job. */
   job_ids?: string[];
   /** Bulk mode: recycle many recipes in one action. Each entry: {recipe_id, quantity, facility_id?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is processed independently (partial success). Max 50. */
-  jobs?: string[];
+  jobs?: Record<string, unknown>[];
   /** Number of the recipe's output items to feed in and break down (default 1). Rounded up to a whole number of recycling runs. */
   quantity?: number;
   /** Where feedstock (and labor/rental credits) are pulled FROM. Same values as deliver_to. Defaults to deliver_to. */

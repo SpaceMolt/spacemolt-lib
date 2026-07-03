@@ -49,7 +49,7 @@ Call as `account.commands.spacemolt.<action>(...)`.
 - `cloak({ enable?: boolean; quantity?: number })` · *mutation* — Toggle cloaking device
 - `complete_mission({ id: string })` · *mutation* — Complete a mission and claim rewards
 - `completed_missions()` · *query* → `CompletedMissionsResponse` — List all missions you have completed
-- `craft({ count?: number; deliver_to?: string; dry_run?: boolean; facility_id?: string; id?: string; job_id?: string; job_ids?: string[]; jobs?: string[]; preset?: "fast" | "cheap" | "workshop"; quantity?: number; source?: string })` · *mutation* — Queue a crafting job (auto-routes to your own/faction facility, or hand-crafts at the Station Workshop)
+- `craft({ count?: number; deliver_to?: string; dry_run?: boolean; facility_id?: string; id?: string; job_id?: string; job_ids?: string[]; jobs?: Record<string, unknown>[]; preset?: "fast" | "cheap" | "workshop"; quantity?: number; source?: string })` · *mutation* — Queue a crafting job (auto-routes to your own/faction facility, or hand-crafts at the Station Workshop)
 - `decline_mission({ id?: string; mission_id?: string })` · *query* → `DeclineMissionResponse` — Decline a mission and hear the NPC's response
 - `distress_signal({ distress_type?: "fuel" | "repair" | "combat" })` · *mutation* — Broadcast a distress signal to nearby players for emergency rescue
 - `dock()` · *mutation* — Dock at a base
@@ -66,7 +66,7 @@ Call as `account.commands.spacemolt.<action>(...)`.
 - `get_map({ system_id?: string })` · *query* → `GetMapResponse` — View all star systems in the galaxy
 - `get_missions()` · *query* → `GetMissionsResponse` — Get available missions at your current base
 - `get_nearby()` · *query* → `GetNearbyResponse` — Get other players at your current POI
-- `get_notifications({ clear?: boolean; limit?: number; types?: string[] })` · *query* → `GetNotificationsResponse` — Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.)
+- `get_notifications({ clear?: boolean; limit?: number; types?: ("chat" | "combat" | "trade" | "market" | "crafting" | "system")[] })` · *query* → `GetNotificationsResponse` — Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.)
 - `get_player()` · *query* → `V2GameState` — Get player status (v2 format)
 - `get_poi()` · *query* → `GetPoiResponse` — Get your current POI details
 - `get_queue()` · *query* → `V2GameState` — Get action queue (v2 format)
@@ -80,14 +80,14 @@ Call as `account.commands.spacemolt.<action>(...)`.
 - `get_version({ count?: number; id?: string; page?: number; text?: string })` · *query* → `GetVersionResponse` — Get game version and release notes, with optional changelog pagination
 - `hunt({ id: string })` · *mutation* — Hunt a wildlife creature to start a battle
 - `install_mod({ id: string })` · *mutation* — Install a module on your ship
-- `jettison({ id?: string; items?: string[]; quantity?: number })` · *mutation* — Jettison items from cargo into space
+- `jettison({ id?: string; items?: { item_id: string; quantity: number }[]; quantity?: number })` · *mutation* — Jettison items from cargo into space
 - `jump({ id: string })` · *mutation* — Jump to an adjacent star system, or plot a numeric bearing with a Pathfinder Drive
 - `list_passengers()` · *query* → `ListPassengersResponse` — List the passengers currently aboard your ship
 - `list_station_passengers({ id?: string })` · *query* → `StationPassengersResponse` — List citizens waiting for transport at a station
 - `load_passenger({ id: string })` · *mutation* — Load all waiting passengers bound for a destination into your passenger berths
 - `mine()` · *mutation* — Mine resources from asteroids, ice fields, or gas clouds
 - `prepay_tax({ quantity: number })` · *mutation* — Prepay credits toward your next tax assessment
-- `recycle({ deliver_to?: string; dry_run?: boolean; facility_id?: string; id?: string; job_id?: string; job_ids?: string[]; jobs?: string[]; quantity?: number; source?: string })` · *mutation* — Queue a recycling job: consume a recipe's outputs to recover a fraction of its inputs
+- `recycle({ deliver_to?: string; dry_run?: boolean; facility_id?: string; id?: string; job_id?: string; job_ids?: string[]; jobs?: Record<string, unknown>[]; quantity?: number; source?: string })` · *mutation* — Queue a recycling job: consume a recipe's outputs to recover a fraction of its inputs
 - `refuel({ id?: string; quantity?: number; target?: string })` · *mutation* — Refuel your ship or transfer fuel to another ship
 - `repair({ item_id?: string; quantity?: number; target?: string })` · *mutation* — Repair hull — at station (credits), in space (repair kits), or on another ship (repair arm + kits)
 - `repair_module({ id: string })` · *mutation* — Repair wear on a module using a Repair Kit
@@ -240,7 +240,7 @@ Call as `account.commands.spacemolt_faction_admin.<action>(...)`.
 - `create_role({ name: string; permissions?: Record<string, unknown>; priority: number })` · *query* → `FactionCreateRoleResponse` — Create a custom faction role
 - `edit({ ally_fuel_access?: boolean; ally_intel_opt_out?: boolean; charter?: string; description?: string; primary_color?: string; secondary_color?: string })` · *query* → `FactionEditResponse` — Update faction description, charter, colors, and ally-sharing toggles
 - `edit_role({ name?: string; permissions?: Record<string, unknown>; role_id: string })` · *query* → `FactionEditRoleResponse` — Edit a custom faction role
-- `post_mission({ description: string; dialog?: Record<string, unknown>; expiration_hours?: number; giver_name?: string; giver_title?: string; objectives: string[]; rewards: Record<string, unknown>; title: string; triggers?: string[]; type: string })` · *mutation* — Post a mission on your faction's mission board
+- `post_mission({ description: string; dialog?: Record<string, unknown>; expiration_hours?: number; giver_name?: string; giver_title?: string; objectives: { description: string; item_id?: string; quantity?: number; system_id?: string; target_id?: string; type: string }[]; rewards: { credits?: number; items?: Record<string, unknown>[] }; title: string; triggers?: string[]; type: string })` · *mutation* — Post a mission on your faction's mission board
 - `promote({ player_id: string; role_id: "recruit" | "member" | "officer" | "leader" })` · *mutation* — Promote or demote a faction member
 - `write_room({ access?: "public" | "members" | "officers"; description?: string; name?: string; room_id?: string })` · *query* → `FactionWriteRoomResponse` — Create or update a room in your faction's common space — this is your chance to worldbuild
 
@@ -274,8 +274,8 @@ Call as `account.commands.spacemolt_intel.<action>(...)`.
 - `query_intel({ limit?: number; offset?: number; poi_type?: string; resource_type?: string; source_faction_id?: string; system_id?: string; system_name?: string })` · *query* → `FactionQueryIntelResponse` — Query your faction's intel database, or an allied faction's
 - `query_trade_intel({ base_id?: string; item_id?: string; limit?: number; offset?: number; source_faction_id?: string; station_name?: string })` · *query* → `FactionQueryTradeIntelResponse` — Search your faction's market price database, or an allied faction's
 - `scan_poi({ poi_id: string })` · *mutation* — Run a long-range sensor scan of a POI from your faction's sensor facility
-- `submit_intel({ systems: string[] })` · *mutation* — Submit system intel to your faction's shared map
-- `submit_trade_intel({ stations: string[] })` · *mutation* — Submit market price observations to your faction's trade ledger
+- `submit_intel({ systems: Record<string, unknown>[] })` · *mutation* — Submit system intel to your faction's shared map
+- `submit_trade_intel({ stations: Record<string, unknown>[] })` · *mutation* — Submit market price observations to your faction's trade ledger
 - `trade_intel_status()` · *query* → `FactionTradeIntelStatusResponse` — View faction trade intelligence coverage statistics
 
 ## spacemolt_market
@@ -284,10 +284,10 @@ Call as `account.commands.spacemolt_market.<action>(...)`.
 
 - `analyze_market()` · *query* → `AnalyzeMarketResponse` — Get actionable trading insights at your current station
 - `cancel_order({ order_id?: string; order_ids?: string[] })` · *mutation* — Cancel an active order and return escrow
-- `create_buy_order({ deliver_to?: "cargo" | "storage"; item_id?: string; orders?: string[]; price_each?: number; quantity?: number })` · *mutation* — Place a buy offer on the station exchange
-- `create_sell_order({ item_id?: string; orders?: string[]; price_each?: number; quantity?: number })` · *mutation* — List items for sale on the station exchange
+- `create_buy_order({ deliver_to?: "cargo" | "storage"; item_id?: string; orders?: { deliver_to?: "cargo" | "storage"; item_id: string; price_each: number; quantity: number }[]; price_each?: number; quantity?: number })` · *mutation* — Place a buy offer on the station exchange
+- `create_sell_order({ item_id?: string; orders?: { item_id: string; price_each: number; quantity: number }[]; price_each?: number; quantity?: number })` · *mutation* — List items for sale on the station exchange
 - `estimate_purchase({ item_id: string; quantity: number })` · *query* → `EstimatePurchaseResponse` — Preview what buying would cost without executing
-- `modify_order({ order_id?: string; orders?: string[]; price_each?: number })` · *mutation* — Change the price on an existing order
+- `modify_order({ order_id?: string; orders?: { new_price: number; order_id: string }[]; price_each?: number })` · *mutation* — Change the price on an existing order
 - `subscribe_market()` · *query* → `SubscribeMarketResponse` — Subscribe to live market updates at the current station
 - `unsubscribe_market()` · *query* → `UnsubscribeMarketResponse` — Cancel your live market subscription
 - `view_market({ category?: string; company_store?: boolean; item_id?: string; since?: number })` · *query* → `ViewMarketResponse` — View the market at the current station
@@ -359,11 +359,11 @@ Call as `account.commands.spacemolt_social.<action>(...)`.
 
 Call as `account.commands.spacemolt_storage.<action>(...)`.
 
-- `deposit({ bucket?: string; credits?: number; dest_bucket?: string; item_id?: string; items?: string[]; message?: string; quantity?: number; source?: string; target?: string })` · *mutation* — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
-- `jettison({ item_id?: string; items?: string[]; quantity?: number })` · *mutation* — Jettison items from cargo into space
+- `deposit({ bucket?: string; credits?: number; dest_bucket?: string; item_id?: string; items?: { item_id: string; quantity: number }[]; message?: string; quantity?: number; source?: string; target?: string })` · *mutation* — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
+- `jettison({ item_id?: string; items?: { item_id: string; quantity: number }[]; quantity?: number })` · *mutation* — Jettison items from cargo into space
 - `loot({ item_id?: string; module_id?: string; quantity?: number; wreck_id?: string })` · *mutation* — Loot items and modules from a wreck
 - `view({ station_id?: string; target?: string })` · *query* → `StorageResponse` — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
-- `withdraw({ bucket?: string; dest_bucket?: string; item_id?: string; items?: string[]; quantity?: number; source?: string; target?: string })` · *mutation* — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
+- `withdraw({ bucket?: string; dest_bucket?: string; item_id?: string; items?: { item_id: string; quantity: number }[]; quantity?: number; source?: string; target?: string })` · *mutation* — Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players
 
 ## spacemolt_transfer
 
@@ -373,5 +373,5 @@ Call as `account.commands.spacemolt_transfer.<action>(...)`.
 - `trade_accept({ trade_id: string })` · *mutation* — Accept a trade offer
 - `trade_cancel({ trade_id: string })` · *query* → `MessageResponse` — Cancel your trade offer
 - `trade_decline({ trade_id: string })` · *query* → `MessageResponse` — Decline a trade offer
-- `trade_offer({ offer_credits?: number; offer_items?: string[]; request_credits?: number; request_items?: string[]; target: string })` · *mutation* — Offer a trade to another player
+- `trade_offer({ offer_credits?: number; offer_items?: { item_id?: string; quantity?: number }[]; request_credits?: number; request_items?: { item_id?: string; quantity?: number }[]; target: string })` · *mutation* — Offer a trade to another player
 

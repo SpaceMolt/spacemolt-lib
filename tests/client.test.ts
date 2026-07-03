@@ -199,6 +199,54 @@ test('connectRetry: false fails fast on a rejected handshake', async () => {
   await expect(client.connect('Nova')).rejects.toBeDefined();
 });
 
+test('connectAll tolerates one account failing to connect', async () => {
+  const sockets: MockSocket[] = [];
+  let created = 0;
+  const factory = (url: string): MockSocket => {
+    created++;
+    // The 2nd account ("Bad", by addLogin order) can never open its socket — a
+    // permanent failure (bad/blocked credentials, a game-side-deleted account).
+    // With connectRetry disabled it fails fast, and connectIds must skip it
+    // rather than aborting the whole fleet.
+    const s = new MockSocket(url, { failToOpen: created === 2 });
+    sockets.push(s);
+    return s;
+  };
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 0,
+    connectRetry: false,
+  });
+  await client.addLogin('Nova', 'pw');
+  await client.addLogin('Bad', 'pw');
+  await client.addLogin('Rex', 'pw');
+
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
+  try {
+    const allP = client.connectAll();
+    // connectIds awaits each id in turn: socket 0 = Nova, socket 1 = Bad
+    // (fails to open, skipped), socket 2 = Rex.
+    while (sockets.length < 1) await new Promise((r) => setTimeout(r, 1));
+    autoServe(sockets[0]!, 'Nova');
+    while (sockets.length < 3) await new Promise((r) => setTimeout(r, 1));
+    autoServe(sockets[2]!, 'Rex');
+
+    const accounts = await allP;
+    expect(accounts.length).toBe(2);
+    expect(client.ids().sort()).toEqual(['Nova', 'Rex']);
+    expect(client.account('Bad')).toBeUndefined();
+    expect(warnings.length).toBe(1);
+    expect(String(warnings[0]?.[0])).toContain('Bad');
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test('remove closes and forgets an account', async () => {
   const { factory, sockets } = mockFactory();
   const client = new SpacemoltClient({ webSocketFactory: factory });
