@@ -33,7 +33,9 @@ interface OpenAPIProperty {
   type?: string;
   description?: string;
   enum?: string[];
-  items?: { type?: string };
+  items?: OpenAPIProperty;
+  properties?: Record<string, OpenAPIProperty>;
+  required?: string[];
   'x-positional-index'?: number;
 }
 
@@ -102,8 +104,15 @@ function tsType(p: OpenAPIProperty): string {
     case 'boolean':
       return 'boolean';
     case 'array':
-      return `${p.items?.type === 'integer' || p.items?.type === 'number' ? 'number' : 'string'}[]`;
+      return `${p.items ? tsType(p.items) : 'string'}[]`;
     case 'object':
+      if (p.properties && Object.keys(p.properties).length) {
+        const req = new Set(p.required ?? []);
+        const fields = Object.entries(p.properties).map(
+          ([name, prop]) => `${name}${req.has(name) ? '' : '?'}: ${tsType(prop)}`,
+        );
+        return `{ ${fields.join('; ')} }`;
+      }
       return 'Record<string, unknown>';
     default:
       return 'string';
