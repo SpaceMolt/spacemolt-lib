@@ -200,8 +200,23 @@ test('connectRetry: false fails fast on a rejected handshake', async () => {
 });
 
 test('connectAll tolerates one account failing to connect', async () => {
-  const { factory, sockets } = mockFactory();
-  const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0 });
+  const sockets: MockSocket[] = [];
+  let created = 0;
+  const factory = (url: string): MockSocket => {
+    created++;
+    // The 2nd account ("Bad", by addLogin order) can never open its socket — a
+    // permanent failure (bad/blocked credentials, a game-side-deleted account).
+    // With connectRetry disabled it fails fast, and connectIds must skip it
+    // rather than aborting the whole fleet.
+    const s = new MockSocket(url, { failToOpen: created === 2 });
+    sockets.push(s);
+    return s;
+  };
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 0,
+    connectRetry: false,
+  });
   await client.addLogin('Nova', 'pw');
   await client.addLogin('Bad', 'pw');
   await client.addLogin('Rex', 'pw');
@@ -214,27 +229,12 @@ test('connectAll tolerates one account failing to connect', async () => {
 
   try {
     const allP = client.connectAll();
-    const order = ['Nova', 'Bad', 'Rex'];
-    for (let i = 0; i < order.length; i++) {
-      // wait for the next socket to appear
-      while (sockets.length <= i) await new Promise((r) => setTimeout(r, 1));
-      const name = order[i]!;
-      const socket = sockets[i]!;
-      if (name === 'Bad') {
-        socket.serverSend({ type: 'welcome', payload: welcomePayload() });
-        socket.onClientSend = (frame, s) => {
-          if (frame.action === 'login') {
-            s.serverSend({
-              type: 'error',
-              request_id: frame.request_id,
-              payload: { code: 'invalid_credentials', message: 'nope' },
-            });
-          }
-        };
-      } else {
-        autoServe(socket, name);
-      }
-    }
+    // connectIds awaits each id in turn: socket 0 = Nova, socket 1 = Bad
+    // (fails to open, skipped), socket 2 = Rex.
+    while (sockets.length < 1) await new Promise((r) => setTimeout(r, 1));
+    autoServe(sockets[0]!, 'Nova');
+    while (sockets.length < 3) await new Promise((r) => setTimeout(r, 1));
+    autoServe(sockets[2]!, 'Rex');
 
     const accounts = await allP;
     expect(accounts.length).toBe(2);
