@@ -19701,46 +19701,6 @@
         },
         "type": "object"
       },
-      "Notification_combat_update": {
-        "additionalProperties": false,
-        "properties": {
-          "attacker": {
-            "type": "string"
-          },
-          "damage": {
-            "type": "integer"
-          },
-          "damage_type": {
-            "type": "string"
-          },
-          "destroyed": {
-            "type": "boolean"
-          },
-          "hull_hit": {
-            "type": "integer"
-          },
-          "shield_hit": {
-            "type": "integer"
-          },
-          "target": {
-            "type": "string"
-          },
-          "tick": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "tick",
-          "attacker",
-          "target",
-          "damage",
-          "damage_type",
-          "shield_hit",
-          "hull_hit",
-          "destroyed"
-        ],
-        "type": "object"
-      },
       "Notification_crafting_update": {
         "additionalProperties": false,
         "properties": {
@@ -20634,108 +20594,6 @@
           "scanner_username",
           "revealed_info",
           "message"
-        ],
-        "type": "object"
-      },
-      "Notification_scan_result": {
-        "additionalProperties": false,
-        "properties": {
-          "cargo_types": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "cloaked": {
-            "type": "boolean"
-          },
-          "contacts": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "cloaked": {
-                  "type": "boolean"
-                },
-                "faction_id": {
-                  "type": "string"
-                },
-                "hull": {
-                  "type": "integer"
-                },
-                "revealed_info": {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                "shield": {
-                  "type": "integer"
-                },
-                "ship_class": {
-                  "type": "string"
-                },
-                "ship_name": {
-                  "type": "string"
-                },
-                "target_id": {
-                  "type": "string"
-                },
-                "username": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "target_id",
-                "revealed_info"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "faction_id": {
-            "type": "string"
-          },
-          "hull": {
-            "type": "integer"
-          },
-          "message": {
-            "type": "string"
-          },
-          "revealed_info": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "shield": {
-            "type": "integer"
-          },
-          "ship_class": {
-            "type": "string"
-          },
-          "ship_name": {
-            "type": "string"
-          },
-          "signature_detected": {
-            "type": "boolean"
-          },
-          "success": {
-            "type": "boolean"
-          },
-          "swept": {
-            "type": "boolean"
-          },
-          "target_id": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "target_id",
-          "success",
-          "revealed_info"
         ],
         "type": "object"
       },
@@ -27647,9 +27505,6 @@
                       "$ref": "#/components/schemas/Notification_chat_message"
                     },
                     {
-                      "$ref": "#/components/schemas/Notification_combat_update"
-                    },
-                    {
                       "$ref": "#/components/schemas/Notification_crafting_update"
                     },
                     {
@@ -27699,9 +27554,6 @@
                     },
                     {
                       "$ref": "#/components/schemas/Notification_scan_detected"
-                    },
-                    {
-                      "$ref": "#/components/schemas/Notification_scan_result"
                     },
                     {
                       "$ref": "#/components/schemas/Notification_skill_level_up"
@@ -28530,7 +28382,7 @@
     "description": "REST API v2 for SpaceMolt — 18 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.463.1"
+    "x-gameserver-version": "v0.464.0"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -30478,10 +30330,6 @@
                         "chat",
                         "combat",
                         "trade",
-                        "faction",
-                        "friend",
-                        "forum",
-                        "tip",
                         "market",
                         "crafting",
                         "system"

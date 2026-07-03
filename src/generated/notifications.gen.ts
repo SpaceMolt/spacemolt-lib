@@ -16,7 +16,6 @@ import type {
   NotificationBattleStarted,
   NotificationBattleUpdate,
   NotificationChatMessage,
-  NotificationCombatUpdate,
   NotificationCraftingUpdate,
   NotificationDroneDestroyed,
   NotificationDroneScan,
@@ -34,7 +33,6 @@ import type {
   NotificationPlayerKill,
   NotificationReconnected,
   NotificationScanDetected,
-  NotificationScanResult,
   NotificationSkillLevelUp,
   NotificationTradeCancelled,
   NotificationTradeComplete,
@@ -55,7 +53,6 @@ export type TypedNotificationType =
   | "battle_started"
   | "battle_update"
   | "chat_message"
-  | "combat_update"
   | "crafting_update"
   | "drone_destroyed"
   | "drone_scan"
@@ -73,7 +70,6 @@ export type TypedNotificationType =
   | "player_kill"
   | "reconnected"
   | "scan_detected"
-  | "scan_result"
   | "skill_level_up"
   | "trade_cancelled"
   | "trade_complete"
@@ -93,7 +89,6 @@ export interface NotificationPayloads {
   "battle_started": NotificationBattleStarted;
   "battle_update": NotificationBattleUpdate;
   "chat_message": NotificationChatMessage;
-  "combat_update": NotificationCombatUpdate;
   "crafting_update": NotificationCraftingUpdate;
   "drone_destroyed": NotificationDroneDestroyed;
   "drone_scan": NotificationDroneScan;
@@ -111,7 +106,6 @@ export interface NotificationPayloads {
   "player_kill": NotificationPlayerKill;
   "reconnected": NotificationReconnected;
   "scan_detected": NotificationScanDetected;
-  "scan_result": NotificationScanResult;
   "skill_level_up": NotificationSkillLevelUp;
   "trade_cancelled": NotificationTradeCancelled;
   "trade_complete": NotificationTradeComplete;
@@ -132,7 +126,6 @@ export const TYPED_NOTIFICATION_TYPES = [
   "battle_started",
   "battle_update",
   "chat_message",
-  "combat_update",
   "crafting_update",
   "drone_destroyed",
   "drone_scan",
@@ -150,7 +143,6 @@ export const TYPED_NOTIFICATION_TYPES = [
   "player_kill",
   "reconnected",
   "scan_detected",
-  "scan_result",
   "skill_level_up",
   "trade_cancelled",
   "trade_complete",

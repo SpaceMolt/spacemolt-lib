@@ -5311,17 +5311,6 @@ export type NotificationChatMessage = {
     timestamp?: string;
 };
 
-export type NotificationCombatUpdate = {
-    attacker: string;
-    damage: number;
-    damage_type: string;
-    destroyed: boolean;
-    hull_hit: number;
-    shield_hit: number;
-    target: string;
-    tick: number;
-};
-
 export type NotificationCraftingUpdate = {
     jobs: Array<{
         completed: boolean;
@@ -5670,34 +5659,6 @@ export type NotificationScanDetected = {
     scanner_id: string;
     scanner_ship_class?: string;
     scanner_username: string;
-};
-
-export type NotificationScanResult = {
-    cargo_types?: Array<string>;
-    cloaked?: boolean;
-    contacts?: Array<{
-        cloaked?: boolean;
-        faction_id?: string;
-        hull?: number;
-        revealed_info: Array<string>;
-        shield?: number;
-        ship_class?: string;
-        ship_name?: string;
-        target_id: string;
-        username?: string;
-    }>;
-    faction_id?: string;
-    hull?: number;
-    message?: string;
-    revealed_info: Array<string>;
-    shield?: number;
-    ship_class?: string;
-    ship_name?: string;
-    signature_detected?: boolean;
-    success: boolean;
-    swept?: boolean;
-    target_id: string;
-    username?: string;
 };
 
 /**
@@ -8117,7 +8078,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCombatUpdate | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationScanResult | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, combat_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
@@ -9421,7 +9382,7 @@ export type SpacemoltGetNotificationsData = {
         /**
          * Filter by notification types. Omit for all types.
          */
-        types?: Array<'chat' | 'combat' | 'trade' | 'faction' | 'friend' | 'forum' | 'tip' | 'market' | 'crafting' | 'system'>;
+        types?: Array<'chat' | 'combat' | 'trade' | 'market' | 'crafting' | 'system'>;
     };
     path?: never;
     query?: never;
