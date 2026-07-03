@@ -1289,7 +1289,7 @@ export interface SpacemoltGetNotificationsParams {
   /** Max notifications to return (default: 50, max: 100). */
   limit?: number;
   /** Filter by notification types. Omit for all types. */
-  types?: "chat" | "combat" | "trade" | "market" | "crafting" | "system"[];
+  types?: ("chat" | "combat" | "trade" | "market" | "crafting" | "system")[];
 }
 
 export interface SpacemoltGetVersionParams {

@@ -51,6 +51,11 @@ test('bulk array-of-object params render their element shape, not string[]', () 
   );
   // A shapeless object array (no declared properties) stays Record<string, unknown>[].
   expect(paramType('spacemolt/craft', 'jobs')).toBe('Record<string, unknown>[]');
+  // An array of enum values must parenthesize the union: `(...)[]`, not `... | "x"[]`
+  // (postfix `[]` binds tighter than `|`, which would change the type's meaning).
+  expect(paramType('spacemolt/get_notifications', 'types')).toBe(
+    '("chat" | "combat" | "trade" | "market" | "crafting" | "system")[]',
+  );
 });
 
 test('auth actions are present', () => {

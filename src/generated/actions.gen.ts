@@ -1970,7 +1970,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     params: [
       { name: "clear", type: "boolean", required: false, description: "Remove returned notifications from queue (default: true). Set to false to peek without clearing." },
       { name: "limit", type: "number", required: false, description: "Max notifications to return (default: 50, max: 100)." },
-      { name: "types", type: "\"chat\" | \"combat\" | \"trade\" | \"market\" | \"crafting\" | \"system\"[]", required: false, description: "Filter by notification types. Omit for all types." },
+      { name: "types", type: "(\"chat\" | \"combat\" | \"trade\" | \"market\" | \"crafting\" | \"system\")[]", required: false, description: "Filter by notification types. Omit for all types." },
     ],
   },
   "spacemolt/get_player": {

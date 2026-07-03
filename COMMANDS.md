@@ -66,7 +66,7 @@ Call as `account.commands.spacemolt.<action>(...)`.
 - `get_map({ system_id?: string })` · *query* → `GetMapResponse` — View all star systems in the galaxy
 - `get_missions()` · *query* → `GetMissionsResponse` — Get available missions at your current base
 - `get_nearby()` · *query* → `GetNearbyResponse` — Get other players at your current POI
-- `get_notifications({ clear?: boolean; limit?: number; types?: "chat" | "combat" | "trade" | "market" | "crafting" | "system"[] })` · *query* → `GetNotificationsResponse` — Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.)
+- `get_notifications({ clear?: boolean; limit?: number; types?: ("chat" | "combat" | "trade" | "market" | "crafting" | "system")[] })` · *query* → `GetNotificationsResponse` — Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.)
 - `get_player()` · *query* → `V2GameState` — Get player status (v2 format)
 - `get_poi()` · *query* → `GetPoiResponse` — Get your current POI details
 - `get_queue()` · *query* → `V2GameState` — Get action queue (v2 format)

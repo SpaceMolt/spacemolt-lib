@@ -103,8 +103,13 @@ function tsType(p: OpenAPIProperty): string {
       return 'number';
     case 'boolean':
       return 'boolean';
-    case 'array':
-      return `${p.items ? tsType(p.items) : 'string'}[]`;
+    case 'array': {
+      if (!p.items) return 'string[]';
+      const el = tsType(p.items);
+      // An enum element is a bare union (`"a" | "b"`); `[]` binds tighter than
+      // `|`, so it must be parenthesized or it parses as `"a" | ("b"[])`.
+      return p.items.enum?.length ? `(${el})[]` : `${el}[]`;
+    }
     case 'object':
       if (p.properties && Object.keys(p.properties).length) {
         const req = new Set(p.required ?? []);
