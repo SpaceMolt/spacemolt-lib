@@ -1717,7 +1717,7 @@ export interface Commands {
   spacemolt_faction: {
     /** Accept a pending alliance proposal */
     accept_ally(params: SpacemoltFactionAcceptAllyParams): Promise<MutationResult>;
-    /** Accept a faction invitation (alias for join_faction) */
+    /** Accept a faction invitation (alias for join) */
     accept_invite(params: SpacemoltFactionAcceptInviteParams): Promise<MutationResult>;
     /** Accept a peace proposal */
     accept_peace(params: SpacemoltFactionAcceptPeaceParams): Promise<MutationResult>;
