@@ -178,6 +178,44 @@ test('connectAll retries a rejected handshake instead of aborting the rest of th
   expect(created).toBe(3); // Nova's failed attempt + Nova's retry + Rex
 });
 
+test('connect() honors retry_after when a 4003 close arrives before auth completes', async () => {
+  const sockets: MockSocket[] = [];
+  let created = 0;
+  const factory = (url: string): MockSocket => {
+    created++;
+    const s = new MockSocket(url);
+    sockets.push(s);
+    if (created === 1) {
+      // Let the WS upgrade complete normally, then simulate the server
+      // closing with the connection-rate-limit code shortly after — matches
+      // the documented gameserver behavior (v0.471.4): the handshake
+      // succeeds, then the connection is closed with 4003 (instead of
+      // hanging) while waiting for `welcome`.
+      setTimeout(() => s.close(4003, 'retry_after=1'), 0);
+    }
+    return s;
+  };
+
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 0,
+    // A large fallback so honoring the 1s retry_after hint is unambiguous.
+    connectRetry: { maxRetries: 2, baseDelayMs: 5000, maxDelayMs: 5000 },
+  });
+  await client.addLogin('Nova', 'pw');
+
+  const start = Date.now();
+  const connectP = client.connect('Nova');
+  while (sockets.length < 2) await new Promise((r) => setTimeout(r, 5));
+  autoServe(sockets[1]!, 'Nova');
+  const account = await connectP;
+  const elapsed = Date.now() - start;
+
+  expect(account.authenticated).toBe(true);
+  expect(elapsed).toBeGreaterThanOrEqual(900); // honored the ~1000ms hint (some timer jitter tolerated)
+  expect(elapsed).toBeLessThan(3000); // ...not the 5000ms fallback
+}, 6000);
+
 test('connect gives up after connectRetry is exhausted and does not leak a stale account', async () => {
   const factory = (url: string): MockSocket => new MockSocket(url, { failToOpen: true });
   const client = new SpacemoltClient({
