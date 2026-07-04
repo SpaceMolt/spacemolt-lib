@@ -37,12 +37,36 @@ test('commands facade dispatches a mutation and forwards typed params', async ()
   socket.onClientSend = (frame, s) => {
     if (frame.action === 'jump') {
       s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'p', structuredContent: { pending: true } } });
-      s.serverSend({ type: 'action_result', request_id: frame.request_id, payload: { command: 'jump', tick: 9, result: { location: { system_id: 'sol' } } } });
+      s.serverSend({
+        type: 'action_result',
+        request_id: frame.request_id,
+        payload: {
+          command: 'jump',
+          tick: 9,
+          result: {
+            location: { system_id: 'sol' },
+            details: { action: 'jump', from_system: 'alpha', system: 'Sol', system_id: 'sol', navigation_xp: 5 },
+          },
+        },
+      });
     }
   };
   const res = await account.commands.spacemolt.jump({ id: 'sol' });
   expect(res.tick).toBe(9);
   expect(res.delta.location?.system_id).toBe('sol');
+  // `res.delta.details` is typed as `JumpResponse` (a union of the two jump
+  // shapes: a direct system jump vs. a Pathfinder-Drive bearing jump) — not
+  // `unknown`/generic. Narrowing on `system_id` (only present on the direct-
+  // jump variant) only typechecks because MutationResult<JumpResponse>
+  // actually flows through account.commands.spacemolt.jump()'s return type.
+  const details = res.delta.details;
+  expect(details?.action).toBe('jump');
+  if (details && 'system_id' in details) {
+    expect(details.system_id).toBe('sol');
+    expect(details.navigation_xp).toBe(5);
+  } else {
+    throw new Error('expected the direct-jump JumpResponse variant');
+  }
   expect(socket.sent.at(-1)).toMatchObject({ tool: 'spacemolt', action: 'jump', payload: { id: 'sol' } });
 });
 

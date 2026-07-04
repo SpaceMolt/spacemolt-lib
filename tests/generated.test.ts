@@ -19,15 +19,30 @@ test('known commands resolve with the expected kind', () => {
   expect(ACTIONS['spacemolt/get_status']?.kind).toBe('query');
 });
 
-test('queries carry their response type; mutations do not', () => {
+test('queries carry their response type on responseType, not detailsType', () => {
   // A representative query exposes the typed structuredContent response.
   expect(ACTIONS['spacemolt/find_route']?.responseType).toBe('FindRouteResponse');
-  // Mutations resolve via the delta, not a structuredContent response schema.
-  expect(ACTIONS['spacemolt/jump']?.responseType).toBeUndefined();
+  expect(ACTIONS['spacemolt/find_route']?.detailsType).toBeUndefined();
   // Coverage: most queries should be typed (spec publishes their responses).
   const queries = Object.values(ACTIONS).filter((a) => a.kind === 'query');
   const typed = queries.filter((a) => a.responseType);
   expect(typed.length).toBeGreaterThan(queries.length * 0.9);
+});
+
+test('mutations carry their delta.details type on detailsType, not responseType', () => {
+  // A representative mutation exposes its action-specific details response —
+  // the one part of a mutation's delta that isn't the generic state-delta
+  // shape shared by every mutation.
+  expect(ACTIONS['spacemolt/jump']?.detailsType).toBe('JumpResponse');
+  expect(ACTIONS['spacemolt/jump']?.responseType).toBeUndefined();
+  expect(ACTIONS['spacemolt/dock']?.detailsType).toBe('DockResponse');
+  expect(ACTIONS['spacemolt/buy']?.detailsType).toBe('BuyResponse');
+  expect(ACTIONS['spacemolt/mine']?.detailsType).toBe('MineResponse');
+  // Coverage: every mutation should be typed — verified against the live spec
+  // that all 141 mutations publish a details schema, no exceptions.
+  const mutations = Object.values(ACTIONS).filter((a) => a.kind === 'mutation');
+  const typed = mutations.filter((a) => a.detailsType);
+  expect(typed.length).toBe(mutations.length);
 });
 
 test('bulk array-of-object params render their element shape, not string[]', () => {

@@ -180,13 +180,21 @@ export interface MutationAck {
   message: string;
 }
 
-/** Resolved value of a two-phase mutation, delivered when the action executes. */
-export interface MutationResult {
+/**
+ * Resolved value of a two-phase mutation, delivered when the action executes.
+ * `TDetails` is the action-specific shape of `delta.details` (e.g. `jump` ->
+ * `MutationResult<JumpResponse>`); the generated command facade binds it per
+ * command, so reads are typed with no cast. The rest of `delta` (the state
+ * sections that changed) is the same generic shape for every mutation — only
+ * `details` is action-specific. Defaults to untyped JSON for the low-level
+ * `mutate`/`send` paths.
+ */
+export interface MutationResult<TDetails = Record<string, unknown>> {
   command: string;
   /** Game tick on which the action executed. */
   tick: number;
   /** The V2GameState delta — only the sections that changed. */
-  delta: StateDelta;
+  delta: Omit<StateDelta, 'details'> & { details?: TDetails };
   autoDocked?: boolean;
   autoUndocked?: boolean;
 }
