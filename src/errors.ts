@@ -67,3 +67,29 @@ export class ConnectionClosedError extends Error {
     this.reason = reason;
   }
 }
+
+/**
+ * Custom WS close codes the server documents (as of gameserver v0.471.4):
+ * `4001` session_replaced (another connection took your slot — don't
+ * reconnect, you'd just fight it), `4002` auth_timeout (connected but didn't
+ * authenticate in time), `4003` connection_rate_limited (exceeded the
+ * 100/min-per-IP WS-connection cap — the close reason carries a
+ * `retry_after=<seconds>` hint; honor it before reconnecting).
+ */
+export const CLOSE_CODE = {
+  SESSION_REPLACED: 4001,
+  AUTH_TIMEOUT: 4002,
+  CONNECTION_RATE_LIMITED: 4003,
+} as const;
+
+/**
+ * Parses the `retry_after=<seconds>` hint the server includes on a `4003`
+ * (connection_rate_limited) close reason. Returns the wait time in
+ * milliseconds, or `undefined` if `err` isn't a rate-limited close or carries
+ * no parseable hint.
+ */
+export function retryAfterMsFromClose(err: unknown): number | undefined {
+  if (!(err instanceof ConnectionClosedError) || err.code !== CLOSE_CODE.CONNECTION_RATE_LIMITED) return undefined;
+  const match = err.reason?.match(/retry_after=(\d+)/);
+  return match ? Number(match[1]) * 1000 : undefined;
+}

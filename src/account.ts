@@ -23,7 +23,7 @@ import type {
   V2GameState,
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
-import { ConnectionClosedError, errorFromFrame, SpacemoltError } from './errors.ts';
+import { CLOSE_CODE, ConnectionClosedError, errorFromFrame, retryAfterMsFromClose, SpacemoltError } from './errors.ts';
 import { TypedEmitter } from './events/emitter.ts';
 import { MarketCache, type MarketBook } from './state/market.ts';
 import { ObservationCache, type ObservationView } from './state/observation.ts';
@@ -118,7 +118,8 @@ export interface RegisterResult {
 
 interface PendingAuth {
   onLoggedIn: (payload: LoggedInPayload, registered?: RegisteredFrame['payload']) => void;
-  onError: (err: SpacemoltError) => void;
+  /** `Error`, not `SpacemoltError` specifically — a close carries a `ConnectionClosedError` (code + reason), not a server-reported error. */
+  onError: (err: Error) => void;
   registered?: RegisteredFrame['payload'];
 }
 
@@ -655,7 +656,7 @@ export class Account {
 
   private beginAuth(
     onLoggedIn: (state: LoggedInPayload, registered?: RegisteredFrame['payload']) => void,
-    onError: (err: SpacemoltError) => void,
+    onError: (err: Error) => void,
   ): void {
     if (this.pendingAuth) {
       onError(new SpacemoltError('auth_in_progress', 'another auth exchange is already in flight'));
@@ -733,15 +734,18 @@ export class Account {
     this._authenticated = false;
     this.correlator.rejectAll(err);
     this.emitter.closeStreams();
+    // Reject with the original err (not a wrapped SpacemoltError) so its
+    // code/reason survive — e.g. a 4003 connection_rate_limited close's
+    // retry_after hint, which reconnectLoop/client.connect() honor.
     if (this.welcomeWaiter) {
       const waiter = this.welcomeWaiter;
       this.welcomeWaiter = null;
-      waiter.reject(new SpacemoltError('connection_closed', err.message));
+      waiter.reject(err);
     }
     if (this.pendingAuth) {
       const auth = this.pendingAuth;
       this.pendingAuth = null;
-      auth.onError(new SpacemoltError('connection_closed', err.message));
+      auth.onError(err);
     }
     if (this.shouldReconnect(err)) {
       void this.reconnectLoop(err);
@@ -753,9 +757,11 @@ export class Account {
   private shouldReconnect(err: ConnectionClosedError): boolean {
     if (!this.reconnectConfig || this.userClosing || this.reconnecting) return false;
     if (!this.credentialsProvider) return false;
-    // 4001 session_replaced: another connection took our slot — reconnecting
-    // would just fight it. 4002 auth_timeout: we failed to auth in time.
-    if (err.code === 4001 || err.code === 4002) return false;
+    // session_replaced: another connection took our slot — reconnecting would
+    // just fight it. auth_timeout: we failed to auth in time. Unlike those
+    // two, connection_rate_limited (4003) IS worth reconnecting after —
+    // reconnectLoop honors its retry_after hint below.
+    if (err.code === CLOSE_CODE.SESSION_REPLACED || err.code === CLOSE_CODE.AUTH_TIMEOUT) return false;
     return true;
   }
 
@@ -763,9 +769,17 @@ export class Account {
     if (this.reconnecting || !this.reconnectConfig || !this.credentialsProvider) return;
     this.reconnecting = true;
     const cfg = this.reconnectConfig;
+    // A 4003 close carries an authoritative retry_after hint from the
+    // server — honor it for the first attempt instead of guessing with
+    // exponential backoff, which risks retrying before the server's window
+    // has actually rolled over and tripping the same limit again.
+    const retryAfterMs = retryAfterMsFromClose(err);
     for (let attempt = 1; attempt <= cfg.maxRetries; attempt++) {
       this.reconnectingListener?.(attempt);
-      const backoff = Math.min(cfg.baseDelayMs * 2 ** (attempt - 1), cfg.maxDelayMs);
+      const backoff =
+        attempt === 1 && retryAfterMs !== undefined
+          ? retryAfterMs
+          : Math.min(cfg.baseDelayMs * 2 ** (attempt - 1), cfg.maxDelayMs);
       await delay(backoff);
       if (this.userClosing) {
         this.reconnecting = false;

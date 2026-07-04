@@ -20,6 +20,7 @@ import type { ReconnectOptions, RegisterParams, RegisterResult } from './account
 import { CatalogCache } from './data/catalog.ts';
 import { MapCache, httpBaseFromWs } from './data/map.ts';
 import { ClerkSource, type ClerkPlayer } from './auth/clerk.ts';
+import { retryAfterMsFromClose } from './errors.ts';
 
 const DEFAULT_HTTP_BASE = 'https://game.spacemolt.com';
 
@@ -214,7 +215,12 @@ export class SpacemoltClient {
         account.close();
         lastErr = err;
         if (attempt < retry.maxRetries) {
-          await delay(Math.min(retry.baseDelayMs * 2 ** attempt, retry.maxDelayMs));
+          // A 4003 (connection_rate_limited) close carries an authoritative
+          // retry_after hint — honor it instead of guessing with exponential
+          // backoff, which risks retrying before the server's per-IP
+          // WS-connection window has actually rolled over.
+          const retryAfterMs = retryAfterMsFromClose(err);
+          await delay(retryAfterMs ?? Math.min(retry.baseDelayMs * 2 ** attempt, retry.maxDelayMs));
         }
       }
     }

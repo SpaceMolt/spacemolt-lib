@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { Account } from '../src/account.ts';
 import type { AuthCredentials } from '../src/auth/credentials.ts';
+import { ConnectionClosedError, retryAfterMsFromClose } from '../src/errors.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
 import { mockFactory, MockSocket } from './mock-socket.ts';
 
@@ -12,6 +13,27 @@ function welcomePayload(): WelcomeFrame['payload'] {
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
+
+// --- retryAfterMsFromClose ---
+
+test('retryAfterMsFromClose parses the hint from a 4003 close reason', () => {
+  const err = new ConnectionClosedError('closed', 4003, 'connection_rate_limited retry_after=30');
+  expect(retryAfterMsFromClose(err)).toBe(30_000);
+});
+
+test('retryAfterMsFromClose returns undefined for a non-4003 close', () => {
+  const err = new ConnectionClosedError('closed', 4001, 'retry_after=30');
+  expect(retryAfterMsFromClose(err)).toBeUndefined();
+});
+
+test('retryAfterMsFromClose returns undefined for a 4003 close with no parseable hint', () => {
+  const err = new ConnectionClosedError('closed', 4003, 'connection_rate_limited');
+  expect(retryAfterMsFromClose(err)).toBeUndefined();
+});
+
+test('retryAfterMsFromClose returns undefined for a non-ConnectionClosedError', () => {
+  expect(retryAfterMsFromClose(new Error('boom'))).toBeUndefined();
+});
 
 // --- rate-limit retry ---
 
@@ -166,6 +188,35 @@ test('does NOT reconnect on session_replaced (4001)', async () => {
   await new Promise((r) => setTimeout(r, 20));
   expect(sockets.length).toBe(1);
 });
+
+test('reconnects after connection_rate_limited (4003), honoring the retry_after hint over the fallback backoff', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+    // A large fallback so honoring the 1s retry_after hint is unambiguous.
+    reconnect: { baseDelayMs: 5000, maxRetries: 3 },
+  });
+  const cp = account.connect();
+  serveAuth(sockets[0]!);
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  const reconnected = new Promise<void>((resolve) => account.onReconnected(resolve));
+  const start = Date.now();
+  sockets[0]!.close(4003, 'retry_after=1'); // 1s hint
+
+  while (sockets.length < 2) await new Promise((r) => setTimeout(r, 5));
+  serveAuth(sockets[1]!);
+  await reconnected;
+
+  const elapsed = Date.now() - start;
+  expect(account.authenticated).toBe(true);
+  expect(elapsed).toBeGreaterThanOrEqual(900); // honored the ~1000ms hint (some timer jitter tolerated)
+  expect(elapsed).toBeLessThan(3000); // ...not the 5000ms fallback
+}, 6000);
 
 // --- connect/auth timeout ---
 //
