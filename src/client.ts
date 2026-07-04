@@ -95,6 +95,16 @@ export interface SpacemoltClientOptions {
    */
   queryTimeoutMs?: number;
   /**
+   * How long to wait, after a mutation's pending ack arrives, for its final
+   * `action_result`/`action_error` outcome before giving up. Generous by
+   * design — some mutations legitimately take many ticks (a jump/travel's
+   * transit time is distance-based and can run minutes) — but not infinite:
+   * without this, a single silently-dropped outcome frame hangs forever AND
+   * wedges every subsequent mutation on that account behind it (mutations
+   * are serialized per account). Default 600000 (10 minutes).
+   */
+  mutationTimeoutMs?: number;
+  /**
    * Fallback safety net: retry a failed `connect()` (the raw WebSocket
    * handshake, before any auth frame) with backoff instead of dropping the
    * account. `connectBatchSize`/`connectBatchWaitMs` above are the primary
@@ -380,6 +390,7 @@ export class SpacemoltClient {
       fetchImpl: this.opts.fetchImpl,
       connectTimeoutMs: this.opts.connectTimeoutMs,
       queryTimeoutMs: this.opts.queryTimeoutMs,
+      mutationTimeoutMs: this.opts.mutationTimeoutMs,
       credentials: async () => {
         const stored = await this.store.get(id);
         if (!stored) throw new Error(`no stored credentials for account "${id}"`);

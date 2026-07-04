@@ -100,6 +100,17 @@ export interface AccountOptions {
    * Default 15000 (15s).
    */
   queryTimeoutMs?: number;
+  /**
+   * How long to wait, after a mutation's pending ack arrives, for its final
+   * `action_result`/`action_error` outcome before giving up. Generous by
+   * design — some mutations legitimately take many ticks (a jump/travel's
+   * transit time is distance-based and can run minutes) — but not infinite:
+   * without this, a single silently-dropped outcome frame hangs forever AND
+   * wedges every subsequent mutation on this account behind it (mutations
+   * are serialized per account, see `enqueueMutation`). Default 600000 (10
+   * minutes).
+   */
+  mutationTimeoutMs?: number;
 }
 
 export interface RegisterParams {
@@ -125,6 +136,7 @@ interface PendingAuth {
 
 const DEFAULT_URL = 'wss://game.spacemolt.com/ws/v2';
 const DEFAULT_CONNECT_TIMEOUT_MS = 15_000;
+const DEFAULT_MUTATION_TIMEOUT_MS = 600_000;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -179,6 +191,7 @@ export class Account {
   private readonly maxRateLimitRetries: number;
   private readonly connectTimeoutMs: number;
   private readonly queryTimeoutMs: number;
+  private readonly mutationTimeoutMs: number;
   private readonly _id: string | undefined;
   private requestSeq = 0;
 
@@ -211,6 +224,7 @@ export class Account {
     this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
     this.connectTimeoutMs = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
     this.queryTimeoutMs = opts.queryTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
+    this.mutationTimeoutMs = opts.mutationTimeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
     this._id = opts.id;
     this.reconnectConfig = normalizeReconnect(opts.reconnect);
     this.makeSocket();
@@ -454,6 +468,13 @@ export class Account {
    * previous resolves — because the server queues one action per tick and
    * rejects a concurrent mutation with `action_pending`. Also auto-retries on
    * `rate_limited`.
+   *
+   * Bounded in two phases (see `awaitMutationWithTimeout`) rather than left
+   * unbounded: some mutations (e.g. `craft`) queue work and settle within a
+   * tick same as any other mutation, with no legitimate reason for their
+   * outcome to be missing — a dropped response for one of those should fail
+   * cleanly, not hang this call (and every mutation queued behind it on this
+   * account) forever.
    */
   mutate(
     tool: string,
@@ -464,11 +485,57 @@ export class Account {
     return this.enqueueMutation(() =>
       this.withRateLimitRetry(() => {
         const requestId = this.nextRequestId();
-        const promise = this.correlator.awaitMutation(requestId, onAck);
+        const promise = this.awaitMutationWithTimeout(requestId, onAck);
         this.sendFrame(tool, action, payload, requestId);
         return promise;
       }),
     );
+  }
+
+  /**
+   * Waits for a mutation's outcome with two-phase timeout protection. The
+   * pending ack (`result` frame) is a synchronous validation step with no
+   * game-tick delay — like a query, there's no legitimate reason for it to be
+   * missing, so it's bounded by `queryTimeoutMs`. Once the ack arrives, the
+   * final `action_result`/`action_error` can legitimately take many ticks
+   * (e.g. a jump's transit time), so that phase gets the far more generous
+   * `mutationTimeoutMs` instead. Either phase timing out cancels the
+   * correlator entry — otherwise a truly-dropped response would wedge every
+   * later mutation on this account behind it forever (see `enqueueMutation`).
+   */
+  private awaitMutationWithTimeout(
+    requestId: string,
+    onAck?: (ack: MutationAck) => void,
+  ): Promise<MutationResult> {
+    return new Promise<MutationResult>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const arm = (ms: number, message: string): void => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          this.correlator.cancel(requestId);
+          reject(new SpacemoltError('mutation_timeout', message));
+        }, ms);
+      };
+      arm(this.queryTimeoutMs, `No response to mutation ${requestId} within ${this.queryTimeoutMs}ms`);
+      this.correlator
+        .awaitMutation(requestId, (ack) => {
+          arm(
+            this.mutationTimeoutMs,
+            `No action_result for mutation ${requestId} within ${this.mutationTimeoutMs}ms of its ack`,
+          );
+          onAck?.(ack);
+        })
+        .then(
+          (value) => {
+            if (timer) clearTimeout(timer);
+            resolve(value);
+          },
+          (err: unknown) => {
+            if (timer) clearTimeout(timer);
+            reject(err as Error);
+          },
+        );
+    });
   }
 
   /**

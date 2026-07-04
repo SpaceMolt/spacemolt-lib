@@ -337,6 +337,74 @@ test('query() does not bound a mutation — mutate() can legitimately outlast qu
   expect(result.command).toBe('jump');
 });
 
+test('mutate() times out and cancels the correlator entry if the pending ack never arrives', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, queryTimeoutMs: 20 });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+  // no onClientSend handler — the server never acks the mutation
+
+  await expect(account.mutate('spacemolt', 'craft', { id: 'widget' })).rejects.toThrow(
+    /No response to mutation .* within 20ms/,
+  );
+
+  // a late ack for the abandoned request must not resolve/crash anything
+  const lastRequestId = sockets[0]!.lastRequestId();
+  expect(() =>
+    sockets[0]!.serverSend({
+      type: 'result',
+      request_id: lastRequestId,
+      payload: { result: 'ok' },
+    }),
+  ).not.toThrow();
+});
+
+test('mutate() times out if acked but no action_result ever arrives, and does not wedge the next mutation', async () => {
+  // Regression test for a real incident: craft (and any mutation that queues
+  // work and settles within a tick, same as e.g. buy/sell/dock) would hang
+  // forever if its action_result went missing after the ack — and because
+  // mutations are serialized per account, every later mutation queued up
+  // behind it forever too, with no recovery short of a full reconnect.
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    mutationTimeoutMs: 20,
+  });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'craft') {
+      // ack immediately, then never send action_result — simulates the
+      // reported "craft jobs hang forever" bug.
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { command: 'craft', message: 'queued' } },
+      });
+    } else if (frame.action === 'undock') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'p', structuredContent: { pending: true } },
+      });
+      s.serverSend({ type: 'action_result', request_id: frame.request_id, payload: { command: 'undock', tick: 2, result: {} } });
+    }
+  };
+
+  await expect(account.mutate('spacemolt', 'craft', { id: 'widget' })).rejects.toThrow(
+    /No action_result for mutation .* within 20ms of its ack/,
+  );
+
+  // the next mutation on this account must not be wedged behind the hung one
+  const result = await account.mutate('spacemolt', 'undock');
+  expect(result.command).toBe('undock');
+});
+
 test('a close while waiting for welcome rejects immediately instead of waiting out the timeout', async () => {
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, connectTimeoutMs: 5000 });
