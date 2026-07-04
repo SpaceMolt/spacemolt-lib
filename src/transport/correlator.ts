@@ -63,6 +63,11 @@ export class Correlator {
     return this.pending.has(requestId);
   }
 
+  /** Drop a pending request without settling it (e.g. after the caller gave up on a timeout). */
+  cancel(requestId: string): void {
+    this.pending.delete(requestId);
+  }
+
   /**
    * Feed a frame to the correlator. Returns true if the frame was consumed
    * (matched an in-flight request), false otherwise (caller treats it as a

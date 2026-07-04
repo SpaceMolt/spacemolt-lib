@@ -32,7 +32,15 @@ export interface SpacemoltClientOptions {
   webSocketFactory?: WebSocketFactory;
   /** Seed each account's state cache after auth (see Account). Default true. */
   seedState?: boolean;
-  /** Delay between connecting accounts in `connectAll`. Default 250ms. */
+  /**
+   * Delay between connecting accounts. Default is derived from
+   * `connectBatchSize` (`60_000 / connectBatchSize` — 600ms for the default
+   * batch size of 100), guaranteeing a batch can't finish in under a minute
+   * regardless of how fast each connect() actually completes — a flat
+   * 250ms doesn't guarantee that (see `connectIds`). Set explicitly to
+   * override that computed default with your own value (trusted as-is, not
+   * a floor) — e.g. for a smaller test fleet where finishing fast is fine.
+   */
   connectStaggerMs?: number;
   /**
    * Max accounts to connect before pausing for `connectBatchWaitMs`, so a
@@ -68,6 +76,24 @@ export interface SpacemoltClientOptions {
   /** Inject a `fetch` implementation (tests, custom runtimes). */
   fetchImpl?: typeof fetch;
   /**
+   * How long to wait for the server's `welcome` frame (post-WS-upgrade) and
+   * for a `logged_in`/error response to an auth attempt, before giving up.
+   * Without this, a connection the server silently never completes (accepts
+   * the WS upgrade but never responds) hangs forever with no error and no
+   * retry — this can't be told apart from "still connecting" from the
+   * outside. Default 15000 (15s — generous over the ~150-300ms a healthy
+   * connect actually takes, per live measurement).
+   */
+  connectTimeoutMs?: number;
+  /**
+   * How long to wait for a query's response before giving up. Unlike a
+   * mutation (which can legitimately take minutes, e.g. a travel/jump's
+   * transit time), a query has no legitimate reason to take long — bounding
+   * it turns a silently-dropped response into a clean error instead of a
+   * permanent hang. Default 15000 (15s).
+   */
+  queryTimeoutMs?: number;
+  /**
    * Fallback safety net: retry a failed `connect()` (the raw WebSocket
    * handshake, before any auth frame) with backoff instead of dropping the
    * account. `connectBatchSize`/`connectBatchWaitMs` above are the primary
@@ -84,6 +110,9 @@ export interface SpacemoltClientOptions {
 }
 
 const DEFAULT_CONNECT_RETRY: Required<ReconnectOptions> = { maxRetries: 8, baseDelayMs: 2000, maxDelayMs: 60_000 };
+
+/** Assumed length of the server's per-IP WS-connection rate-limit window. */
+const CONNECT_RATE_WINDOW_MS = 60_000;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -256,8 +285,18 @@ export class SpacemoltClient {
    * logged and skipped so the caller still gets every account that succeeded.
    */
   private async connectIds(ids: string[]): Promise<Account[]> {
-    const stagger = this.opts.connectStaggerMs ?? 250;
     const batchSize = this.opts.connectBatchSize ?? 100;
+    // Default stagger is derived from batchSize so a full batch can never
+    // finish in under a minute regardless of how fast each connect() call
+    // actually completes. A flat 250ms alone doesn't guarantee this: 100
+    // accounts at 250ms apart, plus a healthy ~150-300ms connect time each,
+    // finishes in ~45s — silently exceeding the server's 100/min per-IP
+    // WS-connection cap (verified live: connecting 100 accounts this fast
+    // trips it, hanging accounts 101+ instead of a clean rejection). An
+    // explicit connectStaggerMs is trusted as the caller's deliberate
+    // override, same as connectBatchSize <= 0 already opts out of batching
+    // protection entirely.
+    const stagger = this.opts.connectStaggerMs ?? (batchSize > 0 ? Math.ceil(CONNECT_RATE_WINDOW_MS / batchSize) : 250);
     const batchWaitMs = this.opts.connectBatchWaitMs ?? 65_000;
     const accounts: Account[] = [];
     for (let i = 0; i < ids.length; i++) {
@@ -315,6 +354,8 @@ export class SpacemoltClient {
       seedState: this.opts.seedState,
       reconnect: this.opts.reconnect ?? true,
       fetchImpl: this.opts.fetchImpl,
+      connectTimeoutMs: this.opts.connectTimeoutMs,
+      queryTimeoutMs: this.opts.queryTimeoutMs,
       credentials: async () => {
         const stored = await this.store.get(id);
         if (!stored) throw new Error(`no stored credentials for account "${id}"`);

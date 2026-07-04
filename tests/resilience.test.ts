@@ -166,3 +166,134 @@ test('does NOT reconnect on session_replaced (4001)', async () => {
   await new Promise((r) => setTimeout(r, 20));
   expect(sockets.length).toBe(1);
 });
+
+// --- connect/auth timeout ---
+//
+// Without a bounded timeout, a connection the server accepts at the WS/TCP
+// level but then never completes at the protocol level (no welcome, no
+// logged_in, no error, no close) hangs forever — indistinguishable from
+// "still connecting" from the outside. These pin the fix: give up after
+// connectTimeoutMs instead.
+
+test('connect() times out and closes the socket if no welcome frame ever arrives', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, connectTimeoutMs: 20 });
+  const cp = account.connect(); // synchronously creates sockets[0] via the factory
+  let closeCode: number | undefined;
+  sockets[0]!.addEventListener('close', (e) => {
+    closeCode = e.code;
+  });
+
+  await expect(cp).rejects.toThrow(/No welcome frame received within 20ms/);
+  // the abandoned connection attempt's socket should have been closed, not
+  // left dangling
+  expect(closeCode).toBeDefined();
+});
+
+test('authenticate() times out if no logged_in/error response ever arrives', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, connectTimeoutMs: 20 });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+  // no onClientSend handler — the server never responds to the login frame
+
+  await expect(account.authenticate({ kind: 'login', username: 'Nova', password: 'pw' })).rejects.toThrow(
+    /No auth response received within 20ms/,
+  );
+});
+
+test('a subsequent connect attempt is not blocked by a timed-out auth (pendingAuth is cleared)', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    connectTimeoutMs: 20,
+    queryTimeoutMs: 20,
+  });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  await expect(account.authenticate({ kind: 'login', username: 'Nova', password: 'pw' })).rejects.toThrow();
+
+  // a second attempt on the same (still-open) connection must not be
+  // rejected with 'auth_in_progress' — the first attempt's pendingAuth
+  // must have been cleared on timeout
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'login') {
+      s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+    } else if (frame.action === 'get_status') {
+      s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+    }
+  };
+  await account.authenticate({ kind: 'login', username: 'Nova', password: 'pw' });
+  expect(account.authenticated).toBe(true);
+});
+
+// --- query timeout ---
+
+test('query() times out and cancels the correlator entry if no response ever arrives', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, queryTimeoutMs: 20 });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+  // no onClientSend handler — the server never responds to the query
+
+  await expect(account.query('spacemolt', 'get_status')).rejects.toThrow(
+    /No response to spacemolt\/get_status within 20ms/,
+  );
+
+  // a late response for the abandoned request must not resolve/crash
+  // anything — the correlator entry should already be gone
+  const lastRequestId = sockets[0]!.lastRequestId();
+  expect(() =>
+    sockets[0]!.serverSend({
+      type: 'result',
+      request_id: lastRequestId,
+      payload: { result: 'ok' },
+    }),
+  ).not.toThrow();
+});
+
+test('query() does not bound a mutation — mutate() can legitimately outlast queryTimeoutMs', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, queryTimeoutMs: 20 });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'jump') {
+      // simulate a long transit: ack immediately, resolve well past queryTimeoutMs
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { command: 'jump', message: 'queued' } },
+      });
+      setTimeout(() => {
+        s.serverSend({
+          type: 'action_result',
+          request_id: frame.request_id,
+          payload: { command: 'jump', tick: 10, result: {} },
+        });
+      }, 40);
+    }
+  };
+
+  const result = await account.mutate('spacemolt', 'jump', { id: 'alpha' });
+  expect(result.command).toBe('jump');
+});
+
+test('a close while waiting for welcome rejects immediately instead of waiting out the timeout', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, connectTimeoutMs: 5000 });
+
+  const cp = account.connect();
+  await tick();
+  const start = Date.now();
+  sockets[0]!.close(1006, 'abnormal');
+  await expect(cp).rejects.toThrow();
+  expect(Date.now() - start).toBeLessThan(100); // nowhere near the 5000ms timeout
+});

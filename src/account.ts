@@ -84,6 +84,22 @@ export interface AccountOptions {
   maxRateLimitRetries?: number;
   /** Stable id this account is managed under (e.g. the credential-store key / username). Exposed as `account.id`. */
   id?: string;
+  /**
+   * How long to wait for the server's `welcome` frame and for a
+   * `logged_in`/error response to an auth attempt, before giving up. Default
+   * 15000 (15s — see `SpacemoltClientOptions.connectTimeoutMs` for why this
+   * exists).
+   */
+  connectTimeoutMs?: number;
+  /**
+   * How long to wait for a query's response before giving up. Queries
+   * resolve synchronously server-side (no game-tick delay, unlike
+   * mutations) — per the game's own design there's no legitimate reason for
+   * one to take long, so unlike mutations (which can legitimately take
+   * minutes, e.g. a travel/jump's transit time) it's safe to bound these.
+   * Default 15000 (15s).
+   */
+  queryTimeoutMs?: number;
 }
 
 export interface RegisterParams {
@@ -107,8 +123,26 @@ interface PendingAuth {
 }
 
 const DEFAULT_URL = 'wss://game.spacemolt.com/ws/v2';
+const DEFAULT_CONNECT_TIMEOUT_MS = 15_000;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Rejects with a `connect_timeout` `SpacemoltError` if `promise` doesn't settle within `ms`. */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new SpacemoltError('connect_timeout', message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 function normalizeReconnect(opt: AccountOptions['reconnect']): Required<ReconnectOptions> | null {
   if (!opt) return null;
@@ -142,6 +176,8 @@ export class Account {
   private readonly credentialsProvider?: () => AuthCredentials | Promise<AuthCredentials>;
   private readonly fetchImpl?: typeof fetch;
   private readonly maxRateLimitRetries: number;
+  private readonly connectTimeoutMs: number;
+  private readonly queryTimeoutMs: number;
   private readonly _id: string | undefined;
   private requestSeq = 0;
 
@@ -149,7 +185,8 @@ export class Account {
   private _authenticated = false;
   private _loginPayload: LoggedInPayload | null = null;
   private _commands: Commands | null = null;
-  private welcomeWaiter: ((w: WelcomeFrame['payload']) => void) | null = null;
+  private welcomeWaiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | null =
+    null;
   private pendingAuth: PendingAuth | null = null;
   private stateListener: ((changed: StateSection[]) => void) | null = null;
 
@@ -171,6 +208,8 @@ export class Account {
     this.credentialsProvider = opts.credentials;
     this.fetchImpl = opts.fetchImpl;
     this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
+    this.connectTimeoutMs = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
+    this.queryTimeoutMs = opts.queryTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
     this._id = opts.id;
     this.reconnectConfig = normalizeReconnect(opts.reconnect);
     this.makeSocket();
@@ -259,14 +298,27 @@ export class Account {
     this._welcome = null;
     await this.socket.connect();
     if (this._welcome) return this._welcome;
-    return new Promise<WelcomeFrame['payload']>((resolve) => {
-      this.welcomeWaiter = resolve;
+    const waitForWelcome = new Promise<WelcomeFrame['payload']>((resolve, reject) => {
+      this.welcomeWaiter = { resolve, reject };
     });
+    try {
+      return await withTimeout(
+        waitForWelcome,
+        this.connectTimeoutMs,
+        `No welcome frame received within ${this.connectTimeoutMs}ms`,
+      );
+    } catch (err) {
+      // Give up on this connection attempt rather than leaving a socket open
+      // that's never going to complete the handshake.
+      this.welcomeWaiter = null;
+      this.socket.close();
+      throw err;
+    }
   }
 
   /** Register a new account; resolves with the generated credentials + state. */
   async register(params: RegisterParams): Promise<RegisterResult> {
-    const result = await new Promise<RegisterResult>((resolve, reject) => {
+    const registerPromise = new Promise<RegisterResult>((resolve, reject) => {
       this.beginAuth((state, registered) => {
         if (!registered) {
           reject(new SpacemoltError('missing_credentials', 'register succeeded but no credentials frame was received'));
@@ -276,6 +328,17 @@ export class Account {
       }, reject);
       this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
     });
+    let result: RegisterResult;
+    try {
+      result = await withTimeout(
+        registerPromise,
+        this.connectTimeoutMs,
+        `No register response received within ${this.connectTimeoutMs}ms`,
+      );
+    } catch (err) {
+      this.pendingAuth = null;
+      throw err;
+    }
     this._loginPayload = result.state;
     await this.maybeSeedState();
     return result;
@@ -359,14 +422,26 @@ export class Account {
 
   /**
    * Run a read-only command; resolves synchronously with the result.
-   * Auto-retries on `rate_limited` (waiting the server's interval).
+   * Auto-retries on `rate_limited` (waiting the server's interval). Bounded
+   * by `queryTimeoutMs` — unlike a mutation, a query has no legitimate reason
+   * to take long, so a response that never arrives (the server silently
+   * drops it rather than erroring) fails cleanly instead of hanging forever.
    */
   query(tool: string, action: string, payload?: Record<string, unknown>): Promise<QueryResult> {
-    return this.withRateLimitRetry(() => {
+    return this.withRateLimitRetry(async () => {
       const requestId = this.nextRequestId();
       const promise = this.correlator.awaitQuery(requestId);
       this.sendFrame(tool, action, payload, requestId);
-      return promise;
+      try {
+        return await withTimeout(
+          promise,
+          this.queryTimeoutMs,
+          `No response to ${tool}/${action} within ${this.queryTimeoutMs}ms`,
+        );
+      } catch (err) {
+        this.correlator.cancel(requestId);
+        throw err;
+      }
     });
   }
 
@@ -547,10 +622,21 @@ export class Account {
     action: 'login' | 'login_token',
     payload: Record<string, unknown>,
   ): Promise<LoggedInPayload> {
-    const state = await new Promise<LoggedInPayload>((resolve, reject) => {
+    const authPromise = new Promise<LoggedInPayload>((resolve, reject) => {
       this.beginAuth(resolve, reject);
       this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
     });
+    let state: LoggedInPayload;
+    try {
+      state = await withTimeout(
+        authPromise,
+        this.connectTimeoutMs,
+        `No auth response received within ${this.connectTimeoutMs}ms`,
+      );
+    } catch (err) {
+      this.pendingAuth = null;
+      throw err;
+    }
     this._loginPayload = state;
     await this.maybeSeedState();
     return state;
@@ -595,7 +681,7 @@ export class Account {
       case 'welcome': {
         const payload = (frame as WelcomeFrame).payload;
         this._welcome = payload;
-        this.welcomeWaiter?.(payload);
+        this.welcomeWaiter?.resolve(payload);
         this.welcomeWaiter = null;
         return;
       }
@@ -647,6 +733,11 @@ export class Account {
     this._authenticated = false;
     this.correlator.rejectAll(err);
     this.emitter.closeStreams();
+    if (this.welcomeWaiter) {
+      const waiter = this.welcomeWaiter;
+      this.welcomeWaiter = null;
+      waiter.reject(new SpacemoltError('connection_closed', err.message));
+    }
     if (this.pendingAuth) {
       const auth = this.pendingAuth;
       this.pendingAuth = null;
