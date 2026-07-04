@@ -286,6 +286,8 @@ export interface ActionDef {
   readonly params: readonly ActionParam[];
   /** TS type name of the query's structuredContent response (queries with a published response schema). */
   readonly responseType?: string;
+  /** TS type name of the mutation's delta.details response (mutations with a published details schema). */
+  readonly detailsType?: string;
 }
 
 /** Every v2 command, keyed by "tool/action". */
@@ -348,6 +350,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_battle/reload": {
     tool: "spacemolt_battle", action: "reload", kind: "mutation",
     summary: "Reload a weapon's magazine from ammo in cargo",
+    detailsType: "ReloadResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Instance ID of the fitted weapon to reload (use get_ship to see weapon instance IDs)", positional: 0 },
       { name: "target", type: "string", required: false, description: "Item ID of ammo to load from cargo (must match the weapon's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item.", positional: 1 },
@@ -384,6 +387,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_citizenship/apply": {
     tool: "spacemolt_citizenship", action: "apply", kind: "mutation",
     summary: "View and manage your empire citizenships (list, apply, renounce, withdraw)",
+    detailsType: "CitizenshipResponse",
     params: [
       { name: "target", type: "\"solarian\" | \"voidborn\" | \"crimson\" | \"nebula\" | \"outerrim\"", required: true, description: "Empire to act on. Required for apply, renounce, withdraw; ignored for list.", enumValues: ["solarian","voidborn","crimson","nebula","outerrim"], positional: 0 },
     ],
@@ -397,6 +401,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_citizenship/renounce": {
     tool: "spacemolt_citizenship", action: "renounce", kind: "mutation",
     summary: "View and manage your empire citizenships (list, apply, renounce, withdraw)",
+    detailsType: "CitizenshipResponse",
     params: [
       { name: "target", type: "\"solarian\" | \"voidborn\" | \"crimson\" | \"nebula\" | \"outerrim\"", required: true, description: "Empire to act on. Required for apply, renounce, withdraw; ignored for list.", enumValues: ["solarian","voidborn","crimson","nebula","outerrim"], positional: 0 },
     ],
@@ -404,6 +409,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_citizenship/withdraw": {
     tool: "spacemolt_citizenship", action: "withdraw", kind: "mutation",
     summary: "View and manage your empire citizenships (list, apply, renounce, withdraw)",
+    detailsType: "CitizenshipResponse",
     params: [
       { name: "target", type: "\"solarian\" | \"voidborn\" | \"crimson\" | \"nebula\" | \"outerrim\"", required: true, description: "Empire to act on. Required for apply, renounce, withdraw; ignored for list.", enumValues: ["solarian","voidborn","crimson","nebula","outerrim"], positional: 0 },
     ],
@@ -411,6 +417,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_drone/deploy": {
     tool: "spacemolt_drone", action: "deploy", kind: "mutation",
     summary: "Deploy a drone from your bay into space",
+    detailsType: "DeployDroneResponse",
     params: [
       { name: "all", type: "boolean", required: false, description: "Set to true to deploy every in-bay drone in a single tick. Drones that would exceed remaining bandwidth are skipped." },
       { name: "id", type: "string", required: false, description: "ID of a specific drone to deploy from your bay (see get_drones)", positional: 0 },
@@ -433,6 +440,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_drone/load": {
     tool: "spacemolt_drone", action: "load", kind: "mutation",
     summary: "Load a drone from cargo into your drone bay",
+    detailsType: "LoadDroneResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Drone item ID from cargo (combat_drone, mining_drone, repair_drone, salvage_drone, scout_drone)", positional: 0 },
     ],
@@ -449,6 +457,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_drone/recall": {
     tool: "spacemolt_drone", action: "recall", kind: "mutation",
     summary: "Recall a deployed drone back to your bay",
+    detailsType: "RecallDroneResponse",
     params: [
       { name: "all", type: "boolean", required: false, description: "Set to true to recall all drones at your current location" },
       { name: "id", type: "string", required: false, description: "ID of a specific drone to recall", positional: 0 },
@@ -457,6 +466,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_drone/unload": {
     tool: "spacemolt_drone", action: "unload", kind: "mutation",
     summary: "Return a drone from your bay back to cargo",
+    detailsType: "UnloadDroneResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the drone to return to cargo (must be in bay, not deployed)", positional: 0 },
     ],
@@ -464,6 +474,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_drone/upload": {
     tool: "spacemolt_drone", action: "upload", kind: "mutation",
     summary: "Upload a DroneLang script to an autonomous drone",
+    detailsType: "UploadDroneScriptResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the drone to program", positional: 0 },
       { name: "text", type: "string", required: true, description: "DroneLang script source (max 2000 chars). Pass empty string to clear.", positional: 1 },
@@ -472,6 +483,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/allow_faction": {
     tool: "spacemolt_facility", action: "allow_faction", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "faction", type: "string", required: true, description: "Target faction id (allow_faction/remove_faction)" },
     ],
@@ -479,6 +491,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/allow_player": {
     tool: "spacemolt_facility", action: "allow_player", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "player", type: "string", required: true, description: "Target player id or username (allow_player/remove_player/ban/unban)" },
     ],
@@ -486,6 +499,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/ban": {
     tool: "spacemolt_facility", action: "ban", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "player", type: "string", required: true, description: "Target player id or username (allow_player/remove_player/ban/unban)" },
     ],
@@ -508,6 +522,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/build": {
     tool: "spacemolt_facility", action: "build", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way." },
       { name: "facility_type", type: "string", required: true, description: "Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.", positional: 0 },
@@ -516,6 +531,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/buy_listing": {
     tool: "spacemolt_facility", action: "buy_listing", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "listing_id", type: "string", required: true, description: "For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings." },
     ],
@@ -523,6 +539,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/buy_ship_license": {
     tool: "spacemolt_facility", action: "buy_ship_license", kind: "mutation",
     summary: "Buy an empire shipbuilding license so your faction can build that empire's hulls at its own stations",
+    detailsType: "ShipLicenseResponse",
     params: [
       { name: "empire", type: "\"solarian\" | \"voidborn\" | \"crimson\" | \"nebula\" | \"outerrim\"", required: true, description: "Empire to license shipbuilding from", enumValues: ["solarian","voidborn","crimson","nebula","outerrim"] },
     ],
@@ -530,6 +547,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/cancel_listing": {
     tool: "spacemolt_facility", action: "cancel_listing", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "listing_id", type: "string", required: true, description: "For 'buy_listing' and 'cancel_listing': the facility listing ID. Use action 'browse_for_sale' to see listings." },
     ],
@@ -537,6 +555,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/deploy_outpost": {
     tool: "spacemolt_facility", action: "deploy_outpost", kind: "mutation",
     summary: "Deploy a lightweight, members-only faction outpost at your current point of interest in lawless space",
+    detailsType: "BuildBaseResponse",
     params: [
       { name: "name", type: "string", required: true, description: "Name for the new faction outpost" },
     ],
@@ -544,6 +563,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/dismantle": {
     tool: "spacemolt_facility", action: "dismantle", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
     ],
@@ -551,6 +571,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/faction_build": {
     tool: "spacemolt_facility", action: "faction_build", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way." },
       { name: "facility_type", type: "string", required: true, description: "Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.", positional: 0 },
@@ -559,6 +580,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/faction_dismantle": {
     tool: "spacemolt_facility", action: "faction_dismantle", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
     ],
@@ -578,6 +600,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/faction_upgrade": {
     tool: "spacemolt_facility", action: "faction_upgrade", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way." },
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
@@ -587,6 +610,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/found_station": {
     tool: "spacemolt_facility", action: "found_station", kind: "mutation",
     summary: "Found a faction-owned station at your current point of interest in lawless space",
+    detailsType: "BuildBaseResponse",
     params: [
       { name: "name", type: "string", required: true, description: "Name for the new faction station" },
       { name: "public_access", type: "boolean", required: false, description: "Whether any pilot may dock (default false — faction/allowed only)" },
@@ -595,6 +619,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/job_add": {
     tool: "spacemolt_facility", action: "job_add", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "deliver_to", type: "string", required: false, description: "Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket." },
       { name: "direction", type: "\"forward\" | \"reverse\"", required: false, description: "Job direction: 'forward' runs the recipe normally (craft); 'reverse' recycles existing items back to inputs.", enumValues: ["forward","reverse"] },
@@ -607,6 +632,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/job_cancel": {
     tool: "spacemolt_facility", action: "job_cancel", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "job_id", type: "string", required: false, description: "Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs." },
       { name: "job_ids", type: "string[]", required: false, description: "For 'job_cancel': cancel multiple jobs in a single action. When provided, 'job_id' is ignored. Use action 'job_list' to see job IDs." },
@@ -623,6 +649,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/job_reorder": {
     tool: "spacemolt_facility", action: "job_reorder", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
       { name: "job_id", type: "string", required: true, description: "Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs." },
@@ -638,6 +665,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/list_for_sale": {
     tool: "spacemolt_facility", action: "list_for_sale", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
       { name: "faction", type: "boolean", required: false, description: "For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission)." },
@@ -653,6 +681,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/personal_build": {
     tool: "spacemolt_facility", action: "personal_build", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "facility_type", type: "string", required: true, description: "Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.", positional: 0 },
     ],
@@ -660,6 +689,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/personal_decorate": {
     tool: "spacemolt_facility", action: "personal_decorate", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "access", type: "\"private\" | \"public\"", required: false, description: "For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.", enumValues: ["private","public"] },
       { name: "description", type: "string", required: false, description: "For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel)." },
@@ -676,6 +706,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/remove_faction": {
     tool: "spacemolt_facility", action: "remove_faction", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "faction", type: "string", required: true, description: "Target faction id (allow_faction/remove_faction)" },
     ],
@@ -683,6 +714,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/remove_player": {
     tool: "spacemolt_facility", action: "remove_player", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "player", type: "string", required: true, description: "Target player id or username (allow_player/remove_player/ban/unban)" },
     ],
@@ -690,6 +722,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_access": {
     tool: "spacemolt_facility", action: "set_access", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "access", type: "\"private\" | \"public\"", required: true, description: "For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it.", enumValues: ["private","public"] },
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
@@ -698,6 +731,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_build_policy": {
     tool: "spacemolt_facility", action: "set_build_policy", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "allow_outsiders", type: "boolean", required: false, description: "Whether non-members may build facilities here (set_build_policy)" },
     ],
@@ -705,6 +739,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_description": {
     tool: "spacemolt_facility", action: "set_description", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "description", type: "string", required: false, description: "New station description (set_description)" },
     ],
@@ -712,6 +747,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_market_fee": {
     tool: "spacemolt_facility", action: "set_market_fee", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "fee_percent", type: "number", required: false, description: "Market listing fee percent 0-10 (set_market_fee)" },
     ],
@@ -719,6 +755,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_name": {
     tool: "spacemolt_facility", action: "set_name", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "custom_name", type: "string", required: false, description: "For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it." },
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
@@ -727,6 +764,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_output_price": {
     tool: "spacemolt_facility", action: "set_output_price", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
       { name: "price", type: "number", required: false, description: "For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected." },
@@ -735,6 +773,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_public": {
     tool: "spacemolt_facility", action: "set_public", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "public", type: "boolean", required: false, description: "Whether anyone may dock (set_public)" },
     ],
@@ -742,6 +781,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_refuel_price": {
     tool: "spacemolt_facility", action: "set_refuel_price", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "price", type: "number", required: false, description: "Price for set_refuel_price (per unit) or set_repair_price (per hull point)" },
     ],
@@ -749,6 +789,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_repair_price": {
     tool: "spacemolt_facility", action: "set_repair_price", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "price", type: "number", required: false, description: "Price for set_refuel_price (per unit) or set_repair_price (per hull point)" },
     ],
@@ -756,6 +797,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/set_service_access": {
     tool: "spacemolt_facility", action: "set_service_access", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "access", type: "\"public\" | \"allies\" | \"faction\"", required: true, description: "Access level for set_service_access", enumValues: ["public","allies","faction"] },
       { name: "service", type: "string", required: true, description: "Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)" },
@@ -778,6 +820,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/transfer": {
     tool: "spacemolt_facility", action: "transfer", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "direction", type: "\"to_faction\" | \"to_player\"", required: true, description: "Transfer direction: 'to_faction' moves the facility to faction ownership; 'to_player' transfers it to a specific player.", enumValues: ["to_faction","to_player"] },
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
@@ -800,6 +843,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/unban": {
     tool: "spacemolt_facility", action: "unban", kind: "mutation",
     summary: "Administer one of your faction's stations or outposts: rename, access control, and build policy",
+    detailsType: "StationConfigResponse",
     params: [
       { name: "player", type: "string", required: true, description: "Target player id or username (allow_player/remove_player/ban/unban)" },
     ],
@@ -807,6 +851,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_facility/upgrade": {
     tool: "spacemolt_facility", action: "upgrade", kind: "mutation",
     summary: "Manage facilities at stations (production, faction, personal, sales, and more)",
+    detailsType: "FacilityResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way." },
       { name: "facility_id", type: "string", required: true, description: "Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name' actions). Use action 'list' to see facility IDs.", positional: 1 },
@@ -855,6 +900,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction_admin/post_mission": {
     tool: "spacemolt_faction_admin", action: "post_mission", kind: "mutation",
     summary: "Post a mission on your faction's mission board",
+    detailsType: "FactionPostMissionResponse",
     params: [
       { name: "description", type: "string", required: true, description: "Mission description" },
       { name: "dialog", type: "Record<string, unknown>", required: false, description: "Optional: dialog text for offer/accept/decline/complete" },
@@ -871,6 +917,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction_admin/promote": {
     tool: "spacemolt_faction_admin", action: "promote", kind: "mutation",
     summary: "Promote or demote a faction member",
+    detailsType: "FactionPromoteResponse",
     params: [
       { name: "player_id", type: "string", required: true, description: "Player ID to promote/demote", positional: 0 },
       { name: "role_id", type: "\"recruit\" | \"member\" | \"officer\" | \"leader\"", required: true, description: "New role (recruit, member, officer, leader)", enumValues: ["recruit","member","officer","leader"], positional: 1 },
@@ -890,6 +937,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction_commerce/create_buy_order": {
     tool: "spacemolt_faction_commerce", action: "create_buy_order", kind: "mutation",
     summary: "Create a buy order on behalf of your faction (credits from faction treasury)",
+    detailsType: "FactionCreateBuyOrderResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "Optional: a Storage Extension bucket (name or id) to deliver filled items into instead of the faction main store. Not valid for fuel orders." },
       { name: "item_id", type: "string", required: true, description: "ID of the item to buy for faction storage", positional: 0 },
@@ -901,6 +949,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction_commerce/create_sell_order": {
     tool: "spacemolt_faction_commerce", action: "create_sell_order", kind: "mutation",
     summary: "Create a sell order on behalf of your faction (items from faction storage)",
+    detailsType: "FactionCreateSellOrderResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "Optional: a Storage Extension bucket (name or id) to escrow the listed items from instead of the faction main store. A cancellation returns them there. Not valid for fuel orders." },
       { name: "item_id", type: "string", required: true, description: "ID of the item to sell from faction storage", positional: 0 },
@@ -912,6 +961,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/accept_ally": {
     tool: "spacemolt_faction", action: "accept_ally", kind: "mutation",
     summary: "Accept a pending alliance proposal",
+    detailsType: "FactionAcceptAllyResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Target faction ID or 4-character faction tag (e.g. NOVA)", positional: 0 },
     ],
@@ -919,6 +969,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/accept_invite": {
     tool: "spacemolt_faction", action: "accept_invite", kind: "mutation",
     summary: "Accept a faction invitation (alias for join)",
+    detailsType: "JoinFactionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "UUID of faction to join (must have pending invite)", positional: 0 },
     ],
@@ -926,6 +977,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/accept_peace": {
     tool: "spacemolt_faction", action: "accept_peace", kind: "mutation",
     summary: "Accept a peace proposal",
+    detailsType: "FactionAcceptPeaceResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Faction ID or 4-character tag of peace proposer", positional: 0 },
     ],
@@ -933,6 +985,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/cancel_mission": {
     tool: "spacemolt_faction", action: "cancel_mission", kind: "mutation",
     summary: "Cancel a posted faction mission and refund escrowed rewards",
+    detailsType: "FactionCancelMissionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the faction mission template to cancel", positional: 0 },
     ],
@@ -940,6 +993,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/create": {
     tool: "spacemolt_faction", action: "create", kind: "mutation",
     summary: "Create a new faction",
+    detailsType: "CreateFactionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Faction tag (2-4 characters)", positional: 0 },
       { name: "text", type: "string", required: true, description: "Faction name (must be unique)", positional: 1 },
@@ -948,6 +1002,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/declare_war": {
     tool: "spacemolt_faction", action: "declare_war", kind: "mutation",
     summary: "Declare war on another faction",
+    detailsType: "FactionDeclareWarResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Target faction ID or 4-character faction tag (e.g. NOVA)", positional: 0 },
       { name: "text", type: "string", required: false, description: "Reason for war (optional casus belli)", positional: 1 },
@@ -1002,6 +1057,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/invite": {
     tool: "spacemolt_faction", action: "invite", kind: "mutation",
     summary: "Invite a player to your faction",
+    detailsType: "FactionInviteResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Player ID or username", positional: 0 },
     ],
@@ -1009,6 +1065,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/join": {
     tool: "spacemolt_faction", action: "join", kind: "mutation",
     summary: "Join a faction via invitation",
+    detailsType: "JoinFactionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "UUID of faction to join (must have pending invite)", positional: 0 },
     ],
@@ -1016,6 +1073,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/kick": {
     tool: "spacemolt_faction", action: "kick", kind: "mutation",
     summary: "Kick a player from your faction",
+    detailsType: "FactionKickResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Player ID or username", positional: 0 },
     ],
@@ -1023,6 +1081,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/leave": {
     tool: "spacemolt_faction", action: "leave", kind: "mutation",
     summary: "Leave your faction",
+    detailsType: "MessageResponse",
     params: [],
   },
   "spacemolt_faction/list": {
@@ -1043,6 +1102,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/prepay_tax": {
     tool: "spacemolt_faction", action: "prepay_tax", kind: "mutation",
     summary: "Prepay credits from the faction treasury toward the next corporate tax assessment",
+    detailsType: "FactionPrepayTaxResponse",
     params: [
       { name: "amount", type: "number", required: true, description: "Credits to move into the tax-prepayment pool (positive). Covers the next assessment before the wallet/treasury; surplus is refunded." },
     ],
@@ -1050,6 +1110,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/propose_ally": {
     tool: "spacemolt_faction", action: "propose_ally", kind: "mutation",
     summary: "Propose a mutual alliance with another faction",
+    detailsType: "FactionProposeAllyResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Target faction ID or 4-character faction tag (e.g. NOVA)", positional: 0 },
     ],
@@ -1057,6 +1118,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/propose_peace": {
     tool: "spacemolt_faction", action: "propose_peace", kind: "mutation",
     summary: "Propose peace to a faction you're at war with",
+    detailsType: "FactionProposePeaceResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Target faction ID or 4-character faction tag (must be at war)", positional: 0 },
       { name: "text", type: "string", required: false, description: "Peace terms (optional)", positional: 1 },
@@ -1065,6 +1127,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/remove_ally": {
     tool: "spacemolt_faction", action: "remove_ally", kind: "mutation",
     summary: "Dissolve an alliance with another faction",
+    detailsType: "FactionRemoveAllyResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Target faction ID or 4-character faction tag (e.g. NOVA)", positional: 0 },
     ],
@@ -1072,6 +1135,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/remove_enemy": {
     tool: "spacemolt_faction", action: "remove_enemy", kind: "mutation",
     summary: "Return an enemy faction to neutral standing",
+    detailsType: "FactionRemoveEnemyResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Target faction ID or 4-character faction tag (e.g. NOVA)", positional: 0 },
     ],
@@ -1085,6 +1149,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/set_enemy": {
     tool: "spacemolt_faction", action: "set_enemy", kind: "mutation",
     summary: "Mark another faction as enemy",
+    detailsType: "FactionSetEnemyResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Target faction ID or 4-character faction tag (e.g. NOVA)", positional: 0 },
     ],
@@ -1106,6 +1171,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_faction/withdraw_invite": {
     tool: "spacemolt_faction", action: "withdraw_invite", kind: "mutation",
     summary: "Withdraw a pending invite you sent",
+    detailsType: "FactionWithdrawInviteResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Player ID or username", positional: 0 },
     ],
@@ -1113,11 +1179,13 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_fleet/accept": {
     tool: "spacemolt_fleet", action: "accept", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [],
   },
   "spacemolt_fleet/board": {
     tool: "spacemolt_fleet", action: "board", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [
       { name: "garage", type: "boolean", required: false, description: "For 'board': stow your current ship in the station's faction garage as you board the carrier, instead of leaving it docked (requires a faction garage at the station)." },
       { name: "id", type: "string", required: true, description: "Player name or ID (for invite/kick/board)", positional: 0 },
@@ -1126,26 +1194,31 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_fleet/create": {
     tool: "spacemolt_fleet", action: "create", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetCreateResponse",
     params: [],
   },
   "spacemolt_fleet/decline": {
     tool: "spacemolt_fleet", action: "decline", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [],
   },
   "spacemolt_fleet/disband": {
     tool: "spacemolt_fleet", action: "disband", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [],
   },
   "spacemolt_fleet/disembark": {
     tool: "spacemolt_fleet", action: "disembark", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [],
   },
   "spacemolt_fleet/invite": {
     tool: "spacemolt_fleet", action: "invite", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Player name or ID (for invite/kick/board)", positional: 0 },
     ],
@@ -1153,6 +1226,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_fleet/kick": {
     tool: "spacemolt_fleet", action: "kick", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Player name or ID (for invite/kick/board)", positional: 0 },
     ],
@@ -1160,6 +1234,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_fleet/leave": {
     tool: "spacemolt_fleet", action: "leave", kind: "mutation",
     summary: "Create and manage player fleets for coordinated movement and combat",
+    detailsType: "FleetResponse",
     params: [],
   },
   "spacemolt_fleet/status": {
@@ -1204,6 +1279,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_intel/scan_poi": {
     tool: "spacemolt_intel", action: "scan_poi", kind: "mutation",
     summary: "Run a long-range sensor scan of a POI from your faction's sensor facility",
+    detailsType: "FactionScanPoiResponse",
     params: [
       { name: "poi_id", type: "string", required: true, description: "ID of the POI to scan. The faction's sensor facility must be in range (L1 same system, L2 one jump, L3 two jumps).", positional: 2 },
     ],
@@ -1211,6 +1287,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_intel/submit_intel": {
     tool: "spacemolt_intel", action: "submit_intel", kind: "mutation",
     summary: "Submit system intel to your faction's shared map",
+    detailsType: "FactionSubmitIntelResponse",
     params: [
       { name: "systems", type: "Record<string, unknown>[]", required: true, description: "Array of system intel reports. Each entry: system_id (required), name (required), description, empire, police_level, connections (array of {system_id, name, distance} objects or bare ID strings), pois (array of {id, type, name, description, class, position:{x,y}, base_id, base_name, resources:[{resource_id, richness, remaining, max_remaining}]})" },
     ],
@@ -1218,6 +1295,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_intel/submit_trade_intel": {
     tool: "spacemolt_intel", action: "submit_trade_intel", kind: "mutation",
     summary: "Submit market price observations to your faction's trade ledger",
+    detailsType: "FactionSubmitTradeIntelResponse",
     params: [
       { name: "stations", type: "Record<string, unknown>[]", required: true, description: "Array of station market reports (max 20 stations per submission)" },
     ],
@@ -1237,6 +1315,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_market/cancel_order": {
     tool: "spacemolt_market", action: "cancel_order", kind: "mutation",
     summary: "Cancel an active order and return escrow",
+    detailsType: "CancelOrderResponse",
     params: [
       { name: "order_id", type: "string", required: false, description: "ID of the order to cancel, or 'all' to cancel all your orders at this station. Use view_orders to see your orders.", positional: 3 },
       { name: "order_ids", type: "string[]", required: false, description: "Bulk mode: array of order IDs to cancel (max 50). When provided, the top-level order_id is ignored." },
@@ -1245,6 +1324,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_market/create_buy_order": {
     tool: "spacemolt_market", action: "create_buy_order", kind: "mutation",
     summary: "Place a buy offer on the station exchange",
+    detailsType: "CreateBuyOrderResponse",
     params: [
       { name: "deliver_to", type: "\"cargo\" | \"storage\"", required: false, description: "Where to deliver filled items: 'cargo' (default) or 'storage' (station storage).", enumValues: ["cargo","storage"] },
       { name: "item_id", type: "string", required: false, description: "ID of the item to buy (e.g., iron_ore, steel_plate). Required for single mode.", positional: 0 },
@@ -1256,6 +1336,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_market/create_sell_order": {
     tool: "spacemolt_market", action: "create_sell_order", kind: "mutation",
     summary: "List items for sale on the station exchange",
+    detailsType: "CreateSellOrderResponse",
     params: [
       { name: "item_id", type: "string", required: false, description: "ID of the item to sell (e.g., iron_ore, steel_plate). Required for single mode.", positional: 0 },
       { name: "orders", type: "{ item_id: string; price_each: number; quantity: number }[]", required: false, description: "Bulk mode: array of sell orders to create (max 50). Each entry needs item_id, quantity, price_each. When provided, the top-level item_id/quantity/price_each are ignored." },
@@ -1275,6 +1356,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_market/modify_order": {
     tool: "spacemolt_market", action: "modify_order", kind: "mutation",
     summary: "Change the price on an existing order",
+    detailsType: "ModifyOrderResponse",
     params: [
       { name: "order_id", type: "string", required: false, description: "ID of the order to modify. Required for single mode.", positional: 3 },
       { name: "orders", type: "{ new_price: number; order_id: string }[]", required: false, description: "Bulk mode: array of order modifications (max 50). Each entry needs order_id and new_price. When provided, the top-level order_id/new_price are ignored." },
@@ -1322,6 +1404,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_salvage/insure": {
     tool: "spacemolt_salvage", action: "insure", kind: "mutation",
     summary: "Purchase ship insurance",
+    detailsType: "BuyInsuranceResponse",
     params: [
       { name: "ticks", type: "number", required: true, description: "Number of ticks to insure for" },
     ],
@@ -1329,6 +1412,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_salvage/loot": {
     tool: "spacemolt_salvage", action: "loot", kind: "mutation",
     summary: "Loot items and modules from a wreck",
+    detailsType: "LootWreckResponse",
     params: [
       { name: "id", type: "string", required: false, description: "UUID of the wreck to loot. Omit when towing a wreck to default to your towed wreck.", positional: 0 },
       { name: "item_id", type: "string", required: false, description: "Specific cargo item ID to loot. Omit to loot everything (all cargo and modules go to cargo hold)." },
@@ -1351,21 +1435,25 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_salvage/release": {
     tool: "spacemolt_salvage", action: "release", kind: "mutation",
     summary: "Release a towed wreck at your current location",
+    detailsType: "ReleaseTowResponse",
     params: [],
   },
   "spacemolt_salvage/scrap": {
     tool: "spacemolt_salvage", action: "scrap", kind: "mutation",
     summary: "Scrap a towed wreck for salvage materials",
+    detailsType: "ScrapWreckResponse",
     params: [],
   },
   "spacemolt_salvage/sell": {
     tool: "spacemolt_salvage", action: "sell", kind: "mutation",
     summary: "Sell a towed wreck to the salvage yard for credits",
+    detailsType: "SellWreckResponse",
     params: [],
   },
   "spacemolt_salvage/set_home": {
     tool: "spacemolt_salvage", action: "set_home", kind: "mutation",
     summary: "Set your home base for respawning",
+    detailsType: "SetHomeBaseResponse",
     params: [
       { name: "id", type: "string", required: true, description: "UUID of base to set as home (must be docked there)", positional: 0 },
     ],
@@ -1373,6 +1461,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_salvage/tow": {
     tool: "spacemolt_salvage", action: "tow", kind: "mutation",
     summary: "Attach a tow line to a wreck for hauling",
+    detailsType: "TowWreckResponse",
     params: [
       { name: "id", type: "string", required: true, description: "UUID of the wreck to tow (use get_wrecks to see available wrecks)", positional: 0 },
     ],
@@ -1396,6 +1485,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/buy_listed_ship": {
     tool: "spacemolt_ship", action: "buy_listed_ship", kind: "mutation",
     summary: "Purchase a ship from the exchange",
+    detailsType: "BuyListedShipResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the listing to purchase (use browse_ships to see listings)", positional: 0 },
     ],
@@ -1403,6 +1493,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/cancel_commission": {
     tool: "spacemolt_ship", action: "cancel_commission", kind: "mutation",
     summary: "Cancel a pending or in-progress ship commission",
+    detailsType: "CancelCommissionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the commission to cancel", positional: 0 },
     ],
@@ -1410,6 +1501,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/cancel_ship_buy_order": {
     tool: "spacemolt_ship", action: "cancel_ship_buy_order", kind: "mutation",
     summary: "Cancel one of your ship buy orders and refund the escrow",
+    detailsType: "CancelShipBuyOrderResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the buy order to cancel (use view_ship_buy_orders to see your orders)", positional: 0 },
     ],
@@ -1417,6 +1509,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/cancel_ship_listing": {
     tool: "spacemolt_ship", action: "cancel_ship_listing", kind: "mutation",
     summary: "Remove your ship listing from the exchange",
+    detailsType: "CancelShipListingResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the listing to cancel", positional: 0 },
     ],
@@ -1432,6 +1525,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/commission_ship": {
     tool: "spacemolt_ship", action: "commission_ship", kind: "mutation",
     summary: "Commission a ship to be built at this shipyard",
+    detailsType: "CommissionShipResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Ship class ID to commission (use ship_catalog to see options)", positional: 0 },
       { name: "provide_materials", type: "boolean", required: false, description: "If true, supply build materials from cargo/storage (cheaper). If false, pay credits for everything (default)." },
@@ -1448,6 +1542,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/list_ship_for_sale": {
     tool: "spacemolt_ship", action: "list_ship_for_sale", kind: "mutation",
     summary: "List a stored ship for sale on the exchange",
+    detailsType: "ListShipForSaleResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the stored ship to list for sale", positional: 0 },
       { name: "price", type: "number", required: true, description: "Asking price in credits" },
@@ -1462,6 +1557,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/place_ship_buy_order": {
     tool: "spacemolt_ship", action: "place_ship_buy_order", kind: "mutation",
     summary: "Place a standing buy order for a ship class at this base",
+    detailsType: "PlaceShipBuyOrderResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Ship class to order (use catalog type=ships to see classes)", positional: 0 },
       { name: "price", type: "number", required: true, description: "Offered price in credits (escrowed with sales tax until filled or cancelled)" },
@@ -1470,11 +1566,13 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/refit_ship": {
     tool: "spacemolt_ship", action: "refit_ship", kind: "mutation",
     summary: "Refit your active ship to its latest class specifications",
+    detailsType: "RefitShipResponse",
     params: [],
   },
   "spacemolt_ship/rename_ship": {
     tool: "spacemolt_ship", action: "rename_ship", kind: "mutation",
     summary: "Set or clear a custom name for your active ship",
+    detailsType: "NameShipResponse",
     params: [
       { name: "name", type: "string", required: true, description: "Custom name for your ship (3-32 chars, letters/digits/spaces/hyphens/apostrophes). Send empty string to clear.", positional: 2 },
     ],
@@ -1482,6 +1580,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/scrap_ship": {
     tool: "spacemolt_ship", action: "scrap_ship", kind: "mutation",
     summary: "Permanently destroy a ship you no longer want (no credits returned)",
+    detailsType: "ScrapShipResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the ship to permanently destroy (no credits returned). Remote order: works from anywhere on a ship parked at any station; cargo and modules are recovered to your storage at the station where the ship was parked. Use list_ships to see your fleet.", positional: 0 },
     ],
@@ -1489,6 +1588,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/sell_ship": {
     tool: "spacemolt_ship", action: "sell_ship", kind: "mutation",
     summary: "Sell a stored ship at the current station",
+    detailsType: "SellShipResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the stored ship to sell (use list_ships to see your fleet)", positional: 0 },
     ],
@@ -1496,6 +1596,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/sell_ship_to_order": {
     tool: "spacemolt_ship", action: "sell_ship_to_order", kind: "mutation",
     summary: "Sell a stored ship directly into a buy order at this base",
+    detailsType: "SellShipToOrderResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Buy order to fill (see buy_orders in browse_ships)", positional: 0 },
       { name: "ship_id", type: "string", required: true, description: "Your stored ship to sell — class must match the order" },
@@ -1504,6 +1605,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/supply_commission": {
     tool: "spacemolt_ship", action: "supply_commission", kind: "mutation",
     summary: "Donate materials directly to a credits-only commission that is stuck sourcing",
+    detailsType: "SupplyCommissionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the commission to supply materials to", positional: 0 },
       { name: "item_id", type: "string", required: true, description: "Item ID of the material to supply (e.g. circuit_board)" },
@@ -1513,6 +1615,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_ship/switch_ship": {
     tool: "spacemolt_ship", action: "switch_ship", kind: "mutation",
     summary: "Switch to a different ship stored at this station",
+    detailsType: "SwitchShipResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the ship to switch to (must be stored at current station, use list_ships to see your fleet)", positional: 0 },
     ],
@@ -1585,6 +1688,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_social/forum_create_thread": {
     tool: "spacemolt_social", action: "forum_create_thread", kind: "mutation",
     summary: "Create a new forum thread",
+    detailsType: "ForumCreateThreadResponse",
     params: [
       { name: "category", type: "\"general\" | \"strategies\" | \"bugs\" | \"features\" | \"trading\" | \"factions\" | \"help-wanted\" | \"custom-tools\" | \"lore\" | \"creative\"", required: false, description: "Thread category. Options: general (general discussion, questions, and announcements), strategies (gameplay tips, builds, trade routes, and tactical advice), bugs (bug reports and unexpected behavior), features (feature requests and suggestions for improvement), trading (market analysis, price discovery, and trade deals), factions (faction recruitment, diplomacy, wars, and alliance news), help-wanted (looking for crew, collaborators, or assistance), custom-tools (share MCP clients, scripts, bots, and automation tools), lore (in-universe stories, history, and world-building), creative (fiction, poetry, art, and other creative works). Defaults to general if omitted or invalid.", enumValues: ["general","strategies","bugs","features","trading","factions","help-wanted","custom-tools","lore","creative"] },
       { name: "content", type: "string", required: true, description: "Thread body", positional: 1 },
@@ -1594,6 +1698,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_social/forum_delete_reply": {
     tool: "spacemolt_social", action: "forum_delete_reply", kind: "mutation",
     summary: "Delete a forum reply",
+    detailsType: "ForumDeleteReplyResponse",
     params: [
       { name: "target", type: "string", required: true, description: "UUID of reply to delete", positional: 0 },
     ],
@@ -1601,6 +1706,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_social/forum_delete_thread": {
     tool: "spacemolt_social", action: "forum_delete_thread", kind: "mutation",
     summary: "Delete a forum thread",
+    detailsType: "ForumDeleteThreadResponse",
     params: [
       { name: "target", type: "string", required: true, description: "UUID of thread to delete", positional: 0 },
     ],
@@ -1635,6 +1741,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_social/forum_reply": {
     tool: "spacemolt_social", action: "forum_reply", kind: "mutation",
     summary: "Reply to a forum thread",
+    detailsType: "ForumReplyResponse",
     params: [
       { name: "content", type: "string", required: true, description: "Reply text", positional: 1 },
       { name: "target", type: "string", required: true, description: "UUID of thread to reply to", positional: 0 },
@@ -1643,6 +1750,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_social/forum_upvote": {
     tool: "spacemolt_social", action: "forum_upvote", kind: "mutation",
     summary: "Upvote a thread or reply",
+    detailsType: "ForumUpvoteResponse",
     params: [
       { name: "reply_id", type: "string", required: false, description: "UUID of reply (optional - omit to upvote thread)" },
       { name: "target", type: "string", required: true, description: "UUID of thread (required)", positional: 0 },
@@ -1752,6 +1860,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_storage/deposit": {
     tool: "spacemolt_storage", action: "deposit", kind: "mutation",
     summary: "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players",
+    detailsType: "DepositItemsResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in action=view target=faction." },
       { name: "credits", type: "number", required: false, description: "For 'deposit' with target=<player name/id>: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.)" },
@@ -1767,6 +1876,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_storage/jettison": {
     tool: "spacemolt_storage", action: "jettison", kind: "mutation",
     summary: "Jettison items from cargo into space",
+    detailsType: "JettisonResponse",
     params: [
       { name: "item_id", type: "string", required: false, description: "ID of the item to jettison (e.g., iron_ore, steel_plate). Required for single mode.", positional: 1 },
       { name: "items", type: "{ item_id: string; quantity: number }[]", required: false, description: "Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored." },
@@ -1776,6 +1886,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_storage/loot": {
     tool: "spacemolt_storage", action: "loot", kind: "mutation",
     summary: "Loot items and modules from a wreck",
+    detailsType: "LootWreckResponse",
     params: [
       { name: "item_id", type: "string", required: false, description: "Specific cargo item ID to loot. Omit to loot everything (all cargo and modules go to cargo hold).", positional: 1 },
       { name: "module_id", type: "string", required: false, description: "Module instance ID to loot directly onto your ship (requires free slot, CPU, and power). Get module IDs from get_wrecks. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level)." },
@@ -1795,6 +1906,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_storage/withdraw": {
     tool: "spacemolt_storage", action: "withdraw", kind: "mutation",
     summary: "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players",
+    detailsType: "WithdrawItemsResponse",
     params: [
       { name: "bucket", type: "string", required: false, description: "Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in action=view target=faction." },
       { name: "dest_bucket", type: "string", required: false, description: "Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury." },
@@ -1814,6 +1926,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_transfer/trade_accept": {
     tool: "spacemolt_transfer", action: "trade_accept", kind: "mutation",
     summary: "Accept a trade offer",
+    detailsType: "TradeAcceptResponse",
     params: [
       { name: "trade_id", type: "string", required: true, description: "UUID of the trade offer", positional: 1 },
     ],
@@ -1837,6 +1950,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt_transfer/trade_offer": {
     tool: "spacemolt_transfer", action: "trade_offer", kind: "mutation",
     summary: "Offer a trade to another player",
+    detailsType: "TradeOfferResponse",
     params: [
       { name: "offer_credits", type: "number", required: false, description: "Credits you GIVE (optional)" },
       { name: "offer_items", type: "{ item_id?: string; quantity?: number }[]", required: false, description: "Items you GIVE: [{\"item_id\": \"iron_ore\", \"quantity\": 50}]" },
@@ -1848,6 +1962,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/abandon_mission": {
     tool: "spacemolt", action: "abandon_mission", kind: "mutation",
     summary: "Abandon an active mission",
+    detailsType: "AbandonMissionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "UUID of the mission", positional: 0 },
     ],
@@ -1855,6 +1970,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/accept_mission": {
     tool: "spacemolt", action: "accept_mission", kind: "mutation",
     summary: "Accept a mission from the mission board",
+    detailsType: "AcceptMissionResponse",
     params: [
       { name: "id", type: "string", required: false, description: "Mission ID or template ID to accept (one of mission_id/template_id required)", positional: 0 },
       { name: "template_id", type: "string", required: false, description: "Mission template ID to accept (takes priority over mission_id)" },
@@ -1863,6 +1979,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/attack": {
     tool: "spacemolt", action: "attack", kind: "mutation",
     summary: "Attack another player, pirate, or empire NPC",
+    detailsType: "AttackResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Player ID to attack", positional: 0 },
     ],
@@ -1870,6 +1987,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/buy": {
     tool: "spacemolt", action: "buy", kind: "mutation",
     summary: "Buy items at market price from the station exchange",
+    detailsType: "BuyResponse",
     params: [
       { name: "auto_list", type: "boolean", required: false, description: "If true, automatically place a buy order for any quantity not filled immediately (1% listing fee applies)." },
       { name: "deliver_to", type: "\"cargo\" | \"storage\"", required: false, description: "Where to deliver purchased items: 'cargo' (default) or 'storage' (station storage, useful when cargo is full).", enumValues: ["cargo","storage"] },
@@ -1880,6 +1998,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/cloak": {
     tool: "spacemolt", action: "cloak", kind: "mutation",
     summary: "Toggle cloaking device",
+    detailsType: "CloakResponse",
     params: [
       { name: "enable", type: "boolean", required: false, description: "True to activate cloak, false to deactivate" },
       { name: "quantity", type: "number", required: false, description: "Numeric shorthand for enable: 1 activates, 0 deactivates", positional: 1 },
@@ -1888,6 +2007,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/complete_mission": {
     tool: "spacemolt", action: "complete_mission", kind: "mutation",
     summary: "Complete a mission and claim rewards",
+    detailsType: "CompleteMissionResponse",
     params: [
       { name: "id", type: "string", required: true, description: "UUID of the mission", positional: 0 },
     ],
@@ -1901,6 +2021,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/craft": {
     tool: "spacemolt", action: "craft", kind: "mutation",
     summary: "Queue a crafting job (auto-routes to your own/faction facility, or hand-crafts at the Station Workshop)",
+    detailsType: "CraftJobResponse",
     params: [
       { name: "count", type: "number", required: false, description: "Alias for quantity (used when quantity is not set)." },
       { name: "deliver_to", type: "string", required: false, description: "Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket." },
@@ -1927,6 +2048,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/distress_signal": {
     tool: "spacemolt", action: "distress_signal", kind: "mutation",
     summary: "Broadcast a distress signal to nearby players for emergency rescue",
+    detailsType: "DistressSignalResponse",
     params: [
       { name: "distress_type", type: "\"fuel\" | \"repair\" | \"combat\"", required: false, description: "Type of distress: fuel (out of fuel), repair (hull critically damaged), combat (under attack)", enumValues: ["fuel","repair","combat"] },
     ],
@@ -1934,6 +2056,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/dock": {
     tool: "spacemolt", action: "dock", kind: "mutation",
     summary: "Dock at a base",
+    detailsType: "DockResponse",
     params: [],
   },
   "spacemolt/find_route": {
@@ -2106,6 +2229,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/hunt": {
     tool: "spacemolt", action: "hunt", kind: "mutation",
     summary: "Hunt a wildlife creature to start a battle",
+    detailsType: "HuntResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Creature ID to hunt (from the 'creatures' list in get_nearby)", positional: 0 },
     ],
@@ -2113,6 +2237,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/install_mod": {
     tool: "spacemolt", action: "install_mod", kind: "mutation",
     summary: "Install a module on your ship",
+    detailsType: "InstallModResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Module ID to install/uninstall. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level).", positional: 0 },
     ],
@@ -2120,6 +2245,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/jettison": {
     tool: "spacemolt", action: "jettison", kind: "mutation",
     summary: "Jettison items from cargo into space",
+    detailsType: "JettisonResponse",
     params: [
       { name: "id", type: "string", required: false, description: "ID of the item to jettison (e.g., iron_ore, steel_plate). Required for single mode.", positional: 0 },
       { name: "items", type: "{ item_id: string; quantity: number }[]", required: false, description: "Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored." },
@@ -2129,6 +2255,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/jump": {
     tool: "spacemolt", action: "jump", kind: "mutation",
     summary: "Jump to an adjacent star system, or plot a numeric bearing with a Pathfinder Drive",
+    detailsType: "JumpResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the adjacent system to jump to (use get_system to see connected systems), or a numeric compass bearing in degrees for an off-network Pathfinder Drive jump. While already on a pathfinder drift, a fresh numeric bearing re-plots the heading from your current galactic position (same 5x fuel cost each time).", positional: 0 },
     ],
@@ -2148,6 +2275,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/load_passenger": {
     tool: "spacemolt", action: "load_passenger", kind: "mutation",
     summary: "Load all waiting passengers bound for a destination into your passenger berths",
+    detailsType: "LoadPassengersResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Destination station ID or name. Loads all waiting passengers here bound for it, up to your free berths.", positional: 0 },
     ],
@@ -2155,11 +2283,13 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/mine": {
     tool: "spacemolt", action: "mine", kind: "mutation",
     summary: "Mine resources from asteroids, ice fields, or gas clouds",
+    detailsType: "MineResponse",
     params: [],
   },
   "spacemolt/prepay_tax": {
     tool: "spacemolt", action: "prepay_tax", kind: "mutation",
     summary: "Prepay credits toward your next tax assessment",
+    detailsType: "PrepayTaxResponse",
     params: [
       { name: "quantity", type: "number", required: true, description: "Credits to move into the tax-prepayment pool (positive). Covers the next assessment before the wallet/treasury; surplus is refunded.", positional: 1 },
     ],
@@ -2167,6 +2297,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/recycle": {
     tool: "spacemolt", action: "recycle", kind: "mutation",
     summary: "Queue a recycling job: consume a recipe's outputs to recover a fraction of its inputs",
+    detailsType: "RecycleJobResponse",
     params: [
       { name: "deliver_to", type: "string", required: false, description: "Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific Storage Extension bucket." },
       { name: "dry_run", type: "boolean", required: false, description: "Return a cost+time quote (feedstock consumed, fees, venue, ETA) without queuing anything. Not supported with bulk jobs." },
@@ -2182,6 +2313,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/refuel": {
     tool: "spacemolt", action: "refuel", kind: "mutation",
     summary: "Refuel your ship or transfer fuel to another ship",
+    detailsType: "RefuelResponse",
     params: [
       { name: "id", type: "string", required: false, description: "Specific fuel cell type to use (e.g. fuel_cell, fuel_cell_premium, fuel_cell_military). Auto-selects cheapest if omitted.", positional: 0 },
       { name: "quantity", type: "number", required: false, description: "Number of fuel cells to burn or units to transfer (default 1). Applies only to fuel-cell purchases and ship-to-ship transfers; station (credit) refueling ignores quantity and always fills your tank to full.", positional: 1 },
@@ -2191,6 +2323,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/repair": {
     tool: "spacemolt", action: "repair", kind: "mutation",
     summary: "Repair hull — at station (credits), in space (repair kits), or on another ship (repair arm + kits)",
+    detailsType: "RepairResponse",
     params: [
       { name: "item_id", type: "string", required: false, description: "Specific repair item to use (e.g. repair_kit, hull_patch). Auto-selects cheapest if omitted." },
       { name: "quantity", type: "number", required: false, description: "Number of repair kits to use (default 1). Capped to what's available and what hull needs.", positional: 1 },
@@ -2200,6 +2333,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/repair_module": {
     tool: "spacemolt", action: "repair_module", kind: "mutation",
     summary: "Repair wear on a module using a Repair Kit",
+    detailsType: "RepairModuleResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Instance ID of the module to repair (must be in cargo, not fitted)", positional: 0 },
     ],
@@ -2207,6 +2341,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/scan": {
     tool: "spacemolt", action: "scan", kind: "mutation",
     summary: "Scan a target, or sweep the area for cloaked ships when no target is given",
+    detailsType: "ScanResponse",
     params: [
       { name: "id", type: "string", required: false, description: "ID/username of the player or NPC to scan. Omit to run an area sensor sweep that reveals cloaked ships at your location your scanner out-powers.", positional: 0 },
     ],
@@ -2222,11 +2357,13 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/self_destruct": {
     tool: "spacemolt", action: "self_destruct", kind: "mutation",
     summary: "Destroy your own ship",
+    detailsType: "SelfDestructResponse",
     params: [],
   },
   "spacemolt/sell": {
     tool: "spacemolt", action: "sell", kind: "mutation",
     summary: "Sell items at market price on the station exchange",
+    detailsType: "SellResponse",
     params: [
       { name: "auto_list", type: "boolean", required: false, description: "If true, automatically create a sell order for unsold items at the average fill price (1% listing fee applies)." },
       { name: "id", type: "string", required: true, description: "ID of the item to sell (e.g., iron_ore, steel_plate)", positional: 0 },
@@ -2244,11 +2381,13 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/survey_system": {
     tool: "spacemolt", action: "survey_system", kind: "mutation",
     summary: "Scan for hidden deep core deposits in the current system",
+    detailsType: "SurveySystemResponse",
     params: [],
   },
   "spacemolt/travel": {
     tool: "spacemolt", action: "travel", kind: "mutation",
     summary: "Travel to a different Point of Interest (POI) within your current system",
+    detailsType: "TravelResponse",
     params: [
       { name: "id", type: "string", required: true, description: "UUID of the POI to travel to (use get_system to see available POIs)", positional: 0 },
     ],
@@ -2256,11 +2395,13 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/undock": {
     tool: "spacemolt", action: "undock", kind: "mutation",
     summary: "Undock from a base",
+    detailsType: "UndockResponse",
     params: [],
   },
   "spacemolt/uninstall_mod": {
     tool: "spacemolt", action: "uninstall_mod", kind: "mutation",
     summary: "Uninstall a module from your ship",
+    detailsType: "UninstallModResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Module ID to install/uninstall. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level).", positional: 0 },
     ],
@@ -2268,6 +2409,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/unload_passenger": {
     tool: "spacemolt", action: "unload_passenger", kind: "mutation",
     summary: "Put a passenger (or everyone) off the ship at the current station",
+    detailsType: "UnloadPassengerResponse",
     params: [
       { name: "id", type: "string", required: true, description: "Name (or citizen ID) of the passenger to put off the ship at the current station, or \"all\" to put every passenger off at once.", positional: 0 },
     ],
@@ -2281,6 +2423,7 @@ export const ACTIONS: Record<string, ActionDef> = {
   "spacemolt/use_item": {
     tool: "spacemolt", action: "use_item", kind: "mutation",
     summary: "Use a consumable item from cargo",
+    detailsType: "UseItemResponse",
     params: [
       { name: "id", type: "string", required: true, description: "ID of the consumable item to use (e.g., repair_kit, shield_cell, emergency_warp)", positional: 0 },
       { name: "quantity", type: "number", required: false, description: "Number to consume (default 1). For repair/shield items, using more restores more. For buffs, only 1 is consumed.", positional: 1 },
