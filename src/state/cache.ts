@@ -50,6 +50,22 @@ export class StateCache {
     return changed;
   }
 
+  /**
+   * Merge a partial patch into a single section in place, preserving that
+   * section's other fields — unlike `applyDelta`/`seed`, which always
+   * replace a section wholesale. For bridging data from outside the normal
+   * action_result delta flow (e.g. observation pushes patching
+   * `location`'s nearby-player fields) into the corresponding section.
+   * No-ops (returns `[]`) if the section hasn't been seeded yet, since a
+   * partial patch can't stand in for a section's required fields.
+   */
+  patchSection<S extends StateSection>(section: S, patch: Partial<GameState[S]>): StateSection[] {
+    const current = this.state[section];
+    if (current === undefined) return [];
+    asRecord(this.state)[section] = { ...asRecord(current), ...patch };
+    return [section];
+  }
+
   /** Live view of the cached state. Treat as read-only — do not mutate. */
   snapshot(): Readonly<GameState> {
     return this.state;

@@ -115,6 +115,85 @@ test('subscribeMarket seeds the book and market_update merges changed items', as
   expect(book?.items.get('water')?.sell_orders[0]?.quantity).toBe(100); // untouched item preserved
 });
 
+// --- observation bridges into location ---
+
+function respondToSubscribeObservation(socket: MockSocket, nearby: SubscribeObservationResponse['nearby']): void {
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'subscribe_observation') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            action: 'subscribe_observation',
+            poi_id: 'earth_station',
+            system_id: 'sol',
+            active_scan: false,
+            unknown_signature: false,
+            nearby,
+            system_agents: [],
+            cloaked_contacts: [],
+          } satisfies SubscribeObservationResponse,
+        },
+      });
+    }
+  };
+}
+
+test('subscribeObservation bridges nearby-player presence into location.nearby_players', async () => {
+  const { account, socket } = await connected();
+  // Seed `location` first, like a real dock/jump would — the bridge is a
+  // partial patch and can't stand in for a section that doesn't exist yet.
+  socket.serverSend({
+    type: 'action_result',
+    request_id: 'seed',
+    payload: { command: 'dock', tick: 1, result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } } },
+  });
+  expect(account.state.location?.poi_id).toBe('earth_station');
+
+  const changedSections: string[][] = [];
+  account.onStateChange((changed) => changedSections.push([...changed]));
+
+  respondToSubscribeObservation(socket, [{ player_id: 'p1', username: 'Nova', in_combat: false }]);
+  await account.subscribeObservation();
+
+  expect(account.state.location?.nearby_players).toEqual([
+    { player_id: 'p1', username: 'Nova', in_combat: false },
+  ]);
+  expect(account.state.location?.nearby_player_count).toBe(1);
+  expect(account.state.location?.docked_at).toBe('earth_station'); // other location fields untouched
+  expect(changedSections).toEqual([['location']]);
+
+  // an observation_update push keeps location.nearby_players in sync too
+  socket.serverSend({
+    type: 'observation_update',
+    payload: {
+      poi_id: 'earth_station',
+      system_id: 'sol',
+      tick: 5,
+      unknown_signature: false,
+      nearby_changed: [{ player_id: 'p2', username: 'Rex', in_combat: true }],
+      nearby_departed: ['p1'],
+    } satisfies NotificationObservationUpdate,
+  });
+
+  expect(account.state.location?.nearby_players).toEqual([
+    { player_id: 'p2', username: 'Rex', in_combat: true },
+  ]);
+  expect(account.state.location?.nearby_player_count).toBe(1);
+});
+
+test('the observation bridge does not touch location before it has been seeded', async () => {
+  const { account, socket } = await connected();
+  respondToSubscribeObservation(socket, [{ player_id: 'p1', username: 'Nova', in_combat: false }]);
+
+  await account.subscribeObservation();
+
+  expect(account.state.location).toBeUndefined();
+  expect(account.observation()?.nearby.size).toBe(1); // the separate observation cache still has it
+});
+
 // --- observation cache unit ---
 
 test('ObservationCache merges presence changes and departures', () => {
