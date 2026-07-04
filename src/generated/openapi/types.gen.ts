@@ -147,6 +147,18 @@ export type BattleResponse = {
 export type BrowseShipsResponse = {
     base_id: string;
     base_name: string;
+    buy_orders?: Array<{
+        base_id?: string;
+        base_name?: string;
+        being_built?: boolean;
+        buyer?: string;
+        class_id: string;
+        class_name?: string;
+        created_at?: string;
+        order_id: string;
+        price: number;
+        tax_escrow?: number;
+    }>;
     count: number;
     listings: Array<{
         category?: string;
@@ -276,6 +288,13 @@ export type CancelOrderResponse = {
         succeeded: number;
         total: number;
     };
+};
+
+export type CancelShipBuyOrderResponse = {
+    credits_left: number;
+    message: string;
+    order_id: string;
+    refund: number;
 };
 
 export type CancelShipListingResponse = {
@@ -502,6 +521,7 @@ export type CatalogResponse = {
             recipe_id: string;
         }>;
     };
+    estimated_material_cost?: number;
     /**
      * Catalog entries. Shape depends on the requested type: ships → ShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
      */
@@ -1705,6 +1725,7 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_unit?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
@@ -1755,6 +1776,7 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_unit?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
@@ -1818,6 +1840,7 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_unit?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
@@ -1860,6 +1883,7 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_unit?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
@@ -4307,6 +4331,7 @@ export type LoadPassengersResponse = {
         ticks_remaining: number;
     }>;
     message: string;
+    skipped_unfunded?: number;
     total_fare: number;
 };
 
@@ -5765,6 +5790,15 @@ export type PetitionResponse = {
     message: string;
 };
 
+export type PlaceShipBuyOrderResponse = {
+    class_id: string;
+    credits_left: number;
+    message: string;
+    order_id: string;
+    price: number;
+    tax_escrow?: number;
+};
+
 /**
  * A player account with progression, customization, and current state.
  */
@@ -6684,6 +6718,14 @@ export type SellShipResponse = {
     }>;
 };
 
+export type SellShipToOrderResponse = {
+    class_id: string;
+    credits_left: number;
+    message: string;
+    price: number;
+    ship_id: string;
+};
+
 export type SellWreckResponse = {
     action: string;
     cargo_value?: number;
@@ -7010,6 +7052,9 @@ export type StationHealth = {
 
 export type StationPassengersResponse = {
     count: number;
+    demand_level: string;
+    fare_surge: number;
+    market_conditions: string;
     station: string;
     waiting: Array<{
         bio: string;
@@ -7063,6 +7108,40 @@ export type StorageResponse = {
         custom_name?: string;
         modules: number;
         ship_id: string;
+    }>;
+} | {
+    base_id: string;
+    buckets?: Array<{
+        cap_per_item: number;
+        id: string;
+        items: Array<{
+            item_id: string;
+            name: string;
+            quantity: number;
+            size: number;
+        }>;
+        name: string;
+    }>;
+    credits: number;
+    faction_fuel_capacity?: number;
+    faction_fuel_reserve?: number;
+    faction_id: string;
+    faction_name: string;
+    faction_tag: string;
+    hint: string;
+    items: Array<{
+        item_id: string;
+        name: string;
+        quantity: number;
+        size: number;
+    }>;
+    recent_activity: Array<{
+        action: string;
+        credits?: number;
+        item?: string;
+        player: string;
+        quantity?: number;
+        timestamp: string;
     }>;
 } | {
     actions: Array<{
@@ -7678,6 +7757,14 @@ export type UseItemResponse = {
  * Canonical game state blob. Different commands populate different subsets of fields.
  */
 export type V2GameState = {
+    /**
+     * Total bay slots available (v2_get_cargo only; present only on carrier ships)
+     */
+    bay_capacity?: number;
+    /**
+     * Bay slots currently occupied (v2_get_cargo only; present only on carrier ships)
+     */
+    bay_used?: number;
     cargo?: Array<{
         item_id?: string;
         /**
@@ -7689,6 +7776,17 @@ export type V2GameState = {
          * Cargo space one unit occupies
          */
         size?: number;
+    }>;
+    /**
+     * Ships loaded in the current ship's carrier bay (v2_get_cargo only; present only on carrier ships)
+     */
+    carried_ships?: Array<{
+        class_id?: string;
+        class_name?: string;
+        name?: string;
+        scale?: number;
+        ship_id?: string;
+        slots_used?: number;
     }>;
     /**
      * Current credit balance, surfaced by lean query endpoints (get_ship, get_cargo, get_location) that omit the full player blob
@@ -7706,7 +7804,10 @@ export type V2GameState = {
          * System IDs adjacent to the current system
          */
         connections?: Array<string>;
-        docked_at?: string;
+        /**
+         * Base ID docked at; null when undocked
+         */
+        docked_at?: string | null;
         empire?: string;
         /**
          * True when actively jumping or traveling
@@ -7851,7 +7952,80 @@ export type V2GameState = {
          * Currently active mission objects
          */
         active?: Array<{
-            [key: string]: unknown;
+            accepted_at?: string;
+            /**
+             * True for community/faction-wide missions
+             */
+            community?: boolean;
+            /**
+             * Community missions only
+             */
+            community_percent?: number;
+            /**
+             * item_id → "current/target" (community missions only)
+             */
+            community_progress?: {
+                [key: string]: string;
+            };
+            description?: string;
+            difficulty?: number;
+            expires_in_ticks?: number;
+            /**
+             * Present only when the mission has a named NPC giver
+             */
+            giver?: {
+                name?: string;
+                title?: string;
+            };
+            issuing_base?: string;
+            issuing_base_id?: string;
+            issuing_system_id?: string;
+            issuing_system_name?: string;
+            mission_id?: string;
+            objectives?: Array<{
+                completed?: boolean;
+                current?: number;
+                description?: string;
+                /**
+                 * player_threshold objectives only
+                 */
+                eligible_players?: Array<string>;
+                in_cargo?: number;
+                in_storage?: number;
+                item_id?: string;
+                item_name?: string;
+                /**
+                 * player_threshold objectives only
+                 */
+                participants?: Array<string>;
+                required?: number;
+                system_id?: string;
+                system_name?: string;
+                target_base?: string;
+                target_base_name?: string;
+                type?: string;
+            }>;
+            percent_complete?: number;
+            rewards?: {
+                credits?: number;
+                /**
+                 * item_id → quantity
+                 */
+                items?: {
+                    [key: string]: number;
+                };
+                pirate_rep?: number;
+                reputation?: number;
+                /**
+                 * skill_id → XP
+                 */
+                skill_xp?: {
+                    [key: string]: number;
+                };
+            };
+            template_id?: string;
+            title?: string;
+            type?: string;
         }>;
         /**
          * Maximum simultaneous missions allowed
@@ -7862,7 +8036,51 @@ export type V2GameState = {
      * Installed ship modules
      */
     modules?: Array<{
-        [key: string]: unknown;
+        /**
+         * Present only on weapons that consume ammo
+         */
+        ammo_type?: string;
+        /**
+         * After engineering efficiency bonus
+         */
+        cpu_usage?: number;
+        /**
+         * Present only on weapons that consume ammo
+         */
+        current_ammo?: number;
+        /**
+         * Present only when ammo is loaded
+         */
+        loaded_ammo_id?: string;
+        /**
+         * Present only when ammo is loaded
+         */
+        loaded_ammo_name?: string;
+        /**
+         * Present only on weapons that consume ammo
+         */
+        magazine_size?: number;
+        module_id?: string;
+        name?: string;
+        /**
+         * After engineering efficiency bonus
+         */
+        power_usage?: number;
+        size?: number;
+        slot?: string;
+        /**
+         * Module-type-specific stats (damage, range, shield_bonus, mining_power, etc.); omitted when empty
+         */
+        stats?: {
+            [key: string]: unknown;
+        };
+        /**
+         * weapon, defense, utility, or mining
+         */
+        type?: string;
+        type_id?: string;
+        wear?: number;
+        wear_status?: string;
     }>;
     player?: {
         /**
@@ -7946,7 +8164,48 @@ export type V2GameState = {
         ship_id?: string;
     };
     ship?: {
+        /**
+         * Active consumable buffs (omitted when none active)
+         */
+        active_buffs?: Array<{
+            /**
+             * Bonus amount (percentage for most stats, absolute for hull_regen)
+             */
+            amount?: number;
+            /**
+             * Engine tick when the buff expires
+             */
+            expires_at?: number;
+            /**
+             * Item that created this buff
+             */
+            item_id?: string;
+            /**
+             * Effect stat name, e.g. weapon_damage
+             */
+            stat?: string;
+        }>;
         armor?: number;
+        /**
+         * Armor effectiveness reduction, 0.0-1.0 (omitted when not affected)
+         */
+        armor_melt_pct?: number;
+        /**
+         * Remaining ticks of plasma/corrosive armor melt (omitted when not affected)
+         */
+        armor_melt_ticks_remaining?: number;
+        /**
+         * Damage dealt per tick while burning (omitted when not burning)
+         */
+        burn_damage_per_tick?: number;
+        /**
+         * Player ID of the most recent burn applier, credited on burn kills (omitted when not burning)
+         */
+        burn_source_id?: string;
+        /**
+         * Remaining ticks of incendiary/entropic burn damage-over-time (omitted when not burning)
+         */
+        burn_ticks_remaining?: number;
         cargo_capacity?: number;
         cargo_used?: number;
         class_id?: string;
@@ -7964,9 +8223,17 @@ export type V2GameState = {
          */
         custom_name?: string;
         /**
+         * Damage reduction multiplier from EM disruption, 0.0-1.0 (omitted when not disrupted)
+         */
+        damage_penalty?: number;
+        /**
          * Number of defense module slots
          */
         defense_slots?: number;
+        /**
+         * Remaining ticks of EM disruption (omitted when not disrupted)
+         */
+        disruption_ticks_remaining?: number;
         fuel?: number;
         /**
          * Percent of normal cargo space gases occupy (omitted when 100)
@@ -8000,6 +8267,10 @@ export type V2GameState = {
         shield?: number;
         shield_recharge?: number;
         speed?: number;
+        /**
+         * Speed reduction multiplier from EM disruption, 0.0-1.0 (omitted when not disrupted)
+         */
+        speed_penalty?: number;
         /**
          * Number of utility module slots
          */
@@ -8220,6 +8491,22 @@ export type ViewOrdersResponse = {
     sort_by: string;
     total: number;
     total_pages: number;
+};
+
+export type ViewShipBuyOrdersResponse = {
+    count: number;
+    orders: Array<{
+        base_id?: string;
+        base_name?: string;
+        being_built?: boolean;
+        buyer?: string;
+        class_id: string;
+        class_name?: string;
+        created_at?: string;
+        order_id: string;
+        price: number;
+        tax_escrow?: number;
+    }>;
 };
 
 export type WelcomePayload = {
@@ -10065,10 +10352,7 @@ export type SpacemoltListPassengersResponse = SpacemoltListPassengersResponses[k
 
 export type SpacemoltListStationPassengersData = {
     body?: {
-        /**
-         * Optional station ID or name. Defaults to your current station if docked.
-         */
-        id?: string;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
@@ -17660,6 +17944,46 @@ export type SpacemoltShipCancelCommissionResponses = {
 
 export type SpacemoltShipCancelCommissionResponse = SpacemoltShipCancelCommissionResponses[keyof SpacemoltShipCancelCommissionResponses];
 
+export type SpacemoltShipCancelShipBuyOrderData = {
+    body?: {
+        /**
+         * ID of the buy order to cancel (use view_ship_buy_orders to see your orders)
+         */
+        id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_ship/cancel_ship_buy_order';
+};
+
+export type SpacemoltShipCancelShipBuyOrderErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShipCancelShipBuyOrderResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CancelShipBuyOrderResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: CancelShipBuyOrderResponse;
+        };
+    };
+};
+
+export type SpacemoltShipCancelShipBuyOrderResponse = SpacemoltShipCancelShipBuyOrderResponses[keyof SpacemoltShipCancelShipBuyOrderResponses];
+
 export type SpacemoltShipCancelShipListingData = {
     body?: {
         /**
@@ -17941,6 +18265,50 @@ export type SpacemoltShipListShipsResponses = {
 
 export type SpacemoltShipListShipsResponse = SpacemoltShipListShipsResponses[keyof SpacemoltShipListShipsResponses];
 
+export type SpacemoltShipPlaceShipBuyOrderData = {
+    body?: {
+        /**
+         * Ship class to order (use catalog type=ships to see classes)
+         */
+        id: string;
+        /**
+         * Offered price in credits (escrowed with sales tax until filled or cancelled)
+         */
+        price: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_ship/place_ship_buy_order';
+};
+
+export type SpacemoltShipPlaceShipBuyOrderErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShipPlaceShipBuyOrderResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (PlaceShipBuyOrderResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: PlaceShipBuyOrderResponse;
+        };
+    };
+};
+
+export type SpacemoltShipPlaceShipBuyOrderResponse = SpacemoltShipPlaceShipBuyOrderResponses[keyof SpacemoltShipPlaceShipBuyOrderResponses];
+
 export type SpacemoltShipRefitShipData = {
     body?: {
         [key: string]: unknown;
@@ -18098,6 +18466,50 @@ export type SpacemoltShipSellShipResponses = {
 
 export type SpacemoltShipSellShipResponse = SpacemoltShipSellShipResponses[keyof SpacemoltShipSellShipResponses];
 
+export type SpacemoltShipSellShipToOrderData = {
+    body?: {
+        /**
+         * Buy order to fill (see buy_orders in browse_ships)
+         */
+        id: string;
+        /**
+         * Your stored ship to sell — class must match the order
+         */
+        ship_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_ship/sell_ship_to_order';
+};
+
+export type SpacemoltShipSellShipToOrderErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShipSellShipToOrderResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SellShipToOrderResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: SellShipToOrderResponse;
+        };
+    };
+};
+
+export type SpacemoltShipSellShipToOrderResponse = SpacemoltShipSellShipToOrderResponses[keyof SpacemoltShipSellShipToOrderResponses];
+
 export type SpacemoltShipSupplyCommissionData = {
     body?: {
         /**
@@ -18185,6 +18597,41 @@ export type SpacemoltShipSwitchShipResponses = {
 };
 
 export type SpacemoltShipSwitchShipResponse = SpacemoltShipSwitchShipResponses[keyof SpacemoltShipSwitchShipResponses];
+
+export type SpacemoltShipViewShipBuyOrdersData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_ship/view_ship_buy_orders';
+};
+
+export type SpacemoltShipViewShipBuyOrdersErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShipViewShipBuyOrdersResponses = {
+    /**
+     * Result. structuredContent type: ViewShipBuyOrdersResponse
+     */
+    200: V2Response & {
+        structuredContent?: ViewShipBuyOrdersResponse;
+    };
+};
+
+export type SpacemoltShipViewShipBuyOrdersResponse = SpacemoltShipViewShipBuyOrdersResponses[keyof SpacemoltShipViewShipBuyOrdersResponses];
 
 export type SpacemoltSocialCaptainsLogAddData = {
     body?: {

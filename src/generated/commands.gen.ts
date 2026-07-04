@@ -89,6 +89,7 @@ import type {
   ViewCompletedMissionResponse,
   ViewMarketResponse,
   ViewOrdersResponse,
+  ViewShipBuyOrdersResponse,
   WriteNoteResponse,
 } from './openapi/types.gen.ts';
 
@@ -861,6 +862,11 @@ export interface SpacemoltShipCancelCommissionParams {
   id: string;
 }
 
+export interface SpacemoltShipCancelShipBuyOrderParams {
+  /** ID of the buy order to cancel (use view_ship_buy_orders to see your orders) */
+  id: string;
+}
+
 export interface SpacemoltShipCancelShipListingParams {
   /** ID of the listing to cancel */
   id: string;
@@ -890,6 +896,13 @@ export interface SpacemoltShipListShipForSaleParams {
   price: number;
 }
 
+export interface SpacemoltShipPlaceShipBuyOrderParams {
+  /** Ship class to order (use catalog type=ships to see classes) */
+  id: string;
+  /** Offered price in credits (escrowed with sales tax until filled or cancelled) */
+  price: number;
+}
+
 export interface SpacemoltShipRenameShipParams {
   /** Custom name for your ship (3-32 chars, letters/digits/spaces/hyphens/apostrophes). Send empty string to clear. */
   name: string;
@@ -903,6 +916,13 @@ export interface SpacemoltShipScrapShipParams {
 export interface SpacemoltShipSellShipParams {
   /** ID of the stored ship to sell (use list_ships to see your fleet) */
   id: string;
+}
+
+export interface SpacemoltShipSellShipToOrderParams {
+  /** Buy order to fill (see buy_orders in browse_ships) */
+  id: string;
+  /** Your stored ship to sell — class must match the order */
+  ship_id: string;
 }
 
 export interface SpacemoltShipSupplyCommissionParams {
@@ -1327,11 +1347,6 @@ export interface SpacemoltJumpParams {
   id: string;
 }
 
-export interface SpacemoltListStationPassengersParams {
-  /** Optional station ID or name. Defaults to your current station if docked. */
-  id?: string;
-}
-
 export interface SpacemoltLoadPassengerParams {
   /** Destination station ID or name. Loads all waiting passengers here bound for it, up to your free berths. */
   id: string;
@@ -1521,8 +1536,8 @@ export interface Commands {
     jump(params: SpacemoltJumpParams): Promise<MutationResult>;
     /** List the passengers currently aboard your ship */
     list_passengers(): Promise<QueryResult<ListPassengersResponse>>;
-    /** List citizens waiting for transport at a station */
-    list_station_passengers(params?: SpacemoltListStationPassengersParams): Promise<QueryResult<StationPassengersResponse>>;
+    /** List citizens waiting for transport at your current station */
+    list_station_passengers(): Promise<QueryResult<StationPassengersResponse>>;
     /** Load all waiting passengers bound for a destination into your passenger berths */
     load_passenger(params: SpacemoltLoadPassengerParams): Promise<MutationResult>;
     /** Mine resources from asteroids, ice fields, or gas clouds */
@@ -1881,6 +1896,8 @@ export interface Commands {
     buy_listed_ship(params: SpacemoltShipBuyListedShipParams): Promise<MutationResult>;
     /** Cancel a pending or in-progress ship commission */
     cancel_commission(params: SpacemoltShipCancelCommissionParams): Promise<MutationResult>;
+    /** Cancel one of your ship buy orders and refund the escrow */
+    cancel_ship_buy_order(params: SpacemoltShipCancelShipBuyOrderParams): Promise<MutationResult>;
     /** Remove your ship listing from the exchange */
     cancel_ship_listing(params: SpacemoltShipCancelShipListingParams): Promise<MutationResult>;
     /** Get a cost estimate for commissioning a ship */
@@ -1893,6 +1910,8 @@ export interface Commands {
     list_ship_for_sale(params: SpacemoltShipListShipForSaleParams): Promise<MutationResult>;
     /** List all ships you own and their locations */
     list_ships(): Promise<QueryResult<ListShipsResponse>>;
+    /** Place a standing buy order for a ship class at this base */
+    place_ship_buy_order(params: SpacemoltShipPlaceShipBuyOrderParams): Promise<MutationResult>;
     /** Refit your active ship to its latest class specifications */
     refit_ship(): Promise<MutationResult>;
     /** Set or clear a custom name for your active ship */
@@ -1901,10 +1920,14 @@ export interface Commands {
     scrap_ship(params: SpacemoltShipScrapShipParams): Promise<MutationResult>;
     /** Sell a stored ship at the current station */
     sell_ship(params: SpacemoltShipSellShipParams): Promise<MutationResult>;
+    /** Sell a stored ship directly into a buy order at this base */
+    sell_ship_to_order(params: SpacemoltShipSellShipToOrderParams): Promise<MutationResult>;
     /** Donate materials directly to a credits-only commission that is stuck sourcing */
     supply_commission(params: SpacemoltShipSupplyCommissionParams): Promise<MutationResult>;
     /** Switch to a different ship stored at this station */
     switch_ship(params: SpacemoltShipSwitchShipParams): Promise<MutationResult>;
+    /** View your open ship buy orders across all bases */
+    view_ship_buy_orders(): Promise<QueryResult<ViewShipBuyOrdersResponse>>;
   };
   spacemolt_social: {
     /** Add an entry to your captain's log (personal journal) */
@@ -2222,18 +2245,22 @@ export function buildCommands(dispatch: CommandDispatch): Commands {
       browse_ships: bind("spacemolt_ship", "browse_ships"),
       buy_listed_ship: bind("spacemolt_ship", "buy_listed_ship"),
       cancel_commission: bind("spacemolt_ship", "cancel_commission"),
+      cancel_ship_buy_order: bind("spacemolt_ship", "cancel_ship_buy_order"),
       cancel_ship_listing: bind("spacemolt_ship", "cancel_ship_listing"),
       commission_quote: bind("spacemolt_ship", "commission_quote"),
       commission_ship: bind("spacemolt_ship", "commission_ship"),
       commission_status: bind("spacemolt_ship", "commission_status"),
       list_ship_for_sale: bind("spacemolt_ship", "list_ship_for_sale"),
       list_ships: bind("spacemolt_ship", "list_ships"),
+      place_ship_buy_order: bind("spacemolt_ship", "place_ship_buy_order"),
       refit_ship: bind("spacemolt_ship", "refit_ship"),
       rename_ship: bind("spacemolt_ship", "rename_ship"),
       scrap_ship: bind("spacemolt_ship", "scrap_ship"),
       sell_ship: bind("spacemolt_ship", "sell_ship"),
+      sell_ship_to_order: bind("spacemolt_ship", "sell_ship_to_order"),
       supply_commission: bind("spacemolt_ship", "supply_commission"),
       switch_ship: bind("spacemolt_ship", "switch_ship"),
+      view_ship_buy_orders: bind("spacemolt_ship", "view_ship_buy_orders"),
     },
     spacemolt_social: {
       captains_log_add: bind("spacemolt_social", "captains_log_add"),
