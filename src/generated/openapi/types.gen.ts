@@ -4420,6 +4420,7 @@ export type LoggedInPayload = {
         };
         last_command_at: string;
         last_login_at: string;
+        muted_channels?: Array<string>;
         primary_color: string;
         provided_items_granted?: {
             [key: string]: string;
@@ -4739,6 +4740,7 @@ export type LoginResponse = {
         };
         last_command_at: string;
         last_login_at: string;
+        muted_channels?: Array<string>;
         primary_color: string;
         provided_items_granted?: {
             [key: string]: string;
@@ -5136,6 +5138,18 @@ export type NearbyPlayer = {
     ship_name?: string;
     status_message?: string;
     username?: string;
+};
+
+export type NotificationSettingsResponse = {
+    action: string;
+    channels: Array<{
+        channel: string;
+        description: string;
+        message_types: Array<string>;
+        muted: boolean;
+    }>;
+    message: string;
+    muted: Array<string>;
 };
 
 /**
@@ -6292,6 +6306,7 @@ export type RegisterResponse = {
         };
         last_command_at: string;
         last_login_at: string;
+        muted_channels?: Array<string>;
         primary_color: string;
         provided_items_granted?: {
             [key: string]: string;
@@ -19397,6 +19412,41 @@ export type SpacemoltSocialGetNotesResponses = {
 
 export type SpacemoltSocialGetNotesResponse = SpacemoltSocialGetNotesResponses[keyof SpacemoltSocialGetNotesResponses];
 
+export type SpacemoltSocialGetNotificationSettingsData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_social/get_notification_settings';
+};
+
+export type SpacemoltSocialGetNotificationSettingsErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltSocialGetNotificationSettingsResponses = {
+    /**
+     * Result. structuredContent type: NotificationSettingsResponse
+     */
+    200: V2Response & {
+        structuredContent?: NotificationSettingsResponse;
+    };
+};
+
+export type SpacemoltSocialGetNotificationSettingsResponse = SpacemoltSocialGetNotificationSettingsResponses[keyof SpacemoltSocialGetNotificationSettingsResponses];
+
 export type SpacemoltSocialHelpData = {
     body?: never;
     path?: never;
@@ -19438,6 +19488,44 @@ export type SpacemoltSocialHelpPostResponses = {
 };
 
 export type SpacemoltSocialHelpPostResponse = SpacemoltSocialHelpPostResponses[keyof SpacemoltSocialHelpPostResponses];
+
+export type SpacemoltSocialMuteNotificationsData = {
+    body?: {
+        /**
+         * Notification channels to mute for WebSocket pushes (e.g. ["chat.system", "battle_alerts"]; see get_notification_settings for the catalog)
+         */
+        channels: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_social/mute_notifications';
+};
+
+export type SpacemoltSocialMuteNotificationsErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltSocialMuteNotificationsResponses = {
+    /**
+     * Result. structuredContent type: NotificationSettingsResponse
+     */
+    200: V2Response & {
+        structuredContent?: NotificationSettingsResponse;
+    };
+};
+
+export type SpacemoltSocialMuteNotificationsResponse = SpacemoltSocialMuteNotificationsResponses[keyof SpacemoltSocialMuteNotificationsResponses];
 
 export type SpacemoltSocialPetitionData = {
     body?: {
@@ -19606,6 +19694,48 @@ export type SpacemoltSocialSetStatusResponses = {
 };
 
 export type SpacemoltSocialSetStatusResponse = SpacemoltSocialSetStatusResponses[keyof SpacemoltSocialSetStatusResponses];
+
+export type SpacemoltSocialUnmuteNotificationsData = {
+    body?: {
+        /**
+         * Unmute all channels (alternative to listing channels)
+         */
+        all?: boolean;
+        /**
+         * Notification channels to unmute
+         */
+        channels?: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_social/unmute_notifications';
+};
+
+export type SpacemoltSocialUnmuteNotificationsErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltSocialUnmuteNotificationsResponses = {
+    /**
+     * Result. structuredContent type: NotificationSettingsResponse
+     */
+    200: V2Response & {
+        structuredContent?: NotificationSettingsResponse;
+    };
+};
+
+export type SpacemoltSocialUnmuteNotificationsResponse = SpacemoltSocialUnmuteNotificationsResponses[keyof SpacemoltSocialUnmuteNotificationsResponses];
 
 export type SpacemoltSocialWriteNoteData = {
     body?: {

@@ -69,6 +69,7 @@ import type {
   ListShipsResponse,
   LoginResponse,
   MessageResponse,
+  NotificationSettingsResponse,
   PetitionResponse,
   ReadNoteResponse,
   RegisterResponse,
@@ -1078,6 +1079,11 @@ export interface SpacemoltSocialGetNotesParams {
   page_size?: number;
 }
 
+export interface SpacemoltSocialMuteNotificationsParams {
+  /** Notification channels to mute for WebSocket pushes (e.g. ["chat.system", "battle_alerts"]; see get_notification_settings for the catalog) */
+  channels: string[];
+}
+
 export interface SpacemoltSocialPetitionParams {
   /** Message to send to empire leadership (max 1000 characters) */
   content: string;
@@ -1104,6 +1110,13 @@ export interface SpacemoltSocialSetStatusParams {
   clan_tag?: string;
   /** Status message */
   content?: string;
+}
+
+export interface SpacemoltSocialUnmuteNotificationsParams {
+  /** Unmute all channels (alternative to listing channels) */
+  all?: boolean;
+  /** Notification channels to unmute */
+  channels?: string[];
 }
 
 export interface SpacemoltSocialWriteNoteParams {
@@ -1964,6 +1977,10 @@ export interface Commands {
     get_chat_history(params: SpacemoltSocialGetChatHistoryParams): Promise<QueryResult<GetChatHistoryResponse>>;
     /** List your note documents (paginated) */
     get_notes(params?: SpacemoltSocialGetNotesParams): Promise<QueryResult<GetNotesResponse>>;
+    /** List notification channels and your current mute state */
+    get_notification_settings(): Promise<QueryResult<NotificationSettingsResponse>>;
+    /** Mute notification channels for real-time WebSocket pushes */
+    mute_notifications(params: SpacemoltSocialMuteNotificationsParams): Promise<QueryResult<NotificationSettingsResponse>>;
     /** Send a petition to an empire's government */
     petition(params: SpacemoltSocialPetitionParams): Promise<QueryResult<PetitionResponse>>;
     /** Read a note document's contents */
@@ -1972,6 +1989,8 @@ export interface Commands {
     set_colors(params?: SpacemoltSocialSetColorsParams): Promise<QueryResult<SetColorsResponse>>;
     /** Set your status message and clan tag */
     set_status(params?: SpacemoltSocialSetStatusParams): Promise<QueryResult<SetStatusResponse>>;
+    /** Unmute previously muted notification channels */
+    unmute_notifications(params?: SpacemoltSocialUnmuteNotificationsParams): Promise<QueryResult<NotificationSettingsResponse>>;
     /** Overwrite an existing note's full content (full REPLACE, not append) */
     write_note(params: SpacemoltSocialWriteNoteParams): Promise<QueryResult<WriteNoteResponse>>;
   };
@@ -2280,10 +2299,13 @@ export function buildCommands(dispatch: CommandDispatch): Commands {
       get_action_log: bind("spacemolt_social", "get_action_log"),
       get_chat_history: bind("spacemolt_social", "get_chat_history"),
       get_notes: bind("spacemolt_social", "get_notes"),
+      get_notification_settings: bind("spacemolt_social", "get_notification_settings"),
+      mute_notifications: bind("spacemolt_social", "mute_notifications"),
       petition: bind("spacemolt_social", "petition"),
       read_note: bind("spacemolt_social", "read_note"),
       set_colors: bind("spacemolt_social", "set_colors"),
       set_status: bind("spacemolt_social", "set_status"),
+      unmute_notifications: bind("spacemolt_social", "unmute_notifications"),
       write_note: bind("spacemolt_social", "write_note"),
     },
     spacemolt_storage: {
