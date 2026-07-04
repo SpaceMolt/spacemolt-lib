@@ -93,6 +93,35 @@ test('connectAll connects every stored account', async () => {
   expect(client.ids().sort()).toEqual(['Nova', 'Rex']);
 });
 
+test('connectAll/connectOwned report each account via onConnect as it finishes, not just at the end', async () => {
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 0,
+    connectBatchSize: 1,
+    connectBatchWaitMs: 200, // large relative to a single connect, so Nova finishing
+    // well before Rex proves onConnect fired incrementally, not only once the
+    // whole batch (which would take >= 200ms here) settles.
+  });
+  await client.addLogin('Nova', 'pw');
+  await client.addLogin('Rex', 'pw');
+
+  const seen: string[] = [];
+  const allP = client.connectAll({ onConnect: (account) => seen.push(account.id!) });
+
+  while (sockets.length < 1) await new Promise((r) => setTimeout(r, 1));
+  autoServe(sockets[0]!, 'Nova');
+  // Give Nova's connect a moment to settle, well before Rex's batch-wait delay
+  // (200ms) elapses — proving onConnect already fired for it.
+  await new Promise((r) => setTimeout(r, 20));
+  expect(seen).toEqual(['Nova']);
+
+  while (sockets.length < 2) await new Promise((r) => setTimeout(r, 1));
+  autoServe(sockets[1]!, 'Rex');
+  await allP;
+  expect(seen).toEqual(['Nova', 'Rex']);
+});
+
 test('connectIds does not pause between batches at or under connectBatchSize', async () => {
   const { factory, sockets } = mockFactory();
   const client = new SpacemoltClient({

@@ -228,9 +228,12 @@ export class SpacemoltClient {
   }
 
   /** Connect every stored account, staggered to respect rate limits. */
-  async connectAll(): Promise<Account[]> {
+  async connectAll(opts: { onConnect?: (account: Account) => void } = {}): Promise<Account[]> {
     const stored = await this.store.list();
-    return this.connectIds(stored.map((s) => s.id));
+    return this.connectIds(
+      stored.map((s) => s.id),
+      opts.onConnect,
+    );
   }
 
   // --- Clerk multi-account (connect every account you own) ---
@@ -245,8 +248,16 @@ export class SpacemoltClient {
    * to respect rate limits. Stores a `clerk` credential per player — each
    * account mints a fresh single-use WS token on connect and reconnect, so no
    * passwords are persisted. Requires `clerkApiKey`.
+   *
+   * A fleet-wide call can legitimately take minutes (see `connectIds`'s
+   * pacing) — `onConnect` fires as each account finishes, so a caller can
+   * index/use accounts incrementally instead of only after the whole batch
+   * settles (the returned promise still doesn't resolve until every account
+   * has been attempted).
    */
-  async connectOwned(opts: { filter?: (player: ClerkPlayer) => boolean } = {}): Promise<Account[]> {
+  async connectOwned(
+    opts: { filter?: (player: ClerkPlayer) => boolean; onConnect?: (account: Account) => void } = {},
+  ): Promise<Account[]> {
     const source = this.requireClerkSource();
     const players = await source.listPlayers();
     const selected = opts.filter ? players.filter(opts.filter) : players;
@@ -264,7 +275,7 @@ export class SpacemoltClient {
       });
       ids.push(player.username);
     }
-    return this.connectIds(ids);
+    return this.connectIds(ids, opts.onConnect);
   }
 
   private requireClerkSource(): ClerkSource {
@@ -289,8 +300,13 @@ export class SpacemoltClient {
    * for more connections than the server's per-IP window allows. A single
    * account failing to connect must not abort the rest of the batch — it's
    * logged and skipped so the caller still gets every account that succeeded.
+   *
+   * `onConnect` fires synchronously as each id finishes (success only) so a
+   * caller managing many accounts (e.g. indexing them for lookup) doesn't
+   * have to wait for the entire — potentially minutes-long — batch before
+   * any single account becomes usable.
    */
-  private async connectIds(ids: string[]): Promise<Account[]> {
+  private async connectIds(ids: string[], onConnect?: (account: Account) => void): Promise<Account[]> {
     const batchSize = this.opts.connectBatchSize ?? 100;
     // Default stagger is derived from batchSize so a full batch can never
     // finish in under a minute regardless of how fast each connect() call
@@ -314,7 +330,9 @@ export class SpacemoltClient {
         }
       }
       try {
-        accounts.push(await this.connect(ids[i]!));
+        const account = await this.connect(ids[i]!);
+        accounts.push(account);
+        onConnect?.(account);
       } catch (err) {
         console.warn(`[spacemolt] failed to connect "${ids[i]}": ${err}`);
       }
