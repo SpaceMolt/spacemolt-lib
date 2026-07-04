@@ -178,9 +178,10 @@ export class Account {
     // Keep the subscription caches current as their pushes arrive. Registered
     // before any user listener so the cache is updated first.
     this.emitter.on('market_update', (p) => this.marketCache.applyUpdate(p as NotificationMarketUpdate));
-    this.emitter.on('observation_update', (p) =>
-      this.observationCache.applyUpdate(p as NotificationObservationUpdate),
-    );
+    this.emitter.on('observation_update', (p) => {
+      this.observationCache.applyUpdate(p as NotificationObservationUpdate);
+      this.bridgeObservationToLocation();
+    });
   }
 
   private makeSocket(): void {
@@ -468,12 +469,20 @@ export class Account {
   /**
    * Subscribe to a change-feed of player presence at your current POI/system.
    * Returns the baseline and seeds the observation cache; `observation_update`
-   * pushes are merged automatically. Read with `account.observation()`.
+   * pushes are merged automatically. Read with `account.observation()`. Also
+   * bridges POI-scoped presence into the base state cache's
+   * `location.nearby_players`/`nearby_player_count` (see
+   * `bridgeObservationToLocation`), so `account.state.location` reflects live
+   * data too once subscribed, instead of only refreshing on the next
+   * `get_status`/mutation delta.
    */
   async subscribeObservation(activeScan = false): Promise<SubscribeObservationResponse> {
     const res = await this.query('spacemolt', 'subscribe_observation', activeScan ? { active_scan: true } : undefined);
     const snapshot = res.structuredContent as SubscribeObservationResponse | undefined;
-    if (snapshot) this.observationCache.seed(snapshot);
+    if (snapshot) {
+      this.observationCache.seed(snapshot);
+      this.bridgeObservationToLocation();
+    }
     this.observationSubscribed = true;
     this.observationActiveScan = activeScan;
     return snapshot ?? ({} as SubscribeObservationResponse);
@@ -484,6 +493,28 @@ export class Account {
     this.observationSubscribed = false;
     await this.query('spacemolt', 'unsubscribe_observation');
     this.observationCache.clear();
+  }
+
+  /**
+   * Mirrors the observation watch's POI-scoped player presence into
+   * `location.nearby_players`/`nearby_player_count` in the base state cache,
+   * so code reading `account.state.location` (rather than
+   * `account.observation()`) sees live presence data once subscribed. NPC and
+   * pirate presence (`nearby_empire_npcs`/`nearby_pirates`, their counts, and
+   * `offline_collapsed`) have no equivalent in the observation feed — it only
+   * ever carries player presence — so those fields are left untouched by this
+   * bridge and still only refresh on the next `get_status`/mutation delta.
+   * No-ops if `location` hasn't been seeded yet or nothing is subscribed.
+   */
+  private bridgeObservationToLocation(): void {
+    const view = this.observationCache.current();
+    if (!view) return;
+    const nearbyPlayers = [...view.nearby.values()] as NonNullable<GameState['location']>['nearby_players'];
+    const changed = this.cache.patchSection('location', {
+      nearby_players: nearbyPlayers,
+      nearby_player_count: view.nearby.size,
+    });
+    if (changed.length) this.stateListener?.(changed);
   }
 
   /** The current observation watch view, if subscribed. */
