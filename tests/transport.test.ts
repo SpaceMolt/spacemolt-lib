@@ -191,3 +191,24 @@ test('in-flight requests reject when the socket closes', async () => {
   socket.close();
   await expect(pending).rejects.toBeInstanceOf(ConnectionClosedError);
 });
+
+test('an unparseable frame is dropped without throwing, and logs a warning', async () => {
+  const { account, socket } = await connected();
+  const seen: string[] = [];
+  account.on('chat_message', (msg) => seen.push(String(msg.content)));
+
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    expect(() => socket.serverSendRaw('not valid json{{{')).not.toThrow();
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  expect(warnings.some((args) => String(args[0]).includes('dropped unparseable frame'))).toBe(true);
+
+  // the connection itself is unaffected — subsequent well-formed frames still route
+  socket.serverSend({ type: 'chat_message', payload: { content: 'still alive' } });
+  expect(seen).toEqual(['still alive']);
+});

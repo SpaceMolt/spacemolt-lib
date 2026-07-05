@@ -99,14 +99,31 @@ export class TypedEmitter {
     return s;
   }
 
-  /** Dispatch a push frame to all matching listeners and streams. */
+  /**
+   * Dispatch a push frame to all matching listeners and streams. Each
+   * callback is isolated with try/catch — this is the single funnel every
+   * `account.on(type, ...)`/`onAny` consumer runs through, invoked directly
+   * from `routeFrame`'s `default:` case with nothing above it to contain a
+   * throw. Without isolation, one listener throwing would skip every other
+   * listener/stream for this frame and propagate out through `routeFrame`
+   * into the WebSocket's `message` event handler, which has no try/catch of
+   * its own either.
+   */
   emit(frame: RawFrame): void {
     const set = this.handlers.get(frame.type);
-    if (set) for (const h of [...set]) h(frame.payload);
-    for (const h of [...this.anyHandlers]) h(frame);
+    if (set) for (const h of [...set]) this.safeCall(() => h(frame.payload));
+    for (const h of [...this.anyHandlers]) this.safeCall(() => h(frame));
     const streams = this.streams.get(frame.type);
-    if (streams) for (const s of [...streams]) s.push(frame.payload);
-    for (const s of [...this.anyStreams]) s.push(frame);
+    if (streams) for (const s of [...streams]) this.safeCall(() => s.push(frame.payload));
+    for (const s of [...this.anyStreams]) this.safeCall(() => s.push(frame));
+  }
+
+  private safeCall(fn: () => void): void {
+    try {
+      fn();
+    } catch (err) {
+      console.warn(`[spacemolt] notification listener threw: ${err}`);
+    }
   }
 
   /** End every open stream (on disconnect). Callback listeners are kept. */
