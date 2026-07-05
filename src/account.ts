@@ -314,11 +314,10 @@ export class Account {
   }
 
   /**
-   * Whether `subscribeMarket()` is currently active on this instance. A
-   * caller replacing this account with a fresh instance (e.g.
-   * `SpacemoltClient` reconnecting via a new `Account` rather than this
-   * one's own `reconnectLoop`) can snapshot this before discarding the old
-   * instance, to reissue the subscription on the replacement.
+   * Whether `subscribeMarket()` is currently active on this instance —
+   * `resubscribe()` reads this directly to restore the subscription across a
+   * reconnect (this account's own `reconnectLoop`, or `reconnectOnce()`
+   * called by `SpacemoltClient` for a client-managed account).
    */
   get marketSubscribed(): boolean {
     return this.marketSubscribedState;
@@ -883,10 +882,7 @@ export class Account {
         return;
       }
       try {
-        this.makeSocket();
-        await this.open();
-        await this.authenticate(await this.credentialsProvider());
-        await this.resubscribe();
+        await this.reconnectOnce();
         this.reconnecting = false;
         this.reconnectedListener?.();
         return;
@@ -896,6 +892,29 @@ export class Account {
     }
     this.reconnecting = false;
     this.disconnectedListener?.(err);
+  }
+
+  /**
+   * Reconnect this account's underlying connection in place: a fresh socket,
+   * re-authenticated, subscriptions restored — while preserving this
+   * instance's identity (cache, correlator, every wired listener). A single
+   * attempt with no internal retry/backoff; the caller owns retry pacing
+   * (this account's own `reconnectLoop`, or `SpacemoltClient`'s rate-limited
+   * queue for a client-managed account — see `handleAccountDisconnected`).
+   * Requires `credentials` (constructor option).
+   *
+   * Closes the current socket first — a no-op on the normal disconnect path
+   * (already closed), but avoids orphaning a still-open one if this is ever
+   * called outside that path (e.g. a future forced reconnect while a socket
+   * is technically still alive but not receiving pushes).
+   */
+  async reconnectOnce(): Promise<void> {
+    if (!this.credentialsProvider) throw new Error('reconnectOnce requires credentials');
+    this.socket.close();
+    this.makeSocket();
+    await this.open();
+    await this.authenticate(await this.credentialsProvider());
+    await this.resubscribe();
   }
 
   private async resubscribe(): Promise<void> {

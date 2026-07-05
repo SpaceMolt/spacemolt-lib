@@ -372,13 +372,18 @@ test('reconnects after a shared disconnect are paced by connectBatchSize/connect
   expect(acrossBatchGap).toBeGreaterThanOrEqual(140); // the 150ms batch pause, not the 1ms stagger
 }, 5000);
 
-test('onAccountConnected fires again after a reconnect, with the new Account instance', async () => {
+test('onAccountConnected fires only once; onAccountReconnected fires after, with the SAME Account instance', async () => {
+  // Reconnection is in place (Account.reconnectOnce), not a new instance —
+  // anything holding a direct reference (e.g. a running loop) must keep
+  // working transparently across a reconnect.
   const { factory, sockets } = mockFactory();
   const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0 });
   await client.addLogin('Nova', 'pw');
 
   const connectedAccounts: Account[] = [];
+  const reconnectedAccounts: Account[] = [];
   client.onAccountConnected((account) => connectedAccounts.push(account));
+  client.onAccountReconnected((account) => reconnectedAccounts.push(account));
 
   const connectP = client.connect('Nova');
   await Promise.resolve();
@@ -390,9 +395,56 @@ test('onAccountConnected fires again after a reconnect, with the new Account ins
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
   autoServe(sockets[1]!, 'Nova');
 
-  while (connectedAccounts.length < 2) await new Promise((r) => setTimeout(r, 2));
-  expect(connectedAccounts[1]).not.toBe(firstAccount);
-  expect(client.account('Nova')).toBe(connectedAccounts[1]);
+  while (reconnectedAccounts.length < 1) await new Promise((r) => setTimeout(r, 2));
+  expect(reconnectedAccounts[0]).toBe(firstAccount);
+  // onAccountConnected does NOT fire again — no new instance appeared.
+  expect(connectedAccounts).toEqual([firstAccount]);
+  expect(client.account('Nova')).toBe(firstAccount);
+}, 5000);
+
+test('a socket dropping mid-reconnect does not spawn a parallel reconnect chain', async () => {
+  // Regression: handleAccountDisconnected must not enqueue a second reconnect
+  // chain when the reconnect socket itself drops again before completing —
+  // that drop should surface as a retry inside the one already-running
+  // withConnectRetry loop, not spawn a duplicate one racing it.
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 0,
+    connectRetry: { baseDelayMs: 1, maxDelayMs: 5, maxRetries: 5 },
+  });
+  await client.addLogin('Nova', 'pw');
+
+  const reconnectedAccounts: Account[] = [];
+  client.onAccountReconnected((account) => reconnectedAccounts.push(account));
+
+  const connectP = client.connect('Nova');
+  await Promise.resolve();
+  autoServe(sockets[0]!, 'Nova');
+  const account = await connectP;
+
+  sockets[0]!.close(1006, 'abnormal');
+  while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
+
+  // Let the reconnect socket's own async "open" fire, then drop it before
+  // ever serving a welcome frame — a second disconnect before auth
+  // completes. This must be absorbed as a retry within the reconnect
+  // attempt already running, not spawn a second, parallel one.
+  await new Promise((r) => setTimeout(r, 5));
+  sockets[1]!.close(1006, 'abnormal');
+
+  // The retry (from the one reconnect chain already running) creates a
+  // third socket after its backoff delay — serve it properly.
+  while (sockets.length < 3) await new Promise((r) => setTimeout(r, 2));
+  autoServe(sockets[2]!, 'Nova');
+
+  while (reconnectedAccounts.length < 1) await new Promise((r) => setTimeout(r, 2));
+  // Give a (buggy) duplicate chain time to also run its course before
+  // asserting there wasn't one.
+  await new Promise((r) => setTimeout(r, 30));
+  expect(reconnectedAccounts).toEqual([account]);
+  expect(sockets.length).toBe(3);
+  expect(client.account('Nova')).toBe(account);
 }, 5000);
 
 test('onAccountDisconnected fires on session_replaced and does not attempt reconnection', async () => {
@@ -479,10 +531,9 @@ test('a market subscription active before a disconnect is restored on the reconn
   // (the cache seed) has run. seed() always resets tick to 0 for a fresh
   // subscribe (see MarketCache.seed), so the item list — not tick — is what
   // distinguishes the pre-disconnect subscribe from the post-reconnect one.
-  let newAccount: Account | undefined;
-  while (!newAccount?.market('station-1')?.items.has('reconnect_marker')) {
+  while (!account.market('station-1')?.items.has('reconnect_marker')) {
     await new Promise((r) => setTimeout(r, 2));
-    newAccount = client.account('Nova');
   }
-  expect(newAccount).not.toBe(account);
+  // reconnect is in place — client.account() still returns the SAME instance
+  expect(client.account('Nova')).toBe(account);
 }, 5000);
