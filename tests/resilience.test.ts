@@ -321,7 +321,7 @@ test('query() does not bound a mutation — mutate() can legitimately outlast qu
       s.serverSend({
         type: 'result',
         request_id: frame.request_id,
-        payload: { result: 'pending', structuredContent: { command: 'jump', message: 'queued' } },
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'jump', message: 'queued' } },
       });
       setTimeout(() => {
         s.serverSend({
@@ -384,7 +384,7 @@ test('mutate() times out if acked but no action_result ever arrives, and does no
       s.serverSend({
         type: 'result',
         request_id: frame.request_id,
-        payload: { result: 'pending', structuredContent: { command: 'craft', message: 'queued' } },
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'craft', message: 'queued' } },
       });
     } else if (frame.action === 'undock') {
       s.serverSend({
@@ -403,6 +403,38 @@ test('mutate() times out if acked but no action_result ever arrives, and does no
   // the next mutation on this account must not be wedged behind the hung one
   const result = await account.mutate('spacemolt', 'undock');
   expect(result.command).toBe('undock');
+});
+
+test('mutate() resolves immediately on a result frame without pending:true — no action_result is ever coming', async () => {
+  // Root cause of the real "craft jobs hang forever" report, found via a live
+  // trace: craft/recycle's `dry_run: true` mode queues nothing, so the
+  // server's only response is a single `result` frame that IS the complete
+  // answer — it has no `pending: true` flag, and no `action_result` follows,
+  // ever. The correlator previously assumed every mutation's `result` frame
+  // was just the ack (more to come); it needs to check the flag instead of
+  // waiting forever for an outcome the server was never going to send.
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, mutationTimeoutMs: 20 });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'craft') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'Quote only — nothing queued.',
+          structuredContent: { action: 'craft', dry_run: true, mode: 'craft', recipe: 'widget' },
+        },
+      });
+    }
+  };
+
+  const result = await account.mutate('spacemolt', 'craft', { id: 'widget', dry_run: true });
+  expect(result.command).toBe('');
+  expect(result.delta.details).toEqual({ action: 'craft', dry_run: true, mode: 'craft', recipe: 'widget' });
 });
 
 test('a close while waiting for welcome rejects immediately instead of waiting out the timeout', async () => {

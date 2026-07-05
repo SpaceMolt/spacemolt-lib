@@ -3,10 +3,17 @@
  *
  * Two request shapes:
  *   - query    resolves on the synchronous `result` frame.
- *   - mutation is two-phase: a `result` ack (`pending: true`) arrives first,
- *              then — possibly many ticks later — an `action_result`
+ *   - mutation is usually two-phase: a `result` ack (`pending: true`) arrives
+ *              first, then — possibly many ticks later — an `action_result`
  *              (resolve) or `action_error` (reject). A synchronous validation
  *              failure short-circuits to an `error` frame (reject).
+ *              But some mutation-classified actions resolve synchronously in
+ *              a single `result` frame with no `pending: true` flag — nothing
+ *              was queued, so no `action_result` is ever coming (e.g.
+ *              `craft`/`recycle` with `dry_run: true`, which explicitly
+ *              queues nothing). That `result` frame is treated as the final
+ *              outcome instead of an ack, or the request would wait forever
+ *              for an `action_result` the server was never going to send.
  *
  * Frames may interleave arbitrarily on the wire, so nothing here assumes
  * ordering beyond per-request_id sequencing.
@@ -87,12 +94,26 @@ export class Correlator {
           pending.resolve({ result: payload.result, structuredContent: payload.structuredContent });
           return true;
         }
+        const structured = payload.structuredContent;
+        if (structured?.['pending'] !== true) {
+          // Not an ack — this mutation resolved synchronously and nothing was
+          // queued (e.g. a dry_run quote), so there's no action_result to
+          // wait for. Settle now with this frame as the whole answer: no
+          // state changed, so the only meaningful content is structuredContent
+          // itself, carried as delta.details same as a real outcome would.
+          this.settle(requestId);
+          pending.resolve({
+            command: String(structured?.['command'] ?? ''),
+            tick: 0,
+            delta: { details: structured },
+          });
+          return true;
+        }
         // mutation: this is the pending ack — record it and keep waiting for
         // the action_result outcome.
-        const structured = payload.structuredContent;
         const ack: MutationAck = {
-          command: String(structured?.command ?? ''),
-          message: String(structured?.message ?? ''),
+          command: String(structured['command'] ?? ''),
+          message: String(structured['message'] ?? ''),
         };
         pending.ack = ack;
         pending.onAck?.(ack);
