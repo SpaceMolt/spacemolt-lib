@@ -111,16 +111,38 @@ export interface AccountOptions {
   queryTimeoutMs?: number;
   /**
    * How long to wait, after a mutation's pending ack arrives, for its final
-   * `action_result`/`action_error` outcome before giving up. Generous by
-   * design — some mutations legitimately take many ticks (a jump/travel's
-   * transit time is distance-based and can run minutes) — but not infinite:
-   * without this, a single silently-dropped outcome frame hangs forever AND
+   * `action_result`/`action_error` outcome before giving up, for the two
+   * commands whose transit time is distance-based and can legitimately span
+   * many ticks: `jump` and `travel`. Every other mutation settles on the same
+   * tick it was queued on (per the game's own design — see
+   * `fastMutationTimeoutMs`) and uses that much shorter bound instead.
+   * Without this, a single silently-dropped outcome frame hangs forever AND
    * wedges every subsequent mutation on this account behind it (mutations
    * are serialized per account, see `enqueueMutation`). Default 600000 (10
    * minutes).
    */
   mutationTimeoutMs?: number;
+  /**
+   * How long to wait, after a mutation's pending ack arrives, for its final
+   * outcome — for every mutation except `jump`/`travel` (see
+   * `mutationTimeoutMs`). These settle within the same tick they were queued
+   * on, so there's no legitimate reason for one to take anywhere near as long
+   * as a transit; bounding them tightly turns a dropped outcome frame into a
+   * fast, visible failure instead of a many-minute stall each retry cycle.
+   * Kept well above one tick (default 180000 — 3 minutes, ~18 ticks at the
+   * game's 10s tick rate) so a merely-slow tick or a `rate_limited` resend
+   * can't trip it. Default 180000 (3 minutes).
+   */
+  fastMutationTimeoutMs?: number;
 }
+
+/**
+ * Mutations whose outcome can legitimately arrive many ticks after the ack —
+ * transit time is distance-based, not fixed. Every other mutation resolves
+ * within the same tick it was queued on and uses `fastMutationTimeoutMs`
+ * instead of the far more generous `mutationTimeoutMs`.
+ */
+const TRANSIT_ACTIONS: ReadonlySet<string> = new Set(['spacemolt/jump', 'spacemolt/travel']);
 
 export interface RegisterParams {
   username: string;
@@ -146,6 +168,7 @@ interface PendingAuth {
 const DEFAULT_URL = 'wss://game.spacemolt.com/ws/v2';
 const DEFAULT_CONNECT_TIMEOUT_MS = 15_000;
 const DEFAULT_MUTATION_TIMEOUT_MS = 600_000;
+const DEFAULT_FAST_MUTATION_TIMEOUT_MS = 180_000;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -201,6 +224,7 @@ export class Account {
   private readonly connectTimeoutMs: number;
   private readonly queryTimeoutMs: number;
   private readonly mutationTimeoutMs: number;
+  private readonly fastMutationTimeoutMs: number;
   private readonly _id: string | undefined;
   private requestSeq = 0;
 
@@ -234,6 +258,7 @@ export class Account {
     this.connectTimeoutMs = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
     this.queryTimeoutMs = opts.queryTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
     this.mutationTimeoutMs = opts.mutationTimeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
+    this.fastMutationTimeoutMs = opts.fastMutationTimeoutMs ?? DEFAULT_FAST_MUTATION_TIMEOUT_MS;
     this._id = opts.id;
     this.reconnectConfig = normalizeReconnect(opts.reconnect);
     this.makeSocket();
@@ -500,11 +525,11 @@ export class Account {
    * `rate_limited`.
    *
    * Bounded in two phases (see `awaitMutationWithTimeout`) rather than left
-   * unbounded: some mutations (e.g. `craft`) queue work and settle within a
-   * tick same as any other mutation, with no legitimate reason for their
-   * outcome to be missing — a dropped response for one of those should fail
-   * cleanly, not hang this call (and every mutation queued behind it on this
-   * account) forever.
+   * unbounded: a dropped outcome frame should fail cleanly, not hang this
+   * call (and every mutation queued behind it on this account) forever. Only
+   * `jump`/`travel` (`TRANSIT_ACTIONS`) get the generous `mutationTimeoutMs`;
+   * every other mutation — `mine`, `craft`, etc. — settles within the tick it
+   * was queued on and gets the much shorter `fastMutationTimeoutMs`.
    */
   mutate(
     tool: string,
@@ -512,10 +537,13 @@ export class Account {
     payload?: Record<string, unknown>,
     onAck?: (ack: MutationAck) => void,
   ): Promise<MutationResult> {
+    const mutationTimeoutMs = TRANSIT_ACTIONS.has(`${tool}/${action}`)
+      ? this.mutationTimeoutMs
+      : this.fastMutationTimeoutMs;
     return this.enqueueMutation(() =>
       this.withRateLimitRetry(() => {
         const requestId = this.nextRequestId();
-        const promise = this.awaitMutationWithTimeout(requestId, onAck);
+        const promise = this.awaitMutationWithTimeout(requestId, mutationTimeoutMs, onAck);
         this.sendFrame(tool, action, payload, requestId);
         return promise;
       }),
@@ -527,14 +555,17 @@ export class Account {
    * pending ack (`result` frame) is a synchronous validation step with no
    * game-tick delay — like a query, there's no legitimate reason for it to be
    * missing, so it's bounded by `queryTimeoutMs`. Once the ack arrives, the
-   * final `action_result`/`action_error` can legitimately take many ticks
-   * (e.g. a jump's transit time), so that phase gets the far more generous
-   * `mutationTimeoutMs` instead. Either phase timing out cancels the
-   * correlator entry — otherwise a truly-dropped response would wedge every
-   * later mutation on this account behind it forever (see `enqueueMutation`).
+   * final `action_result`/`action_error` can legitimately take many ticks for
+   * a transit mutation, so that phase gets the caller-supplied
+   * `mutationTimeoutMs` (either the long transit bound or the short
+   * same-tick bound — see `mutate`) instead. Either phase timing out cancels
+   * the correlator entry — otherwise a truly-dropped response would wedge
+   * every later mutation on this account behind it forever (see
+   * `enqueueMutation`).
    */
   private awaitMutationWithTimeout(
     requestId: string,
+    mutationTimeoutMs: number,
     onAck?: (ack: MutationAck) => void,
   ): Promise<MutationResult> {
     return new Promise<MutationResult>((resolve, reject) => {
@@ -550,8 +581,8 @@ export class Account {
       this.correlator
         .awaitMutation(requestId, (ack) => {
           arm(
-            this.mutationTimeoutMs,
-            `No action_result for mutation ${requestId} within ${this.mutationTimeoutMs}ms of its ack`,
+            mutationTimeoutMs,
+            `No action_result for mutation ${requestId} within ${mutationTimeoutMs}ms of its ack`,
           );
           onAck?.(ack);
         })
