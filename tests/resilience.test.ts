@@ -407,6 +407,58 @@ test('mutate() times out if acked but no action_result ever arrives, and does no
   expect(result.command).toBe('undock');
 });
 
+test('a late action_result arriving after the timeout already fired still updates state, and logs a warning', async () => {
+  // Regression for a real incident: the server sometimes genuinely finishes
+  // processing a mutation later than fastMutationTimeoutMs/mutationTimeoutMs,
+  // not never — the outcome frame does eventually arrive, just after the
+  // caller already gave up and the correlator entry was cancelled. This must
+  // not throw or corrupt state; the cache still applies the delta (it's
+  // unconditional, regardless of whether a caller is still listening), and a
+  // warning fires so this is visible instead of silently vanishing into the
+  // untended notification path.
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    fastMutationTimeoutMs: 20,
+  });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  let requestId: string | undefined;
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'mine') {
+      requestId = frame.request_id;
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'mine', message: 'queued' } },
+      });
+    }
+  };
+
+  await expect(account.mutate('spacemolt', 'mine')).rejects.toThrow(/No action_result/);
+  expect(requestId).toBeDefined();
+
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    sockets[0]!.serverSend({
+      type: 'action_result',
+      request_id: requestId,
+      payload: { command: 'mine', tick: 5, result: { cargo: [{ item_id: 'iron_ore', quantity: 10 }] } },
+    });
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  expect(warnings.some((args) => String(args[0]).includes('no matching pending mutation'))).toBe(true);
+  expect(account.cargo).toEqual([{ item_id: 'iron_ore', quantity: 10 }]);
+});
+
 test('jump/travel use the long mutationTimeoutMs even when fastMutationTimeoutMs is tiny', async () => {
   // Regression: only jump/travel (TRANSIT_ACTIONS) can legitimately take many
   // ticks (distance-based transit time) — every other mutation now gets the

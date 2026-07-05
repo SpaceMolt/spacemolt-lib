@@ -843,7 +843,20 @@ export class Account {
             }
           }
         }
-        if (!this.correlator.handle(frame)) this.emitter.emit(frame);
+        if (!this.correlator.handle(frame)) {
+          // The frame arrived and its delta was already applied to the cache
+          // above — this only means the *caller* awaiting this specific
+          // request_id is no longer listening, almost always because
+          // awaitMutationWithTimeout's fastMutationTimeoutMs/mutationTimeoutMs
+          // already fired and called correlator.cancel(). That's a real
+          // outcome arriving late, not a truly dropped one — worth knowing
+          // about explicitly rather than silently falling through to a
+          // notification path nothing listens on.
+          console.warn(
+            `[spacemolt] action_result for ${(frame as ActionResultFrame).request_id ?? '?'} arrived with no matching pending mutation (already timed out?)`,
+          );
+          this.emitter.emit(frame);
+        }
         return;
       }
       case 'result':
