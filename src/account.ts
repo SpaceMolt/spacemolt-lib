@@ -47,7 +47,16 @@ import { Socket, type WebSocketFactory } from './transport/socket.ts';
 export type LoggedInPayload = Record<string, unknown>;
 
 export interface ReconnectOptions {
-  /** Max reconnect attempts before giving up and emitting `disconnected`. Default 10. */
+  /**
+   * Max reconnect attempts before giving up and emitting `disconnected`.
+   * Default `Infinity` — a real game-server restart is a routine, recurring
+   * event (not an edge case) and can legitimately take several minutes; a
+   * finite default tuned for a brief network blip (the old default was 10,
+   * exhausted in ~3.5 minutes at the default backoff) would abandon the
+   * account mid-restart and require manual intervention to reconnect it.
+   * Backoff still caps at `maxDelayMs` per attempt, so this never busy-loops.
+   * Pass a finite value to restore the old give-up behavior.
+   */
   maxRetries?: number;
   /** Base backoff in ms (doubles per attempt). Default 1000. */
   baseDelayMs?: number;
@@ -161,7 +170,7 @@ function normalizeReconnect(opt: AccountOptions['reconnect']): Required<Reconnec
   if (!opt) return null;
   const o = typeof opt === 'object' ? opt : {};
   return {
-    maxRetries: o.maxRetries ?? 10,
+    maxRetries: o.maxRetries ?? Number.POSITIVE_INFINITY,
     baseDelayMs: o.baseDelayMs ?? 1000,
     maxDelayMs: o.maxDelayMs ?? 30000,
   };
@@ -208,9 +217,9 @@ export class Account {
   private userClosing = false;
   private reconnecting = false;
   private mutationLane: Promise<unknown> = Promise.resolve();
-  private marketSubscribed = false;
-  private observationSubscribed = false;
-  private observationActiveScan = false;
+  private marketSubscribedState = false;
+  private observationSubscribedState = false;
+  private observationActiveScanState = false;
   private reconnectedListener: (() => void) | null = null;
   private reconnectingListener: ((attempt: number) => void) | null = null;
   private disconnectedListener: ((err: ConnectionClosedError) => void) | null = null;
@@ -302,6 +311,27 @@ export class Account {
 
   get authenticated(): boolean {
     return this._authenticated;
+  }
+
+  /**
+   * Whether `subscribeMarket()` is currently active on this instance. A
+   * caller replacing this account with a fresh instance (e.g.
+   * `SpacemoltClient` reconnecting via a new `Account` rather than this
+   * one's own `reconnectLoop`) can snapshot this before discarding the old
+   * instance, to reissue the subscription on the replacement.
+   */
+  get marketSubscribed(): boolean {
+    return this.marketSubscribedState;
+  }
+
+  /** Whether `subscribeObservation()` is currently active — see `marketSubscribed`. */
+  get observationSubscribed(): boolean {
+    return this.observationSubscribedState;
+  }
+
+  /** The `activeScan` flag passed to the active `subscribeObservation()` call, if any — see `marketSubscribed`. */
+  get observationActiveScan(): boolean {
+    return this.observationActiveScanState;
   }
 
   /** Open the connection and resolve once the `welcome` frame arrives. */
@@ -592,14 +622,14 @@ export class Account {
     const res = await this.query('spacemolt_market', 'subscribe_market');
     const snapshot = res.structuredContent as SubscribeMarketResponse | undefined;
     if (snapshot) this.marketCache.seed(snapshot);
-    this.marketSubscribed = true;
+    this.marketSubscribedState = true;
     return snapshot ?? ({} as SubscribeMarketResponse);
   }
 
   /** Unsubscribe from the current station's market and drop its cached book. */
   async unsubscribeMarket(): Promise<void> {
     const baseId = this.location?.docked_at ?? this.marketCache.bases()[0];
-    this.marketSubscribed = false;
+    this.marketSubscribedState = false;
     await this.query('spacemolt_market', 'unsubscribe_market');
     if (baseId) this.marketCache.drop(baseId);
   }
@@ -626,14 +656,14 @@ export class Account {
       this.observationCache.seed(snapshot);
       this.bridgeObservationToLocation();
     }
-    this.observationSubscribed = true;
-    this.observationActiveScan = activeScan;
+    this.observationSubscribedState = true;
+    this.observationActiveScanState = activeScan;
     return snapshot ?? ({} as SubscribeObservationResponse);
   }
 
   /** Unsubscribe from the observation watch and clear its cache. */
   async unsubscribeObservation(): Promise<void> {
-    this.observationSubscribed = false;
+    this.observationSubscribedState = false;
     await this.query('spacemolt', 'unsubscribe_observation');
     this.observationCache.clear();
   }
@@ -869,16 +899,16 @@ export class Account {
   }
 
   private async resubscribe(): Promise<void> {
-    if (this.marketSubscribed) {
+    if (this.marketSubscribedState) {
       try {
         await this.subscribeMarket();
       } catch {
         /* best-effort */
       }
     }
-    if (this.observationSubscribed) {
+    if (this.observationSubscribedState) {
       try {
-        await this.subscribeObservation(this.observationActiveScan);
+        await this.subscribeObservation(this.observationActiveScanState);
       } catch {
         /* best-effort */
       }

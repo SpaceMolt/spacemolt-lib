@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Account } from '../src/account.ts';
 import { SpacemoltClient } from '../src/client.ts';
 import { MemoryCredentialStore } from '../src/auth/credentials.ts';
 import { FileCredentialStore } from '../src/auth/file-store.ts';
@@ -327,3 +328,161 @@ test('remove closes and forgets an account', async () => {
   expect(client.account('Nova')).toBeUndefined();
   expect(await client.credentialStore.get('Nova')).toBeUndefined();
 });
+
+// --- client-driven reconnect (a mass disconnect, e.g. a game-server restart) ---
+
+test('reconnects after a shared disconnect are paced by connectBatchSize/connectStaggerMs, not simultaneous', async () => {
+  // Regression test for a real incident: a game-server restart closed every
+  // connected account's socket near-simultaneously. Each account used to
+  // reconnect on its own independent timer with no coordination — this pins
+  // that reconnection instead goes through the exact same batch/stagger
+  // pacing as the initial connect (connectIds), not a parallel mechanism.
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 1,
+    connectBatchSize: 2,
+    connectBatchWaitMs: 150,
+  });
+  await client.addLogin('A', 'pw');
+  await client.addLogin('B', 'pw');
+  await client.addLogin('C', 'pw'); // 3rd account starts a new batch
+
+  const allP = client.connectAll();
+  for (let i = 0; i < 3; i++) {
+    while (sockets.length < i + 1) await new Promise((r) => setTimeout(r, 1));
+    autoServe(sockets[i]!, `acct${i}`);
+  }
+  await allP;
+
+  const before = sockets.length;
+  const reconnectedAt: number[] = [];
+  // Close all three at once — the same event a mass disconnect would cause.
+  for (let i = 0; i < 3; i++) sockets[i]!.close(1006, 'abnormal');
+
+  for (let i = 0; i < 3; i++) {
+    while (sockets.length < before + i + 1) await new Promise((r) => setTimeout(r, 1));
+    reconnectedAt.push(Date.now());
+    autoServe(sockets[before + i]!, `acct${i}`);
+  }
+
+  const withinBatchGap = reconnectedAt[1]! - reconnectedAt[0]!;
+  const acrossBatchGap = reconnectedAt[2]! - reconnectedAt[1]!;
+  expect(withinBatchGap).toBeLessThan(100); // just the 1ms stagger, plus test scheduling slop
+  expect(acrossBatchGap).toBeGreaterThanOrEqual(140); // the 150ms batch pause, not the 1ms stagger
+}, 5000);
+
+test('onAccountConnected fires again after a reconnect, with the new Account instance', async () => {
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0 });
+  await client.addLogin('Nova', 'pw');
+
+  const connectedAccounts: Account[] = [];
+  client.onAccountConnected((account) => connectedAccounts.push(account));
+
+  const connectP = client.connect('Nova');
+  await Promise.resolve();
+  autoServe(sockets[0]!, 'Nova');
+  const firstAccount = await connectP;
+  expect(connectedAccounts).toEqual([firstAccount]);
+
+  sockets[0]!.close(1006, 'abnormal');
+  while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
+  autoServe(sockets[1]!, 'Nova');
+
+  while (connectedAccounts.length < 2) await new Promise((r) => setTimeout(r, 2));
+  expect(connectedAccounts[1]).not.toBe(firstAccount);
+  expect(client.account('Nova')).toBe(connectedAccounts[1]);
+}, 5000);
+
+test('onAccountDisconnected fires on session_replaced and does not attempt reconnection', async () => {
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0 });
+  await client.addLogin('Nova', 'pw');
+
+  const disconnects: Array<{ id: string; code: number | undefined }> = [];
+  client.onAccountDisconnected((id, err) => disconnects.push({ id, code: err.code }));
+
+  const connectP = client.connect('Nova');
+  await Promise.resolve();
+  autoServe(sockets[0]!, 'Nova');
+  await connectP;
+
+  sockets[0]!.close(4001, 'session_replaced');
+  while (disconnects.length < 1) await new Promise((r) => setTimeout(r, 2));
+  expect(disconnects).toEqual([{ id: 'Nova', code: 4001 }]);
+
+  // give any (incorrect) reconnect attempt a chance to create a socket
+  await new Promise((r) => setTimeout(r, 20));
+  expect(sockets.length).toBe(1);
+  expect(client.account('Nova')).toBeUndefined();
+}, 5000);
+
+test('a market subscription active before a disconnect is restored on the reconnected account', async () => {
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0 });
+  await client.addLogin('Nova', 'pw');
+
+  const connectP = client.connect('Nova');
+  await Promise.resolve();
+  autoServe(sockets[0]!, 'Nova');
+  const account = await connectP;
+
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'subscribe_market') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'ok', structuredContent: { base_id: 'station-1', tick: 1, items: [] } },
+      });
+    }
+  };
+  await account.subscribeMarket();
+  expect(account.marketSubscribed).toBe(true);
+
+  sockets[0]!.close(1006, 'abnormal');
+  while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
+  const newSocket = sockets[1]!;
+  newSocket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  newSocket.onClientSend = (frame, s) => {
+    if (frame.action === 'login') {
+      s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+    } else if (frame.action === 'get_status') {
+      // authenticate()'s post-login state seed — must be answered or it hangs
+      // on its own queryTimeoutMs (15s default), well past this test's limit.
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'ok', structuredContent: { player: { id: 'plr_Nova', username: 'Nova' } } },
+      });
+    } else if (frame.action === 'subscribe_market') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            base_id: 'station-1',
+            tick: 2,
+            items: [{ item_id: 'reconnect_marker', price: 1, quantity: 1 }],
+          },
+        },
+      });
+    }
+  };
+
+  // Poll the actually-observable effect of the resubscribe (a book seeded
+  // with the reconnect response's distinct item) rather than a proxy flag —
+  // the frame being sent and the correlator settling the resulting promise
+  // happen a microtask apart, so a flag set synchronously inside
+  // onClientSend can flip true before subscribeMarket()'s own continuation
+  // (the cache seed) has run. seed() always resets tick to 0 for a fresh
+  // subscribe (see MarketCache.seed), so the item list — not tick — is what
+  // distinguishes the pre-disconnect subscribe from the post-reconnect one.
+  let newAccount: Account | undefined;
+  while (!newAccount?.market('station-1')?.items.has('reconnect_marker')) {
+    await new Promise((r) => setTimeout(r, 2));
+    newAccount = client.account('Nova');
+  }
+  expect(newAccount).not.toBe(account);
+}, 5000);
