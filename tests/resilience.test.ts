@@ -371,7 +371,9 @@ test('mutate() times out if acked but no action_result ever arrives, and does no
     url: 'ws://m',
     webSocketFactory: factory,
     seedState: false,
-    mutationTimeoutMs: 20,
+    // craft is not a transit action, so it's bounded by fastMutationTimeoutMs,
+    // not mutationTimeoutMs — see src/account.ts's TRANSIT_ACTIONS.
+    fastMutationTimeoutMs: 20,
   });
   const cp = account.connect();
   sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
@@ -403,6 +405,68 @@ test('mutate() times out if acked but no action_result ever arrives, and does no
   // the next mutation on this account must not be wedged behind the hung one
   const result = await account.mutate('spacemolt', 'undock');
   expect(result.command).toBe('undock');
+});
+
+test('jump/travel use the long mutationTimeoutMs even when fastMutationTimeoutMs is tiny', async () => {
+  // Regression: only jump/travel (TRANSIT_ACTIONS) can legitimately take many
+  // ticks (distance-based transit time) — every other mutation now gets the
+  // much shorter fastMutationTimeoutMs. A tiny fastMutationTimeoutMs must not
+  // leak into jump's bound.
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    fastMutationTimeoutMs: 5,
+    mutationTimeoutMs: 200,
+  });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'jump') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'jump', message: 'queued' } },
+      });
+      // never send action_result — jump should still wait out mutationTimeoutMs (200ms), not fastMutationTimeoutMs (5ms)
+    }
+  };
+
+  await expect(account.mutate('spacemolt', 'jump', { id: 'alpha' })).rejects.toThrow(
+    /No action_result for mutation .* within 200ms of its ack/,
+  );
+});
+
+test('a non-transit mutation is bounded by fastMutationTimeoutMs, not the long mutationTimeoutMs', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    fastMutationTimeoutMs: 20,
+    mutationTimeoutMs: 100_000,
+  });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'mine') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'mine', message: 'queued' } },
+      });
+      // never send action_result
+    }
+  };
+
+  await expect(account.mutate('spacemolt', 'mine')).rejects.toThrow(
+    /No action_result for mutation .* within 20ms of its ack/,
+  );
 });
 
 test('mutate() resolves immediately on a result frame without pending:true — no action_result is ever coming', async () => {
