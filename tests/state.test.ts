@@ -106,6 +106,36 @@ test('action_result deltas update the cache and fire onStateChange', async () =>
   expect(changes.at(-1)?.sort()).toEqual(['cargo', 'queue'] as StateSection[]);
 });
 
+test('a throwing onStateChange listener does not block the mutation it was reporting', async () => {
+  // Regression: routeFrame used to call stateListener before correlator.handle
+  // for action_result frames. A throwing listener (e.g. a consumer's state
+  // projection failing) meant correlator.handle never ran, stranding the
+  // awaiting mutate() until its full mutationTimeoutMs — on a connection that
+  // never actually closed.
+  const { account, socket } = await seededAccount();
+  account.onStateChange(() => {
+    throw new Error('simulated: downstream projection failed');
+  });
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'mine') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'mine', message: 'q' } },
+      });
+      s.serverSend({
+        type: 'action_result',
+        request_id: frame.request_id,
+        payload: { command: 'mine', tick: 1523, result: { cargo: [{ item_id: 'iron_ore', quantity: 160 }] } },
+      });
+    }
+  };
+  const result = await account.mutate('spacemolt', 'mine');
+  expect(result.delta).toEqual({ cargo: [{ item_id: 'iron_ore', quantity: 160 }] });
+  // the cache update itself must also have gone through before the throw
+  expect(account.cargo?.[0]?.quantity).toBe(160);
+});
+
 test('seedState:false skips the get_status seed', async () => {
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m/ws/v2', webSocketFactory: factory, seedState: false });
