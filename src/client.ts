@@ -64,20 +64,23 @@ export interface SpacemoltClientOptions {
    * Reconnect an account after an unexpected disconnect (a dropped
    * WebSocket after it was already connected — see `connectRetry` for the
    * initial connect instead). Default `true`. Driven by the client itself
-   * (not each `Account`'s own standalone reconnect logic) by re-running the
-   * same rate-limited `connect()` path used for the initial connect — see
-   * `handleAccountDisconnected` — so a mass disconnect (e.g. every account
-   * dropped at once by a game-server restart) reconnects the fleet through
-   * the same `connectBatchSize`/`connectStaggerMs`/`connectBatchWaitMs`
-   * pacing, instead of every account racing an independent timer. Pass
-   * `false` to leave a dropped account disconnected instead (see
-   * `onAccountDisconnected`). If you pass a `ReconnectOptions` object, only
-   * its truthiness matters — reconnect pacing now comes from `connectRetry`
-   * (since reconnecting literally re-runs `connect()`), not this option's
-   * own `maxRetries`/`baseDelayMs`/`maxDelayMs`. Never reconnects after a
-   * deliberate `close()`/`remove()`, a `session_replaced`, or an
-   * `auth_timeout`. Token-only accounts can't reconnect (the token is
-   * single-use).
+   * (not each `Account`'s own standalone reconnect logic), reconnecting the
+   * *same* `Account` instance in place (`Account.reconnectOnce` — fresh
+   * socket, re-authenticated, subscriptions restored) rather than replacing
+   * it, so anything holding a direct reference (e.g. a running loop) keeps
+   * working transparently. Paced through the same rate-limited queue used
+   * for the initial connect — see `handleAccountDisconnected` — so a mass
+   * disconnect (e.g. every account dropped at once by a game-server restart)
+   * reconnects the fleet through the same `connectBatchSize`/
+   * `connectStaggerMs`/`connectBatchWaitMs` pacing, instead of every account
+   * racing an independent timer. Pass `false` to leave a dropped account
+   * disconnected instead (see `onAccountDisconnected`). If you pass a
+   * `ReconnectOptions` object, only its truthiness matters — reconnect
+   * pacing comes from `connectRetry` (the same backoff config used for the
+   * initial connect), not this option's own `maxRetries`/`baseDelayMs`/
+   * `maxDelayMs`. Never reconnects after a deliberate `close()`/`remove()`,
+   * a `session_replaced`, or an `auth_timeout`. Token-only accounts can't
+   * reconnect (the token is single-use).
    */
   reconnect?: boolean | ReconnectOptions;
   /** HTTP origin for bulk data fetches. Defaults to the origin of `url`. */
@@ -148,32 +151,53 @@ export class SpacemoltClient {
   private mapCache?: MapCache;
   private clerkSource?: ClerkSource;
   private readonly accountConnectedListeners = new Set<(account: Account) => void>();
+  private readonly accountReconnectedListeners = new Set<(account: Account) => void>();
   private readonly accountDisconnectedListeners = new Set<
     (id: string, err: ConnectionClosedError) => void
   >();
   /** Paced by connectBatchSize/connectStaggerMs/connectBatchWaitMs — the same limiter drains both the initial fleet connect and later reconnects, see `enqueueRateLimited`. */
   private readonly rateLimitedQueue: Array<() => Promise<void>> = [];
   private rateLimitedQueueDraining = false;
+  /**
+   * Ids currently mid-reconnect. Guards against a socket dropping again
+   * *during* `reconnectAccountInPlace` (e.g. another rate-limit close before
+   * auth completes) re-firing `handleAccountDisconnected` and enqueuing a
+   * second, parallel reconnect chain for the same id — the drop instead
+   * surfaces as a failure inside the one already-running `withConnectRetry`
+   * loop, which retries it itself.
+   */
+  private readonly reconnectingIds = new Set<string>();
 
   constructor(private readonly opts: SpacemoltClientOptions = {}) {
     this.store = opts.store ?? new MemoryCredentialStore();
   }
 
   /**
-   * Fires whenever an account becomes connected+authenticated — the initial
-   * connect (`connect`/`connectAll`/`connectOwned`/`register`) and every
-   * later reconnect after an unexpected disconnect. Unlike `connectAll`'s/
-   * `connectOwned`'s per-call `onConnect` option (scoped to that one call, and
-   * silent about anything that happens afterward), this is a persistent
-   * subscription — the way a caller finds out a reconnect replaced an
-   * account's `Account` instance with a new one, so it can re-index/re-wire
-   * whatever it was keeping per-account (see `SpacemoltClient`-managed
-   * reconnection in `handleAccountDisconnected`). Returns an unsubscribe
-   * function.
+   * Fires the first time an id becomes a connected+authenticated `Account`
+   * instance — the initial connect (`connect`/`connectAll`/`connectOwned`/
+   * `register`). Does NOT fire again for a later reconnect after an
+   * unexpected disconnect — that reuses the same instance in place (see
+   * `Account.reconnectOnce`) rather than creating a new one, so there's
+   * nothing new to index/re-wire; see `onAccountReconnected` for that event
+   * instead. Unlike `connectAll`'s/`connectOwned`'s per-call `onConnect`
+   * option (scoped to that one call), this is a persistent subscription.
+   * Returns an unsubscribe function.
    */
   onAccountConnected(listener: (account: Account) => void): () => void {
     this.accountConnectedListeners.add(listener);
     return () => this.accountConnectedListeners.delete(listener);
+  }
+
+  /**
+   * Fires after an already-connected account's connection is restored
+   * following an unexpected disconnect — the same `Account` instance
+   * throughout, reconnected in place. Purely informational (e.g. logging);
+   * nothing needs re-indexing since the instance never changed. Returns an
+   * unsubscribe function.
+   */
+  onAccountReconnected(listener: (account: Account) => void): () => void {
+    this.accountReconnectedListeners.add(listener);
+    return () => this.accountReconnectedListeners.delete(listener);
   }
 
   /**
@@ -190,6 +214,10 @@ export class SpacemoltClient {
 
   private notifyAccountConnected(account: Account): void {
     for (const listener of this.accountConnectedListeners) listener(account);
+  }
+
+  private notifyAccountReconnected(account: Account): void {
+    for (const listener of this.accountReconnectedListeners) listener(account);
   }
 
   private notifyAccountDisconnected(id: string, err: ConnectionClosedError): void {
@@ -253,6 +281,37 @@ export class SpacemoltClient {
     return { account, result };
   }
 
+  /** Resolves `connectRetry` into a concrete backoff config. */
+  private connectRetryConfig(): Required<ReconnectOptions> {
+    const retryOpt = this.opts.connectRetry ?? true;
+    if (retryOpt === false) return { maxRetries: 0, baseDelayMs: 0, maxDelayMs: 0 };
+    return { ...DEFAULT_CONNECT_RETRY, ...(retryOpt === true ? {} : retryOpt) };
+  }
+
+  /**
+   * Retry `attempt` with the shared `connectRetry` backoff, honoring a 4003
+   * `connection_rate_limited` close's `retry_after` hint over the
+   * exponential fallback. Shared by the initial connect (`connect`) and an
+   * in-place reconnect (`reconnectAccountInPlace`) so both back off
+   * identically.
+   */
+  private async withConnectRetry<T>(attempt: () => Promise<T>): Promise<T> {
+    const retry = this.connectRetryConfig();
+    let lastErr: unknown;
+    for (let i = 0; i <= retry.maxRetries; i++) {
+      try {
+        return await attempt();
+      } catch (err) {
+        lastErr = err;
+        if (i < retry.maxRetries) {
+          const retryAfterMs = retryAfterMsFromClose(err);
+          await delay(retryAfterMs ?? Math.min(retry.baseDelayMs * 2 ** i, retry.maxDelayMs));
+        }
+      }
+    }
+    throw lastErr;
+  }
+
   /**
    * Connect and authenticate one stored account. Idempotent per id.
    *
@@ -267,12 +326,7 @@ export class SpacemoltClient {
     const stored = await this.store.get(id);
     if (!stored) throw new Error(`no stored credentials for account "${id}"`);
 
-    const retryOpt = this.opts.connectRetry ?? true;
-    const retry: Required<ReconnectOptions> =
-      retryOpt === false ? { maxRetries: 0, baseDelayMs: 0, maxDelayMs: 0 } : { ...DEFAULT_CONNECT_RETRY, ...(retryOpt === true ? {} : retryOpt) };
-
-    let lastErr: unknown;
-    for (let attempt = 0; attempt <= retry.maxRetries; attempt++) {
+    return this.withConnectRetry(async () => {
       const account = this.createAccount(id);
       this.connected.set(id, account);
       try {
@@ -292,18 +346,9 @@ export class SpacemoltClient {
       } catch (err) {
         this.connected.delete(id);
         account.close();
-        lastErr = err;
-        if (attempt < retry.maxRetries) {
-          // A 4003 (connection_rate_limited) close carries an authoritative
-          // retry_after hint — honor it instead of guessing with exponential
-          // backoff, which risks retrying before the server's per-IP
-          // WS-connection window has actually rolled over.
-          const retryAfterMs = retryAfterMsFromClose(err);
-          await delay(retryAfterMs ?? Math.min(retry.baseDelayMs * 2 ** attempt, retry.maxDelayMs));
-        }
+        throw err;
       }
-    }
-    throw lastErr;
+    });
   }
 
   /** Connect every stored account, staggered to respect rate limits. */
@@ -498,16 +543,27 @@ export class SpacemoltClient {
    * `Account`'s own (disabled — see `createAccount`) reconnect logic: an
    * unexpected disconnect closes every affected account at once (e.g. a
    * game-server restart), and reconnecting through the same rate-limited
-   * `connect()` path used for the initial connect — instead of each account
-   * racing its own independent timer — is what keeps a mass reconnect from
-   * re-tripping the server's per-IP WS-connection rate limit right as it
-   * recovers.
+   * queue used for the initial connect — instead of each account racing its
+   * own independent timer — is what keeps a mass reconnect from re-tripping
+   * the server's per-IP WS-connection rate limit right as it recovers.
+   *
+   * Reconnects in place (`Account.reconnectOnce`, same instance) rather than
+   * replacing the account with a new one: anything holding a direct
+   * reference to this `Account` (e.g. a running loop, which captures it once
+   * at start) keeps working transparently once the connection is restored,
+   * instead of being welded to a now-dead instance nobody is driving.
    */
   private handleAccountDisconnected(id: string, account: Account, err: ConnectionClosedError): void {
-    // A newer instance (an earlier reconnect, or the account was removed)
-    // has already superseded this one — nothing to do.
-    if (this.connected.get(id) !== account) return;
-    this.connected.delete(id);
+    // A newer instance (the account was removed) has already superseded
+    // this one, or a reconnect is already in flight for it — a socket
+    // dropping again *during* reconnectAccountInPlace (e.g. another
+    // rate-limit close before auth completes) re-fires this same listener
+    // on the same persistent instance; without this check it would enqueue
+    // a second, parallel reconnect chain instead of letting the one already
+    // running retry it.
+    if (this.connected.get(id) !== account || this.reconnectingIds.has(id)) {
+      return;
+    }
 
     // session_replaced: another connection took our slot — reconnecting
     // would just fight it. auth_timeout: we failed to auth in time. Neither
@@ -515,43 +571,20 @@ export class SpacemoltClient {
     // logic, now made here instead since the client owns this decision).
     const terminal = err.code === CLOSE_CODE.SESSION_REPLACED || err.code === CLOSE_CODE.AUTH_TIMEOUT;
     if (terminal || this.opts.reconnect === false) {
+      this.connected.delete(id);
       this.notifyAccountDisconnected(id, err);
       return;
     }
 
-    // Snapshot subscription state before the old instance is discarded —
-    // connect() constructs a fresh Account with no memory of it, so without
-    // this a reconnect would silently drop an active market/observation
-    // subscription instead of restoring it (what Account's own
-    // resubscribe() does today for a bare, self-reconnecting Account).
-    const wasMarketSubscribed = account.marketSubscribed;
-    const wasObservationSubscribed = account.observationSubscribed;
-    const observationActiveScan = account.observationActiveScan;
-
-    void this.enqueueRateLimited(async () => {
-      let reconnected: Account;
-      try {
-        reconnected = await this.connect(id);
-      } catch (reconnectErr) {
+    this.reconnectingIds.add(id);
+    void this.enqueueRateLimited(() => this.withConnectRetry(() => account.reconnectOnce()))
+      .then(() => this.notifyAccountReconnected(account))
+      .catch((reconnectErr: unknown) => {
         console.warn(`[spacemolt] failed to reconnect "${id}": ${reconnectErr}`);
+        this.connected.delete(id);
         this.notifyAccountDisconnected(id, err);
-        return;
-      }
-      if (wasMarketSubscribed) {
-        try {
-          await reconnected.subscribeMarket();
-        } catch {
-          /* best-effort, matches Account.resubscribe()'s own tolerance */
-        }
-      }
-      if (wasObservationSubscribed) {
-        try {
-          await reconnected.subscribeObservation(observationActiveScan);
-        } catch {
-          /* best-effort */
-        }
-      }
-    });
+      })
+      .finally(() => this.reconnectingIds.delete(id));
   }
 
   private createAccount(id: string): Account {
