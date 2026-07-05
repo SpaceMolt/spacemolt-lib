@@ -4389,17 +4389,6 @@ export type LoggedInPayload = {
         distress_last_sent_at?: string;
         docked_at_base?: string;
         empire: string;
-        empire_rep?: {
-            [key: string]: {
-                criminal: number;
-                criminal_encounters: number;
-                fame: number;
-                fear: number;
-                hate: number;
-                love: number;
-                need: number;
-            };
-        };
         experience: number;
         faction_id?: string;
         faction_rank?: string;
@@ -4709,17 +4698,6 @@ export type LoginResponse = {
         distress_last_sent_at?: string;
         docked_at_base?: string;
         empire: string;
-        empire_rep?: {
-            [key: string]: {
-                criminal: number;
-                criminal_encounters: number;
-                fame: number;
-                fear: number;
-                hate: number;
-                love: number;
-                need: number;
-            };
-        };
         experience: number;
         faction_id?: string;
         faction_rank?: string;
@@ -6275,17 +6253,6 @@ export type RegisterResponse = {
         distress_last_sent_at?: string;
         docked_at_base?: string;
         empire: string;
-        empire_rep?: {
-            [key: string]: {
-                criminal: number;
-                criminal_encounters: number;
-                fame: number;
-                fear: number;
-                hate: number;
-                love: number;
-                need: number;
-            };
-        };
         experience: number;
         faction_id?: string;
         faction_rank?: string;
