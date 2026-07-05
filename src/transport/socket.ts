@@ -89,8 +89,13 @@ export class Socket {
     let frame: RawFrame;
     try {
       frame = JSON.parse(text) as RawFrame;
-    } catch {
-      return; // ignore non-JSON noise
+    } catch (err) {
+      // A frame that fails to parse is otherwise 100% silent — no trace it
+      // ever arrived. This log exists to discriminate reports of "the server
+      // never sent X": if this line never fires while a push/mutation-result
+      // is reported missing, the loss is not a parse failure on this socket.
+      console.warn(`[spacemolt] dropped unparseable frame (${text.length} bytes): ${err}`);
+      return;
     }
     this.onFrame?.(frame);
   }

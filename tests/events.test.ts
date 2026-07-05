@@ -48,6 +48,31 @@ test('on returns an unsubscribe function', async () => {
   expect(count).toBe(1);
 });
 
+test('a throwing on(type) listener does not stop other listeners for the same frame', async () => {
+  const { account, socket } = await connected();
+  const seen: string[] = [];
+  account.on('chat_message', () => {
+    throw new Error('boom');
+  });
+  account.on('chat_message', (msg) => seen.push(String(msg.content)));
+  socket.serverSend({ type: 'chat_message', payload: { content: 'a' } });
+  expect(seen).toEqual(['a']);
+});
+
+test('a throwing on(type) listener does not stop onAny or streams for the same frame', async () => {
+  const { account, socket } = await connected();
+  account.on('chat_message', () => {
+    throw new Error('boom');
+  });
+  const types: string[] = [];
+  account.onAny((frame) => types.push(frame.type));
+  const stream = account.events('chat_message');
+  socket.serverSend({ type: 'chat_message', payload: { content: 'a' } });
+  expect(types).toEqual(['chat_message']);
+  const next = await stream.next();
+  expect(next.value?.content).toBe('a');
+});
+
 test('onAny receives every push frame', async () => {
   const { account, socket } = await connected();
   const types: string[] = [];

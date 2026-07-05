@@ -65,6 +65,11 @@ export class MockSocket implements WebSocketLike {
     for (const cb of this.listeners.message) cb({ data });
   }
 
+  /** Push raw (possibly malformed) bytes, bypassing JSON.stringify — for parse-failure tests. */
+  serverSendRaw(data: string): void {
+    for (const cb of this.listeners.message) cb({ data });
+  }
+
   /** The request_id of the most recently sent frame (for echoing). */
   lastRequestId(): string | undefined {
     return this.sent[this.sent.length - 1]?.request_id;
