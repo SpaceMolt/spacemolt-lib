@@ -802,7 +802,16 @@ export class Account {
         const delta = (frame as ActionResultFrame).payload.result;
         if (delta) {
           const changed = this.cache.applyDelta(delta);
-          if (changed.length) this.stateListener?.(changed);
+          if (changed.length) {
+            // A throwing consumer must never block mutation correlation below —
+            // that would strand the awaiting mutate()/query() call until its
+            // timeout, on a connection that stayed perfectly healthy.
+            try {
+              this.stateListener?.(changed);
+            } catch (err) {
+              console.warn(`[spacemolt] onStateChange listener threw: ${err}`);
+            }
+          }
         }
         if (!this.correlator.handle(frame)) this.emitter.emit(frame);
         return;
