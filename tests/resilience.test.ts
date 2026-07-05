@@ -437,6 +437,65 @@ test('mutate() resolves immediately on a result frame without pending:true — n
   expect(result.delta.details).toEqual({ action: 'craft', dry_run: true, mode: 'craft', recipe: 'widget' });
 });
 
+test('mutate() does NOT resolve early on a jump ack whose pending flag is nested under details', async () => {
+  // Regression test for a real incident: a live trace showed jump's ack
+  // nests its pending marker under `details` (`{details: {pending: true,
+  // command, message}, location: {...}, queue: {...}}`), unlike scan/undock
+  // which carry it at the top level. The correlator previously only checked
+  // the top level, so it misread every real jump ack as a "nothing queued"
+  // final answer (like craft's dry_run) and resolved immediately — releasing
+  // the account's mutation lane before the jump actually executed. The next
+  // queued jump then hit the server while the previous one was still
+  // in-flight and got rejected with `action_pending`, collapsing an entire
+  // multi-hop navigate-to-system route within milliseconds.
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false });
+  const cp = account.connect();
+  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  sockets[0]!.onClientSend = (frame, s) => {
+    if (frame.action === 'jump') {
+      // Exact shape captured live from the real game server.
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'Jump pending.',
+          structuredContent: {
+            details: { command: 'jump', message: 'Jump action pending. Will execute on next tick.', pending: true },
+            location: { system_id: 'alpha', docked_at: null },
+            queue: { has_pending: true },
+          },
+        },
+      });
+    }
+  };
+
+  let resolved = false;
+  const mutatePromise = account.mutate('spacemolt', 'jump', { id: 'alpha' }).then((r) => {
+    resolved = true;
+    return r;
+  });
+
+  // The ack alone must not resolve the mutation — only a real action_result should.
+  await tick();
+  await tick();
+  expect(resolved).toBe(false);
+
+  const jumpFrame = sockets[0]!.sent.find((f) => f.action === 'jump');
+  sockets[0]!.serverSend({
+    type: 'action_result',
+    request_id: jumpFrame!.request_id,
+    payload: { command: 'jump', tick: 5, result: { location: { system_id: 'alpha' } } },
+  });
+
+  const result = await mutatePromise;
+  expect(resolved).toBe(true);
+  expect(result.command).toBe('jump');
+  expect(result.tick).toBe(5);
+});
+
 test('a close while waiting for welcome rejects immediately instead of waiting out the timeout', async () => {
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, connectTimeoutMs: 5000 });

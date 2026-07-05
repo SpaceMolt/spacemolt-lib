@@ -3,17 +3,29 @@
  *
  * Two request shapes:
  *   - query    resolves on the synchronous `result` frame.
- *   - mutation is usually two-phase: a `result` ack (`pending: true`) arrives
- *              first, then — possibly many ticks later — an `action_result`
- *              (resolve) or `action_error` (reject). A synchronous validation
- *              failure short-circuits to an `error` frame (reject).
+ *   - mutation is usually two-phase: a `result` ack (pending marker set)
+ *              arrives first, then — possibly many ticks later — an
+ *              `action_result` (resolve) or `action_error` (reject). A
+ *              synchronous validation failure short-circuits to an `error`
+ *              frame (reject).
  *              But some mutation-classified actions resolve synchronously in
- *              a single `result` frame with no `pending: true` flag — nothing
- *              was queued, so no `action_result` is ever coming (e.g.
+ *              a single `result` frame with no pending marker anywhere —
+ *              nothing was queued, so no `action_result` is ever coming (e.g.
  *              `craft`/`recycle` with `dry_run: true`, which explicitly
  *              queues nothing). That `result` frame is treated as the final
  *              outcome instead of an ack, or the request would wait forever
  *              for an `action_result` the server was never going to send.
+ *
+ * The pending marker's location in structuredContent is NOT consistent
+ * across actions — verified live against the real server: `scan`/`undock`
+ * carry it at the top level (`{pending: true, command, message}`), while
+ * `jump` nests it under `details` (`{details: {pending: true, command,
+ * message}, location: {...}, queue: {...}}`). Checking only the top level
+ * (an earlier version of this file did) misreads a real jump ack as the
+ * "nothing queued" case, resolving it immediately instead of waiting for the
+ * real outcome — which released the next queued mutation before the
+ * previous one actually executed, and the server correctly rejected it with
+ * `action_pending`, collapsing a whole multi-hop route in milliseconds.
  *
  * Frames may interleave arbitrarily on the wire, so nothing here assumes
  * ordering beyond per-request_id sequencing.
@@ -32,6 +44,25 @@ import type {
 import { ConnectionClosedError, errorFromActionFrame, errorFromFrame, SpacemoltError } from '../errors.ts';
 
 export type RequestKind = 'query' | 'mutation';
+
+/**
+ * Extracts the pending ack from a mutation's `result` frame structuredContent,
+ * checking both known locations the flag has been observed in (see the
+ * module doc comment). Returns undefined if neither location flags pending —
+ * meaning this frame is the final outcome, not an ack.
+ */
+function extractPendingAck(structured: Record<string, unknown> | undefined): MutationAck | undefined {
+  if (!structured) return undefined;
+  if (structured['pending'] === true) {
+    return { command: String(structured['command'] ?? ''), message: String(structured['message'] ?? '') };
+  }
+  const details = structured['details'];
+  if (details && typeof details === 'object' && (details as Record<string, unknown>)['pending'] === true) {
+    const d = details as Record<string, unknown>;
+    return { command: String(d['command'] ?? ''), message: String(d['message'] ?? '') };
+  }
+  return undefined;
+}
 
 interface PendingBase {
   reject: (err: Error) => void;
@@ -95,7 +126,8 @@ export class Correlator {
           return true;
         }
         const structured = payload.structuredContent;
-        if (structured?.['pending'] !== true) {
+        const ack = extractPendingAck(structured);
+        if (!ack) {
           // Not an ack — this mutation resolved synchronously and nothing was
           // queued (e.g. a dry_run quote), so there's no action_result to
           // wait for. Settle now with this frame as the whole answer: no
@@ -111,10 +143,6 @@ export class Correlator {
         }
         // mutation: this is the pending ack — record it and keep waiting for
         // the action_result outcome.
-        const ack: MutationAck = {
-          command: String(structured['command'] ?? ''),
-          message: String(structured['message'] ?? ''),
-        };
         pending.ack = ack;
         pending.onAck?.(ack);
         return true;
