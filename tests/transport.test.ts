@@ -212,3 +212,47 @@ test('an unparseable frame is dropped without throwing, and logs a warning', asy
   socket.serverSend({ type: 'chat_message', payload: { content: 'still alive' } });
   expect(seen).toEqual(['still alive']);
 });
+
+test('a single WebSocket message carrying multiple newline-delimited frames routes every frame', async () => {
+  // Regression for a real incident: the server batches pushes into one
+  // WebSocket message as newline-delimited JSON under load (confirmed live —
+  // a reconnect burst arrived as one message: {"type":"reconnected",...}\n
+  // {"type":"logged_in",...}). Parsing the whole message as a single JSON
+  // value always failed whenever more than one frame arrived together,
+  // silently dropping every frame in the batch.
+  const { account, socket } = await connected();
+  const seen: string[] = [];
+  account.on('chat_message', (msg) => seen.push(String(msg.content)));
+
+  const batch = [
+    JSON.stringify({ type: 'chat_message', payload: { content: 'one' } }),
+    JSON.stringify({ type: 'chat_message', payload: { content: 'two' } }),
+    JSON.stringify({ type: 'chat_message', payload: { content: 'three' } }),
+  ].join('\n');
+  socket.serverSendRaw(batch);
+
+  expect(seen).toEqual(['one', 'two', 'three']);
+});
+
+test('one malformed line in a batch is dropped and logged without losing the other frames in the same message', async () => {
+  const { account, socket } = await connected();
+  const seen: string[] = [];
+  account.on('chat_message', (msg) => seen.push(String(msg.content)));
+
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const batch = [
+      JSON.stringify({ type: 'chat_message', payload: { content: 'before' } }),
+      'not valid json{{{',
+      JSON.stringify({ type: 'chat_message', payload: { content: 'after' } }),
+    ].join('\n');
+    socket.serverSendRaw(batch);
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  expect(seen).toEqual(['before', 'after']);
+  expect(warnings.some((args) => String(args[0]).includes('dropped unparseable frame'))).toBe(true);
+});
