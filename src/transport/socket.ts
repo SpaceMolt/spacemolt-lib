@@ -94,7 +94,14 @@ export class Socket {
       // ever arrived. This log exists to discriminate reports of "the server
       // never sent X": if this line never fires while a push/mutation-result
       // is reported missing, the loss is not a parse failure on this socket.
-      console.warn(`[spacemolt] dropped unparseable frame (${text.length} bytes): ${err}`);
+      // head/tail samples (not the full body, to bound log volume) are what
+      // distinguish a truncated frame from a concatenation of multiple
+      // frames from genuine garbage — worth the extra log line width.
+      const head = text.slice(0, 200);
+      const tail = text.length > 400 ? text.slice(-200) : '';
+      console.warn(
+        `[spacemolt] dropped unparseable frame (${text.length} bytes): ${err} | head=${JSON.stringify(head)}${tail ? ` tail=${JSON.stringify(tail)}` : ''}`,
+      );
       return;
     }
     this.onFrame?.(frame);
