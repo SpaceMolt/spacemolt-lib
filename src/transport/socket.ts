@@ -84,27 +84,39 @@ export class Socket {
     this.ws?.close();
   }
 
+  /**
+   * The server batches multiple pushes into a single WebSocket message as
+   * newline-delimited JSON under load (confirmed live: a burst of
+   * reconnect-related frames arrived as one message,
+   * `{"type":"reconnected",...}\n{"type":"logged_in",...}`). A JSON string
+   * value's own newlines are always escaped (`\n`, two characters) by any
+   * conforming serializer, so a raw newline byte in the message text is only
+   * ever a frame separator, never content — splitting on it is safe. Each
+   * line is parsed and routed independently, so one malformed line in a
+   * batch no longer takes every other frame in that same message down with
+   * it (the previous behavior: parsing the whole batch as one JSON value,
+   * which always failed whenever more than one frame arrived together).
+   */
   private handleMessage(data: unknown): void {
     const text = typeof data === 'string' ? data : String(data);
-    let frame: RawFrame;
-    try {
-      frame = JSON.parse(text) as RawFrame;
-    } catch (err) {
-      // A frame that fails to parse is otherwise 100% silent — no trace it
-      // ever arrived. This log exists to discriminate reports of "the server
-      // never sent X": if this line never fires while a push/mutation-result
-      // is reported missing, the loss is not a parse failure on this socket.
-      // head/tail samples (not the full body, to bound log volume) are what
-      // distinguish a truncated frame from a concatenation of multiple
-      // frames from genuine garbage — worth the extra log line width.
-      const head = text.slice(0, 200);
-      const tail = text.length > 400 ? text.slice(-200) : '';
-      console.warn(
-        `[spacemolt] dropped unparseable frame (${text.length} bytes): ${err} | head=${JSON.stringify(head)}${tail ? ` tail=${JSON.stringify(tail)}` : ''}`,
-      );
-      return;
+    for (const line of text.split('\n')) {
+      if (!line) continue;
+      let frame: RawFrame;
+      try {
+        frame = JSON.parse(line) as RawFrame;
+      } catch (err) {
+        // A frame that fails to parse is otherwise 100% silent — no trace it
+        // ever arrived. head/tail samples (not the full body, to bound log
+        // volume) are what distinguish truncation from genuine garbage.
+        const head = line.slice(0, 200);
+        const tail = line.length > 400 ? line.slice(-200) : '';
+        console.warn(
+          `[spacemolt] dropped unparseable frame (${line.length} bytes): ${err} | head=${JSON.stringify(head)}${tail ? ` tail=${JSON.stringify(tail)}` : ''}`,
+        );
+        continue;
+      }
+      this.onFrame?.(frame);
     }
-    this.onFrame?.(frame);
   }
 
   private markClosed(err: ConnectionClosedError): void {
