@@ -242,8 +242,10 @@ export class Account {
   private reconnecting = false;
   private mutationLane: Promise<unknown> = Promise.resolve();
   private marketSubscribedState = false;
+  private subscribedMarketBaseId: string | undefined;
   private observationSubscribedState = false;
   private observationActiveScanState = false;
+  private subscribedObservationPoiId: string | undefined;
   private reconnectedListener: (() => void) | null = null;
   private reconnectingListener: ((attempt: number) => void) | null = null;
   private disconnectedListener: ((err: ConnectionClosedError) => void) | null = null;
@@ -473,6 +475,7 @@ export class Account {
     const snapshot = res.structuredContent as V2GameState | undefined;
     if (snapshot) {
       const changed = this.cache.seed(snapshot);
+      if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
       if (changed.length) this.stateListener?.(changed);
     }
     return this.cache.snapshot();
@@ -647,19 +650,30 @@ export class Account {
    * Subscribe to the order book of the station you're docked at. Returns the
    * baseline snapshot and seeds the market cache; `market_update` pushes are
    * merged automatically. Read with `account.market(baseId)`.
+   *
+   * The server subscription is scoped to "wherever you're currently docked"
+   * and has no explicit unsubscribe signal when it lapses: it's silently
+   * dropped server-side the instant you undock (`flushMarketSubscriptions`,
+   * `internal/game/market_subscriptions.go`), with no notification telling
+   * the client this happened. `checkSubscriptionsAgainstLocation` below is
+   * the client-side half of that — it watches for the same docked_at change
+   * and drops the stale book proactively, so `market()` can't keep serving a
+   * book the server has already stopped updating.
    */
   async subscribeMarket(): Promise<SubscribeMarketResponse> {
     const res = await this.query('spacemolt_market', 'subscribe_market');
     const snapshot = res.structuredContent as SubscribeMarketResponse | undefined;
     if (snapshot) this.marketCache.seed(snapshot);
     this.marketSubscribedState = true;
+    this.subscribedMarketBaseId = snapshot?.base_id;
     return snapshot ?? ({} as SubscribeMarketResponse);
   }
 
   /** Unsubscribe from the current station's market and drop its cached book. */
   async unsubscribeMarket(): Promise<void> {
-    const baseId = this.location?.docked_at ?? this.marketCache.bases()[0];
+    const baseId = this.subscribedMarketBaseId ?? this.location?.docked_at ?? this.marketCache.bases()[0];
     this.marketSubscribedState = false;
+    this.subscribedMarketBaseId = undefined;
     await this.query('spacemolt_market', 'unsubscribe_market');
     if (baseId) this.marketCache.drop(baseId);
   }
@@ -678,6 +692,12 @@ export class Account {
    * `bridgeObservationToLocation`), so `account.state.location` reflects live
    * data too once subscribed, instead of only refreshing on the next
    * `get_status`/mutation delta.
+   *
+   * Scoped to your current POI the same way `subscribeMarket` is scoped to
+   * your current dock — see the docked_at note there; the same silent
+   * server-side drop on leaving the POI applies here
+   * (`internal/game/observation_subscriptions.go`), and
+   * `checkSubscriptionsAgainstLocation` guards against it the same way.
    */
   async subscribeObservation(activeScan = false): Promise<SubscribeObservationResponse> {
     const res = await this.query('spacemolt', 'subscribe_observation', activeScan ? { active_scan: true } : undefined);
@@ -688,12 +708,14 @@ export class Account {
     }
     this.observationSubscribedState = true;
     this.observationActiveScanState = activeScan;
+    this.subscribedObservationPoiId = snapshot?.poi_id;
     return snapshot ?? ({} as SubscribeObservationResponse);
   }
 
   /** Unsubscribe from the observation watch and clear its cache. */
   async unsubscribeObservation(): Promise<void> {
     this.observationSubscribedState = false;
+    this.subscribedObservationPoiId = undefined;
     await this.query('spacemolt', 'unsubscribe_observation');
     this.observationCache.clear();
   }
@@ -723,6 +745,37 @@ export class Account {
   /** The current observation watch view, if subscribed. */
   observation(): ObservationView | null {
     return this.observationCache.current();
+  }
+
+  /**
+   * Detects a docked/POI change away from an active market or observation
+   * subscription and proactively drops the now-dead cache entry, mirroring
+   * the server's own silent unsubscribe-on-move (see the notes on
+   * `subscribeMarket`/`subscribeObservation`). Without this, `market()`/
+   * `observation()` would keep serving whatever was last cached — frozen,
+   * with nothing distinguishing it from a genuinely live book — for as long
+   * as nothing else happens to touch that specific base/POI again. Called
+   * after every state update that could carry a `location` change.
+   */
+  private checkSubscriptionsAgainstLocation(): void {
+    if (
+      this.marketSubscribedState &&
+      this.subscribedMarketBaseId !== undefined &&
+      this.location?.docked_at !== this.subscribedMarketBaseId
+    ) {
+      this.marketCache.drop(this.subscribedMarketBaseId);
+      this.marketSubscribedState = false;
+      this.subscribedMarketBaseId = undefined;
+    }
+    if (
+      this.observationSubscribedState &&
+      this.subscribedObservationPoiId !== undefined &&
+      this.location?.poi_id !== this.subscribedObservationPoiId
+    ) {
+      this.observationCache.clear();
+      this.observationSubscribedState = false;
+      this.subscribedObservationPoiId = undefined;
+    }
   }
 
   /** Close the connection deliberately. Suppresses auto-reconnect. */
@@ -832,6 +885,7 @@ export class Account {
         const delta = (frame as ActionResultFrame).payload.result;
         if (delta) {
           const changed = this.cache.applyDelta(delta);
+          if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
           if (changed.length) {
             // A throwing consumer must never block mutation correlation below —
             // that would strand the awaiting mutate()/query() call until its
