@@ -140,6 +140,69 @@ test('subscribeMarket seeds the book and market_update merges changed items', as
   expect(book?.items.get('water')?.sell_orders[0]?.quantity).toBe(100); // untouched item preserved
 });
 
+test('market() stops serving a book once the account undocks — the server drops the subscription silently on move, with no push telling the client', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'subscribe_market') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            base_id: 'earth_station',
+            base_name: 'Earth Station',
+            items: [{ item_id: 'iron_ore', sell_orders: [{ price_each: 10, quantity: 5 }], buy_orders: [] }],
+          },
+        },
+      });
+    }
+  };
+  await account.subscribeMarket();
+  expect(account.market('earth_station')?.items.size).toBe(1);
+  expect(account.marketSubscribed).toBe(true);
+
+  // Simulate an undock mutation's action_result delta — no market_update or
+  // unsubscribe ack is ever sent for this by the server.
+  socket.serverSend({
+    type: 'action_result',
+    request_id: 'undock-1',
+    payload: { command: 'undock', tick: 2, result: { location: { docked_at: null } } },
+  });
+
+  expect(account.market('earth_station')).toBeUndefined();
+  expect(account.marketSubscribed).toBe(false);
+});
+
+test('market() keeps serving the book across a state update that leaves docked_at unchanged', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'subscribe_market') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            base_id: 'earth_station',
+            items: [{ item_id: 'iron_ore', sell_orders: [{ price_each: 10, quantity: 5 }], buy_orders: [] }],
+          },
+        },
+      });
+    }
+  };
+  await account.subscribeMarket();
+
+  socket.serverSend({
+    type: 'action_result',
+    request_id: 'sell-1',
+    payload: { command: 'sell', tick: 2, result: { location: { docked_at: 'earth_station' }, credits: 500 } },
+  });
+
+  expect(account.market('earth_station')?.items.size).toBe(1);
+  expect(account.marketSubscribed).toBe(true);
+});
+
 // --- observation bridges into location ---
 
 function respondToSubscribeObservation(socket: MockSocket, nearby: SubscribeObservationResponse['nearby']): void {
@@ -217,6 +280,30 @@ test('the observation bridge does not touch location before it has been seeded',
 
   expect(account.state.location).toBeUndefined();
   expect(account.observation()?.nearby.size).toBe(1); // the separate observation cache still has it
+});
+
+test('observation() clears once the account leaves the subscribed POI — same silent server-side drop as market subscriptions', async () => {
+  const { account, socket } = await connected();
+  socket.serverSend({
+    type: 'action_result',
+    request_id: 'seed',
+    payload: { command: 'dock', tick: 1, result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } } },
+  });
+
+  respondToSubscribeObservation(socket, [{ player_id: 'p1', username: 'Nova', in_combat: false }]);
+  await account.subscribeObservation();
+  expect(account.observation()?.nearby.size).toBe(1);
+  expect(account.observationSubscribed).toBe(true);
+
+  // Move to a different POI — no observation_update or unsubscribe ack is ever sent for this.
+  socket.serverSend({
+    type: 'action_result',
+    request_id: 'travel-1',
+    payload: { command: 'travel', tick: 2, result: { location: { poi_id: 'mars_station', docked_at: null } } },
+  });
+
+  expect(account.observation()).toBeNull();
+  expect(account.observationSubscribed).toBe(false);
 });
 
 // --- observation cache unit ---
