@@ -389,6 +389,7 @@ export type CatalogDump = {
         personal_bonus_value?: number;
         personal_service_type?: string;
         pirate_base_only?: boolean;
+        player_station_buildable?: boolean;
         power_draw?: number;
         power_supply?: number;
         recipe_id?: string;
@@ -759,6 +760,7 @@ export type CatalogResponse = {
         personal_bonus_value?: number;
         personal_service_type?: string;
         pirate_base_only?: boolean;
+        player_station_buildable?: boolean;
         power_draw?: number;
         power_supply?: number;
         recipe_id?: string;
@@ -1567,6 +1569,7 @@ export type DockResponse = {
     passenger_arrivals?: {
         delivered?: Array<{
             base_fare: number;
+            berth_class?: string;
             bio: string;
             citizen_id: string;
             class: string;
@@ -1583,6 +1586,7 @@ export type DockResponse = {
         };
         stranded?: Array<{
             base_fare: number;
+            berth_class?: string;
             bio: string;
             citizen_id: string;
             class: string;
@@ -4246,6 +4250,7 @@ export type ListPassengersResponse = {
     first_berths: string;
     passengers: Array<{
         base_fare: number;
+        berth_class?: string;
         bio: string;
         citizen_id: string;
         class: string;
@@ -4314,6 +4319,7 @@ export type LoadPassengersResponse = {
     count: number;
     loaded: Array<{
         base_fare: number;
+        berth_class?: string;
         bio: string;
         citizen_id: string;
         class: string;
@@ -7648,6 +7654,7 @@ export type UnloadPassengerResponse = {
 } | {
     delivered: Array<{
         base_fare: number;
+        berth_class?: string;
         bio: string;
         citizen_id: string;
         class: string;
@@ -7665,6 +7672,7 @@ export type UnloadPassengerResponse = {
     };
     stranded: Array<{
         base_fare: number;
+        berth_class?: string;
         bio: string;
         citizen_id: string;
         class: string;
