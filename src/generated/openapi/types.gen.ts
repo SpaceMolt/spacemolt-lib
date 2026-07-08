@@ -3337,9 +3337,6 @@ export type GetActionLogResponse = {
 export type GetBaseResponse = {
     base: {
         allow_outsider_facilities?: boolean;
-        allowed_factions?: Array<string>;
-        allowed_players?: Array<string>;
-        banned_players?: Array<string>;
         defense_level: number;
         description: string;
         empire?: string;
@@ -3912,9 +3909,6 @@ export type GetPoiResponse = {
     };
     base?: {
         allow_outsider_facilities?: boolean;
-        allowed_factions?: Array<string>;
-        allowed_players?: Array<string>;
-        banned_players?: Array<string>;
         defense_level: number;
         description: string;
         empire?: string;
