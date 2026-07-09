@@ -365,6 +365,8 @@ export type CatalogDump = {
         degraded_description?: string;
         deposit_to_empire_reserves?: boolean;
         description: string;
+        dining_points?: number;
+        disguised?: boolean;
         empire?: string;
         expansion_of?: string;
         expansion_scale?: number;
@@ -376,6 +378,7 @@ export type CatalogDump = {
         id: string;
         is_recycler?: boolean;
         labor_cost: number;
+        leisure_points?: number;
         level: number;
         life_support_draw?: number;
         life_support_supply?: number;
@@ -399,6 +402,7 @@ export type CatalogDump = {
         scan_power?: number;
         service_type?: string;
         station_or_faction_only?: boolean;
+        tourism_upkeep?: boolean;
         unique?: boolean;
         upgrades_from?: string;
     }>;
@@ -736,6 +740,8 @@ export type CatalogResponse = {
         degraded_description?: string;
         deposit_to_empire_reserves?: boolean;
         description: string;
+        dining_points?: number;
+        disguised?: boolean;
         empire?: string;
         expansion_of?: string;
         expansion_scale?: number;
@@ -747,6 +753,7 @@ export type CatalogResponse = {
         id: string;
         is_recycler?: boolean;
         labor_cost: number;
+        leisure_points?: number;
         level: number;
         life_support_draw?: number;
         life_support_supply?: number;
@@ -770,6 +777,7 @@ export type CatalogResponse = {
         scan_power?: number;
         service_type?: string;
         station_or_faction_only?: boolean;
+        tourism_upkeep?: boolean;
         unique?: boolean;
         upgrades_from?: string;
     }>;
@@ -1654,6 +1662,13 @@ export type DockResponse = {
     }>;
 };
 
+export type EspionageResponse = {
+    action: string;
+    intel_type?: string;
+    outcome: string;
+    story: string;
+};
+
 export type EstimatePurchaseResponse = {
     action: string;
     available: number;
@@ -1718,11 +1733,13 @@ export type FacilityResponse = {
         category: string;
         custom_name?: string;
         description: string;
+        dining_points?: number;
         facility_id: string;
         faction_id?: string;
         faction_service?: string;
         is_recycler?: boolean;
         labor_per_cycle?: number;
+        leisure_points?: number;
         level: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
@@ -1751,6 +1768,7 @@ export type FacilityResponse = {
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
         service?: string;
+        tourism_upkeep?: boolean;
         type: string;
         under_construction?: boolean;
     }>;
@@ -1769,11 +1787,13 @@ export type FacilityResponse = {
         category: string;
         custom_name?: string;
         description: string;
+        dining_points?: number;
         facility_id: string;
         faction_id?: string;
         faction_service?: string;
         is_recycler?: boolean;
         labor_per_cycle?: number;
+        leisure_points?: number;
         level: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
@@ -1802,6 +1822,7 @@ export type FacilityResponse = {
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
         service?: string;
+        tourism_upkeep?: boolean;
         type: string;
         under_construction?: boolean;
     }>;
@@ -1833,11 +1854,13 @@ export type FacilityResponse = {
         category: string;
         custom_name?: string;
         description: string;
+        dining_points?: number;
         facility_id: string;
         faction_id?: string;
         faction_service?: string;
         is_recycler?: boolean;
         labor_per_cycle?: number;
+        leisure_points?: number;
         level: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
@@ -1866,6 +1889,7 @@ export type FacilityResponse = {
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
         service?: string;
+        tourism_upkeep?: boolean;
         type: string;
         under_construction?: boolean;
     }>;
@@ -1876,11 +1900,13 @@ export type FacilityResponse = {
         category: string;
         custom_name?: string;
         description: string;
+        dining_points?: number;
         facility_id: string;
         faction_id?: string;
         faction_service?: string;
         is_recycler?: boolean;
         labor_per_cycle?: number;
+        leisure_points?: number;
         level: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
@@ -1909,6 +1935,7 @@ export type FacilityResponse = {
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
         service?: string;
+        tourism_upkeep?: boolean;
         type: string;
         under_construction?: boolean;
     }>;
@@ -16577,6 +16604,43 @@ export type SpacemoltFleetStatusResponses = {
 };
 
 export type SpacemoltFleetStatusResponse = SpacemoltFleetStatusResponses[keyof SpacemoltFleetStatusResponses];
+
+export type SpacemoltIntelEspionageData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_intel/espionage';
+};
+
+export type SpacemoltIntelEspionageErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltIntelEspionageResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (EspionageResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: EspionageResponse;
+        };
+    };
+};
+
+export type SpacemoltIntelEspionageResponse = SpacemoltIntelEspionageResponses[keyof SpacemoltIntelEspionageResponses];
 
 export type SpacemoltIntelHelpData = {
     body?: never;

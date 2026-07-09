@@ -40,6 +40,7 @@ import type {
   DepositItemsResponse,
   DistressSignalResponse,
   DockResponse,
+  EspionageResponse,
   EstimatePurchaseResponse,
   FacilityResponse,
   FactionAcceptAllyResponse,
@@ -1947,6 +1948,8 @@ export interface Commands {
     status(): Promise<QueryResult<FleetStatusResponse>>;
   };
   spacemolt_intel: {
+    /** Send a spy to gather intelligence on the station you're docked at, using your faction's Espionage HQ */
+    espionage(): Promise<MutationResult<EspionageResponse>>;
     /** View faction intel coverage statistics */
     intel_status(): Promise<QueryResult<FactionIntelStatusResponse>>;
     /** Query your faction's intel database, or an allied faction's */
@@ -2333,6 +2336,7 @@ export function buildCommands(dispatch: CommandDispatch): Commands {
       status: bind("spacemolt_fleet", "status"),
     },
     spacemolt_intel: {
+      espionage: bind("spacemolt_intel", "espionage"),
       intel_status: bind("spacemolt_intel", "intel_status"),
       query_intel: bind("spacemolt_intel", "query_intel"),
       query_trade_intel: bind("spacemolt_intel", "query_trade_intel"),
