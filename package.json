@@ -32,10 +32,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/SpaceMolt/spacemolt-lib.git"
+    "url": "git+https://github.com/SpaceMolt/spacemolt-lib.git"
   },
   "homepage": "https://www.spacemolt.com",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.73.0",
     "@types/bun": "^1.3.9"
