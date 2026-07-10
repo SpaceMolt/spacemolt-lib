@@ -121,10 +121,14 @@ The bump level is computed programmatically — `scripts/classify-bump.ts` print
 `.github/workflows/release.yml` runs the classifier on every change to `main`
 (PR merges via `push`; spec syncs via `workflow_run`, since the sync's
 `GITHUB_TOKEN` commit doesn't fire a `push`), gates on typecheck + tests, then
-bumps `package.json`, tags `vX.Y.Z`, and cuts a GitHub Release whose notes are
-the classifier's reasons. The bump commit is pushed with `GITHUB_TOKEN`, which
-does not re-trigger workflows — so there's no release loop. **No npm publish
-yet** (consume from git/tags); wiring `npm publish` is a later step. Rules guarded
+bumps `package.json`, tags `vX.Y.Z`, cuts a GitHub Release whose notes are the
+classifier's reasons, and publishes to npm. The bump commit is pushed with
+`GITHUB_TOKEN`, which does not re-trigger workflows — so there's no release
+loop. Publishing uses npm **trusted publishing (OIDC)** — the workflow has
+`id-token: write` and a trusted publisher is configured on the `@spacemolt/lib`
+package settings (org `SpaceMolt`, repo `spacemolt-lib`, workflow
+`release.yml`); there is no `NPM_TOKEN` secret. `package.json` carries
+`publishConfig.access: public`, required for a scoped package. Rules guarded
 by `tests/classify-bump.test.ts`.
 
 `GENERATED_SPEC_VERSION` (exported) records the gameserver spec version the

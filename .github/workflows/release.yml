@@ -13,9 +13,9 @@ name: Release
 #   design does NOT fire a push event, so we hook its completion instead.
 # - workflow_dispatch: manual.
 #
-# No npm publish yet — this tags + cuts a GitHub Release only. The version bump
-# commit is pushed with GITHUB_TOKEN, which does not re-trigger workflows, so
-# there is no release loop.
+# Publishes to npm via trusted publishing (OIDC) — no long-lived NPM_TOKEN.
+# The version bump commit is pushed with GITHUB_TOKEN, which does not
+# re-trigger workflows, so there is no release loop.
 
 on:
   push:
@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: release
@@ -50,6 +51,16 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Setup Node (for npm trusted publishing)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing (OIDC) requires npm >= 11.5.1; Node's bundled npm is older.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: bun install
@@ -105,3 +116,6 @@ jobs:
           git tag -a "v${NEXT}" -m "v${NEXT}"
           git push origin "v${NEXT}"
           gh release create "v${NEXT}" --title "v${NEXT}" --notes-file /tmp/notes.md
+
+          bun run build
+          npm publish
