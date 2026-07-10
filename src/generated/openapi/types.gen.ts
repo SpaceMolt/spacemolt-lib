@@ -9087,9 +9087,9 @@ export type SpacemoltCraftData = {
             [key: string]: unknown;
         }>;
         /**
-         * Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee). Auto-routing prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.
+         * Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best facility globally, so a busy own facility may route to an idle public rental. Use 'prefer_own' to keep the job on your own (then faction) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.
          */
-        preset?: 'fast' | 'cheap' | 'workshop';
+        preset?: 'fast' | 'cheap' | 'prefer_own' | 'workshop';
         /**
          * Number of output items to make (default 1). Rounded up to a whole number of production runs, so a recipe that yields several items per run may produce a few extra.
          */
