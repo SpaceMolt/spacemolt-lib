@@ -16,10 +16,14 @@ store). Uses only web-standard `WebSocket`/`fetch` in the core.
 
 ## Install
 
-> **Pre-npm.** Not published to the registry yet. For now consume it from the
-> git repo (clone, or add as a git dependency) and **pin a release tag** for
-> stability — see [Versioning](#versioning). Once published this becomes
-> `bun add @spacemolt/lib`.
+```sh
+bun add @spacemolt/lib
+# or: npm install @spacemolt/lib
+```
+
+The server this library talks to is a single live deployment that changes
+often — see [Versioning](#versioning) for why that means updating promptly
+matters more than pinning a version.
 
 ## Quickstart
 
@@ -273,7 +277,13 @@ changes that further improve type coverage.
 **True semver, honest about breakage: `major` = your code breaks.** No "0.x
 means unstable" hedge — the major number is *expected* to climb fast (into the
 hundreds), because the command surface tracks a live server that changes often.
-A high major isn't instability theater; it's the signal to **pin a version**.
+
+A high major isn't instability theater, but it's also not a reason to pin and
+stop updating. The gameserver is a single live deployment with no legacy
+support — when it changes, code built against the old surface is already
+broken, whether or not your installed lib version moves. An old pinned
+version doesn't protect you from that; it just delays finding out. **Update
+promptly** and read what a major bump changed before you do.
 
 - **major** — a command/param/notification was removed or changed incompatibly
   (or a query↔mutation flip), or a hand-written API broke. Your code may need

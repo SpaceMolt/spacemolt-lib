@@ -102,7 +102,13 @@ server is the right place to fix; open the PR only when a milestone needs it.
 is no "0.x means unstable" hedge — we started at `1.0.0` and the major number is
 *expected* to climb fast, because a self-maintaining lib whose command surface
 tracks a live server breaks things regularly. A high major (we'll be in the
-hundreds soon enough) is the honest stability signal: pin a version.
+hundreds soon enough) is the honest stability signal — **not** a reason to pin
+and forget. The gameserver is a single live deployment with no legacy support:
+when it ships a breaking change, code built against the old surface is already
+broken whether or not the lib version moves. Staying on an old lib version
+doesn't prevent that breakage, it just hides it until you finally upgrade and
+hit every accumulated change at once. The version number exists so you know
+*what* changed when you update promptly, not so you can defer updating.
 
 The bump level is computed programmatically — `scripts/classify-bump.ts` prints
 `{ next, level, reasons }` as `max(catalog-diff, commit-signal)`:
