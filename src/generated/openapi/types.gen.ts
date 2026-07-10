@@ -565,6 +565,7 @@ export type CatalogResponse = {
             type: string;
         };
         extracted_by?: string;
+        food_type?: string;
         hazardous?: boolean;
         hidden?: boolean;
         id: string;
@@ -1741,6 +1742,7 @@ export type FacilityResponse = {
         labor_per_cycle?: number;
         leisure_points?: number;
         level: number;
+        maintenance_level?: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
             name: string;
@@ -1795,6 +1797,7 @@ export type FacilityResponse = {
         labor_per_cycle?: number;
         leisure_points?: number;
         level: number;
+        maintenance_level?: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
             name: string;
@@ -1862,6 +1865,7 @@ export type FacilityResponse = {
         labor_per_cycle?: number;
         leisure_points?: number;
         level: number;
+        maintenance_level?: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
             name: string;
@@ -1908,6 +1912,7 @@ export type FacilityResponse = {
         labor_per_cycle?: number;
         leisure_points?: number;
         level: number;
+        maintenance_level?: number;
         maintenance_per_cycle?: Array<{
             item_id: string;
             name: string;
@@ -4518,6 +4523,9 @@ export type LoggedInPayload = {
             insurance_payouts_received: number;
             insurance_policies_bought: number;
             items_crafted: number;
+            items_crafted_by_type?: {
+                [key: string]: number;
+            };
             items_jettisoned: number;
             items_sold_by_type?: {
                 [key: string]: number;
@@ -4827,6 +4835,9 @@ export type LoginResponse = {
             insurance_payouts_received: number;
             insurance_policies_bought: number;
             items_crafted: number;
+            items_crafted_by_type?: {
+                [key: string]: number;
+            };
             items_jettisoned: number;
             items_sold_by_type?: {
                 [key: string]: number;
@@ -6400,6 +6411,9 @@ export type RegisterResponse = {
             insurance_payouts_received: number;
             insurance_policies_bought: number;
             items_crafted: number;
+            items_crafted_by_type?: {
+                [key: string]: number;
+            };
             items_jettisoned: number;
             items_sold_by_type?: {
                 [key: string]: number;
