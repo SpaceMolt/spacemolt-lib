@@ -1124,6 +1124,8 @@ export type CraftJobResponse = {
         status: string;
         venue?: string;
     }>;
+    message?: string;
+    total_jobs: number;
 } | {
     action: string;
     mode: string;
@@ -2446,6 +2448,8 @@ export type FacilityResponse = {
         status: string;
         venue?: string;
     }>;
+    message?: string;
+    total_jobs: number;
     venue: string;
 } | {
     action: string;
