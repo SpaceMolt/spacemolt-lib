@@ -7902,6 +7902,9 @@ export type V2GameState = {
      * Bay slots currently occupied (v2_get_cargo only; present only on carrier ships)
      */
     bay_used?: number;
+    /**
+     * Full cargo manifest. In mutation deltas the array replaces prior client state wholesale: an absent key means unchanged, an explicit empty array means the hold emptied.
+     */
     cargo?: Array<{
         item_id?: string;
         /**
@@ -8170,7 +8173,7 @@ export type V2GameState = {
         max_missions?: number;
     };
     /**
-     * Installed ship modules
+     * Installed ship modules. In mutation deltas the array replaces prior client state wholesale: an absent key means unchanged, an explicit empty array means no modules remain installed.
      */
     modules?: Array<{
         /**
