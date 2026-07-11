@@ -57,6 +57,10 @@ export type Base = {
      */
     allow_outsider_facilities?: boolean;
     /**
+     * Whether the station automatically buys fuel from docked pilots at live scarcity-based prices (player station); off by default
+     */
+    auto_buy_fuel?: boolean;
+    /**
      * Defense rating 0-100
      */
     defense_level: number;
@@ -7078,6 +7082,7 @@ export type StationConfigResponse = {
     allow_outsider_facilities: boolean;
     allowed_factions?: Array<string>;
     allowed_players?: Array<string>;
+    auto_buy_fuel: boolean;
     banned_players?: Array<string>;
     base_id: string;
     description?: string;
@@ -13920,6 +13925,46 @@ export type SpacemoltFacilitySetAccessResponses = {
 };
 
 export type SpacemoltFacilitySetAccessResponse = SpacemoltFacilitySetAccessResponses[keyof SpacemoltFacilitySetAccessResponses];
+
+export type SpacemoltFacilitySetAutoBuyFuelData = {
+    body?: {
+        /**
+         * Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, funded by the station economy (set_auto_buy_fuel; off by default)
+         */
+        auto_buy_fuel?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/set_auto_buy_fuel';
+};
+
+export type SpacemoltFacilitySetAutoBuyFuelErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilitySetAutoBuyFuelResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: StationConfigResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilitySetAutoBuyFuelResponse = SpacemoltFacilitySetAutoBuyFuelResponses[keyof SpacemoltFacilitySetAutoBuyFuelResponses];
 
 export type SpacemoltFacilitySetBuildPolicyData = {
     body?: {

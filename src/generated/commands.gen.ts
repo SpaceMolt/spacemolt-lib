@@ -464,6 +464,11 @@ export interface SpacemoltFacilitySetAccessParams {
   facility_id: string;
 }
 
+export interface SpacemoltFacilitySetAutoBuyFuelParams {
+  /** Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, funded by the station economy (set_auto_buy_fuel; off by default) */
+  auto_buy_fuel?: boolean;
+}
+
 export interface SpacemoltFacilitySetBuildPolicyParams {
   /** Whether non-members may build facilities here (set_build_policy) */
   allow_outsiders?: boolean;
@@ -1817,6 +1822,8 @@ export interface Commands {
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     set_access(params: SpacemoltFacilitySetAccessParams): Promise<MutationResult<FacilityResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
+    set_auto_buy_fuel(params?: SpacemoltFacilitySetAutoBuyFuelParams): Promise<MutationResult<StationConfigResponse>>;
+    /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_build_policy(params?: SpacemoltFacilitySetBuildPolicyParams): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_description(params?: SpacemoltFacilitySetDescriptionParams): Promise<MutationResult<StationConfigResponse>>;
@@ -2266,6 +2273,7 @@ export function buildCommands(dispatch: CommandDispatch): Commands {
       remove_faction: bind("spacemolt_facility", "remove_faction"),
       remove_player: bind("spacemolt_facility", "remove_player"),
       set_access: bind("spacemolt_facility", "set_access"),
+      set_auto_buy_fuel: bind("spacemolt_facility", "set_auto_buy_fuel"),
       set_build_policy: bind("spacemolt_facility", "set_build_policy"),
       set_description: bind("spacemolt_facility", "set_description"),
       set_market_fee: bind("spacemolt_facility", "set_market_fee"),
