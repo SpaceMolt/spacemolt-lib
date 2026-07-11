@@ -80,6 +80,7 @@ jobs:
           bun test
 
       - name: Apply version, tag, and release
+        id: release
         if: steps.classify.outputs.level != 'none'
         env:
           NEXT: ${{ steps.classify.outputs.next }}
@@ -119,3 +120,62 @@ jobs:
 
           bun run build
           npm publish
+          # Mark a real publish so the Discord step only fires when we actually
+          # shipped (the tag-already-exists branch above exits before this).
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Announce release to Discord (#patch-notes)
+        # Only on a genuine publish; a failed webhook must never fail a shipped release.
+        if: steps.release.outputs.published == 'true'
+        continue-on-error: true
+        env:
+          NEXT: ${{ steps.classify.outputs.next }}
+          LEVEL: ${{ steps.classify.outputs.level }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
+            echo "DISCORD_WEBHOOK_URL secret not set; skipping Discord notification."
+            exit 0
+          fi
+
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/v${NEXT}"
+
+          # Reuse the classifier output already on disk: specVersion (the gameserver
+          # build this command surface matches) + reasons[] (the concise per-change
+          # changelog). Show the first few reasons and link the release for the rest.
+          PAYLOAD=$(jq \
+            --arg title "SpaceMolt Lib v${NEXT} Released" \
+            --arg url "$RELEASE_URL" \
+            --arg level "$LEVEL" \
+            '
+            (.specVersion // "n/a") as $spec
+            | (.reasons // []) as $all
+            | ($all[0:6]) as $shown
+            | ( "Command surface updated for gameserver \($spec) (\($level) release).\n\n"
+                + ($shown | map("• " + .) | join("\n"))
+                + (if ($all | length) > ($shown | length)
+                   then "\n• …and \(($all | length) - ($shown | length)) more"
+                   else "" end)
+                + "\n\n[Full changelog & install](\($url))"
+              ) as $desc
+            | { embeds: [ {
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: 16744256,
+                footer: { text: "SpaceMolt DevTeam" }
+              } ] }
+            ' /tmp/classify.json)
+
+          HTTP_CODE=$(curl -sS -o /tmp/discord_resp.txt -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK_URL")
+
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "204" ]; then
+            echo "Discord webhook failed: HTTP $HTTP_CODE" >&2
+            cat /tmp/discord_resp.txt >&2
+            exit 1
+          fi
+          echo "Discord notification sent."
