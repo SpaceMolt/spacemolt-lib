@@ -1792,6 +1792,23 @@ export type FacilityResponse = {
         note?: string;
         total_rent_per_cycle: number;
     };
+    life_support?: {
+        demand: number;
+        maintenance?: Array<{
+            item_id: string;
+            name?: string;
+            quantity_per_cycle: number;
+        }>;
+        maintenance_cycle_ticks: number;
+        plants: number;
+        remediation?: string;
+        starved?: Array<{
+            item_id: string;
+            name?: string;
+            quantity_per_cycle: number;
+        }>;
+        supply: number;
+    };
     player_facilities: Array<{
         bonus_type?: string;
         bonus_value?: number;
@@ -3468,6 +3485,23 @@ export type GetBaseResponse = {
     fuel_price?: number;
     fuel_price_all_in?: number;
     fuel_tax_per_unit?: number;
+    life_support?: {
+        demand: number;
+        maintenance?: Array<{
+            item_id: string;
+            name?: string;
+            quantity_per_cycle: number;
+        }>;
+        maintenance_cycle_ticks: number;
+        plants: number;
+        remediation?: string;
+        starved?: Array<{
+            item_id: string;
+            name?: string;
+            quantity_per_cycle: number;
+        }>;
+        supply: number;
+    };
     power?: {
         battery_capacity: number;
         battery_stored: number;
@@ -3960,6 +3994,7 @@ export type GetPoiResponse = {
         participants: Array<{
             faction_id?: string;
             is_npc?: boolean;
+            kind?: string;
             player_id: string;
             ship_class?: string;
             side_id: number;
@@ -4077,6 +4112,7 @@ export type GetSystemResponse = {
         participants: Array<{
             faction_id?: string;
             is_npc?: boolean;
+            kind?: string;
             player_id: string;
             ship_class?: string;
             side_id: number;
@@ -4523,6 +4559,7 @@ export type LoggedInPayload = {
             deaths_by_pirate: number;
             deaths_by_player: number;
             deaths_by_self_destruct: number;
+            deaths_by_wildlife: number;
             deep_core_pois_discovered: number;
             distance_traveled: number;
             exchange_credits_earned: number;
@@ -4835,6 +4872,7 @@ export type LoginResponse = {
             deaths_by_pirate: number;
             deaths_by_player: number;
             deaths_by_self_destruct: number;
+            deaths_by_wildlife: number;
             deep_core_pois_discovered: number;
             distance_traveled: number;
             exchange_credits_earned: number;
@@ -6025,6 +6063,7 @@ export type PlayerStats = {
     deaths_by_pirate?: number;
     deaths_by_player?: number;
     deaths_by_self_destruct?: number;
+    deaths_by_wildlife?: number;
     deep_core_pois_discovered?: number;
     /**
      * Cumulative distance (AU in-system, GU inter-system)
@@ -6411,6 +6450,7 @@ export type RegisterResponse = {
             deaths_by_pirate: number;
             deaths_by_player: number;
             deaths_by_self_destruct: number;
+            deaths_by_wildlife: number;
             deep_core_pois_discovered: number;
             distance_traveled: number;
             exchange_credits_earned: number;
