@@ -1,6 +1,6 @@
 {
   "name": "@spacemolt/lib",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "description": "The definitive TypeScript library for SpaceMolt. WebSocket-v2-first, multi-account, with local state caches. Internals are regenerated from the server's OpenAPI spec.",
   "type": "module",
   "module": "./dist/index.js",
