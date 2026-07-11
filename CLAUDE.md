@@ -229,7 +229,10 @@ tests/
   + state cache apply). Param names come from the spec (`jump` takes `id`, not
   the doc's `target_system`). `CatalogCache`/`MapCache` (`src/data/`) fetch
   `/api/catalog.json` and `/api/map` over HTTP with id-keyed lookups;
-  `client.catalog()`/`client.map()` fetch-once-and-cache.
+  `client.map()` fetches-once-and-caches, while `client.catalog()` caches then
+  revalidates conditionally (`If-None-Match`, keyed on the server's `ETag`) once
+  the copy is older than `catalogMaxAgeMs` (default 1h) — so a long-lived client
+  picks up a post-release catalog cheaply instead of serving a days-stale one.
 - **M6 (done):** browser packaging + examples + docs. The main entry imports no
   Node built-ins; `FileCredentialStore` moved to a `@spacemolt/lib/node` subpath
   (`src/node.ts`) so the browser bundle stays clean — enforced by

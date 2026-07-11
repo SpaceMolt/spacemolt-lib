@@ -2,9 +2,15 @@
  * Local copy of the bulk game catalog (`GET /api/catalog.json`).
  *
  * Reference data — ships, items, recipes, skills, facilities — that changes
- * only on a server release. Fetched once over HTTP and cached; the entry
- * shapes aren't in the v2 OpenAPI spec, so they're typed loosely with `id`-keyed
- * lookups. Public, ETag-cached, ~1h max-age on the server.
+ * only on a server release. The entry shapes aren't in the v2 OpenAPI spec, so
+ * they're typed loosely with `id`-keyed lookups.
+ *
+ * The payload is large (multiple MB), so the server ships it `public,
+ * max-age=3600` with a content-hash `ETag`. We keep that ETag on the cache and
+ * revalidate conditionally (`If-None-Match`): an unchanged catalog comes back as
+ * a ~0-byte `304 Not Modified`, so a long-lived client can cheaply pick up a new
+ * catalog after a server release instead of holding the copy it fetched at
+ * startup forever (see `SpacemoltClient.catalog`).
  */
 
 export interface CatalogEntry {
@@ -24,11 +30,17 @@ export interface Catalog {
 const SECTIONS = ['ships', 'items', 'recipes', 'skills', 'facilities'] as const;
 type Section = (typeof SECTIONS)[number];
 
-export async function fetchCatalog(httpBaseUrl: string): Promise<Catalog> {
-  const url = `${httpBaseUrl.replace(/\/$/, '')}/api/catalog.json`;
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
-  const data = (await res.json()) as Partial<Catalog>;
+/** Result of a conditional catalog fetch. */
+export interface CatalogFetchResult {
+  /** True when the server answered `304 Not Modified` — `catalog` is absent. */
+  notModified: boolean;
+  /** The freshly fetched catalog (absent on a 304). */
+  catalog?: Catalog;
+  /** The server's `ETag` for the returned (or still-current) catalog, if any. */
+  etag?: string;
+}
+
+function normalizeCatalog(data: Partial<Catalog>): Catalog {
   return {
     version: data.version,
     ships: data.ships ?? [],
@@ -39,10 +51,45 @@ export async function fetchCatalog(httpBaseUrl: string): Promise<Catalog> {
   };
 }
 
+/**
+ * Fetch the catalog, optionally conditional on a previously seen `ETag`. When
+ * `etag` is passed and the server confirms the catalog is unchanged, this
+ * returns `{ notModified: true }` after a ~0-byte `304` — no multi-MB download
+ * or re-parse. Otherwise it returns the fresh catalog and its new `ETag`.
+ */
+export async function fetchCatalogConditional(
+  httpBaseUrl: string,
+  etag?: string,
+): Promise<CatalogFetchResult> {
+  const url = `${httpBaseUrl.replace(/\/$/, '')}/api/catalog.json`;
+  const headers: Record<string, string> = { accept: 'application/json' };
+  if (etag) headers['if-none-match'] = etag;
+  const res = await fetch(url, { headers });
+  if (res.status === 304) return { notModified: true, etag };
+  if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
+  const data = (await res.json()) as Partial<Catalog>;
+  return {
+    notModified: false,
+    catalog: normalizeCatalog(data),
+    etag: res.headers?.get?.('etag') ?? undefined,
+  };
+}
+
+/** Unconditionally fetch and normalize the catalog. */
+export async function fetchCatalog(httpBaseUrl: string): Promise<Catalog> {
+  const { catalog } = await fetchCatalogConditional(httpBaseUrl);
+  // A non-304 fetch (no If-None-Match) always carries a catalog.
+  return catalog as Catalog;
+}
+
 export class CatalogCache {
   private readonly indexes: Record<Section, Map<string, CatalogEntry>>;
 
-  constructor(readonly catalog: Catalog) {
+  constructor(
+    readonly catalog: Catalog,
+    /** The server `ETag` this catalog was fetched with, for conditional reloads. */
+    readonly etag?: string,
+  ) {
     this.indexes = {
       ships: index(catalog.ships),
       items: index(catalog.items),
@@ -54,7 +101,19 @@ export class CatalogCache {
 
   /** Fetch the catalog and wrap it in a cache. */
   static async load(httpBaseUrl: string): Promise<CatalogCache> {
-    return new CatalogCache(await fetchCatalog(httpBaseUrl));
+    const { catalog, etag } = await fetchCatalogConditional(httpBaseUrl);
+    return new CatalogCache(catalog as Catalog, etag);
+  }
+
+  /**
+   * Conditionally refresh via `If-None-Match`. Returns `this` unchanged when the
+   * server confirms the catalog is still current (a cheap `304`), or a new
+   * `CatalogCache` when the catalog has changed.
+   */
+  async revalidate(httpBaseUrl: string): Promise<CatalogCache> {
+    const result = await fetchCatalogConditional(httpBaseUrl, this.etag);
+    if (result.notModified) return this;
+    return new CatalogCache(result.catalog as Catalog, result.etag);
   }
 
   get version(): string | undefined {
