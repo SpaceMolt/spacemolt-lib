@@ -403,6 +403,7 @@ export type CatalogDump = {
         service_type?: string;
         station_or_faction_only?: boolean;
         tourism_upkeep?: boolean;
+        transit_deadline_bonus?: number;
         unique?: boolean;
         upgrades_from?: string;
     }>;
@@ -779,6 +780,7 @@ export type CatalogResponse = {
         service_type?: string;
         station_or_faction_only?: boolean;
         tourism_upkeep?: boolean;
+        transit_deadline_bonus?: number;
         unique?: boolean;
         upgrades_from?: string;
     }>;
@@ -1594,6 +1596,7 @@ export type DockResponse = {
             bio: string;
             citizen_id: string;
             class: string;
+            connecting?: boolean;
             destination: string;
             destination_name: string;
             destination_system?: string;
@@ -1611,6 +1614,7 @@ export type DockResponse = {
             bio: string;
             citizen_id: string;
             class: string;
+            connecting?: boolean;
             destination: string;
             destination_name: string;
             destination_system?: string;
@@ -4307,6 +4311,7 @@ export type ListPassengersResponse = {
         bio: string;
         citizen_id: string;
         class: string;
+        connecting?: boolean;
         destination: string;
         destination_name: string;
         destination_system?: string;
@@ -4376,6 +4381,7 @@ export type LoadPassengersResponse = {
         bio: string;
         citizen_id: string;
         class: string;
+        connecting?: boolean;
         destination: string;
         destination_name: string;
         destination_system?: string;
@@ -7118,6 +7124,25 @@ export type StationPassengersResponse = {
     fare_surge: number;
     market_conditions: string;
     station: string;
+    transit_lounge?: {
+        capacity: number;
+        lounge: string;
+        occupancy: number;
+        passengers: Array<{
+            base_fare: number;
+            berth_class?: string;
+            bio: string;
+            citizen_id: string;
+            class: string;
+            connecting?: boolean;
+            destination: string;
+            destination_name: string;
+            destination_system?: string;
+            name: string;
+            speed_bonus?: number;
+            ticks_remaining: number;
+        }>;
+    };
     waiting: Array<{
         bio: string;
         citizen_id: string;
@@ -7740,6 +7765,7 @@ export type UnloadPassengerResponse = {
         bio: string;
         citizen_id: string;
         class: string;
+        connecting?: boolean;
         destination: string;
         destination_name: string;
         destination_system?: string;
@@ -7758,6 +7784,7 @@ export type UnloadPassengerResponse = {
         bio: string;
         citizen_id: string;
         class: string;
+        connecting?: boolean;
         destination: string;
         destination_name: string;
         destination_system?: string;
@@ -7765,6 +7792,50 @@ export type UnloadPassengerResponse = {
         speed_bonus?: number;
         ticks_remaining: number;
     }>;
+} | {
+    count: number;
+    message: string;
+    skipped_expired?: number;
+    skipped_no_berth?: number;
+    target_ship: string;
+    target_ship_name: string;
+    transferred: Array<{
+        base_fare: number;
+        berth_class?: string;
+        bio: string;
+        citizen_id: string;
+        class: string;
+        connecting?: boolean;
+        destination: string;
+        destination_name: string;
+        destination_system?: string;
+        name: string;
+        speed_bonus?: number;
+        ticks_remaining: number;
+    }>;
+} | {
+    capacity: number;
+    checked_in: Array<{
+        base_fare: number;
+        berth_class?: string;
+        bio: string;
+        citizen_id: string;
+        class: string;
+        connecting?: boolean;
+        destination: string;
+        destination_name: string;
+        destination_system?: string;
+        name: string;
+        speed_bonus?: number;
+        ticks_remaining: number;
+    }>;
+    count: number;
+    deadline_bonus_ticks?: number;
+    lounge: string;
+    message: string;
+    occupancy: number;
+    skipped_expired?: number;
+    skipped_full?: number;
 };
 
 export type UnsubscribeMarketResponse = {
@@ -11139,6 +11210,10 @@ export type SpacemoltUnloadPassengerData = {
          * Name (or citizen ID) of the passenger to put off the ship at the current station, or "all" to put every passenger off at once.
          */
         id: string;
+        /**
+         * Optional connecting-flight handoff: "lounge" checks the passenger(s) into your faction's Transit Lounge here, or a ship ID/name transfers them to that docked ship (yours or a faction mate's, needs free berths). Fares and deadlines continue unchanged. Omit for a normal delivery/strand.
+         */
+        target?: string;
     };
     path?: never;
     query?: never;

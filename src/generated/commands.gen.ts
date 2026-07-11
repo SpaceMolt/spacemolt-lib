@@ -1554,6 +1554,8 @@ export interface SpacemoltUninstallModParams {
 export interface SpacemoltUnloadPassengerParams {
   /** Name (or citizen ID) of the passenger to put off the ship at the current station, or "all" to put every passenger off at once. */
   id: string;
+  /** Optional connecting-flight handoff: "lounge" checks the passenger(s) into your faction's Transit Lounge here, or a ship ID/name transfers them to that docked ship (yours or a faction mate's, needs free berths). Fares and deadlines continue unchanged. Omit for a normal delivery/strand. */
+  target?: string;
 }
 
 export interface SpacemoltUseItemParams {
@@ -1686,7 +1688,7 @@ export interface Commands {
     undock(): Promise<MutationResult<UndockResponse>>;
     /** Uninstall a module from your ship */
     uninstall_mod(params: SpacemoltUninstallModParams): Promise<MutationResult<UninstallModResponse>>;
-    /** Put a passenger (or everyone) off the ship at the current station */
+    /** Put a passenger (or everyone) off the ship here — or hand them off to another ship or your faction's transit lounge for a connecting flight */
     unload_passenger(params: SpacemoltUnloadPassengerParams): Promise<MutationResult<UnloadPassengerResponse>>;
     /** Cancel your live observation watch */
     unsubscribe_observation(): Promise<QueryResult<UnsubscribeObservationResponse>>;
