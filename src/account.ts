@@ -891,7 +891,10 @@ export class Account {
         return;
       }
       case 'action_result': {
-        if (!isActionResultFrame(frame)) return this.warnMalformedFrame(frame);
+        if (!isActionResultFrame(frame)) {
+          if (!this.correlator.handle(frame)) this.warnMalformedFrame(frame);
+          return;
+        }
         const delta = frame.payload.result;
         if (delta) {
           const changed = this.cache.applyDelta(delta);
@@ -928,7 +931,10 @@ export class Account {
         if (!this.correlator.handle(frame)) this.emitter.emit(frame);
         return;
       case 'error': {
-        if (!isErrorFrame(frame)) return this.warnMalformedFrame(frame);
+        if (!isErrorFrame(frame)) {
+          if (!this.correlator.handle(frame)) this.warnMalformedFrame(frame);
+          return;
+        }
         if (this.correlator.handle(frame)) return;
         const auth = this.pendingAuth;
         if (auth) {

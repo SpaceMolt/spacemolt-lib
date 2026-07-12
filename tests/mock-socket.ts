@@ -4,15 +4,15 @@
  * observe client sends and inject server frames.
  */
 
-import type { WebSocketLike, WebSocketFactory } from '../src/transport/socket.ts';
+import type { CloseEventLike, MessageEventLike, WebSocketFactory, WebSocketLike } from '../src/transport/socket.ts';
 import type { InboundFrame, RawFrame } from '../src/protocol.ts';
 import { isRecord } from '../src/validation.ts';
 
 type Listeners = {
-  open: Array<(event: Event) => void>;
-  message: Array<(event: MessageEvent<unknown>) => void>;
-  close: Array<(event: CloseEvent) => void>;
-  error: Array<(event: Event) => void>;
+  open: Array<() => void>;
+  message: Array<(event: MessageEventLike) => void>;
+  close: Array<(event: CloseEventLike) => void>;
+  error: Array<(event: unknown) => void>;
 };
 
 export class MockSocket implements WebSocketLike {
@@ -31,25 +31,25 @@ export class MockSocket implements WebSocketLike {
       if (this.opts.failToOpen) {
         // Simulate a rejected WS upgrade (e.g. a 429 from a per-IP rate
         // limit): the handshake never completes, so only error+close fire.
-        for (const cb of this.listeners.error) cb(new Event('error'));
-        for (const cb of this.listeners.close) cb(new CloseEvent('close', { code: 1006, reason: 'rejected' }));
+        for (const cb of this.listeners.error) cb({ message: 'rejected' });
+        for (const cb of this.listeners.close) cb({ code: 1006, reason: 'rejected' });
         return;
       }
       this.open = true;
-      for (const cb of this.listeners.open) cb(new Event('open'));
+      for (const cb of this.listeners.open) cb();
     });
   }
 
-  addEventListener(type: 'open', listener: (event: Event) => void): void;
-  addEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void): void;
-  addEventListener(type: 'close', listener: (event: CloseEvent) => void): void;
-  addEventListener(type: 'error', listener: (event: Event) => void): void;
+  addEventListener(type: 'open', listener: () => void): void;
+  addEventListener(type: 'message', listener: (event: MessageEventLike) => void): void;
+  addEventListener(type: 'close', listener: (event: CloseEventLike) => void): void;
+  addEventListener(type: 'error', listener: (event: unknown) => void): void;
   addEventListener(
     ...args:
-      | [type: 'open', listener: (event: Event) => void]
-      | [type: 'message', listener: (event: MessageEvent<unknown>) => void]
-      | [type: 'close', listener: (event: CloseEvent) => void]
-      | [type: 'error', listener: (event: Event) => void]
+      | [type: 'open', listener: () => void]
+      | [type: 'message', listener: (event: MessageEventLike) => void]
+      | [type: 'close', listener: (event: CloseEventLike) => void]
+      | [type: 'error', listener: (event: unknown) => void]
   ): void {
     switch (args[0]) {
       case 'open':
@@ -85,18 +85,18 @@ export class MockSocket implements WebSocketLike {
   close(code = 1000, reason = ''): void {
     if (!this.open) return;
     this.open = false;
-    for (const cb of this.listeners.close) cb(new CloseEvent('close', { code, reason }));
+    for (const cb of this.listeners.close) cb({ code, reason });
   }
 
   /** Push a server frame to the client (loosely typed — simulates raw bytes). */
   serverSend(frame: RawFrame): void {
     const data = JSON.stringify(frame);
-    for (const cb of this.listeners.message) cb(new MessageEvent('message', { data }));
+    for (const cb of this.listeners.message) cb({ data });
   }
 
   /** Push raw (possibly malformed) bytes, bypassing JSON.stringify — for parse-failure tests. */
   serverSendRaw(data: string): void {
-    for (const cb of this.listeners.message) cb(new MessageEvent('message', { data }));
+    for (const cb of this.listeners.message) cb({ data });
   }
 
   /** The request_id of the most recently sent frame (for echoing). */

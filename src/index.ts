@@ -59,6 +59,8 @@ export {
   type SocketOptions,
   type WebSocketLike,
   type WebSocketFactory,
+  type MessageEventLike,
+  type CloseEventLike,
 } from './transport/socket.ts';
 export { ACTIONS, GENERATED_SPEC_VERSION } from './generated/actions.gen.ts';
 export type { ToolName, ActionName, ActionDef, ActionParam } from './generated/actions.gen.ts';

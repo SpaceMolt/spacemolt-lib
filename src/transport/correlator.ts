@@ -33,7 +33,7 @@
 
 import type { MutationAck, MutationResult, QueryResult, RawFrame } from '../protocol.ts';
 import { isActionErrorFrame, isActionResultFrame, isErrorFrame, isResultFrame } from '../protocol.ts';
-import { type ConnectionClosedError, errorFromActionFrame, errorFromFrame, type SpacemoltError } from '../errors.ts';
+import { type ConnectionClosedError, errorFromActionFrame, errorFromFrame, SpacemoltError } from '../errors.ts';
 import { isRecord } from '../validation.ts';
 
 export type RequestKind = 'query' | 'mutation';
@@ -111,7 +111,7 @@ export class Correlator {
 
     switch (frame.type) {
       case 'result': {
-        if (!isResultFrame(frame)) return false;
+        if (!isResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         const payload = frame.payload;
         if (pending.kind === 'query') {
           this.settle(requestId);
@@ -142,7 +142,7 @@ export class Correlator {
       }
       case 'action_result': {
         if (pending.kind !== 'mutation') return true;
-        if (!isActionResultFrame(frame)) return false;
+        if (!isActionResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         const payload = frame.payload;
         this.settle(requestId);
         pending.resolve({
@@ -155,13 +155,13 @@ export class Correlator {
         return true;
       }
       case 'action_error': {
-        if (!isActionErrorFrame(frame)) return false;
+        if (!isActionErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         this.settle(requestId);
         pending.reject(errorFromActionFrame(frame));
         return true;
       }
       case 'error': {
-        if (!isErrorFrame(frame)) return false;
+        if (!isErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         this.settle(requestId);
         pending.reject(errorFromFrame(frame));
         return true;
@@ -179,5 +179,11 @@ export class Correlator {
 
   private settle(requestId: string): void {
     this.pending.delete(requestId);
+  }
+
+  private rejectInvalidResponse(requestId: string, pending: Pending, frameType: string): true {
+    this.settle(requestId);
+    pending.reject(new SpacemoltError('invalid_response', `Malformed ${frameType} frame for request ${requestId}`));
+    return true;
   }
 }
