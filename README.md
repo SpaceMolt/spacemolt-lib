@@ -220,6 +220,11 @@ import { FileCredentialStore } from '@spacemolt/lib/node';
 const client = new SpacemoltClient({ store: new FileCredentialStore('./.spacemolt-credentials.json') });
 ```
 
+The file contains plaintext credentials, is written atomically, and is created
+with owner-only permissions on POSIX systems. Keep its parent directory and any
+backups private as well. Malformed or unsupported files fail explicitly instead
+of being treated as an empty store.
+
 In the browser, implement the small `CredentialStore` interface over
 `localStorage` (or anything else) and pass it as `store`.
 
@@ -265,8 +270,18 @@ are generated from the server's spec:
 ```bash
 bun run fetch-spec   # sync openapi.json from the live server
 bun run generate     # regenerate src/generated/
-bun run typecheck && bun test
+bun run check        # format, lint, generated sync, types, tests, browser + package builds
 ```
+
+Biome formats and lints all handwritten TypeScript and JSON. Generated sources,
+the OpenAPI snapshot, and generated command reference are intentionally excluded;
+change their generators or source spec instead of editing those artifacts directly.
+Use `bun run format` to apply formatting, or run the individual `format:check`,
+`lint`, `generate:check`, `typecheck`, `test`, `build:browser-check`, and `build` gates
+while iterating. `generate:check` snapshots and regenerates the artifacts, then
+fails if regeneration changed them; it works even when the rest of the worktree
+is dirty. Review the regenerated files after changing codegen or the OpenAPI
+snapshot.
 
 See [`CLAUDE.md`](./CLAUDE.md) for the developer guide and
 [`docs/gameserver-todo.md`](./docs/gameserver-todo.md) for the server-side

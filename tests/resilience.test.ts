@@ -3,12 +3,21 @@ import { Account } from '../src/account.ts';
 import type { AuthCredentials } from '../src/auth/credentials.ts';
 import { ConnectionClosedError, retryAfterMsFromClose } from '../src/errors.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
-import { mockFactory, MockSocket } from './mock-socket.ts';
+import { mockFactory, type MockSocket } from './mock-socket.ts';
+import { requireValue } from './require-value.ts';
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
-    version: '0.452.0', release_date: '2026-06-20', release_notes: [], tick_rate: 5,
-    current_tick: 1, server_time: 1, game_info: '', website: '', help_text: '', terms: '',
+    version: '0.452.0',
+    release_date: '2026-06-20',
+    release_notes: [],
+    tick_rate: 5,
+    current_tick: 1,
+    server_time: 1,
+    game_info: '',
+    website: '',
+    help_text: '',
+    terms: '',
   };
 }
 
@@ -41,7 +50,7 @@ test('query auto-retries after a rate_limited error', async () => {
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, maxRateLimitRetries: 3 });
   const cp = account.connect();
-  const socket = sockets[0]!;
+  const socket = requireValue(sockets[0]);
   socket.serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
@@ -69,7 +78,7 @@ test('authenticate auto-retries a login after a rate_limited error', async () =>
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, maxRateLimitRetries: 3 });
   const cp = account.connect();
-  const socket = sockets[0]!;
+  const socket = requireValue(sockets[0]);
   socket.serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
@@ -99,7 +108,7 @@ test('mutations are serialized: the second sends only after the first resolves',
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false });
   const cp = account.connect();
-  const socket = sockets[0]!;
+  const socket = requireValue(sockets[0]);
   socket.serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
   // no auto-reply: drive the outcomes by hand
@@ -111,15 +120,27 @@ test('mutations are serialized: the second sends only after the first resolves',
   const jumps = () => socket.sent.filter((f) => f.action === 'jump');
   expect(jumps().length).toBe(1); // only the first is on the wire
 
-  const first = jumps()[0]!;
-  socket.serverSend({ type: 'result', request_id: first.request_id, payload: { result: 'p', structuredContent: { pending: true } } });
-  socket.serverSend({ type: 'action_result', request_id: first.request_id, payload: { command: 'jump', tick: 1, result: { location: { system_id: 'a' } } } });
+  const first = requireValue(jumps()[0]);
+  socket.serverSend({
+    type: 'result',
+    request_id: first.request_id,
+    payload: { result: 'p', structuredContent: { pending: true } },
+  });
+  socket.serverSend({
+    type: 'action_result',
+    request_id: first.request_id,
+    payload: { command: 'jump', tick: 1, result: { location: { system_id: 'a' } } },
+  });
   await p1;
   await tick();
 
   expect(jumps().length).toBe(2); // second released after the first resolved
-  const second = jumps()[1]!;
-  socket.serverSend({ type: 'action_result', request_id: second.request_id, payload: { command: 'jump', tick: 2, result: { location: { system_id: 'b' } } } });
+  const second = requireValue(jumps()[1]);
+  socket.serverSend({
+    type: 'action_result',
+    request_id: second.request_id,
+    payload: { command: 'jump', tick: 2, result: { location: { system_id: 'b' } } },
+  });
   // also ack so nothing dangles
   await p2;
   expect(account.location?.system_id).toBe('b');
@@ -150,17 +171,17 @@ test('reconnects and re-auths after an unexpected close', async () => {
     reconnect: { baseDelayMs: 1, maxRetries: 3 },
   });
   const cp = account.connect();
-  serveAuth(sockets[0]!);
+  serveAuth(requireValue(sockets[0]));
   await cp;
   await account.login({ username: 'Nova', password: 'pw' });
   expect(account.authenticated).toBe(true);
 
   const reconnected = new Promise<void>((resolve) => account.onReconnected(resolve));
-  sockets[0]!.close(1006); // abnormal close -> should reconnect
+  requireValue(sockets[0]).close(1006); // abnormal close -> should reconnect
 
   // a new socket is created by the reconnect loop; serve its auth
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
-  serveAuth(sockets[1]!);
+  serveAuth(requireValue(sockets[1]));
   await reconnected;
   expect(account.authenticated).toBe(true);
   expect(sockets.length).toBe(2);
@@ -176,12 +197,12 @@ test('does NOT reconnect on session_replaced (4001)', async () => {
     reconnect: { baseDelayMs: 1, maxRetries: 3 },
   });
   const cp = account.connect();
-  serveAuth(sockets[0]!);
+  serveAuth(requireValue(sockets[0]));
   await cp;
   await account.login({ username: 'Nova', password: 'pw' });
 
   const disconnected = new Promise<number | undefined>((resolve) => account.onDisconnected((e) => resolve(e.code)));
-  sockets[0]!.close(4001); // session_replaced -> terminal
+  requireValue(sockets[0]).close(4001); // session_replaced -> terminal
   const code = await disconnected;
   expect(code).toBe(4001);
   // give any (incorrect) reconnect a chance to create a socket
@@ -200,16 +221,16 @@ test('reconnects after connection_rate_limited (4003), honoring the retry_after 
     reconnect: { baseDelayMs: 5000, maxRetries: 3 },
   });
   const cp = account.connect();
-  serveAuth(sockets[0]!);
+  serveAuth(requireValue(sockets[0]));
   await cp;
   await account.login({ username: 'Nova', password: 'pw' });
 
   const reconnected = new Promise<void>((resolve) => account.onReconnected(resolve));
   const start = Date.now();
-  sockets[0]!.close(4003, 'retry_after=1'); // 1s hint
+  requireValue(sockets[0]).close(4003, 'retry_after=1'); // 1s hint
 
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 5));
-  serveAuth(sockets[1]!);
+  serveAuth(requireValue(sockets[1]));
   await reconnected;
 
   const elapsed = Date.now() - start;
@@ -231,7 +252,7 @@ test('connect() times out and closes the socket if no welcome frame ever arrives
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, connectTimeoutMs: 20 });
   const cp = account.connect(); // synchronously creates sockets[0] via the factory
   let closeCode: number | undefined;
-  sockets[0]!.addEventListener('close', (e) => {
+  requireValue(sockets[0]).addEventListener('close', (e) => {
     closeCode = e.code;
   });
 
@@ -245,7 +266,7 @@ test('authenticate() times out if no logged_in/error response ever arrives', asy
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, connectTimeoutMs: 20 });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
   // no onClientSend handler — the server never responds to the login frame
 
@@ -263,7 +284,7 @@ test('a subsequent connect attempt is not blocked by a timed-out auth (pendingAu
     queryTimeoutMs: 20,
   });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
   await expect(account.authenticate({ kind: 'login', username: 'Nova', password: 'pw' })).rejects.toThrow();
@@ -271,7 +292,7 @@ test('a subsequent connect attempt is not blocked by a timed-out auth (pendingAu
   // a second attempt on the same (still-open) connection must not be
   // rejected with 'auth_in_progress' — the first attempt's pendingAuth
   // must have been cleared on timeout
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'login') {
       s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
     } else if (frame.action === 'get_status') {
@@ -288,7 +309,7 @@ test('query() times out and cancels the correlator entry if no response ever arr
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, queryTimeoutMs: 20 });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
   // no onClientSend handler — the server never responds to the query
 
@@ -298,9 +319,9 @@ test('query() times out and cancels the correlator entry if no response ever arr
 
   // a late response for the abandoned request must not resolve/crash
   // anything — the correlator entry should already be gone
-  const lastRequestId = sockets[0]!.lastRequestId();
+  const lastRequestId = requireValue(sockets[0]).lastRequestId();
   expect(() =>
-    sockets[0]!.serverSend({
+    requireValue(sockets[0]).serverSend({
       type: 'result',
       request_id: lastRequestId,
       payload: { result: 'ok' },
@@ -312,10 +333,10 @@ test('query() does not bound a mutation — mutate() can legitimately outlast qu
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, queryTimeoutMs: 20 });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'jump') {
       // simulate a long transit: ack immediately, resolve well past queryTimeoutMs
       s.serverSend({
@@ -341,7 +362,7 @@ test('mutate() times out and cancels the correlator entry if the pending ack nev
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, queryTimeoutMs: 20 });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
   // no onClientSend handler — the server never acks the mutation
 
@@ -350,9 +371,9 @@ test('mutate() times out and cancels the correlator entry if the pending ack nev
   );
 
   // a late ack for the abandoned request must not resolve/crash anything
-  const lastRequestId = sockets[0]!.lastRequestId();
+  const lastRequestId = requireValue(sockets[0]).lastRequestId();
   expect(() =>
-    sockets[0]!.serverSend({
+    requireValue(sockets[0]).serverSend({
       type: 'result',
       request_id: lastRequestId,
       payload: { result: 'ok' },
@@ -376,10 +397,10 @@ test('mutate() times out if acked but no action_result ever arrives, and does no
     fastMutationTimeoutMs: 20,
   });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'craft') {
       // ack immediately, then never send action_result — simulates the
       // reported "craft jobs hang forever" bug.
@@ -394,7 +415,11 @@ test('mutate() times out if acked but no action_result ever arrives, and does no
         request_id: frame.request_id,
         payload: { result: 'p', structuredContent: { pending: true } },
       });
-      s.serverSend({ type: 'action_result', request_id: frame.request_id, payload: { command: 'undock', tick: 2, result: {} } });
+      s.serverSend({
+        type: 'action_result',
+        request_id: frame.request_id,
+        payload: { command: 'undock', tick: 2, result: {} },
+      });
     }
   };
 
@@ -424,11 +449,11 @@ test('a late action_result arriving after the timeout already fired still update
     fastMutationTimeoutMs: 20,
   });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
   let requestId: string | undefined;
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'mine') {
       requestId = frame.request_id;
       s.serverSend({
@@ -446,7 +471,7 @@ test('a late action_result arriving after the timeout already fired still update
   const originalWarn = console.warn;
   console.warn = (...args: unknown[]) => warnings.push(args);
   try {
-    sockets[0]!.serverSend({
+    requireValue(sockets[0]).serverSend({
       type: 'action_result',
       request_id: requestId,
       payload: { command: 'mine', tick: 5, result: { cargo: [{ item_id: 'iron_ore', quantity: 10 }] } },
@@ -473,10 +498,10 @@ test('jump/travel use the long mutationTimeoutMs even when fastMutationTimeoutMs
     mutationTimeoutMs: 200,
   });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'jump') {
       s.serverSend({
         type: 'result',
@@ -502,10 +527,10 @@ test('a non-transit mutation is bounded by fastMutationTimeoutMs, not the long m
     mutationTimeoutMs: 100_000,
   });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'mine') {
       s.serverSend({
         type: 'result',
@@ -532,10 +557,10 @@ test('mutate() resolves immediately on a result frame without pending:true — n
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, mutationTimeoutMs: 20 });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'craft') {
       s.serverSend({
         type: 'result',
@@ -567,10 +592,10 @@ test('mutate() does NOT resolve early on a jump ack whose pending flag is nested
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false });
   const cp = account.connect();
-  sockets[0]!.serverSend({ type: 'welcome', payload: welcomePayload() });
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
 
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'jump') {
       // Exact shape captured live from the real game server.
       s.serverSend({
@@ -599,10 +624,10 @@ test('mutate() does NOT resolve early on a jump ack whose pending flag is nested
   await tick();
   expect(resolved).toBe(false);
 
-  const jumpFrame = sockets[0]!.sent.find((f) => f.action === 'jump');
-  sockets[0]!.serverSend({
+  const jumpFrame = requireValue(sockets[0]).sent.find((f) => f.action === 'jump');
+  requireValue(sockets[0]).serverSend({
     type: 'action_result',
-    request_id: jumpFrame!.request_id,
+    request_id: requireValue(jumpFrame).request_id,
     payload: { command: 'jump', tick: 5, result: { location: { system_id: 'alpha' } } },
   });
 
@@ -619,7 +644,7 @@ test('a close while waiting for welcome rejects immediately instead of waiting o
   const cp = account.connect();
   await tick();
   const start = Date.now();
-  sockets[0]!.close(1006, 'abnormal');
+  requireValue(sockets[0]).close(1006, 'abnormal');
   await expect(cp).rejects.toThrow();
   expect(Date.now() - start).toBeLessThan(100); // nowhere near the 5000ms timeout
 });

@@ -12,6 +12,10 @@
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "types": ["bun"]
   },
   "include": ["src", "scripts", "tests", "examples"]

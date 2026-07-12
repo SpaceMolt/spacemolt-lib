@@ -1,12 +1,21 @@
 import { expect, test } from 'bun:test';
 import { Account } from '../src/account.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
-import { mockFactory, MockSocket } from './mock-socket.ts';
+import { mockFactory, type MockSocket } from './mock-socket.ts';
+import { requireValue } from './require-value.ts';
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
-    version: '0.452.0', release_date: '2026-06-20', release_notes: [], tick_rate: 5,
-    current_tick: 1, server_time: 1, game_info: '', website: '', help_text: '', terms: '',
+    version: '0.452.0',
+    release_date: '2026-06-20',
+    release_notes: [],
+    tick_rate: 5,
+    current_tick: 1,
+    server_time: 1,
+    game_info: '',
+    website: '',
+    help_text: '',
+    terms: '',
   };
 }
 
@@ -14,7 +23,7 @@ async function connected(): Promise<{ account: Account; socket: MockSocket }> {
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false });
   const cp = account.connect();
-  const socket = sockets[0]!;
+  const socket = requireValue(sockets[0], 'expected socket to be created synchronously');
   socket.serverSend({ type: 'welcome', payload: welcomePayload() });
   await cp;
   return { account, socket };
@@ -24,7 +33,11 @@ test('commands facade dispatches a query with the right tool/action', async () =
   const { account, socket } = await connected();
   socket.onClientSend = (frame, s) => {
     if (frame.tool === 'spacemolt' && frame.action === 'get_status') {
-      s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok', structuredContent: { credits: 5000 } } });
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'ok', structuredContent: { credits: 5000 } },
+      });
     }
   };
   const res = await account.commands.spacemolt.get_status();
@@ -36,7 +49,11 @@ test('commands facade dispatches a mutation and forwards typed params', async ()
   const { account, socket } = await connected();
   socket.onClientSend = (frame, s) => {
     if (frame.action === 'jump') {
-      s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'p', structuredContent: { pending: true } } });
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'p', structuredContent: { pending: true } },
+      });
       s.serverSend({
         type: 'action_result',
         request_id: frame.request_id,

@@ -8,7 +8,7 @@ scripts use it directly instead of shelling out to the CLI. Design pillars:
 - **WebSocket v2 first.** All gameplay goes over `/ws/v2` (the `{tool, action,
   payload, request_id}` protocol). HTTP is used only for occasional bulk data
   fetches (`/api/catalog.json`, `/api/map*`, `/api/v2/openapi.json`).
-- **Local state caches.** Per-account state is seeded from `logged_in` and
+- **Local state caches.** Per-account state is seeded from `get_status` after authentication and
   updated from mutation deltas and server push frames, so reads are local and
   server bandwidth stays low.
 - **Multi-account native.** One client manages N authenticated sockets.
@@ -29,9 +29,13 @@ and `gameserver/` are loaded only for reference.
 bun install
 bun run fetch-spec    # sync openapi.json from the live server
 bun run generate      # openapi-ts types + custom catalog/notification codegen
+bun run check         # format + lint + generated sync + types + tests + package builds
+bun run format        # apply Biome formatting
+bun run lint          # run Biome lint rules
 bun run typecheck     # tsc --noEmit
 bun test              # run tests
 bun run build         # bundle + emit .d.ts to dist/
+bun run build:smoke   # load the built runtime exports under Node
 ```
 
 ## Codegen (self-maintaining internals)
@@ -86,7 +90,7 @@ lockstep with the live server automatically — this is what makes
 dispatch / `gameserver-deployed` repository_dispatch it runs `fetch-spec`, diffs
 the result **normalized** (stripping `info.x-gameserver-version`, which the
 server re-stamps on every deploy even when the API is unchanged), and on a real
-change runs `generate` → `typecheck` → `test` and commits. A spec change that
+change runs `generate` → `check` and commits. A spec change that
 breaks the hand-written layer fails the run instead of committing a broken sync.
 Don't hand-run `fetch-spec`/`generate` to "catch up" — let the workflow do it;
 run them locally only when iterating on the codegen itself.
@@ -124,10 +128,11 @@ The bump level is computed programmatically — `scripts/classify-bump.ts` print
   layer the spec can't see — `feat!:`/`BREAKING CHANGE` → major, `feat:` → minor,
   `fix:`/`perf:` → patch, everything else → none.
 
-`.github/workflows/release.yml` runs the classifier on every change to `main`
+`.github/workflows/ci.yml` runs the full quality gate for pull requests and
+pushes to `main`. `.github/workflows/release.yml` runs the classifier on every change to `main`
 (PR merges via `push`; spec syncs via `workflow_run`, since the sync's
 `GITHUB_TOKEN` commit doesn't fire a `push`), gates on typecheck + tests, then
-bumps `package.json`, tags `vX.Y.Z`, cuts a GitHub Release whose notes are the
+passes the same full quality gate, bumps `package.json`, tags `vX.Y.Z`, cuts a GitHub Release whose notes are the
 classifier's reasons, and publishes to npm. The bump commit is pushed with
 `GITHUB_TOKEN`, which does not re-trigger workflows — so there's no release
 loop. Publishing uses npm **trusted publishing (OIDC)** — the workflow has
@@ -145,6 +150,7 @@ build their commands match independently of the lib's own version.
 
 ```
 .github/workflows/
+  ci.yml                  CI: format + lint + typecheck + tests + browser build
   sync-spec.yml           CI: auto fetch-spec + generate + commit on spec change
 AGENTS.md                 agent-facing orientation (hand-written; ships in pkg)
 llms.txt                  agent-facing doc index (hand-written; ships in pkg)
@@ -154,10 +160,13 @@ openapi-ts.config.ts      stage-1 codegen config
 scripts/
   fetch-spec.ts           pull live spec
   generate.ts             stage-2 custom codegen
+  check-generated.ts      verify generated output is current (dirty-tree safe)
+  check-build.mjs          runtime smoke check for the packed entry points
 src/
   index.ts                public surface (browser-safe — no Node built-ins)
   node.ts                 Node/Bun-only entry (@spacemolt/lib/node)
   protocol.ts             hand-written WS v2 frame envelopes (stable layer)
+  validation.ts           runtime guards for untrusted JSON/protocol data
   errors.ts               SpacemoltError / ConnectionClosedError
   client.ts               SpacemoltClient — multi-account manager (M4)
   account.ts              Account — one authenticated connection; pacing +
@@ -180,6 +189,7 @@ src/
   generated/              AUTO-GENERATED — do not edit
 tests/
   mock-socket.ts          scriptable WebSocketLike for transport tests
+  require-value.ts        runtime assertion helper for test fixtures
 ```
 
 ## Milestones

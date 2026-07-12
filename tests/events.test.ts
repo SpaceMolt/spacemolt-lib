@@ -8,12 +8,21 @@ import type {
   SubscribeObservationResponse,
 } from '../src/generated/openapi/types.gen.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
-import { mockFactory, MockSocket } from './mock-socket.ts';
+import { mockFactory, type MockSocket } from './mock-socket.ts';
+import { requireValue } from './require-value.ts';
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
-    version: '0.452.0', release_date: '2026-06-20', release_notes: [], tick_rate: 5,
-    current_tick: 1, server_time: 1, game_info: '', website: '', help_text: '', terms: '',
+    version: '0.452.0',
+    release_date: '2026-06-20',
+    release_notes: [],
+    tick_rate: 5,
+    current_tick: 1,
+    server_time: 1,
+    game_info: '',
+    website: '',
+    help_text: '',
+    terms: '',
   };
 }
 
@@ -21,7 +30,7 @@ async function connected(): Promise<{ account: Account; socket: MockSocket }> {
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://m/ws/v2', webSocketFactory: factory, seedState: false });
   const connectP = account.connect();
-  const socket = sockets[0]!;
+  const socket = requireValue(sockets[0], 'expected socket to be created synchronously');
   socket.serverSend({ type: 'welcome', payload: welcomePayload() });
   await connectP;
   return { account, socket };
@@ -99,6 +108,22 @@ test('events(type) async-iterates buffered payloads', async () => {
 });
 
 // --- market subscription + cache ---
+
+test('subscription helpers reject responses without structured content', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, server) => {
+    server.serverSend({
+      type: 'result',
+      request_id: frame.request_id,
+      payload: { result: 'missing structured content' },
+    });
+  };
+
+  await expect(account.subscribeMarket()).rejects.toMatchObject({ code: 'invalid_response' });
+  await expect(account.subscribeObservation()).rejects.toMatchObject({ code: 'invalid_response' });
+  expect(account.market('earth_station')).toBeUndefined();
+  expect(account.observation()).toBeNull();
+});
 
 test('subscribeMarket seeds the book and market_update merges changed items', async () => {
   const { account, socket } = await connected();
@@ -236,7 +261,11 @@ test('subscribeObservation bridges nearby-player presence into location.nearby_p
   socket.serverSend({
     type: 'action_result',
     request_id: 'seed',
-    payload: { command: 'dock', tick: 1, result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } } },
+    payload: {
+      command: 'dock',
+      tick: 1,
+      result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } },
+    },
   });
   expect(account.state.location?.poi_id).toBe('earth_station');
 
@@ -246,9 +275,7 @@ test('subscribeObservation bridges nearby-player presence into location.nearby_p
   respondToSubscribeObservation(socket, [{ player_id: 'p1', username: 'Nova', in_combat: false }]);
   await account.subscribeObservation();
 
-  expect(account.state.location?.nearby_players).toEqual([
-    { player_id: 'p1', username: 'Nova', in_combat: false },
-  ]);
+  expect(account.state.location?.nearby_players).toEqual([{ player_id: 'p1', username: 'Nova', in_combat: false }]);
   expect(account.state.location?.nearby_player_count).toBe(1);
   expect(account.state.location?.docked_at).toBe('earth_station'); // other location fields untouched
   expect(changedSections).toEqual([['location']]);
@@ -266,9 +293,7 @@ test('subscribeObservation bridges nearby-player presence into location.nearby_p
     } satisfies NotificationObservationUpdate,
   });
 
-  expect(account.state.location?.nearby_players).toEqual([
-    { player_id: 'p2', username: 'Rex', in_combat: true },
-  ]);
+  expect(account.state.location?.nearby_players).toEqual([{ player_id: 'p2', username: 'Rex', in_combat: true }]);
   expect(account.state.location?.nearby_player_count).toBe(1);
 });
 
@@ -287,7 +312,11 @@ test('observation() clears once the account leaves the subscribed POI — same s
   socket.serverSend({
     type: 'action_result',
     request_id: 'seed',
-    payload: { command: 'dock', tick: 1, result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } } },
+    payload: {
+      command: 'dock',
+      tick: 1,
+      result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } },
+    },
   });
 
   respondToSubscribeObservation(socket, [{ player_id: 'p1', username: 'Nova', in_combat: false }]);

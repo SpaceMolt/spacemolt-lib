@@ -18,6 +18,8 @@
  * Uses only web-standard `fetch`, so it stays browser-safe.
  */
 
+import { isRecord, requireRecord } from '../validation.ts';
+
 /** A player account owned by the authenticated Clerk user. */
 export interface ClerkPlayer {
   id: string;
@@ -36,12 +38,7 @@ export interface ClerkSourceOptions {
   fetchImpl?: typeof fetch;
 }
 
-async function clerkFetch(
-  fetchImpl: typeof fetch,
-  url: string,
-  apiKey: string,
-  init?: RequestInit,
-): Promise<unknown> {
+async function clerkFetch(fetchImpl: typeof fetch, url: string, apiKey: string, init?: RequestInit): Promise<unknown> {
   const res = await fetchImpl(url, {
     ...init,
     headers: { accept: 'application/json', authorization: `Bearer ${apiKey}`, ...(init?.headers ?? {}) },
@@ -64,13 +61,16 @@ export async function mintWsToken(opts: {
   fetchImpl?: typeof fetch;
 }): Promise<string> {
   const base = opts.httpBaseUrl.replace(/\/$/, '');
-  const data = (await clerkFetch(
-    opts.fetchImpl ?? fetch,
-    `${base}/api/player/${encodeURIComponent(opts.playerId)}/ws-token`,
-    opts.apiKey,
-    { method: 'POST' },
-  )) as { token?: string };
-  if (!data.token) throw new Error('ws-token response had no token');
+  const data = requireRecord(
+    await clerkFetch(
+      opts.fetchImpl ?? fetch,
+      `${base}/api/player/${encodeURIComponent(opts.playerId)}/ws-token`,
+      opts.apiKey,
+      { method: 'POST' },
+    ),
+    'ws-token response',
+  );
+  if (typeof data.token !== 'string' || !data.token) throw new Error('ws-token response had no token');
   return data.token;
 }
 
@@ -91,16 +91,28 @@ export class ClerkSource {
 
   /** List the player accounts the authenticated Clerk user owns. */
   async listPlayers(): Promise<ClerkPlayer[]> {
-    const data = (await clerkFetch(
-      this.fetchImpl,
-      `${this.httpBaseUrl}/api/registration-code`,
-      this.opts.apiKey,
-    )) as { players?: ClerkPlayer[] };
-    return data.players ?? [];
+    const data = requireRecord(
+      await clerkFetch(this.fetchImpl, `${this.httpBaseUrl}/api/registration-code`, this.opts.apiKey),
+      'registration-code response',
+    );
+    if (!Array.isArray(data.players)) return [];
+    return data.players.filter(
+      (player): player is ClerkPlayer =>
+        isRecord(player) &&
+        typeof player.id === 'string' &&
+        typeof player.username === 'string' &&
+        typeof player.empire === 'string' &&
+        typeof player.hidden === 'boolean',
+    );
   }
 
   /** Mint a single-use WS login token for one owned player. */
   mintWsToken(playerId: string): Promise<string> {
-    return mintWsToken({ httpBaseUrl: this.httpBaseUrl, apiKey: this.opts.apiKey, playerId, fetchImpl: this.fetchImpl });
+    return mintWsToken({
+      httpBaseUrl: this.httpBaseUrl,
+      apiKey: this.opts.apiKey,
+      playerId,
+      fetchImpl: this.fetchImpl,
+    });
   }
 }

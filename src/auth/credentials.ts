@@ -7,6 +7,8 @@
  * the file-backed store does, and lives here in `src/auth/` for that reason.
  */
 
+import { isRecord } from '../validation.ts';
+
 /**
  * How an account authenticates. Raw credentials (login / login_token / register)
  * plus `clerk`: a Clerk API key + the owned player's id, from which the account
@@ -31,6 +33,33 @@ export interface CredentialStore {
   get(id: string): Promise<StoredAccount | undefined>;
   put(account: StoredAccount): Promise<void>;
   remove(id: string): Promise<void>;
+}
+
+function hasString(value: Record<string, unknown>, key: string): boolean {
+  return typeof value[key] === 'string';
+}
+
+export function isStoredAccount(value: unknown): value is StoredAccount {
+  if (!isRecord(value) || !hasString(value, 'id') || !isRecord(value.credentials)) return false;
+  const credentials = value.credentials;
+  switch (credentials.kind) {
+    case 'login':
+      return hasString(credentials, 'username') && hasString(credentials, 'password');
+    case 'login_token':
+      return hasString(credentials, 'token');
+    case 'clerk':
+      return (
+        hasString(credentials, 'apiKey') && hasString(credentials, 'playerId') && hasString(credentials, 'httpBaseUrl')
+      );
+    case 'register':
+      return (
+        hasString(credentials, 'username') &&
+        hasString(credentials, 'empire') &&
+        (credentials.registration_code === undefined || typeof credentials.registration_code === 'string')
+      );
+    default:
+      return false;
+  }
 }
 
 /** In-memory store. The default; nothing is persisted across process restarts. */

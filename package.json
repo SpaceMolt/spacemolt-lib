@@ -24,9 +24,15 @@
   "scripts": {
     "fetch-spec": "bun run scripts/fetch-spec.ts",
     "generate": "bun run openapi-ts && bun run scripts/generate.ts",
+    "generate:check": "bun run scripts/check-generated.ts",
+    "check": "bun run format:check && bun run lint && bun run generate:check && bun run typecheck && bun test && bun run build:browser-check && bun run build && bun run build:smoke",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
     "typecheck": "bun x tsc --noEmit",
     "prepare": "bun run build",
     "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --target node --format esm && bun build src/node.ts --outfile dist/node.js --target node --format esm && bun x tsc -p tsconfig.build.json && bun run scripts/fix-dts-extensions.ts",
+    "build:smoke": "node scripts/check-build.mjs",
     "build:browser-check": "bun build src/index.ts --target browser --outfile /dev/null",
     "test": "bun test"
   },
@@ -36,14 +42,19 @@
   },
   "homepage": "https://www.spacemolt.com",
   "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
     "@hey-api/openapi-ts": "^0.73.0",
-    "@types/bun": "^1.3.9"
+    "@types/bun": "^1.3.9",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.5"
   }
 }

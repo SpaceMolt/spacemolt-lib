@@ -31,17 +31,10 @@
  * ordering beyond per-request_id sequencing.
  */
 
-import type {
-  ActionErrorFrame,
-  ActionResultFrame,
-  ErrorFrame,
-  MutationAck,
-  MutationResult,
-  QueryResult,
-  RawFrame,
-  ResultFrame,
-} from '../protocol.ts';
-import { ConnectionClosedError, errorFromActionFrame, errorFromFrame, SpacemoltError } from '../errors.ts';
+import type { MutationAck, MutationResult, QueryResult, RawFrame } from '../protocol.ts';
+import { isActionErrorFrame, isActionResultFrame, isErrorFrame, isResultFrame } from '../protocol.ts';
+import { type ConnectionClosedError, errorFromActionFrame, errorFromFrame, SpacemoltError } from '../errors.ts';
+import { isRecord } from '../validation.ts';
 
 export type RequestKind = 'query' | 'mutation';
 
@@ -53,13 +46,12 @@ export type RequestKind = 'query' | 'mutation';
  */
 function extractPendingAck(structured: Record<string, unknown> | undefined): MutationAck | undefined {
   if (!structured) return undefined;
-  if (structured['pending'] === true) {
-    return { command: String(structured['command'] ?? ''), message: String(structured['message'] ?? '') };
+  if (structured.pending === true) {
+    return { command: String(structured.command ?? ''), message: String(structured.message ?? '') };
   }
-  const details = structured['details'];
-  if (details && typeof details === 'object' && (details as Record<string, unknown>)['pending'] === true) {
-    const d = details as Record<string, unknown>;
-    return { command: String(d['command'] ?? ''), message: String(d['message'] ?? '') };
+  const details = structured.details;
+  if (isRecord(details) && details.pending === true) {
+    return { command: String(details.command ?? ''), message: String(details.message ?? '') };
   }
   return undefined;
 }
@@ -119,7 +111,8 @@ export class Correlator {
 
     switch (frame.type) {
       case 'result': {
-        const payload = (frame as ResultFrame).payload;
+        if (!isResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
+        const payload = frame.payload;
         if (pending.kind === 'query') {
           this.settle(requestId);
           pending.resolve({ result: payload.result, structuredContent: payload.structuredContent });
@@ -135,7 +128,7 @@ export class Correlator {
           // itself, carried as delta.details same as a real outcome would.
           this.settle(requestId);
           pending.resolve({
-            command: String(structured?.['command'] ?? ''),
+            command: String(structured?.command ?? ''),
             tick: 0,
             delta: { details: structured },
           });
@@ -149,7 +142,8 @@ export class Correlator {
       }
       case 'action_result': {
         if (pending.kind !== 'mutation') return true;
-        const payload = (frame as ActionResultFrame).payload;
+        if (!isActionResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
+        const payload = frame.payload;
         this.settle(requestId);
         pending.resolve({
           command: payload.command,
@@ -161,13 +155,15 @@ export class Correlator {
         return true;
       }
       case 'action_error': {
+        if (!isActionErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         this.settle(requestId);
-        pending.reject(errorFromActionFrame(frame as ActionErrorFrame));
+        pending.reject(errorFromActionFrame(frame));
         return true;
       }
       case 'error': {
+        if (!isErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         this.settle(requestId);
-        pending.reject(errorFromFrame(frame as ErrorFrame));
+        pending.reject(errorFromFrame(frame));
         return true;
       }
       default:
@@ -183,5 +179,11 @@ export class Correlator {
 
   private settle(requestId: string): void {
     this.pending.delete(requestId);
+  }
+
+  private rejectInvalidResponse(requestId: string, pending: Pending, frameType: string): true {
+    this.settle(requestId);
+    pending.reject(new SpacemoltError('invalid_response', `Malformed ${frameType} frame for request ${requestId}`));
+    return true;
   }
 }

@@ -165,9 +165,7 @@ export class SpacemoltClient {
   private clerkSource?: ClerkSource;
   private readonly accountConnectedListeners = new Set<(account: Account) => void>();
   private readonly accountReconnectedListeners = new Set<(account: Account) => void>();
-  private readonly accountDisconnectedListeners = new Set<
-    (id: string, err: ConnectionClosedError) => void
-  >();
+  private readonly accountDisconnectedListeners = new Set<(id: string, err: ConnectionClosedError) => void>();
   /** Paced by connectBatchSize/connectStaggerMs/connectBatchWaitMs — the same limiter drains both the initial fleet connect and later reconnects, see `enqueueRateLimited`. */
   private readonly rateLimitedQueue: Array<() => Promise<void>> = [];
   private rateLimitedQueueDraining = false;
@@ -252,9 +250,9 @@ export class SpacemoltClient {
    */
   async catalog(force = false): Promise<CatalogCache> {
     const maxAgeMs = this.opts.catalogMaxAgeMs ?? 3_600_000;
-    const fresh =
-      !!this.catalogCache && !force && Date.now() - this.catalogFetchedAt < maxAgeMs;
-    if (fresh) return this.catalogCache!;
+    const cached = this.catalogCache;
+    const fresh = cached && !force && Date.now() - this.catalogFetchedAt < maxAgeMs;
+    if (fresh) return cached;
 
     this.catalogCache =
       !this.catalogCache || force
@@ -298,16 +296,22 @@ export class SpacemoltClient {
   async register(params: RegisterParams): Promise<{ account: Account; result: RegisterResult }> {
     const account = this.createAccount(params.username);
     this.connected.set(params.username, account);
-    await account.connect();
-    const result = await account.register(params);
-    await this.store.put({
-      id: params.username,
-      credentials: { kind: 'login', username: params.username, password: result.password },
-      playerId: result.player_id,
-    });
-    account.onDisconnected((err) => this.handleAccountDisconnected(params.username, account, err));
-    this.notifyAccountConnected(account);
-    return { account, result };
+    try {
+      await account.connect();
+      const result = await account.register(params);
+      await this.store.put({
+        id: params.username,
+        credentials: { kind: 'login', username: params.username, password: result.password },
+        playerId: result.player_id,
+      });
+      account.onDisconnected((err) => this.handleAccountDisconnected(params.username, account, err));
+      this.notifyAccountConnected(account);
+      return { account, result };
+    } catch (error) {
+      account.close();
+      this.connected.delete(params.username);
+      throw error;
+    }
   }
 
   /** Resolves `connectRetry` into a concrete backoff config. */
@@ -530,7 +534,8 @@ export class SpacemoltClient {
         }
       }
       isFirst = false;
-      const task = this.rateLimitedQueue.shift()!;
+      const task = this.rateLimitedQueue.shift();
+      if (!task) break;
       ranInCurrentBatch++;
       await task();
     }

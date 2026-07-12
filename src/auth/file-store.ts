@@ -9,7 +9,8 @@
 
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { CredentialStore, StoredAccount } from './credentials.ts';
+import { isStoredAccount, type CredentialStore, type StoredAccount } from './credentials.ts';
+import { isRecord } from '../validation.ts';
 
 interface FileShape {
   version: 1;
@@ -25,10 +26,21 @@ export class FileCredentialStore implements CredentialStore {
     if (this.cache) return this.cache;
     try {
       const raw = await readFile(this.path, 'utf-8');
-      const parsed = JSON.parse(raw) as FileShape;
-      this.cache = parsed.accounts ?? {};
-    } catch {
-      this.cache = {};
+      const parsed: unknown = JSON.parse(raw);
+      if (!isRecord(parsed) || parsed.version !== 1 || !isRecord(parsed.accounts)) {
+        throw new Error(`Invalid credential store format in ${this.path}`);
+      }
+      const accounts: Record<string, StoredAccount> = {};
+      for (const [id, account] of Object.entries(parsed.accounts)) {
+        if (!isStoredAccount(account) || account.id !== id) {
+          throw new Error(`Invalid account ${JSON.stringify(id)} in credential store ${this.path}`);
+        }
+        accounts[id] = account;
+      }
+      this.cache = accounts;
+    } catch (error) {
+      if (isMissingFileError(error)) this.cache = {};
+      else throw error;
     }
     return this.cache;
   }
@@ -38,7 +50,7 @@ export class FileCredentialStore implements CredentialStore {
     await mkdir(dirname(this.path), { recursive: true });
     // Atomic write: temp file + rename, so a crash can't truncate the store.
     const tmp = `${this.path}.tmp-${process.pid}`;
-    await writeFile(tmp, JSON.stringify(data, null, 2));
+    await writeFile(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
     await rename(tmp, this.path);
   }
 
@@ -58,4 +70,8 @@ export class FileCredentialStore implements CredentialStore {
     delete accounts[id];
     await this.save();
   }
+}
+
+function isMissingFileError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
 }

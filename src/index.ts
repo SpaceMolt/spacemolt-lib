@@ -59,6 +59,8 @@ export {
   type SocketOptions,
   type WebSocketLike,
   type WebSocketFactory,
+  type MessageEventLike,
+  type CloseEventLike,
 } from './transport/socket.ts';
 export { ACTIONS, GENERATED_SPEC_VERSION } from './generated/actions.gen.ts';
 export type { ToolName, ActionName, ActionDef, ActionParam } from './generated/actions.gen.ts';
@@ -67,9 +69,7 @@ export type { ToolName, ActionName, ActionDef, ActionParam } from './generated/a
 // is typed without a cast; these exports let a consumer name the types explicitly,
 // e.g. `import type { FindRouteResponse, V2GameState } from '@spacemolt/lib'`.
 export type * from './generated/openapi/types.gen.ts';
-export {
-  TYPED_NOTIFICATION_TYPES,
-} from './generated/notifications.gen.ts';
+export { TYPED_NOTIFICATION_TYPES } from './generated/notifications.gen.ts';
 export type {
   NotificationPayloads,
   TypedNotificationType,

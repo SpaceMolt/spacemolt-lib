@@ -1,3 +1,5 @@
+import { isRecord, requireRecord } from '../validation.ts';
+
 /**
  * Local copy of the static galaxy map (`GET /api/map`).
  *
@@ -21,8 +23,16 @@ export async function fetchMap(httpBaseUrl: string): Promise<GalaxyMap> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/api/map`;
   const res = await fetch(url, { headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
-  const data = (await res.json()) as Partial<GalaxyMap>;
-  return { systems: data.systems ?? [], empires: data.empires ?? {} };
+  const data = requireRecord(await res.json(), 'map response');
+  const systems = Array.isArray(data.systems)
+    ? data.systems.filter((system): system is MapSystem => isRecord(system))
+    : [];
+  const empires = isRecord(data.empires)
+    ? Object.fromEntries(
+        Object.entries(data.empires).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      )
+    : {};
+  return { systems, empires };
 }
 
 export class MapCache {

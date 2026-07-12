@@ -1,13 +1,14 @@
 import { expect, test } from 'bun:test';
 import { ACTIONS } from '../src/generated/actions.gen.ts';
 import { TYPED_NOTIFICATION_TYPES } from '../src/generated/notifications.gen.ts';
+import { requireValue } from './require-value.ts';
 import { STATE_SECTIONS } from '../src/protocol.ts';
 
 test('action catalog is populated and keyed by tool/action', () => {
   const keys = Object.keys(ACTIONS);
   expect(keys.length).toBeGreaterThan(200);
   for (const key of keys) {
-    const def = ACTIONS[key]!;
+    const def = requireValue(ACTIONS[key], `expected action definition for ${key}`);
     expect(key).toBe(`${def.tool}/${def.action}`);
     expect(def.kind === 'query' || def.kind === 'mutation').toBe(true);
   }
@@ -51,16 +52,12 @@ test('bulk array-of-object params render their element shape, not string[]', () 
 
   // Storage/market bulk params declare arrays of {item_id, quantity, ...} objects
   // in the spec; the generator must emit that element shape, never collapse to string[].
-  expect(paramType('spacemolt_storage/deposit', 'items')).toBe(
-    '{ item_id: string; quantity: number }[]',
-  );
+  expect(paramType('spacemolt_storage/deposit', 'items')).toBe('{ item_id: string; quantity: number }[]');
   expect(paramType('spacemolt_market/create_sell_order', 'orders')).toBe(
     '{ item_id: string; price_each: number; quantity: number }[]',
   );
   // Optional nested fields stay optional; nested enums are preserved.
-  expect(paramType('spacemolt_transfer/trade_offer', 'offer_items')).toBe(
-    '{ item_id?: string; quantity?: number }[]',
-  );
+  expect(paramType('spacemolt_transfer/trade_offer', 'offer_items')).toBe('{ item_id?: string; quantity?: number }[]');
   expect(paramType('spacemolt_market/create_buy_order', 'orders')).toBe(
     '{ deliver_to?: "cargo" | "storage"; item_id: string; price_each: number; quantity: number }[]',
   );

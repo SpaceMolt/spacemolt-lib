@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Account } from '../src/account.ts';
@@ -8,11 +8,20 @@ import { MemoryCredentialStore } from '../src/auth/credentials.ts';
 import { FileCredentialStore } from '../src/auth/file-store.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
 import { mockFactory, MockSocket } from './mock-socket.ts';
+import { requireValue } from './require-value.ts';
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
-    version: '0.452.0', release_date: '2026-06-20', release_notes: [], tick_rate: 5,
-    current_tick: 1, server_time: 1, game_info: '', website: '', help_text: '', terms: '',
+    version: '0.452.0',
+    release_date: '2026-06-20',
+    release_notes: [],
+    tick_rate: 5,
+    current_tick: 1,
+    server_time: 1,
+    game_info: '',
+    website: '',
+    help_text: '',
+    terms: '',
   };
 }
 
@@ -47,7 +56,11 @@ test('FileCredentialStore round-trips through disk', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'smolt-'));
   const path = join(dir, 'creds.json');
   const store = new FileCredentialStore(path);
-  await store.put({ id: 'Nova', credentials: { kind: 'login', username: 'Nova', password: 'secret' }, playerId: 'plr_1' });
+  await store.put({
+    id: 'Nova',
+    credentials: { kind: 'login', username: 'Nova', password: 'secret' },
+    playerId: 'plr_1',
+  });
   // a fresh instance reads what the first wrote
   const reopened = new FileCredentialStore(path);
   const got = await reopened.get('Nova');
@@ -55,6 +68,78 @@ test('FileCredentialStore round-trips through disk', async () => {
   const onDisk = JSON.parse(await readFile(path, 'utf-8'));
   expect(onDisk.version).toBe(1);
   expect(onDisk.accounts.Nova.credentials.password).toBe('secret');
+  if (process.platform !== 'win32') expect((await stat(path)).mode & 0o777).toBe(0o600);
+});
+
+test('FileCredentialStore treats only a missing file as an empty store', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'smolt-'));
+  const missing = new FileCredentialStore(join(dir, 'missing.json'));
+  expect(await missing.list()).toEqual([]);
+
+  const malformedPath = join(dir, 'malformed.json');
+  await writeFile(malformedPath, '{not json');
+  expect(new FileCredentialStore(malformedPath).list()).rejects.toThrow();
+
+  const invalidAccountPath = join(dir, 'invalid-account.json');
+  await writeFile(
+    invalidAccountPath,
+    JSON.stringify({ version: 1, accounts: { Nova: { id: 'Other', credentials: { kind: 'login' } } } }),
+  );
+  expect(new FileCredentialStore(invalidAccountPath).list()).rejects.toThrow('Invalid account "Nova"');
+});
+
+test('addToken persists a login token under the requested id', async () => {
+  const store = new MemoryCredentialStore();
+  const client = new SpacemoltClient({ store });
+  expect(await client.addToken('Nova', 'token-value')).toBe('Nova');
+  expect(await store.get('Nova')).toEqual({
+    id: 'Nova',
+    credentials: { kind: 'login_token', token: 'token-value' },
+  });
+});
+
+test('register connects, persists generated credentials, and reports the account', async () => {
+  const { factory, sockets } = mockFactory();
+  const store = new MemoryCredentialStore();
+  const client = new SpacemoltClient({ store, webSocketFactory: factory, seedState: false });
+  const registering = client.register({ username: 'Nova', empire: 'solarian', registration_code: 'code' });
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  socket.onClientSend = (frame, server) => {
+    if (frame.action !== 'register') return;
+    server.serverSend({ type: 'registered', payload: { password: 'generated-secret', player_id: 'plr_1' } });
+    server.serverSend({ type: 'logged_in', payload: { player: { username: 'Nova' } } });
+  };
+
+  const { account, result } = await registering;
+  expect(account).toBe(requireValue(client.account('Nova')));
+  expect(result.password).toBe('generated-secret');
+  expect(await store.get('Nova')).toEqual({
+    id: 'Nova',
+    credentials: { kind: 'login', username: 'Nova', password: 'generated-secret' },
+    playerId: 'plr_1',
+  });
+});
+
+test('register removes and closes an account when registration fails', async () => {
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({ webSocketFactory: factory, seedState: false });
+  const registering = client.register({ username: 'Nova', empire: 'solarian', registration_code: 'bad' });
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  socket.onClientSend = (frame, server) => {
+    if (frame.action === 'register') {
+      server.serverSend({
+        type: 'error',
+        request_id: frame.request_id,
+        payload: { code: 'invalid_registration_code', message: 'bad code' },
+      });
+    }
+  };
+
+  await expect(registering).rejects.toMatchObject({ code: 'invalid_registration_code' });
+  expect(client.account('Nova')).toBeUndefined();
+  expect(await client.credentialStore.get('Nova')).toBeUndefined();
 });
 
 // --- multi-account client ---
@@ -68,7 +153,7 @@ test('connect authenticates a stored account and captures player id', async () =
   const connectP = client.connect('Nova');
   // the account's socket is created synchronously inside connect()
   await Promise.resolve();
-  autoServe(sockets[0]!, 'Nova');
+  autoServe(requireValue(sockets[0]), 'Nova');
   const account = await connectP;
 
   expect(account.authenticated).toBe(true);
@@ -87,7 +172,7 @@ test('connectAll connects every stored account', async () => {
   for (const name of ['Nova', 'Rex']) {
     // wait for the next socket to appear
     while (sockets.length < (name === 'Nova' ? 1 : 2)) await new Promise((r) => setTimeout(r, 1));
-    autoServe(sockets[name === 'Nova' ? 0 : 1]!, name);
+    autoServe(requireValue(sockets[name === 'Nova' ? 0 : 1]), name);
   }
   const accounts = await allP;
   expect(accounts.length).toBe(2);
@@ -108,17 +193,17 @@ test('connectAll/connectOwned report each account via onConnect as it finishes, 
   await client.addLogin('Rex', 'pw');
 
   const seen: string[] = [];
-  const allP = client.connectAll({ onConnect: (account) => seen.push(account.id!) });
+  const allP = client.connectAll({ onConnect: (account) => seen.push(requireValue(account.id)) });
 
   while (sockets.length < 1) await new Promise((r) => setTimeout(r, 1));
-  autoServe(sockets[0]!, 'Nova');
+  autoServe(requireValue(sockets[0]), 'Nova');
   // Give Nova's connect a moment to settle, well before Rex's batch-wait delay
   // (200ms) elapses — proving onConnect already fired for it.
   await new Promise((r) => setTimeout(r, 20));
   expect(seen).toEqual(['Nova']);
 
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 1));
-  autoServe(sockets[1]!, 'Rex');
+  autoServe(requireValue(sockets[1]), 'Rex');
   await allP;
   expect(seen).toEqual(['Nova', 'Rex']);
 });
@@ -139,7 +224,7 @@ test('connectIds does not pause between batches at or under connectBatchSize', a
   const allP = client.connectAll();
   for (let i = 0; i < 3; i++) {
     while (sockets.length < i + 1) await new Promise((r) => setTimeout(r, 1));
-    autoServe(sockets[i]!, `acct${i}`);
+    autoServe(requireValue(sockets[i]), `acct${i}`);
   }
   await allP;
   expect(Date.now() - start).toBeLessThan(500); // well under the batch pause
@@ -162,12 +247,12 @@ test('connectIds pauses connectBatchWaitMs between batches for a fleet over conn
   for (let i = 0; i < 3; i++) {
     while (sockets.length < i + 1) await new Promise((r) => setTimeout(r, 1));
     socketCreatedAt.push(Date.now());
-    autoServe(sockets[i]!, `acct${i}`);
+    autoServe(requireValue(sockets[i]), `acct${i}`);
   }
   await allP;
 
-  const withinBatchGap = socketCreatedAt[1]! - socketCreatedAt[0]!;
-  const acrossBatchGap = socketCreatedAt[2]! - socketCreatedAt[1]!;
+  const withinBatchGap = requireValue(socketCreatedAt[1]) - requireValue(socketCreatedAt[0]);
+  const acrossBatchGap = requireValue(socketCreatedAt[2]) - requireValue(socketCreatedAt[1]);
   expect(withinBatchGap).toBeLessThan(100); // just the 1ms stagger, plus test scheduling slop
   expect(acrossBatchGap).toBeGreaterThanOrEqual(140); // the 150ms batch pause, not the 1ms stagger
 });
@@ -198,9 +283,9 @@ test('connectAll retries a rejected handshake instead of aborting the rest of th
   // retry; socket 2 is Rex's (only attempted after Nova finally succeeds,
   // since connectIds awaits each id in turn).
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 1));
-  autoServe(sockets[1]!, 'Nova');
+  autoServe(requireValue(sockets[1]), 'Nova');
   while (sockets.length < 3) await new Promise((r) => setTimeout(r, 1));
-  autoServe(sockets[2]!, 'Rex');
+  autoServe(requireValue(sockets[2]), 'Rex');
 
   const accounts = await allP;
   expect(accounts.length).toBe(2);
@@ -237,7 +322,7 @@ test('connect() honors retry_after when a 4003 close arrives before auth complet
   const start = Date.now();
   const connectP = client.connect('Nova');
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 5));
-  autoServe(sockets[1]!, 'Nova');
+  autoServe(requireValue(sockets[1]), 'Nova');
   const account = await connectP;
   const elapsed = Date.now() - start;
 
@@ -300,9 +385,9 @@ test('connectAll tolerates one account failing to connect', async () => {
     // connectIds awaits each id in turn: socket 0 = Nova, socket 1 = Bad
     // (fails to open, skipped), socket 2 = Rex.
     while (sockets.length < 1) await new Promise((r) => setTimeout(r, 1));
-    autoServe(sockets[0]!, 'Nova');
+    autoServe(requireValue(sockets[0]), 'Nova');
     while (sockets.length < 3) await new Promise((r) => setTimeout(r, 1));
-    autoServe(sockets[2]!, 'Rex');
+    autoServe(requireValue(sockets[2]), 'Rex');
 
     const accounts = await allP;
     expect(accounts.length).toBe(2);
@@ -321,7 +406,7 @@ test('remove closes and forgets an account', async () => {
   await client.addLogin('Nova', 'pw');
   const connectP = client.connect('Nova');
   await Promise.resolve();
-  autoServe(sockets[0]!, 'Nova');
+  autoServe(requireValue(sockets[0]), 'Nova');
   await connectP;
 
   await client.remove('Nova');
@@ -351,23 +436,23 @@ test('reconnects after a shared disconnect are paced by connectBatchSize/connect
   const allP = client.connectAll();
   for (let i = 0; i < 3; i++) {
     while (sockets.length < i + 1) await new Promise((r) => setTimeout(r, 1));
-    autoServe(sockets[i]!, `acct${i}`);
+    autoServe(requireValue(sockets[i]), `acct${i}`);
   }
   await allP;
 
   const before = sockets.length;
   const reconnectedAt: number[] = [];
   // Close all three at once — the same event a mass disconnect would cause.
-  for (let i = 0; i < 3; i++) sockets[i]!.close(1006, 'abnormal');
+  for (let i = 0; i < 3; i++) requireValue(sockets[i]).close(1006, 'abnormal');
 
   for (let i = 0; i < 3; i++) {
     while (sockets.length < before + i + 1) await new Promise((r) => setTimeout(r, 1));
     reconnectedAt.push(Date.now());
-    autoServe(sockets[before + i]!, `acct${i}`);
+    autoServe(requireValue(sockets[before + i]), `acct${i}`);
   }
 
-  const withinBatchGap = reconnectedAt[1]! - reconnectedAt[0]!;
-  const acrossBatchGap = reconnectedAt[2]! - reconnectedAt[1]!;
+  const withinBatchGap = requireValue(reconnectedAt[1]) - requireValue(reconnectedAt[0]);
+  const acrossBatchGap = requireValue(reconnectedAt[2]) - requireValue(reconnectedAt[1]);
   expect(withinBatchGap).toBeLessThan(100); // just the 1ms stagger, plus test scheduling slop
   expect(acrossBatchGap).toBeGreaterThanOrEqual(140); // the 150ms batch pause, not the 1ms stagger
 }, 5000);
@@ -387,13 +472,13 @@ test('onAccountConnected fires only once; onAccountReconnected fires after, with
 
   const connectP = client.connect('Nova');
   await Promise.resolve();
-  autoServe(sockets[0]!, 'Nova');
+  autoServe(requireValue(sockets[0]), 'Nova');
   const firstAccount = await connectP;
   expect(connectedAccounts).toEqual([firstAccount]);
 
-  sockets[0]!.close(1006, 'abnormal');
+  requireValue(sockets[0]).close(1006, 'abnormal');
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
-  autoServe(sockets[1]!, 'Nova');
+  autoServe(requireValue(sockets[1]), 'Nova');
 
   while (reconnectedAccounts.length < 1) await new Promise((r) => setTimeout(r, 2));
   expect(reconnectedAccounts[0]).toBe(firstAccount);
@@ -420,10 +505,10 @@ test('a socket dropping mid-reconnect does not spawn a parallel reconnect chain'
 
   const connectP = client.connect('Nova');
   await Promise.resolve();
-  autoServe(sockets[0]!, 'Nova');
+  autoServe(requireValue(sockets[0]), 'Nova');
   const account = await connectP;
 
-  sockets[0]!.close(1006, 'abnormal');
+  requireValue(sockets[0]).close(1006, 'abnormal');
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
 
   // Let the reconnect socket's own async "open" fire, then drop it before
@@ -431,12 +516,12 @@ test('a socket dropping mid-reconnect does not spawn a parallel reconnect chain'
   // completes. This must be absorbed as a retry within the reconnect
   // attempt already running, not spawn a second, parallel one.
   await new Promise((r) => setTimeout(r, 5));
-  sockets[1]!.close(1006, 'abnormal');
+  requireValue(sockets[1]).close(1006, 'abnormal');
 
   // The retry (from the one reconnect chain already running) creates a
   // third socket after its backoff delay — serve it properly.
   while (sockets.length < 3) await new Promise((r) => setTimeout(r, 2));
-  autoServe(sockets[2]!, 'Nova');
+  autoServe(requireValue(sockets[2]), 'Nova');
 
   while (reconnectedAccounts.length < 1) await new Promise((r) => setTimeout(r, 2));
   // Give a (buggy) duplicate chain time to also run its course before
@@ -457,10 +542,10 @@ test('onAccountDisconnected fires on session_replaced and does not attempt recon
 
   const connectP = client.connect('Nova');
   await Promise.resolve();
-  autoServe(sockets[0]!, 'Nova');
+  autoServe(requireValue(sockets[0]), 'Nova');
   await connectP;
 
-  sockets[0]!.close(4001, 'session_replaced');
+  requireValue(sockets[0]).close(4001, 'session_replaced');
   while (disconnects.length < 1) await new Promise((r) => setTimeout(r, 2));
   expect(disconnects).toEqual([{ id: 'Nova', code: 4001 }]);
 
@@ -477,10 +562,10 @@ test('a market subscription active before a disconnect is restored on the reconn
 
   const connectP = client.connect('Nova');
   await Promise.resolve();
-  autoServe(sockets[0]!, 'Nova');
+  autoServe(requireValue(sockets[0]), 'Nova');
   const account = await connectP;
 
-  sockets[0]!.onClientSend = (frame, s) => {
+  requireValue(sockets[0]).onClientSend = (frame, s) => {
     if (frame.action === 'subscribe_market') {
       s.serverSend({
         type: 'result',
@@ -492,9 +577,9 @@ test('a market subscription active before a disconnect is restored on the reconn
   await account.subscribeMarket();
   expect(account.marketSubscribed).toBe(true);
 
-  sockets[0]!.close(1006, 'abnormal');
+  requireValue(sockets[0]).close(1006, 'abnormal');
   while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
-  const newSocket = sockets[1]!;
+  const newSocket = requireValue(sockets[1]);
   newSocket.serverSend({ type: 'welcome', payload: welcomePayload() });
   newSocket.onClientSend = (frame, s) => {
     if (frame.action === 'login') {

@@ -4,14 +4,15 @@
  * observe client sends and inject server frames.
  */
 
-import type { WebSocketLike, WebSocketFactory } from '../src/transport/socket.ts';
+import type { CloseEventLike, MessageEventLike, WebSocketFactory, WebSocketLike } from '../src/transport/socket.ts';
 import type { InboundFrame, RawFrame } from '../src/protocol.ts';
+import { isRecord } from '../src/validation.ts';
 
 type Listeners = {
   open: Array<() => void>;
-  message: Array<(ev: { data: unknown }) => void>;
-  close: Array<(ev: { code?: number; reason?: string }) => void>;
-  error: Array<(ev: unknown) => void>;
+  message: Array<(event: MessageEventLike) => void>;
+  close: Array<(event: CloseEventLike) => void>;
+  error: Array<(event: unknown) => void>;
 };
 
 export class MockSocket implements WebSocketLike {
@@ -40,15 +41,43 @@ export class MockSocket implements WebSocketLike {
   }
 
   addEventListener(type: 'open', listener: () => void): void;
-  addEventListener(type: 'message', listener: (ev: { data: unknown }) => void): void;
-  addEventListener(type: 'close', listener: (ev: { code?: number; reason?: string }) => void): void;
-  addEventListener(type: 'error', listener: (ev: unknown) => void): void;
-  addEventListener(type: keyof Listeners, listener: (ev: never) => void): void {
-    (this.listeners[type] as Array<(ev: unknown) => void>).push(listener as (ev: unknown) => void);
+  addEventListener(type: 'message', listener: (event: MessageEventLike) => void): void;
+  addEventListener(type: 'close', listener: (event: CloseEventLike) => void): void;
+  addEventListener(type: 'error', listener: (event: unknown) => void): void;
+  addEventListener(
+    ...args:
+      | [type: 'open', listener: () => void]
+      | [type: 'message', listener: (event: MessageEventLike) => void]
+      | [type: 'close', listener: (event: CloseEventLike) => void]
+      | [type: 'error', listener: (event: unknown) => void]
+  ): void {
+    switch (args[0]) {
+      case 'open':
+        this.listeners.open.push(args[1]);
+        break;
+      case 'message':
+        this.listeners.message.push(args[1]);
+        break;
+      case 'close':
+        this.listeners.close.push(args[1]);
+        break;
+      case 'error':
+        this.listeners.error.push(args[1]);
+        break;
+    }
   }
 
   send(data: string): void {
-    const frame = JSON.parse(data) as InboundFrame;
+    const parsed: unknown = JSON.parse(data);
+    if (!isRecord(parsed) || typeof parsed.tool !== 'string' || typeof parsed.action !== 'string') {
+      throw new TypeError('client sent a malformed inbound frame');
+    }
+    const frame: InboundFrame = {
+      tool: parsed.tool,
+      action: parsed.action,
+      ...(isRecord(parsed.payload) ? { payload: parsed.payload } : {}),
+      ...(typeof parsed.request_id === 'string' ? { request_id: parsed.request_id } : {}),
+    };
     this.sent.push(frame);
     this.onClientSend?.(frame, this);
   }

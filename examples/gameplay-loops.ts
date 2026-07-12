@@ -57,8 +57,8 @@ export async function mineUntilFull(account: Account, opts: MineOptions = {}): P
     const before = used();
     try {
       await account.commands.spacemolt.mine();
-    } catch (err) {
-      return finish('error', err as Error);
+    } catch (error) {
+      return finish('error', error instanceof Error ? error : new Error(String(error)));
     }
     if (used() <= before) return finish('no-yield'); // nothing fit / nothing here
     opts.onProgress?.({ cargoUsed: used(), cargoCapacity: cap() });
@@ -85,7 +85,11 @@ export interface JumpOptions {
  * `find_route` plans the hops; we fuel-check, then jump each. Throws if there is
  * no route or not enough fuel (a fleet caller wraps this in `Promise.allSettled`).
  */
-export async function jumpToSystem(account: Account, targetSystemId: string, opts: JumpOptions = {}): Promise<JumpResult> {
+export async function jumpToSystem(
+  account: Account,
+  targetSystemId: string,
+  opts: JumpOptions = {},
+): Promise<JumpResult> {
   if (account.location?.system_id === targetSystemId) return { arrivedAt: targetSystemId, hops: 0 };
   if (account.location?.docked_at) await account.commands.spacemolt.undock();
 
