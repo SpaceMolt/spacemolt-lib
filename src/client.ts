@@ -86,6 +86,18 @@ export interface SpacemoltClientOptions {
   /** HTTP origin for bulk data fetches. Defaults to the origin of `url`. */
   httpBaseUrl?: string;
   /**
+   * How long `catalog()` serves its cached copy before revalidating against the
+   * server. The catalog only changes on a server release, but a long-lived
+   * client that fetched it once at startup would otherwise keep serving that
+   * copy indefinitely — days stale across a release. Past this age the next
+   * `catalog()` call revalidates conditionally (`If-None-Match`): an unchanged
+   * catalog is a ~0-byte `304` (near-free), a changed one is re-downloaded.
+   * Matches the server's own `max-age`. Default 3600000 (1h). Set `0` to
+   * revalidate on every call, or `Infinity` to cache for the client's lifetime
+   * (the old fetch-once behavior).
+   */
+  catalogMaxAgeMs?: number;
+  /**
    * Clerk API key for `connectOwned()` / `listOwnedPlayers()` — connect every
    * game account the Clerk user owns without storing per-account passwords.
    * Generate one from the website; keep it secret.
@@ -148,6 +160,7 @@ export class SpacemoltClient {
   private readonly store: CredentialStore;
   private readonly connected = new Map<string, Account>();
   private catalogCache?: CatalogCache;
+  private catalogFetchedAt = 0;
   private mapCache?: MapCache;
   private clerkSource?: ClerkSource;
   private readonly accountConnectedListeners = new Set<(account: Account) => void>();
@@ -229,9 +242,25 @@ export class SpacemoltClient {
     return this.opts.httpBaseUrl ?? (this.opts.url ? httpBaseFromWs(this.opts.url) : DEFAULT_HTTP_BASE);
   }
 
-  /** The bulk catalog, fetched once and cached. Pass `force` to refetch. */
+  /**
+   * The bulk catalog. Fetched on first use and cached, then revalidated against
+   * the server once the cache is older than `catalogMaxAgeMs` (default 1h) so a
+   * long-lived client picks up a new catalog after a server release instead of
+   * serving a days-stale copy. Revalidation is conditional (`If-None-Match`), so
+   * an unchanged catalog costs a ~0-byte `304` and the cached instance is kept.
+   * Pass `force` to refetch unconditionally now.
+   */
   async catalog(force = false): Promise<CatalogCache> {
-    if (force || !this.catalogCache) this.catalogCache = await CatalogCache.load(this.httpBaseUrl);
+    const maxAgeMs = this.opts.catalogMaxAgeMs ?? 3_600_000;
+    const fresh =
+      !!this.catalogCache && !force && Date.now() - this.catalogFetchedAt < maxAgeMs;
+    if (fresh) return this.catalogCache!;
+
+    this.catalogCache =
+      !this.catalogCache || force
+        ? await CatalogCache.load(this.httpBaseUrl)
+        : await this.catalogCache.revalidate(this.httpBaseUrl);
+    this.catalogFetchedAt = Date.now();
     return this.catalogCache;
   }
 
