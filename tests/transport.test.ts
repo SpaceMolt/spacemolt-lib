@@ -2,7 +2,19 @@ import { expect, test } from 'bun:test';
 import { Account } from '../src/account.ts';
 import { ConnectionClosedError, SpacemoltError } from '../src/errors.ts';
 import type { MutationAck, WelcomeFrame } from '../src/protocol.ts';
-import { mockFactory, MockSocket } from './mock-socket.ts';
+import { mockFactory, type MockSocket } from './mock-socket.ts';
+import { requireValue } from './require-value.ts';
+import { requireRecord } from '../src/validation.ts';
+
+async function rejectedSpacemoltError(promise: Promise<unknown>): Promise<SpacemoltError> {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof SpacemoltError) return error;
+    throw error;
+  }
+  throw new Error('expected operation to reject');
+}
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
@@ -23,7 +35,7 @@ async function connected(): Promise<{ account: Account; socket: MockSocket }> {
   const { factory, sockets } = mockFactory();
   const account = new Account({ url: 'ws://mock/ws/v2', webSocketFactory: factory, seedState: false });
   const connectP = account.connect();
-  const socket = sockets[0]!;
+  const socket = requireValue(sockets[0], 'expected socket to be created synchronously');
   socket.serverSend({ type: 'welcome', payload: welcomePayload() });
   await connectP;
   return { account, socket };
@@ -35,6 +47,25 @@ test('connect resolves with the welcome payload', async () => {
   expect(account.welcome?.tick_rate).toBe(5);
 });
 
+test('connect drops a malformed welcome frame and accepts the next valid one', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://mock/ws/v2', webSocketFactory: factory });
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const connected = account.connect();
+    const socket = sockets[0];
+    if (!socket) throw new Error('expected socket to be created synchronously');
+    socket.serverSend({ type: 'welcome', payload: { version: 42 } });
+    socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+    await connected;
+  } finally {
+    console.warn = originalWarn;
+  }
+  expect(String(warnings[0]?.[0])).toContain('dropped malformed welcome frame');
+});
+
 test('login resolves on logged_in and marks authenticated', async () => {
   const { account, socket } = await connected();
   socket.onClientSend = (frame, s) => {
@@ -43,7 +74,7 @@ test('login resolves on logged_in and marks authenticated', async () => {
     }
   };
   const state = await account.login({ username: 'Nova', password: 'pw' });
-  expect((state.player as { username: string }).username).toBe('Nova');
+  expect(requireRecord(state.player, 'logged_in player').username).toBe('Nova');
   expect(account.authenticated).toBe(true);
 });
 
@@ -59,7 +90,7 @@ test('register resolves with generated credentials and initial state', async () 
   const res = await account.register({ username: 'Nova', empire: 'solarian', registration_code: 'code' });
   expect(res.password).toBe('deadbeef');
   expect(res.player_id).toBe('plr_1');
-  expect((res.state.ship as { class_id: string }).class_id).toBe('shuttle');
+  expect(requireRecord(res.state.ship, 'registered ship').class_id).toBe('shuttle');
   expect(account.authenticated).toBe(true);
 });
 
@@ -115,7 +146,7 @@ test('mutation: pending ack fires onAck, action_result resolves with delta', asy
   const res = await account.mutate('spacemolt', 'jump', { target_system: 'sol' }, (a) => (ack = a));
   expect(ack?.command).toBe('jump');
   expect(res.tick).toBe(1523);
-  expect((res.delta.ship as { fuel: number }).fuel).toBe(60);
+  expect(res.delta.ship?.fuel).toBe(60);
   expect(res.delta.queue?.has_pending).toBe(false);
 });
 
@@ -135,7 +166,7 @@ test('mutation rejects on action_error with command + tick', async () => {
       });
     }
   };
-  const err = (await account.mutate('spacemolt', 'jump', { target_system: 'nowhere' }).catch((e) => e)) as SpacemoltError;
+  const err = await rejectedSpacemoltError(account.mutate('spacemolt', 'jump', { target_system: 'nowhere' }));
   expect(err).toBeInstanceOf(SpacemoltError);
   expect(err.code).toBe('invalid_target');
   expect(err.command).toBe('jump');
@@ -153,7 +184,7 @@ test('mutation rejects on a synchronous error frame (no pending ack)', async () 
       });
     }
   };
-  const err = (await account.mutate('spacemolt', 'mine').catch((e) => e)) as SpacemoltError;
+  const err = await rejectedSpacemoltError(account.mutate('spacemolt', 'mine'));
   expect(err.code).toBe('action_pending');
   expect(err.pendingCommand).toBe('jump');
 });

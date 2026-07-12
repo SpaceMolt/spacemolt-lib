@@ -10,22 +10,22 @@
 
 import type { InboundFrame, RawFrame } from '../protocol.ts';
 import { ConnectionClosedError } from '../errors.ts';
+import { isRecord } from '../validation.ts';
 
 /** The minimal web-standard WebSocket surface this library depends on. */
 export interface WebSocketLike {
   send(data: string): void;
   close(code?: number, reason?: string): void;
-  addEventListener(type: 'open', listener: () => void): void;
-  addEventListener(type: 'message', listener: (ev: { data: unknown }) => void): void;
-  addEventListener(type: 'close', listener: (ev: { code?: number; reason?: string }) => void): void;
-  addEventListener(type: 'error', listener: (ev: unknown) => void): void;
+  addEventListener(type: 'open', listener: (event: Event) => void): void;
+  addEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void): void;
+  addEventListener(type: 'close', listener: (event: CloseEvent) => void): void;
+  addEventListener(type: 'error', listener: (event: Event) => void): void;
 }
 
 export type WebSocketFactory = (url: string) => WebSocketLike;
 
-const defaultFactory: WebSocketFactory = (url) =>
-  // `WebSocket` is global in browsers, Bun, and Node 22+.
-  new WebSocket(url) as unknown as WebSocketLike;
+// `WebSocket` is global in browsers, Bun, and Node 22+.
+const defaultFactory: WebSocketFactory = (url) => new WebSocket(url);
 
 export interface SocketOptions {
   url: string;
@@ -103,7 +103,14 @@ export class Socket {
       if (!line) continue;
       let frame: RawFrame;
       try {
-        frame = JSON.parse(line) as RawFrame;
+        const parsed: unknown = JSON.parse(line);
+        if (
+          !isRecord(parsed) ||
+          typeof parsed.type !== 'string' ||
+          (parsed.request_id !== undefined && typeof parsed.request_id !== 'string')
+        )
+          throw new TypeError('frame must be an object with a type');
+        frame = { ...parsed, type: parsed.type };
       } catch (err) {
         // A frame that fails to parse is otherwise 100% silent — no trace it
         // ever arrived. head/tail samples (not the full body, to bound log

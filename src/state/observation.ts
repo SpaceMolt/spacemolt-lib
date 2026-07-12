@@ -7,10 +7,7 @@
  * cloaked-contact / signature hints are tracked alongside.
  */
 
-import type {
-  NotificationObservationUpdate,
-  SubscribeObservationResponse,
-} from '../generated/openapi/types.gen.ts';
+import type { NotificationObservationUpdate, SubscribeObservationResponse } from '../generated/openapi/types.gen.ts';
 
 export type ObservedPlayer = NonNullable<NotificationObservationUpdate['nearby_changed']>[number];
 export type CloakedContact = NonNullable<NotificationObservationUpdate['cloaked_resolved']>[number];

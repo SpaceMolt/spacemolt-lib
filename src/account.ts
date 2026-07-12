@@ -20,18 +20,20 @@ import type {
   NotificationObservationUpdate,
   SubscribeMarketResponse,
   SubscribeObservationResponse,
-  V2GameState,
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
-import { CLOSE_CODE, ConnectionClosedError, errorFromFrame, retryAfterMsFromClose, SpacemoltError } from './errors.ts';
+import {
+  CLOSE_CODE,
+  type ConnectionClosedError,
+  errorFromFrame,
+  retryAfterMsFromClose,
+  SpacemoltError,
+} from './errors.ts';
 import { TypedEmitter } from './events/emitter.ts';
 import { MarketCache, type MarketBook } from './state/market.ts';
 import { ObservationCache, type ObservationView } from './state/observation.ts';
 import type {
-  ActionResultFrame,
-  ErrorFrame,
   GameState,
-  LoggedInFrame,
   MutationAck,
   MutationResult,
   QueryResult,
@@ -40,6 +42,7 @@ import type {
   StateSection,
   WelcomeFrame,
 } from './protocol.ts';
+import { isActionResultFrame, isErrorFrame, isLoggedInFrame, isRegisteredFrame, isWelcomeFrame } from './protocol.ts';
 import { StateCache } from './state/cache.ts';
 import { Correlator } from './transport/correlator.ts';
 import { Socket, type WebSocketFactory } from './transport/socket.ts';
@@ -201,10 +204,18 @@ function normalizeReconnect(opt: AccountOptions['reconnect']): Required<Reconnec
 
 /** Parse a retry interval from a `rate_limited` error (ms). */
 function retryAfterMs(err: SpacemoltError): number {
-  const fromDetails = typeof err.details?.['retry_after'] === 'number' ? (err.details['retry_after'] as number) : undefined;
+  const retryAfter = err.details?.retry_after;
+  const fromDetails = typeof retryAfter === 'number' ? retryAfter : undefined;
   const match = err.message.match(/retry in (\d+)\s*second/i);
   const seconds = fromDetails ?? (match ? Number(match[1]) : undefined);
   return Math.max(250, (seconds ?? 1) * 1000);
+}
+
+function requireStructuredContent<T>(result: QueryResult<T>, command: string): T {
+  if (result.structuredContent === undefined) {
+    throw new SpacemoltError('invalid_response', `${command} returned no structured content`);
+  }
+  return result.structuredContent;
 }
 
 export class Account {
@@ -232,8 +243,7 @@ export class Account {
   private _authenticated = false;
   private _loginPayload: LoggedInPayload | null = null;
   private _commands: Commands | null = null;
-  private welcomeWaiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | null =
-    null;
+  private welcomeWaiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | null = null;
   private pendingAuth: PendingAuth | null = null;
   private stateListener: ((changed: StateSection[]) => void) | null = null;
 
@@ -267,9 +277,9 @@ export class Account {
 
     // Keep the subscription caches current as their pushes arrive. Registered
     // before any user listener so the cache is updated first.
-    this.emitter.on('market_update', (p) => this.marketCache.applyUpdate(p as NotificationMarketUpdate));
-    this.emitter.on('observation_update', (p) => {
-      this.observationCache.applyUpdate(p as NotificationObservationUpdate);
+    this.emitter.on<NotificationMarketUpdate>('market_update', (payload) => this.marketCache.applyUpdate(payload));
+    this.emitter.on<NotificationObservationUpdate>('observation_update', (payload) => {
+      this.observationCache.applyUpdate(payload);
       this.bridgeObservationToLocation();
     });
   }
@@ -471,13 +481,11 @@ export class Account {
    * cached state. Called automatically after auth unless `seedState` is false.
    */
   async refresh(): Promise<Readonly<GameState>> {
-    const res = await this.query('spacemolt', 'get_status');
-    const snapshot = res.structuredContent as V2GameState | undefined;
-    if (snapshot) {
-      const changed = this.cache.seed(snapshot);
-      if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
-      if (changed.length) this.stateListener?.(changed);
-    }
+    const result = await this.commands.spacemolt.get_status();
+    const snapshot = requireStructuredContent(result, 'spacemolt/get_status');
+    const changed = this.cache.seed(snapshot);
+    if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
+    if (changed.length) this.stateListener?.(changed);
     return this.cache.snapshot();
   }
 
@@ -582,10 +590,7 @@ export class Account {
       arm(this.queryTimeoutMs, `No response to mutation ${requestId} within ${this.queryTimeoutMs}ms`);
       this.correlator
         .awaitMutation(requestId, (ack) => {
-          arm(
-            mutationTimeoutMs,
-            `No action_result for mutation ${requestId} within ${mutationTimeoutMs}ms of its ack`,
-          );
+          arm(mutationTimeoutMs, `No action_result for mutation ${requestId} within ${mutationTimeoutMs}ms of its ack`);
           onAck?.(ack);
         })
         .then(
@@ -595,7 +600,7 @@ export class Account {
           },
           (err: unknown) => {
             if (timer) clearTimeout(timer);
-            reject(err as Error);
+            reject(err instanceof Error ? err : new Error(String(err)));
           },
         );
     });
@@ -617,9 +622,8 @@ export class Account {
    */
   on<K extends TypedNotificationType>(type: K, handler: (payload: NotificationPayloads[K]) => void): () => void;
   on(type: string, handler: (payload: Record<string, unknown>) => void): () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  on(type: string, handler: (payload: any) => void): () => void {
-    return this.emitter.on(type, handler as (payload: unknown) => void);
+  on<T>(type: string, handler: (payload: T) => void): () => void {
+    return this.emitter.on(type, handler);
   }
 
   /** Listen for every server push frame. Returns an unsubscribe function. */
@@ -634,9 +638,8 @@ export class Account {
    */
   events<K extends TypedNotificationType>(type: K): AsyncIterableIterator<NotificationPayloads[K]>;
   events(type: string): AsyncIterableIterator<Record<string, unknown>>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  events(type: string): AsyncIterableIterator<any> {
-    return this.emitter.stream(type);
+  events<T>(type: string): AsyncIterableIterator<T> {
+    return this.emitter.stream(type) as AsyncIterableIterator<T>;
   }
 
   /** Async-iterate every push frame. */
@@ -661,12 +664,12 @@ export class Account {
    * book the server has already stopped updating.
    */
   async subscribeMarket(): Promise<SubscribeMarketResponse> {
-    const res = await this.query('spacemolt_market', 'subscribe_market');
-    const snapshot = res.structuredContent as SubscribeMarketResponse | undefined;
-    if (snapshot) this.marketCache.seed(snapshot);
+    const result = await this.commands.spacemolt_market.subscribe_market();
+    const snapshot = requireStructuredContent(result, 'spacemolt_market/subscribe_market');
+    this.marketCache.seed(snapshot);
     this.marketSubscribedState = true;
-    this.subscribedMarketBaseId = snapshot?.base_id;
-    return snapshot ?? ({} as SubscribeMarketResponse);
+    this.subscribedMarketBaseId = snapshot.base_id;
+    return snapshot;
   }
 
   /** Unsubscribe from the current station's market and drop its cached book. */
@@ -700,16 +703,14 @@ export class Account {
    * `checkSubscriptionsAgainstLocation` guards against it the same way.
    */
   async subscribeObservation(activeScan = false): Promise<SubscribeObservationResponse> {
-    const res = await this.query('spacemolt', 'subscribe_observation', activeScan ? { active_scan: true } : undefined);
-    const snapshot = res.structuredContent as SubscribeObservationResponse | undefined;
-    if (snapshot) {
-      this.observationCache.seed(snapshot);
-      this.bridgeObservationToLocation();
-    }
+    const result = await this.commands.spacemolt.subscribe_observation(activeScan ? { active_scan: true } : undefined);
+    const snapshot = requireStructuredContent(result, 'spacemolt/subscribe_observation');
+    this.observationCache.seed(snapshot);
+    this.bridgeObservationToLocation();
     this.observationSubscribedState = true;
     this.observationActiveScanState = activeScan;
-    this.subscribedObservationPoiId = snapshot?.poi_id;
-    return snapshot ?? ({} as SubscribeObservationResponse);
+    this.subscribedObservationPoiId = snapshot.poi_id;
+    return snapshot;
   }
 
   /** Unsubscribe from the observation watch and clear its cache. */
@@ -734,7 +735,7 @@ export class Account {
   private bridgeObservationToLocation(): void {
     const view = this.observationCache.current();
     if (!view) return;
-    const nearbyPlayers = [...view.nearby.values()] as NonNullable<GameState['location']>['nearby_players'];
+    const nearbyPlayers = [...view.nearby.values()];
     const changed = this.cache.patchSection('location', {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
@@ -849,7 +850,12 @@ export class Account {
     this.pendingAuth = { onLoggedIn, onError };
   }
 
-  private sendFrame(tool: string, action: string, payload: Record<string, unknown> | undefined, requestId: string): void {
+  private sendFrame(
+    tool: string,
+    action: string,
+    payload: Record<string, unknown> | undefined,
+    requestId: string,
+  ): void {
     this.socket.send({ tool, action, ...(payload ? { payload } : {}), request_id: requestId });
   }
 
@@ -860,17 +866,20 @@ export class Account {
   private routeFrame(frame: RawFrame): void {
     switch (frame.type) {
       case 'welcome': {
-        const payload = (frame as WelcomeFrame).payload;
+        if (!isWelcomeFrame(frame)) return this.warnMalformedFrame(frame);
+        const payload = frame.payload;
         this._welcome = payload;
         this.welcomeWaiter?.resolve(payload);
         this.welcomeWaiter = null;
         return;
       }
       case 'registered':
-        if (this.pendingAuth) this.pendingAuth.registered = (frame as RegisteredFrame).payload;
+        if (!isRegisteredFrame(frame)) return this.warnMalformedFrame(frame);
+        if (this.pendingAuth) this.pendingAuth.registered = frame.payload;
         return;
       case 'logged_in': {
-        const payload = (frame as LoggedInFrame).payload;
+        if (!isLoggedInFrame(frame)) return this.warnMalformedFrame(frame);
+        const payload = frame.payload;
         const auth = this.pendingAuth;
         if (auth) {
           this.pendingAuth = null;
@@ -882,7 +891,8 @@ export class Account {
         return;
       }
       case 'action_result': {
-        const delta = (frame as ActionResultFrame).payload.result;
+        if (!isActionResultFrame(frame)) return this.warnMalformedFrame(frame);
+        const delta = frame.payload.result;
         if (delta) {
           const changed = this.cache.applyDelta(delta);
           if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
@@ -907,7 +917,7 @@ export class Account {
           // about explicitly rather than silently falling through to a
           // notification path nothing listens on.
           console.warn(
-            `[spacemolt] action_result for ${(frame as ActionResultFrame).request_id ?? '?'} arrived with no matching pending mutation (already timed out?)`,
+            `[spacemolt] action_result for ${frame.request_id ?? '?'} arrived with no matching pending mutation (already timed out?)`,
           );
           this.emitter.emit(frame);
         }
@@ -918,11 +928,12 @@ export class Account {
         if (!this.correlator.handle(frame)) this.emitter.emit(frame);
         return;
       case 'error': {
+        if (!isErrorFrame(frame)) return this.warnMalformedFrame(frame);
         if (this.correlator.handle(frame)) return;
         const auth = this.pendingAuth;
         if (auth) {
           this.pendingAuth = null;
-          auth.onError(errorFromFrame(frame as ErrorFrame));
+          auth.onError(errorFromFrame(frame));
           return;
         }
         this.emitter.emit(frame);
@@ -931,6 +942,10 @@ export class Account {
       default:
         this.emitter.emit(frame);
     }
+  }
+
+  private warnMalformedFrame(frame: RawFrame): void {
+    console.warn(`[spacemolt] dropped malformed ${frame.type} frame`);
   }
 
   private handleClose(err: ConnectionClosedError): void {

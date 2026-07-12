@@ -12,8 +12,11 @@ import type { GameState, StateDelta, StateSection } from '../protocol.ts';
 import { STATE_SECTIONS } from '../protocol.ts';
 import type { V2GameState } from '../generated/openapi/types.gen.ts';
 
-function asRecord(value: object): Record<string, unknown> {
-  return value as Record<string, unknown>;
+function copySection<S extends StateSection>(target: GameState, source: GameState, section: S): boolean {
+  const value = source[section];
+  if (value === undefined) return false;
+  target[section] = value;
+  return true;
 }
 
 export class StateCache {
@@ -23,12 +26,8 @@ export class StateCache {
   seed(snapshot: V2GameState): StateSection[] {
     const next: GameState = {};
     const changed: StateSection[] = [];
-    const src = asRecord(snapshot);
     for (const section of STATE_SECTIONS) {
-      if (src[section] !== undefined) {
-        asRecord(next)[section] = src[section];
-        changed.push(section);
-      }
+      if (copySection(next, snapshot, section)) changed.push(section);
     }
     this.state = next;
     return changed;
@@ -40,12 +39,8 @@ export class StateCache {
    */
   applyDelta(delta: StateDelta): StateSection[] {
     const changed: StateSection[] = [];
-    const src = asRecord(delta);
     for (const section of STATE_SECTIONS) {
-      if (src[section] !== undefined) {
-        asRecord(this.state)[section] = src[section];
-        changed.push(section);
-      }
+      if (copySection(this.state, delta, section)) changed.push(section);
     }
     return changed;
   }
@@ -62,7 +57,7 @@ export class StateCache {
   patchSection<S extends StateSection>(section: S, patch: Partial<GameState[S]>): StateSection[] {
     const current = this.state[section];
     if (current === undefined) return [];
-    asRecord(this.state)[section] = { ...asRecord(current), ...patch };
+    this.state[section] = { ...current, ...patch };
     return [section];
   }
 

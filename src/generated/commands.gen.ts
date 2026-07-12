@@ -2144,7 +2144,8 @@ export type CommandDispatch = (
   payload?: Record<string, unknown>,
 ) => Promise<QueryResult | MutationResult>;
 
-export function buildCommands(dispatch: CommandDispatch): Commands {
+export function buildCommands(dispatch: CommandDispatch): Commands;
+export function buildCommands(dispatch: CommandDispatch): unknown {
   const bind = (tool: string, action: string) => (params?: Record<string, unknown>) => dispatch(tool, action, params);
   return {
     spacemolt: {
@@ -2443,5 +2444,5 @@ export function buildCommands(dispatch: CommandDispatch): Commands {
       trade_decline: bind("spacemolt_transfer", "trade_decline"),
       trade_offer: bind("spacemolt_transfer", "trade_offer"),
     },
-  } as unknown as Commands;
+  };
 }

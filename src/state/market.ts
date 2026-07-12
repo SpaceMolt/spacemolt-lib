@@ -27,7 +27,7 @@ export class MarketCache {
     if (!snapshot.base_id) return undefined;
     const items = new Map<string, MarketItem>();
     for (const item of snapshot.items ?? []) {
-      if (item.item_id) items.set(item.item_id, item as MarketItem);
+      if (item.item_id) items.set(item.item_id, item);
     }
     this.books.set(snapshot.base_id, {
       base_id: snapshot.base_id,

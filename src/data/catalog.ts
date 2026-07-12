@@ -1,3 +1,5 @@
+import { isRecord, requireRecord } from '../validation.ts';
+
 /**
  * Local copy of the bulk game catalog (`GET /api/catalog.json`).
  *
@@ -40,14 +42,19 @@ export interface CatalogFetchResult {
   etag?: string;
 }
 
-function normalizeCatalog(data: Partial<Catalog>): Catalog {
+function catalogEntries(value: unknown): CatalogEntry[] {
+  return Array.isArray(value) ? value.filter((entry): entry is CatalogEntry => isRecord(entry)) : [];
+}
+
+function normalizeCatalog(value: unknown): Catalog {
+  const data = requireRecord(value, 'catalog response');
   return {
-    version: data.version,
-    ships: data.ships ?? [],
-    items: data.items ?? [],
-    recipes: data.recipes ?? [],
-    skills: data.skills ?? [],
-    facilities: data.facilities ?? [],
+    version: typeof data.version === 'string' ? data.version : undefined,
+    ships: catalogEntries(data.ships),
+    items: catalogEntries(data.items),
+    recipes: catalogEntries(data.recipes),
+    skills: catalogEntries(data.skills),
+    facilities: catalogEntries(data.facilities),
   };
 }
 
@@ -57,17 +64,14 @@ function normalizeCatalog(data: Partial<Catalog>): Catalog {
  * returns `{ notModified: true }` after a ~0-byte `304` — no multi-MB download
  * or re-parse. Otherwise it returns the fresh catalog and its new `ETag`.
  */
-export async function fetchCatalogConditional(
-  httpBaseUrl: string,
-  etag?: string,
-): Promise<CatalogFetchResult> {
+export async function fetchCatalogConditional(httpBaseUrl: string, etag?: string): Promise<CatalogFetchResult> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/api/catalog.json`;
   const headers: Record<string, string> = { accept: 'application/json' };
   if (etag) headers['if-none-match'] = etag;
   const res = await fetch(url, { headers });
   if (res.status === 304) return { notModified: true, etag };
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
-  const data = (await res.json()) as Partial<Catalog>;
+  const data: unknown = await res.json();
   return {
     notModified: false,
     catalog: normalizeCatalog(data),
@@ -78,8 +82,8 @@ export async function fetchCatalogConditional(
 /** Unconditionally fetch and normalize the catalog. */
 export async function fetchCatalog(httpBaseUrl: string): Promise<Catalog> {
   const { catalog } = await fetchCatalogConditional(httpBaseUrl);
-  // A non-304 fetch (no If-None-Match) always carries a catalog.
-  return catalog as Catalog;
+  if (!catalog) throw new Error('unconditional catalog fetch returned no catalog');
+  return catalog;
 }
 
 export class CatalogCache {
@@ -102,7 +106,8 @@ export class CatalogCache {
   /** Fetch the catalog and wrap it in a cache. */
   static async load(httpBaseUrl: string): Promise<CatalogCache> {
     const { catalog, etag } = await fetchCatalogConditional(httpBaseUrl);
-    return new CatalogCache(catalog as Catalog, etag);
+    if (!catalog) throw new Error('unconditional catalog fetch returned no catalog');
+    return new CatalogCache(catalog, etag);
   }
 
   /**
@@ -113,7 +118,8 @@ export class CatalogCache {
   async revalidate(httpBaseUrl: string): Promise<CatalogCache> {
     const result = await fetchCatalogConditional(httpBaseUrl, this.etag);
     if (result.notModified) return this;
-    return new CatalogCache(result.catalog as Catalog, result.etag);
+    if (!result.catalog) throw new Error('modified catalog response returned no catalog');
+    return new CatalogCache(result.catalog, result.etag);
   }
 
   get version(): string | undefined {

@@ -6,12 +6,13 @@
 
 import type { WebSocketLike, WebSocketFactory } from '../src/transport/socket.ts';
 import type { InboundFrame, RawFrame } from '../src/protocol.ts';
+import { isRecord } from '../src/validation.ts';
 
 type Listeners = {
-  open: Array<() => void>;
-  message: Array<(ev: { data: unknown }) => void>;
-  close: Array<(ev: { code?: number; reason?: string }) => void>;
-  error: Array<(ev: unknown) => void>;
+  open: Array<(event: Event) => void>;
+  message: Array<(event: MessageEvent<unknown>) => void>;
+  close: Array<(event: CloseEvent) => void>;
+  error: Array<(event: Event) => void>;
 };
 
 export class MockSocket implements WebSocketLike {
@@ -30,25 +31,53 @@ export class MockSocket implements WebSocketLike {
       if (this.opts.failToOpen) {
         // Simulate a rejected WS upgrade (e.g. a 429 from a per-IP rate
         // limit): the handshake never completes, so only error+close fire.
-        for (const cb of this.listeners.error) cb({ message: 'rejected' });
-        for (const cb of this.listeners.close) cb({ code: 1006, reason: 'rejected' });
+        for (const cb of this.listeners.error) cb(new Event('error'));
+        for (const cb of this.listeners.close) cb(new CloseEvent('close', { code: 1006, reason: 'rejected' }));
         return;
       }
       this.open = true;
-      for (const cb of this.listeners.open) cb();
+      for (const cb of this.listeners.open) cb(new Event('open'));
     });
   }
 
-  addEventListener(type: 'open', listener: () => void): void;
-  addEventListener(type: 'message', listener: (ev: { data: unknown }) => void): void;
-  addEventListener(type: 'close', listener: (ev: { code?: number; reason?: string }) => void): void;
-  addEventListener(type: 'error', listener: (ev: unknown) => void): void;
-  addEventListener(type: keyof Listeners, listener: (ev: never) => void): void {
-    (this.listeners[type] as Array<(ev: unknown) => void>).push(listener as (ev: unknown) => void);
+  addEventListener(type: 'open', listener: (event: Event) => void): void;
+  addEventListener(type: 'message', listener: (event: MessageEvent<unknown>) => void): void;
+  addEventListener(type: 'close', listener: (event: CloseEvent) => void): void;
+  addEventListener(type: 'error', listener: (event: Event) => void): void;
+  addEventListener(
+    ...args:
+      | [type: 'open', listener: (event: Event) => void]
+      | [type: 'message', listener: (event: MessageEvent<unknown>) => void]
+      | [type: 'close', listener: (event: CloseEvent) => void]
+      | [type: 'error', listener: (event: Event) => void]
+  ): void {
+    switch (args[0]) {
+      case 'open':
+        this.listeners.open.push(args[1]);
+        break;
+      case 'message':
+        this.listeners.message.push(args[1]);
+        break;
+      case 'close':
+        this.listeners.close.push(args[1]);
+        break;
+      case 'error':
+        this.listeners.error.push(args[1]);
+        break;
+    }
   }
 
   send(data: string): void {
-    const frame = JSON.parse(data) as InboundFrame;
+    const parsed: unknown = JSON.parse(data);
+    if (!isRecord(parsed) || typeof parsed.tool !== 'string' || typeof parsed.action !== 'string') {
+      throw new TypeError('client sent a malformed inbound frame');
+    }
+    const frame: InboundFrame = {
+      tool: parsed.tool,
+      action: parsed.action,
+      ...(isRecord(parsed.payload) ? { payload: parsed.payload } : {}),
+      ...(typeof parsed.request_id === 'string' ? { request_id: parsed.request_id } : {}),
+    };
     this.sent.push(frame);
     this.onClientSend?.(frame, this);
   }
@@ -56,18 +85,18 @@ export class MockSocket implements WebSocketLike {
   close(code = 1000, reason = ''): void {
     if (!this.open) return;
     this.open = false;
-    for (const cb of this.listeners.close) cb({ code, reason });
+    for (const cb of this.listeners.close) cb(new CloseEvent('close', { code, reason }));
   }
 
   /** Push a server frame to the client (loosely typed — simulates raw bytes). */
   serverSend(frame: RawFrame): void {
     const data = JSON.stringify(frame);
-    for (const cb of this.listeners.message) cb({ data });
+    for (const cb of this.listeners.message) cb(new MessageEvent('message', { data }));
   }
 
   /** Push raw (possibly malformed) bytes, bypassing JSON.stringify — for parse-failure tests. */
   serverSendRaw(data: string): void {
-    for (const cb of this.listeners.message) cb({ data });
+    for (const cb of this.listeners.message) cb(new MessageEvent('message', { data }));
   }
 
   /** The request_id of the most recently sent frame (for echoing). */

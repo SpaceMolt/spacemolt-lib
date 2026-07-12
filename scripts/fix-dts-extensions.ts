@@ -8,8 +8,8 @@
  * does not cover declaration-only emit here, so we post-process.
  */
 
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const DIST = join(import.meta.dir, '..', 'dist');
 const SPECIFIER = /(from\s+['"])(\.\.?\/[^'"]+)\.ts(['"])/g;

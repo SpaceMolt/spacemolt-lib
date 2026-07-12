@@ -11,8 +11,9 @@
  * Default base URL: https://game.spacemolt.com
  */
 
-import { writeFileSync, renameSync } from 'fs';
-import { join } from 'path';
+import { renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { isRecord } from '../src/validation.ts';
 
 const ROOT = join(import.meta.dir, '..');
 const BASE = (process.argv[2] ?? process.env.SPACEMOLT_URL ?? 'https://game.spacemolt.com').replace(/\/$/, '');
@@ -26,9 +27,14 @@ async function fetchJson(url: string): Promise<unknown> {
 async function main() {
   const specUrl = `${BASE}/api/v2/openapi.json`;
   console.log(`fetching ${specUrl}`);
-  const spec = (await fetchJson(specUrl)) as { openapi?: string; paths?: Record<string, unknown> };
+  const spec = await fetchJson(specUrl);
 
-  if (!spec.openapi || !spec.paths || !Object.keys(spec.paths).some((p) => p.startsWith('/api/v2/'))) {
+  if (
+    !isRecord(spec) ||
+    typeof spec.openapi !== 'string' ||
+    !isRecord(spec.paths) ||
+    !Object.keys(spec.paths).some((path) => path.startsWith('/api/v2/'))
+  ) {
     throw new Error('fetched document does not look like the v2 OpenAPI spec');
   }
 

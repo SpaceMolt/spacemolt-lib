@@ -23,10 +23,10 @@
  *   bun run scripts/classify-bump.ts
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { execSync } from 'child_process';
-import { extractActions, type ActionDef } from './generate.ts';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { extractActions, type ActionDef, type OpenAPISpec } from './generate.ts';
 
 const ROOT = join(import.meta.dir, '..');
 
@@ -39,11 +39,7 @@ export interface Classification {
   reasons: string[];
 }
 
-interface Spec {
-  info: { version: string; 'x-gameserver-version'?: string };
-  paths: Record<string, unknown>;
-  components?: { schemas?: Record<string, unknown> };
-}
+type Spec = OpenAPISpec;
 
 /** Classify the difference between two generated command/notification surfaces. */
 export function classifyCatalog(oldSpec: Spec, newSpec: Spec): Classification {
@@ -56,8 +52,8 @@ export function classifyCatalog(oldSpec: Spec, newSpec: Spec): Classification {
 
   const index = (defs: ActionDef[]) => new Map(defs.map((d) => [`${d.tool}/${d.action}`, d]));
   // extractActions reads spec.paths; both specs are the committed openapi.json shape.
-  const oldA = index(extractActions(oldSpec as never));
-  const newA = index(extractActions(newSpec as never));
+  const oldA = index(extractActions(oldSpec));
+  const newA = index(extractActions(newSpec));
 
   for (const key of oldA.keys()) if (!newA.has(key)) bump('major', `command removed: ${key}`);
   for (const key of newA.keys()) if (!oldA.has(key)) bump('minor', `command added: ${key}`);
@@ -91,7 +87,8 @@ export function classifyCatalog(oldSpec: Spec, newSpec: Spec): Classification {
       }
     }
     for (const [pn, np] of nP) {
-      if (!oP.has(pn)) bump(np.required ? 'major' : 'minor', `${key}: param added${np.required ? ' (required)' : ''}: ${pn}`);
+      if (!oP.has(pn))
+        bump(np.required ? 'major' : 'minor', `${key}: param added${np.required ? ' (required)' : ''}: ${pn}`);
     }
   }
 
@@ -179,7 +176,13 @@ function main() {
     // First release: ship the seeded package.json version as-is (1.0.0).
     console.log(
       JSON.stringify(
-        { current: pkg.version, next: pkg.version, level: 'initial', reasons: ['no prior tag — initial release'], specVersion },
+        {
+          current: pkg.version,
+          next: pkg.version,
+          level: 'initial',
+          reasons: ['no prior tag — initial release'],
+          specVersion,
+        },
         null,
         2,
       ),
@@ -192,14 +195,18 @@ function main() {
   try {
     const oldSpec: Spec = JSON.parse(git(`show ${tag}:openapi.json`));
     cat = classifyCatalog(oldSpec, newSpec);
-  } catch (err) {
+  } catch (error) {
     // Surface WHY the diff was skipped — a silent skip once hid the catalog diff
     // never running at all (default execSync maxBuffer vs a ~2MB spec).
-    cat = { level: 'none', reasons: [`(catalog diff skipped: ${(err as Error).message.split('\n')[0]})`] };
+    const message = error instanceof Error ? error.message : String(error);
+    cat = { level: 'none', reasons: [`(catalog diff skipped: ${message.split('\n')[0]})`] };
   }
 
   const raw = git(`log ${tag}..HEAD --format=%B%x00`);
-  const messages = raw.split('\u0000').map((s) => s.trim()).filter(Boolean);
+  const messages = raw
+    .split('\u0000')
+    .map((s) => s.trim())
+    .filter(Boolean);
   const com = classifyCommits(messages);
 
   const level = maxLevel(cat.level, com.level);

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { CatalogCache, fetchCatalog, fetchCatalogConditional } from '../src/data/catalog.ts';
-import { MapCache, httpBaseFromWs } from '../src/data/map.ts';
+import { MapCache, fetchMap, httpBaseFromWs } from '../src/data/map.ts';
 import { SpacemoltClient } from '../src/client.ts';
 
 const realFetch = globalThis.fetch;
@@ -22,6 +22,17 @@ function stubFetch(routes: Record<string, unknown>): void {
   }) as typeof fetch;
 }
 
+function jsonResponse(body: unknown, etag?: string): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json', ...(etag ? { etag } : {}) },
+  });
+}
+
+function notModifiedResponse(): Response {
+  return new Response(null, { status: 304, statusText: 'Not Modified' });
+}
+
 test('httpBaseFromWs derives the HTTP origin', () => {
   expect(httpBaseFromWs('wss://game.spacemolt.com/ws/v2')).toBe('https://game.spacemolt.com');
   expect(httpBaseFromWs('ws://localhost:8080/ws/v2')).toBe('http://localhost:8080');
@@ -30,7 +41,10 @@ test('httpBaseFromWs derives the HTTP origin', () => {
 test('CatalogCache indexes entries by id', () => {
   const cache = new CatalogCache({
     version: '0.452.0',
-    ships: [{ id: 'shuttle', name: 'Shuttle' }, { id: 'frigate', name: 'Frigate' }],
+    ships: [
+      { id: 'shuttle', name: 'Shuttle' },
+      { id: 'frigate', name: 'Frigate' },
+    ],
     items: [{ id: 'iron_ore' }],
     recipes: [],
     skills: [{ id: 'mining' }],
@@ -50,6 +64,39 @@ test('fetchCatalog normalizes missing sections', async () => {
   expect(catalog.items).toEqual([]); // absent section -> empty
 });
 
+test('fetchCatalog validates and sanitizes external JSON', async () => {
+  stubFetch({
+    '/api/catalog.json': {
+      version: 42,
+      ships: [null, 'bad', { id: 'shuttle' }],
+      items: 'not-an-array',
+    },
+  });
+  const catalog = await fetchCatalog('https://game.spacemolt.com');
+  expect(catalog.version).toBeUndefined();
+  expect(catalog.ships).toEqual([{ id: 'shuttle' }]);
+  expect(catalog.items).toEqual([]);
+
+  stubFetch({ '/api/catalog.json': [] });
+  expect(fetchCatalog('https://game.spacemolt.com')).rejects.toThrow('catalog response must be a JSON object');
+});
+
+test('fetchMap validates and sanitizes external JSON', async () => {
+  stubFetch({
+    '/api/map': {
+      systems: [null, { id: 'sol' }, 'bad'],
+      empires: { solarian: '#ffd700', invalid: 42 },
+    },
+  });
+  expect(await fetchMap('https://game.spacemolt.com')).toEqual({
+    systems: [{ id: 'sol' }],
+    empires: { solarian: '#ffd700' },
+  });
+
+  stubFetch({ '/api/map': null });
+  expect(fetchMap('https://game.spacemolt.com')).rejects.toThrow('map response must be a JSON object');
+});
+
 test('MapCache indexes systems by id', () => {
   const cache = new MapCache({
     systems: [{ id: 'sol', name: 'Sol' }, { id: 'alpha_centauri' }],
@@ -61,20 +108,13 @@ test('MapCache indexes systems by id', () => {
 });
 
 test('fetchCatalogConditional sends If-None-Match and handles 304', async () => {
-  const seen: Array<Record<string, string> | undefined> = [];
+  const seenEtags: Array<string | null> = [];
   globalThis.fetch = (async (_input: string | URL, init?: RequestInit) => {
-    seen.push(init?.headers as Record<string, string> | undefined);
+    const requestEtag = new Headers(init?.headers).get('if-none-match');
+    seenEtags.push(requestEtag);
     // Second call carries If-None-Match -> answer 304.
-    if ((init?.headers as Record<string, string> | undefined)?.['if-none-match']) {
-      return { ok: false, status: 304, statusText: 'Not Modified' } as Response;
-    }
-    return {
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      headers: { get: (h: string) => (h.toLowerCase() === 'etag' ? '"abc"' : null) },
-      json: async () => ({ version: '1', ships: [{ id: 'shuttle' }] }),
-    } as unknown as Response;
+    if (requestEtag) return notModifiedResponse();
+    return jsonResponse({ version: '1', ships: [{ id: 'shuttle' }] }, '"abc"');
   }) as typeof fetch;
 
   const first = await fetchCatalogConditional('https://game.spacemolt.com');
@@ -86,22 +126,16 @@ test('fetchCatalogConditional sends If-None-Match and handles 304', async () => 
   expect(second.notModified).toBe(true);
   expect(second.catalog).toBeUndefined();
   expect(second.etag).toBe('"abc"'); // still-current etag echoed back
-  expect(seen[1]?.['if-none-match']).toBe('"abc"');
+  expect(seenEtags[1]).toBe('"abc"');
 });
 
 test('CatalogCache.revalidate keeps the instance on 304 and replaces it on change', async () => {
   let version = '1';
   let respondNotModified = false;
   globalThis.fetch = (async (_input: string | URL) => {
-    if (respondNotModified) return { ok: false, status: 304, statusText: 'Not Modified' } as Response;
+    if (respondNotModified) return notModifiedResponse();
     const v = version;
-    return {
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      headers: { get: (h: string) => (h.toLowerCase() === 'etag' ? `"${v}"` : null) },
-      json: async () => ({ version: v, ships: [{ id: `ship-${v}` }] }),
-    } as unknown as Response;
+    return jsonResponse({ version: v, ships: [{ id: `ship-${v}` }] }, `"${v}"`);
   }) as typeof fetch;
 
   const cache = await CatalogCache.load('https://game.spacemolt.com');
@@ -124,20 +158,14 @@ test('client.catalog() revalidates a stale cache and picks up a new catalog', as
   let revalidations = 0;
   let version = '1';
   globalThis.fetch = (async (_input: string | URL, init?: RequestInit) => {
-    const inm = (init?.headers as Record<string, string> | undefined)?.['if-none-match'];
+    const inm = new Headers(init?.headers).get('if-none-match');
     if (inm) {
       revalidations++;
-      if (inm === `"${version}"`) return { ok: false, status: 304, statusText: 'Not Modified' } as Response;
+      if (inm === `"${version}"`) return notModifiedResponse();
     }
     fullDownloads++;
     const v = version;
-    return {
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      headers: { get: (h: string) => (h.toLowerCase() === 'etag' ? `"${v}"` : null) },
-      json: async () => ({ version: v, ships: [{ id: `ship-${v}` }] }),
-    } as unknown as Response;
+    return jsonResponse({ version: v, ships: [{ id: `ship-${v}` }] }, `"${v}"`);
   }) as typeof fetch;
 
   // maxAge 0 -> every call after the first revalidates.
@@ -166,10 +194,20 @@ test('client.catalog() and map() fetch once and cache', async () => {
     const url = String(input);
     if (url.endsWith('/api/catalog.json')) {
       catalogHits++;
-      return { ok: true, status: 200, statusText: 'OK', json: async () => ({ version: '1', ships: [{ id: 'shuttle' }] }) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ version: '1', ships: [{ id: 'shuttle' }] }),
+      } as Response;
     }
     if (url.endsWith('/api/map')) {
-      return { ok: true, status: 200, statusText: 'OK', json: async () => ({ systems: [{ id: 'sol' }], empires: {} }) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ systems: [{ id: 'sol' }], empires: {} }),
+      } as Response;
     }
     return { ok: false, status: 404, statusText: 'Not Found' } as Response;
   }) as typeof fetch;

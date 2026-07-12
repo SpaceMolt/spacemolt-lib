@@ -9,6 +9,7 @@
 
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import type { V2GameState } from './generated/openapi/types.gen.ts';
+import { isRecord } from './validation.ts';
 
 /** Inbound frame: client -> server. `payload` is omitted when an action takes none. */
 export interface InboundFrame {
@@ -143,6 +144,86 @@ export type OutboundFrame =
   | LoggedInFrame
   | RegisteredFrame
   | NotificationFrame;
+
+function hasPayload(frame: RawFrame): frame is RawFrame & { payload: Record<string, unknown> } {
+  return isRecord(frame.payload);
+}
+
+export function isResultFrame(frame: RawFrame): frame is ResultFrame {
+  return (
+    frame.type === 'result' &&
+    hasPayload(frame) &&
+    'result' in frame.payload &&
+    (frame.payload.structuredContent === undefined || isRecord(frame.payload.structuredContent))
+  );
+}
+
+export function isActionResultFrame(frame: RawFrame): frame is ActionResultFrame {
+  return (
+    frame.type === 'action_result' &&
+    hasPayload(frame) &&
+    typeof frame.payload.command === 'string' &&
+    typeof frame.payload.tick === 'number' &&
+    isRecord(frame.payload.result) &&
+    (frame.payload.auto_docked === undefined || typeof frame.payload.auto_docked === 'boolean') &&
+    (frame.payload.auto_undocked === undefined || typeof frame.payload.auto_undocked === 'boolean')
+  );
+}
+
+export function isActionErrorFrame(frame: RawFrame): frame is ActionErrorFrame {
+  return (
+    frame.type === 'action_error' &&
+    hasPayload(frame) &&
+    typeof frame.payload.command === 'string' &&
+    typeof frame.payload.tick === 'number' &&
+    typeof frame.payload.code === 'string' &&
+    typeof frame.payload.message === 'string' &&
+    (frame.payload.details === undefined || isRecord(frame.payload.details))
+  );
+}
+
+export function isErrorFrame(frame: RawFrame): frame is ErrorFrame {
+  return (
+    frame.type === 'error' &&
+    hasPayload(frame) &&
+    typeof frame.payload.code === 'string' &&
+    typeof frame.payload.message === 'string' &&
+    (frame.payload.details === undefined || isRecord(frame.payload.details)) &&
+    (frame.payload.pending_command === undefined || typeof frame.payload.pending_command === 'string')
+  );
+}
+
+export function isWelcomeFrame(frame: RawFrame): frame is WelcomeFrame {
+  return (
+    frame.type === 'welcome' &&
+    hasPayload(frame) &&
+    typeof frame.payload.version === 'string' &&
+    typeof frame.payload.release_date === 'string' &&
+    Array.isArray(frame.payload.release_notes) &&
+    frame.payload.release_notes.every((note) => typeof note === 'string') &&
+    typeof frame.payload.tick_rate === 'number' &&
+    typeof frame.payload.current_tick === 'number' &&
+    typeof frame.payload.server_time === 'number' &&
+    (frame.payload.motd === undefined || typeof frame.payload.motd === 'string') &&
+    typeof frame.payload.game_info === 'string' &&
+    typeof frame.payload.website === 'string' &&
+    typeof frame.payload.help_text === 'string' &&
+    typeof frame.payload.terms === 'string'
+  );
+}
+
+export function isLoggedInFrame(frame: RawFrame): frame is LoggedInFrame {
+  return frame.type === 'logged_in' && hasPayload(frame);
+}
+
+export function isRegisteredFrame(frame: RawFrame): frame is RegisteredFrame {
+  return (
+    frame.type === 'registered' &&
+    hasPayload(frame) &&
+    typeof frame.payload.password === 'string' &&
+    typeof frame.payload.player_id === 'string'
+  );
+}
 
 /**
  * The cacheable game-state sections — the eight independently-tracked sections

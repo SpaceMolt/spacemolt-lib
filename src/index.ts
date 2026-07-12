@@ -67,9 +67,7 @@ export type { ToolName, ActionName, ActionDef, ActionParam } from './generated/a
 // is typed without a cast; these exports let a consumer name the types explicitly,
 // e.g. `import type { FindRouteResponse, V2GameState } from '@spacemolt/lib'`.
 export type * from './generated/openapi/types.gen.ts';
-export {
-  TYPED_NOTIFICATION_TYPES,
-} from './generated/notifications.gen.ts';
+export { TYPED_NOTIFICATION_TYPES } from './generated/notifications.gen.ts';
 export type {
   NotificationPayloads,
   TypedNotificationType,

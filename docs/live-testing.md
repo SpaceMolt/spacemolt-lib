@@ -93,9 +93,8 @@ Env knobs:
 - These examples keep credentials in memory. Use a `CredentialStore`
   (`FileCredentialStore` from `@spacemolt/lib/node`) to persist them across runs —
   see `examples/multi-account.ts`.
-- Some payload shapes are still hand-typed as `Record<string, unknown>` pending a
-  gameserver deploy (`logged_in`, the catalog/map bulk fetches). They work
-  functionally today; only the static typing is loose. Tracked in
-  `docs/gameserver-todo.md`.
-```
-
+- `logged_in` remains a loosely typed `Record<string, unknown>` pending a
+  gameserver schema. Catalog and map entries are intentionally extensible
+  records because those bulk endpoints are outside the v2 OpenAPI document;
+  their top-level responses are validated and normalized at runtime. Remaining
+  server-side schema work is tracked in `docs/gameserver-todo.md`.

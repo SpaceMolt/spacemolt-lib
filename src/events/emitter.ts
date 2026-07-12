@@ -17,7 +17,7 @@ type FrameHandler = (frame: RawFrame) => void;
  * which unsubscribes via the `onClose` callback.
  */
 export class EventStream<T> implements AsyncIterableIterator<T> {
-  private readonly buffer: T[] = [];
+  private readonly buffer: Array<{ value: T }> = [];
   private readonly waiting: Array<(r: IteratorResult<T>) => void> = [];
   private ended = false;
 
@@ -28,27 +28,28 @@ export class EventStream<T> implements AsyncIterableIterator<T> {
     if (this.ended) return;
     const next = this.waiting.shift();
     if (next) next({ value, done: false });
-    else this.buffer.push(value);
+    else this.buffer.push({ value });
   }
 
   /** Internal: end the stream (e.g. on disconnect). */
   end(): void {
     if (this.ended) return;
     this.ended = true;
-    for (const w of this.waiting) w({ value: undefined as never, done: true });
+    for (const w of this.waiting) w({ value: undefined, done: true });
     this.waiting.length = 0;
   }
 
   next(): Promise<IteratorResult<T>> {
-    if (this.buffer.length) return Promise.resolve({ value: this.buffer.shift() as T, done: false });
-    if (this.ended) return Promise.resolve({ value: undefined as never, done: true });
+    const buffered = this.buffer.shift();
+    if (buffered) return Promise.resolve({ value: buffered.value, done: false });
+    if (this.ended) return Promise.resolve({ value: undefined, done: true });
     return new Promise((resolve) => this.waiting.push(resolve));
   }
 
   return(): Promise<IteratorResult<T>> {
     this.end();
     this.onClose();
-    return Promise.resolve({ value: undefined as never, done: true });
+    return Promise.resolve({ value: undefined, done: true });
   }
 
   [Symbol.asyncIterator](): AsyncIterableIterator<T> {
@@ -63,14 +64,15 @@ export class TypedEmitter {
   private readonly anyStreams = new Set<EventStream<RawFrame>>();
 
   /** Listen for one msg_type. Returns an unsubscribe function. */
-  on(type: string, handler: PayloadHandler): () => void {
+  on<T = unknown>(type: string, handler: (payload: T) => void): () => void {
     let set = this.handlers.get(type);
     if (!set) {
       set = new Set();
       this.handlers.set(type, set);
     }
-    set.add(handler);
-    return () => set.delete(handler);
+    const wrapped: PayloadHandler = (payload) => handler(payload as T);
+    set.add(wrapped);
+    return () => set.delete(wrapped);
   }
 
   /** Listen for every push frame. Returns an unsubscribe function. */
