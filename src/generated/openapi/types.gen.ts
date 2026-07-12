@@ -355,6 +355,23 @@ export type CargoItem = {
 };
 
 export type CatalogDump = {
+    achievements: Array<{
+        after?: string;
+        category: string;
+        credits?: number;
+        criteria: string;
+        description: string;
+        emblem?: string;
+        faction?: boolean;
+        id: string;
+        name: string;
+        points: number;
+        series?: string;
+        skill_xp?: {
+            [key: string]: number;
+        };
+        title?: string;
+    }>;
     facilities: Array<{
         allows_contraband?: boolean;
         always_on: boolean;
@@ -411,6 +428,25 @@ export type CatalogDump = {
         unique?: boolean;
         upgrades_from?: string;
     }>;
+    faction_achievements: Array<{
+        after?: string;
+        category: string;
+        credits?: number;
+        criteria: string;
+        description: string;
+        emblem?: string;
+        faction?: boolean;
+        id: string;
+        name: string;
+        points: number;
+        series?: string;
+        skill_xp?: {
+            [key: string]: number;
+        };
+        title?: string;
+    }>;
+    hidden_achievement_count: number;
+    hidden_faction_achievement_count: number;
     items: Array<unknown>;
     recipes: Array<{
         category: string;
