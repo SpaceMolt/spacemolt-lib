@@ -331,8 +331,8 @@ export interface SpacemoltFacilityBuyListingParams {
 }
 
 export interface SpacemoltFacilityBuyShipLicenseParams {
-  /** Empire to license shipbuilding from */
-  empire: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim";
+  /** Ship class id to license (from ship_catalog), e.g. solarian_frigate */
+  ship_class: string;
 }
 
 export interface SpacemoltFacilityCancelListingParams {
@@ -987,9 +987,11 @@ export interface SpacemoltShipCommissionQuoteParams {
 }
 
 export interface SpacemoltShipCommissionShipParams {
+  /** At your own faction's station: build from faction storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected. */
+  fund_from_faction?: boolean;
   /** Ship class ID to commission (use ship_catalog to see options) */
   id: string;
-  /** If true, supply build materials from cargo/storage (cheaper). If false, pay credits for everything (default). */
+  /** At an empire/NPC shipyard: if true, supply build materials from cargo/storage (cheaper); if false, pay credits for everything (default). */
   provide_materials?: boolean;
 }
 
@@ -1773,7 +1775,7 @@ export interface Commands {
     build(params: SpacemoltFacilityBuildParams): Promise<MutationResult<FacilityResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     buy_listing(params: SpacemoltFacilityBuyListingParams): Promise<MutationResult<FacilityResponse>>;
-    /** Buy an empire shipbuilding license so your faction can build that empire's hulls at its own stations */
+    /** License a specific ship design so your faction can build it at its own stations */
     buy_ship_license(params: SpacemoltFacilityBuyShipLicenseParams): Promise<MutationResult<ShipLicenseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     cancel_listing(params: SpacemoltFacilityCancelListingParams): Promise<MutationResult<FacilityResponse>>;

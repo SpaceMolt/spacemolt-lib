@@ -7115,6 +7115,8 @@ export type ShipLicenseResponse = {
     faction_credits_left: number;
     hint: string;
     royalty_percent: number;
+    ship_class: string;
+    ship_name: string;
 };
 
 export type StationConfigResponse = {
@@ -12925,9 +12927,9 @@ export type SpacemoltFacilityBuyListingResponse = SpacemoltFacilityBuyListingRes
 export type SpacemoltFacilityBuyShipLicenseData = {
     body?: {
         /**
-         * Empire to license shipbuilding from
+         * Ship class id to license (from ship_catalog), e.g. solarian_frigate
          */
-        empire: 'solarian' | 'voidborn' | 'crimson' | 'nebula' | 'outerrim';
+        ship_class: string;
     };
     path?: never;
     query?: never;
@@ -18373,11 +18375,15 @@ export type SpacemoltShipCommissionQuoteResponse = SpacemoltShipCommissionQuoteR
 export type SpacemoltShipCommissionShipData = {
     body?: {
         /**
+         * At your own faction's station: build from faction storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected.
+         */
+        fund_from_faction?: boolean;
+        /**
          * Ship class ID to commission (use ship_catalog to see options)
          */
         id: string;
         /**
-         * If true, supply build materials from cargo/storage (cheaper). If false, pay credits for everything (default).
+         * At an empire/NPC shipyard: if true, supply build materials from cargo/storage (cheaper); if false, pay credits for everything (default).
          */
         provide_materials?: boolean;
     };
