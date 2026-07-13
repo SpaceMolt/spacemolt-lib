@@ -7,6 +7,7 @@ import type {
   AttackResponse,
   BaseCostResponse,
   BattleResponse,
+  BattleSummaryResponse,
   BrowseShipsResponse,
   BuildBaseResponse,
   BuyInsuranceResponse,
@@ -96,6 +97,7 @@ import type {
   GetAchievementsResponse,
   GetActionLogResponse,
   GetBaseResponse,
+  GetBattleLogResponse,
   GetBattleStatusResponse,
   GetChatHistoryResponse,
   GetDroneResponse,
@@ -221,6 +223,17 @@ export interface SpacemoltBattleEngageParams {
   side_id?: number;
 }
 
+export interface SpacemoltBattleLogParams {
+  /** Battle ID to replay (active or completed, yours or not) */
+  id: string;
+  /** Max ticks to return (default 50, max 200) */
+  limit?: number;
+  /** Last tick to include (default unbounded) */
+  tick_end?: number;
+  /** First tick to include (default 0) */
+  tick_start?: number;
+}
+
 export interface SpacemoltBattleReloadParams {
   /** Instance ID of the fitted weapon to reload (use get_ship to see weapon instance IDs) */
   id: string;
@@ -231,6 +244,11 @@ export interface SpacemoltBattleReloadParams {
 export interface SpacemoltBattleStanceParams {
   /** Battle stance (required for action=stance): fire (100% dmg dealt/taken), evade (0% dealt, 50% taken, costs fuel), brace (0% dealt, 25% taken, shields regen 2x), flee (0% dealt, 100% taken, auto-retreats, 3 ticks from outer to escape) */
   id: "fire" | "evade" | "brace" | "flee";
+}
+
+export interface SpacemoltBattleSummaryParams {
+  /** Battle ID to summarize (active or completed, yours or not) */
+  id: string;
 }
 
 export interface SpacemoltBattleTargetParams {
@@ -1721,6 +1739,8 @@ export interface Commands {
     advance(): Promise<QueryResult<BattleResponse>>;
     /** Manage your battle — move, change stance, target enemies, or join a fight */
     engage(params?: SpacemoltBattleEngageParams): Promise<QueryResult<BattleResponse>>;
+    /** View the tick-by-tick combat replay of a battle by ID */
+    log(params: SpacemoltBattleLogParams): Promise<QueryResult<GetBattleLogResponse>>;
     /** Reload a weapon's magazine from ammo in cargo */
     reload(params: SpacemoltBattleReloadParams): Promise<MutationResult<ReloadResponse>>;
     /** Manage your battle — move, change stance, target enemies, or join a fight */
@@ -1729,6 +1749,8 @@ export interface Commands {
     stance(params: SpacemoltBattleStanceParams): Promise<QueryResult<BattleResponse>>;
     /** View current battle status */
     status(): Promise<QueryResult<GetBattleStatusResponse>>;
+    /** View the aggregate result of a battle by ID */
+    summary(params: SpacemoltBattleSummaryParams): Promise<QueryResult<BattleSummaryResponse>>;
     /** Manage your battle — move, change stance, target enemies, or join a fight */
     target(params: SpacemoltBattleTargetParams): Promise<QueryResult<BattleResponse>>;
   };
@@ -2222,10 +2244,12 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
     spacemolt_battle: {
       advance: bind("spacemolt_battle", "advance"),
       engage: bind("spacemolt_battle", "engage"),
+      log: bind("spacemolt_battle", "log"),
       reload: bind("spacemolt_battle", "reload"),
       retreat: bind("spacemolt_battle", "retreat"),
       stance: bind("spacemolt_battle", "stance"),
       status: bind("spacemolt_battle", "status"),
+      summary: bind("spacemolt_battle", "summary"),
       target: bind("spacemolt_battle", "target"),
     },
     spacemolt_citizenship: {

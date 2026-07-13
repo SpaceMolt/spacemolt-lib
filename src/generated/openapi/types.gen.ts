@@ -148,6 +148,34 @@ export type BattleResponse = {
     };
 };
 
+export type BattleSummaryResponse = {
+    battle_id: string;
+    category?: string;
+    destroyed_names?: Array<string>;
+    duration_ticks: number;
+    ended_at?: string;
+    origin_poi?: string;
+    outcome: string;
+    participant_count: number;
+    ships_destroyed: number;
+    sides: Array<{
+        faction_id?: string;
+        faction_tag?: string;
+        participants: Array<string>;
+        side_id: number;
+    }>;
+    start_tick: number;
+    status: string;
+    system_id: string;
+    system_name: string;
+    top_damage?: {
+        damage: number;
+        username: string;
+    };
+    total_damage: number;
+    winning_side: number;
+};
+
 export type BrowseShipsResponse = {
     base_id: string;
     base_name: string;
@@ -3475,6 +3503,180 @@ export type GetBaseResponse = {
         supply: number;
     };
     services: Array<string>;
+};
+
+export type GetBattleLogResponse = {
+    battle_id: string;
+    entries: Array<{
+        attacks?: Array<{
+            after_def_buff?: number;
+            after_stance?: number;
+            attacker_id: string;
+            capital_bonus_pct?: number;
+            damage_type: string;
+            def_buff_pct?: number;
+            disrupted?: boolean;
+            final_damage: number;
+            flat_reduction_pct?: number;
+            hit_chance: number;
+            hit_roll: number;
+            hit_success: boolean;
+            hull_damage: number;
+            off_buff_pct?: number;
+            pre_hit_damage: number;
+            raw_damage: number;
+            shield_damage: number;
+            shield_resist_pct?: number;
+            splash?: boolean;
+            stance_mult?: number;
+            target_id: string;
+            type_resist_pct?: number;
+            weapon_skill_pct: number;
+            weapons: Array<{
+                after_disruption: number;
+                ammo_mod?: number;
+                ammo_used?: string;
+                base_damage: number;
+                crit_chance: number;
+                crit_fired: boolean;
+                crit_roll: number;
+                damage: number;
+                damage_type: string;
+                instance_id: string;
+                name: string;
+                type_bonus_pct: number;
+            }>;
+            zone_distance: number;
+        }>;
+        autopilot?: Array<{
+            chosen_target?: string;
+            player_id: string;
+            reason: string;
+        }>;
+        battle_ended?: {
+            category: string;
+            duration: number;
+            outcome: string;
+            participant_names?: Array<string>;
+            participants: Array<{
+                damage_dealt: number;
+                damage_taken: number;
+                kill_count: number;
+                player_id: string;
+                side_id: number;
+                survived: boolean;
+                username: string;
+            }>;
+            ships_destroyed: number;
+            total_damage: number;
+            winning_side: number;
+        };
+        battle_id: string;
+        burns?: Array<{
+            damage: number;
+            destroyed?: boolean;
+            target_id: string;
+            ticks_remaining: number;
+        }>;
+        commands?: Array<{
+            command: string;
+            player_id: string;
+            stance?: string;
+            target_id?: string;
+        }>;
+        flee?: Array<{
+            escaped: boolean;
+            flee_counter: number;
+            flee_required: number;
+            player_id: string;
+        }>;
+        fuel?: Array<{
+            forced_fire: boolean;
+            fuel_after: number;
+            fuel_before: number;
+            fuel_burned: number;
+            player_id: string;
+        }>;
+        joins?: Array<{
+            player_id: string;
+            side_id: number;
+            username: string;
+        }>;
+        kills?: Array<{
+            killer_id: string;
+            killer_username: string;
+            victim_id: string;
+            victim_username: string;
+        }>;
+        regen?: Array<{
+            armor_repair: number;
+            hull_after: number;
+            hull_before: number;
+            player_id: string;
+            remote_repair?: number;
+            shield_after: number;
+            shield_before: number;
+            shield_regen: number;
+        }>;
+        snapshots: Array<{
+            armor_melt_pct?: number;
+            armor_melt_ticks?: number;
+            auto_pilot: boolean;
+            burn_damage_per_tick?: number;
+            burn_ticks?: number;
+            damage_dealt: number;
+            damage_penalty_pct?: number;
+            damage_taken: number;
+            disruption_ticks?: number;
+            faction_id?: string;
+            flee_counter: number;
+            fuel: number;
+            hull: number;
+            kill_count: number;
+            kind?: string;
+            max_fuel: number;
+            max_hull: number;
+            max_shield: number;
+            modules?: Array<{
+                category: string;
+                current_ammo?: number;
+                loaded_ammo?: string;
+                magazine_size?: number;
+                name: string;
+            }>;
+            player_id: string;
+            shield: number;
+            ship_class: string;
+            side_id: number;
+            speed_penalty_pct?: number;
+            stance: string;
+            target_id?: string;
+            username: string;
+            x: number;
+            y: number;
+            zone: string;
+        }>;
+        system_id: string;
+        tick: number;
+        zone_moves?: Array<{
+            new_zone: string;
+            old_zone: string;
+            player_id: string;
+            reason: string;
+        }>;
+    }>;
+    /**
+     * True if more entries exist past this page (tick_start/tick_end) — raise tick_start or limit to page through.
+     */
+    has_more: boolean;
+    /**
+     * active or completed
+     */
+    status: string;
+    /**
+     * Total number of logged ticks for this battle
+     */
+    total_ticks: number;
 };
 
 export type GetBattleStatusResponse = {
@@ -11883,6 +12085,56 @@ export type SpacemoltBattleHelpPostResponses = {
 
 export type SpacemoltBattleHelpPostResponse = SpacemoltBattleHelpPostResponses[keyof SpacemoltBattleHelpPostResponses];
 
+export type SpacemoltBattleLogData = {
+    body?: {
+        /**
+         * Battle ID to replay (active or completed, yours or not)
+         */
+        id: string;
+        /**
+         * Max ticks to return (default 50, max 200)
+         */
+        limit?: number;
+        /**
+         * Last tick to include (default unbounded)
+         */
+        tick_end?: number;
+        /**
+         * First tick to include (default 0)
+         */
+        tick_start?: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_battle/log';
+};
+
+export type SpacemoltBattleLogErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltBattleLogResponses = {
+    /**
+     * Result. structuredContent type: GetBattleLogResponse
+     */
+    200: V2Response & {
+        structuredContent?: GetBattleLogResponse;
+    };
+};
+
+export type SpacemoltBattleLogResponse = SpacemoltBattleLogResponses[keyof SpacemoltBattleLogResponses];
+
 export type SpacemoltBattleReloadData = {
     body?: {
         /**
@@ -12034,6 +12286,44 @@ export type SpacemoltBattleStatusResponses = {
 };
 
 export type SpacemoltBattleStatusResponse = SpacemoltBattleStatusResponses[keyof SpacemoltBattleStatusResponses];
+
+export type SpacemoltBattleSummaryData = {
+    body?: {
+        /**
+         * Battle ID to summarize (active or completed, yours or not)
+         */
+        id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_battle/summary';
+};
+
+export type SpacemoltBattleSummaryErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltBattleSummaryResponses = {
+    /**
+     * Result. structuredContent type: BattleSummaryResponse
+     */
+    200: V2Response & {
+        structuredContent?: BattleSummaryResponse;
+    };
+};
+
+export type SpacemoltBattleSummaryResponse = SpacemoltBattleSummaryResponses[keyof SpacemoltBattleSummaryResponses];
 
 export type SpacemoltBattleTargetData = {
     body?: {
