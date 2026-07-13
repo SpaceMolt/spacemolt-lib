@@ -372,62 +372,7 @@ export type CatalogDump = {
         };
         title?: string;
     }>;
-    facilities: Array<{
-        allows_contraband?: boolean;
-        always_on: boolean;
-        battery_capacity?: number;
-        build_cost: number;
-        build_materials?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        build_time: number;
-        category: string;
-        degraded_description?: string;
-        deposit_to_empire_reserves?: boolean;
-        description: string;
-        dining_points?: number;
-        disguised?: boolean;
-        empire?: string;
-        expansion_of?: string;
-        expansion_scale?: number;
-        faction_cap?: number;
-        faction_service_type?: string;
-        fleet_upkeep?: boolean;
-        fuel_capacity?: number;
-        fuel_output?: boolean;
-        id: string;
-        is_recycler?: boolean;
-        labor_cost: number;
-        leisure_points?: number;
-        level: number;
-        life_support_draw?: number;
-        life_support_supply?: number;
-        lore?: string;
-        maintenance_inputs?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        name: string;
-        personal_bonus_type?: string;
-        personal_bonus_value?: number;
-        personal_service_type?: string;
-        pirate_base_only?: boolean;
-        player_station_buildable?: boolean;
-        power_draw?: number;
-        power_supply?: number;
-        recipe_id?: string;
-        requires_service_type?: string;
-        satisfied_description?: string;
-        scan_falloff?: number;
-        scan_power?: number;
-        service_type?: string;
-        station_or_faction_only?: boolean;
-        tourism_upkeep?: boolean;
-        transit_deadline_bonus?: number;
-        unique?: boolean;
-        upgrades_from?: string;
-    }>;
+    facilities: Array<FacilityDefinition>;
     faction_achievements: Array<{
         after?: string;
         category: string;
@@ -447,95 +392,13 @@ export type CatalogDump = {
     }>;
     hidden_achievement_count: number;
     hidden_faction_achievement_count: number;
-    items: Array<unknown>;
-    recipes: Array<{
-        category: string;
-        crafting_time: number;
-        description: string;
-        facility_only?: boolean;
-        fuel_output?: number;
-        hidden?: boolean;
-        id: string;
-        inputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        name: string;
-        no_recycle?: boolean;
-        outputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-    }>;
-    ships: Array<{
-        base_armor: number;
-        base_fuel: number;
-        base_hull: number;
-        base_shield: number;
-        base_shield_recharge: number;
-        base_speed: number;
-        based_on?: string;
-        build_materials?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        build_time: number;
-        cargo_capacity: number;
-        category?: string;
-        class: string;
-        cpu_capacity: number;
-        default_loadout_version?: number;
-        default_modules?: Array<string>;
-        defense_slots: number;
-        description: string;
-        faction?: string;
-        flavor_tags?: Array<string>;
-        hidden?: boolean;
-        id: string;
-        inherent_capabilities?: Array<{
-            flag?: string;
-            type: string;
-            value?: number;
-        }>;
-        legacy?: boolean;
-        lore?: string;
-        name: string;
-        npc_role?: string;
-        passive_recipes?: Array<string>;
-        piloting_required?: number;
-        power_capacity: number;
-        prestige_lock?: string;
-        price: number;
-        required_achievement?: string;
-        required_faction_achievement?: string;
-        required_faction_leader?: boolean;
-        required_items?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        required_reputation?: number;
-        scale: number;
-        shipyard_tier: number;
-        special?: string;
-        starter_ship?: boolean;
-        tier: number;
-        tow_speed_bonus?: number;
-        utility_slots: number;
-        weapon_slots: number;
-    }>;
-    skills: Array<{
-        bonus_per_level?: {
-            [key: string]: number;
-        };
-        category: string;
-        description: string;
-        empire_restriction?: string;
-        id: string;
-        max_level: number;
-        name: string;
-        training_source?: string;
-        xp_per_level: Array<number>;
-    }>;
+    /**
+     * Regular items and modules merged into one list, sorted by ID.
+     */
+    items: Array<Item | Module>;
+    recipes: Array<Recipe>;
+    ships: Array<ShipClass>;
+    skills: Array<SkillDefinition>;
     version: string;
 };
 
@@ -634,6 +497,7 @@ export type CatalogResponse = {
         damage_reduction?: number;
         damage_type?: string;
         description: string;
+        dining_points?: number;
         disruptor_power?: number;
         drone_bandwidth?: number;
         drone_capacity?: number;
@@ -642,11 +506,13 @@ export type CatalogResponse = {
         hull_bonus?: number;
         hull_penalty?: number;
         id: string;
+        leisure_points?: number;
         magazine_size?: number;
         max_fuel_bonus?: number;
         mining_power?: number;
         name: string;
         passenger_business_berths?: number;
+        passenger_comfort?: number;
         passenger_economy_berths?: number;
         passenger_first_berths?: number;
         passive_recipe?: string;
@@ -1734,6 +1600,63 @@ export type EstimatePurchaseResponse = {
     subtotal: number;
     total_cost: number;
     unfilled: number;
+};
+
+export type FacilityDefinition = {
+    allows_contraband?: boolean;
+    always_on: boolean;
+    battery_capacity?: number;
+    build_cost: number;
+    build_materials?: Array<{
+        item_id: string;
+        quantity: number;
+    }>;
+    build_time: number;
+    category: string;
+    degraded_description?: string;
+    deposit_to_empire_reserves?: boolean;
+    description: string;
+    dining_points?: number;
+    disguised?: boolean;
+    empire?: string;
+    expansion_of?: string;
+    expansion_scale?: number;
+    faction_cap?: number;
+    faction_service_type?: string;
+    fleet_upkeep?: boolean;
+    fuel_capacity?: number;
+    fuel_output?: boolean;
+    id: string;
+    is_recycler?: boolean;
+    labor_cost: number;
+    leisure_points?: number;
+    level: number;
+    life_support_draw?: number;
+    life_support_supply?: number;
+    lore?: string;
+    maintenance_inputs?: Array<{
+        item_id: string;
+        quantity: number;
+    }>;
+    name: string;
+    personal_bonus_type?: string;
+    personal_bonus_value?: number;
+    personal_service_type?: string;
+    pirate_base_only?: boolean;
+    player_station_buildable?: boolean;
+    power_draw?: number;
+    power_supply?: number;
+    recipe_id?: string;
+    requires_service_type?: string;
+    satisfied_description?: string;
+    scan_falloff?: number;
+    scan_power?: number;
+    service_type?: string;
+    station_or_faction_only?: boolean;
+    tourism_upkeep?: boolean;
+    transit_deadline_bonus?: number;
+    unique?: boolean;
+    upgrades_from?: string;
 };
 
 export type FacilityResponse = {
@@ -4326,6 +4249,54 @@ export type InstallModResponse = {
     power_used: number;
 };
 
+export type Item = {
+    base_value: number;
+    category: string;
+    description: string;
+    effect?: {
+        ammo?: {
+            anti_drone_mod?: number;
+            anti_large_mod?: number;
+            anti_small_mod?: number;
+            armor_bypass?: number;
+            armor_melt_pct?: number;
+            armor_melt_ticks?: number;
+            damage_mod?: number;
+            disrupt_bonus_speed?: number;
+            disrupt_bonus_ticks?: number;
+            disrupt_damage?: number;
+            disrupt_speed?: number;
+            disrupt_ticks?: number;
+            dot_pct?: number;
+            dot_ticks?: number;
+            hit_chance_mod?: number;
+            hull_damage_mod?: number;
+            shield_bypass?: number;
+            shield_damage_mod?: number;
+            splash_pct?: number;
+            untraceable?: boolean;
+            wear_per_shot?: number;
+        };
+        amount?: number;
+        duration?: number;
+        stat?: string;
+        subtype?: string;
+        type: string;
+    };
+    extracted_by?: string;
+    food_type?: string;
+    hazardous?: boolean;
+    hidden?: boolean;
+    id: string;
+    name: string;
+    quest_item?: boolean;
+    rarity?: string;
+    region_lock?: Array<string>;
+    size: number;
+    stackable: boolean;
+    tradeable: boolean;
+};
+
 export type JettisonResponse = {
     container_id?: string;
     item_id: string;
@@ -4381,6 +4352,7 @@ export type ListPassengersResponse = {
     count: number;
     economy_berths: string;
     first_berths: string;
+    onboard_service?: string;
     passengers: Array<{
         base_fare: number;
         berth_class?: string;
@@ -5229,6 +5201,77 @@ export type ModifyOrderResponse = {
         succeeded: number;
         total: number;
     };
+};
+
+export type Module = {
+    accuracy_bonus?: number;
+    ammo_type?: string;
+    armor_bonus?: number;
+    armor_bypass_bonus?: number;
+    armor_repair_rate?: number;
+    base_value: number;
+    cargo_bonus?: number;
+    cloak_strength?: number;
+    cooldown?: number;
+    cpu_bonus?: number;
+    cpu_usage: number;
+    current_cool?: number;
+    damage?: number;
+    damage_reduction?: number;
+    damage_type?: string;
+    description: string;
+    dining_points?: number;
+    disruptor_power?: number;
+    drone_bandwidth?: number;
+    drone_capacity?: number;
+    fuel_efficiency?: number;
+    hidden?: boolean;
+    hull_bonus?: number;
+    hull_penalty?: number;
+    id: string;
+    leisure_points?: number;
+    magazine_size?: number;
+    max_fuel_bonus?: number;
+    mining_power?: number;
+    name: string;
+    passenger_business_berths?: number;
+    passenger_comfort?: number;
+    passenger_economy_berths?: number;
+    passenger_first_berths?: number;
+    passive_recipe?: string;
+    power_bonus?: number;
+    power_usage: number;
+    precision_factor?: number;
+    quest_item?: boolean;
+    range?: number;
+    reach?: number;
+    remote_repair_power?: number;
+    required_skills?: {
+        [key: string]: number;
+    };
+    resistance_bonus?: {
+        [key: string]: number;
+    };
+    salvage_bonus?: number;
+    scanner_power?: number;
+    scramble_power?: number;
+    shield_bonus?: number;
+    shield_bypass_bonus?: number;
+    shield_recharge_bonus?: number;
+    signature_bonus?: number;
+    size: number;
+    slot: string;
+    special?: string;
+    speed_bonus?: number;
+    speed_penalty?: number;
+    survey_power?: number;
+    survey_range?: number;
+    tow_speed_penalty?: number;
+    tracking_bonus?: number;
+    type: string;
+    type_id: string;
+    warp_stabilization?: number;
+    webify_strength?: number;
 };
 
 export type NameShipResponse = {
@@ -6203,6 +6246,26 @@ export type RecallDroneResponse = {
     skipped: number;
 };
 
+export type Recipe = {
+    category: string;
+    crafting_time: number;
+    description: string;
+    facility_only?: boolean;
+    fuel_output?: number;
+    hidden?: boolean;
+    id: string;
+    inputs: Array<{
+        item_id: string;
+        quantity: number;
+    }>;
+    name: string;
+    no_recycle?: boolean;
+    outputs: Array<{
+        item_id: string;
+        quantity: number;
+    }>;
+};
+
 export type RecycleJobResponse = {
     action: string;
     effective_time_per_run: number;
@@ -7064,7 +7127,7 @@ export type ShipClass = {
          */
         flag?: string;
         /**
-         * Capability type: ore_yield_bonus, ice_yield_bonus, gas_yield_bonus, integrated_cloak, integrated_scanner, scan_resistance, integrated_survey_scanner, ship_bay_capacity, passenger_economy_berths, passenger_business_berths, passenger_first_berths, fleet_command_capacity, special_flag
+         * Capability type: ore_yield_bonus, ice_yield_bonus, gas_yield_bonus, integrated_cloak, integrated_scanner, scan_resistance, integrated_survey_scanner, ship_bay_capacity, passenger_economy_berths, passenger_business_berths, passenger_first_berths, passenger_dining_points, passenger_leisure_points, passenger_comfort, fleet_command_capacity, special_flag
          */
         type?: string;
         /**
@@ -7094,7 +7157,6 @@ export type ShipClass = {
      * Catalog-only note naming the achievement to earn to unlock this prestige hull; present only for hulls the viewer hasn't unlocked
      */
     prestige_lock?: string;
-    price: number;
     /**
      * Player achievement required to commission or buy this prestige hull (empty = none)
      */
@@ -7153,6 +7215,20 @@ export type ShipLicenseResponse = {
     royalty_percent: number;
     ship_class: string;
     ship_name: string;
+};
+
+export type SkillDefinition = {
+    bonus_per_level?: {
+        [key: string]: number;
+    };
+    category: string;
+    description: string;
+    empire_restriction?: string;
+    id: string;
+    max_level: number;
+    name: string;
+    training_source?: string;
+    xp_per_level: Array<number>;
 };
 
 export type StationConfigResponse = {
