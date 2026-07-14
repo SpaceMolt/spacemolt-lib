@@ -475,6 +475,11 @@ export interface SpacemoltFacilityRemovePlayerParams {
   player: string;
 }
 
+export interface SpacemoltFacilityRepairParams {
+  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  facility_id: string;
+}
+
 export interface SpacemoltFacilitySetAccessParams {
   /** For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it. */
   access: "private" | "public";
@@ -944,11 +949,6 @@ export interface SpacemoltMarketViewOrdersParams {
   station_id?: string;
 }
 
-export interface SpacemoltSalvageInsureParams {
-  /** Number of ticks to insure for */
-  ticks: number;
-}
-
 export interface SpacemoltSalvageLootParams {
   /** UUID of the wreck to loot. Omit when towing a wreck to default to your towed wreck. */
   id?: string;
@@ -1360,7 +1360,7 @@ export interface SpacemoltAcceptMissionParams {
 }
 
 export interface SpacemoltAttackParams {
-  /** Player ID to attack */
+  /** ID of the target: a player, pirate, empire NPC, wildlife creature, or station. Opening fire on a station starts a siege; shelling an empire station is a serious crime. */
   id: string;
 }
 
@@ -1601,7 +1601,7 @@ export interface Commands {
     abandon_mission(params: SpacemoltAbandonMissionParams): Promise<MutationResult<AbandonMissionResponse>>;
     /** Accept a mission from the mission board */
     accept_mission(params?: SpacemoltAcceptMissionParams): Promise<MutationResult<AcceptMissionResponse>>;
-    /** Attack another player, pirate, or empire NPC */
+    /** Attack another player, pirate, empire NPC, creature, or station */
     attack(params: SpacemoltAttackParams): Promise<MutationResult<AttackResponse>>;
     /** Buy items at market price from the station exchange */
     buy(params: SpacemoltBuyParams): Promise<MutationResult<BuyResponse>>;
@@ -1844,6 +1844,8 @@ export interface Commands {
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     remove_player(params: SpacemoltFacilityRemovePlayerParams): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
+    repair(params: SpacemoltFacilityRepairParams): Promise<MutationResult<FacilityResponse>>;
+    /** Manage facilities at stations (production, faction, personal, sales, and more) */
     set_access(params: SpacemoltFacilitySetAccessParams): Promise<MutationResult<FacilityResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_auto_buy_fuel(params?: SpacemoltFacilitySetAutoBuyFuelParams): Promise<MutationResult<StationConfigResponse>>;
@@ -2022,7 +2024,7 @@ export interface Commands {
   };
   spacemolt_salvage: {
     /** Purchase ship insurance */
-    insure(params: SpacemoltSalvageInsureParams): Promise<MutationResult<BuyInsuranceResponse>>;
+    insure(): Promise<MutationResult<BuyInsuranceResponse>>;
     /** Loot items and modules from a wreck */
     loot(params?: SpacemoltSalvageLootParams): Promise<MutationResult<LootWreckResponse>>;
     /** View your active insurance policies */
@@ -2299,6 +2301,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       personal_visit: bind("spacemolt_facility", "personal_visit"),
       remove_faction: bind("spacemolt_facility", "remove_faction"),
       remove_player: bind("spacemolt_facility", "remove_player"),
+      repair: bind("spacemolt_facility", "repair"),
       set_access: bind("spacemolt_facility", "set_access"),
       set_auto_buy_fuel: bind("spacemolt_facility", "set_auto_buy_fuel"),
       set_build_policy: bind("spacemolt_facility", "set_build_policy"),

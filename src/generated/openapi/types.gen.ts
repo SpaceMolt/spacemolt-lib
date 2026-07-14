@@ -61,9 +61,30 @@ export type Base = {
      */
     auto_buy_fuel?: boolean;
     /**
-     * Defense rating 0-100
+     * Station battle damage. A wrecked station still stands and can still be docked at, but keeps only its market and storage until it is repaired.
      */
-    defense_level: number;
+    combat?: {
+        /**
+         * Accumulated hull damage; effective hull is maximum hull minus this
+         */
+        hull_damage?: number;
+        /**
+         * Tick the station last took damage
+         */
+        last_combat_tick?: number;
+        /**
+         * Accumulated shield damage; regenerates out of combat
+         */
+        shield_damage?: number;
+        /**
+         * Whether the station has been shot to pieces and awaits repair
+         */
+        wrecked?: boolean;
+        /**
+         * Tick the station was wrecked
+         */
+        wrecked_tick?: number;
+    };
     description?: string;
     empire?: string;
     facilities?: Array<string>;
@@ -72,7 +93,6 @@ export type Base = {
      * Current fuel reserves in the station's fuel tank
      */
     fuel?: number;
-    has_drones?: boolean;
     id: string;
     /**
      * Owner-set market listing fee in basis points (player station); 0 = default
@@ -665,6 +685,7 @@ export type CatalogResponse = {
     } | {
         allows_contraband?: boolean;
         always_on: boolean;
+        ammo_item?: string;
         battery_capacity?: number;
         build_cost: number;
         build_materials?: Array<{
@@ -707,16 +728,26 @@ export type CatalogResponse = {
         power_draw?: number;
         power_supply?: number;
         recipe_id?: string;
+        repair_hull_per_item?: number;
+        repair_item?: string;
         requires_service_type?: string;
         satisfied_description?: string;
         scan_falloff?: number;
         scan_power?: number;
+        self_repair_rate?: number;
         service_type?: string;
+        station_armor?: number;
+        station_hull_hp?: number;
         station_or_faction_only?: boolean;
+        station_shield_hp?: number;
         tourism_upkeep?: boolean;
         transit_deadline_bonus?: number;
         unique?: boolean;
         upgrades_from?: string;
+        weapon_cooldown?: number;
+        weapon_damage?: number;
+        weapon_damage_type?: string;
+        weapon_reach?: number;
     }>;
     message: string;
     page: number;
@@ -932,6 +963,7 @@ export type CommissionQuoteResponse = {
     ship_name?: string;
     shipyard_tier_here?: number;
     shipyard_tier_required?: number;
+    yard_margin?: number;
 };
 
 export type CommissionShipResponse = {
@@ -945,6 +977,7 @@ export type CommissionShipResponse = {
     ship_class: string;
     ship_name?: string;
     status: string;
+    yard_margin?: number;
 };
 
 export type CommissionStatusResponse = {
@@ -1633,6 +1666,7 @@ export type EstimatePurchaseResponse = {
 export type FacilityDefinition = {
     allows_contraband?: boolean;
     always_on: boolean;
+    ammo_item?: string;
     battery_capacity?: number;
     build_cost: number;
     build_materials?: Array<{
@@ -1675,16 +1709,26 @@ export type FacilityDefinition = {
     power_draw?: number;
     power_supply?: number;
     recipe_id?: string;
+    repair_hull_per_item?: number;
+    repair_item?: string;
     requires_service_type?: string;
     satisfied_description?: string;
     scan_falloff?: number;
     scan_power?: number;
+    self_repair_rate?: number;
     service_type?: string;
+    station_armor?: number;
+    station_hull_hp?: number;
     station_or_faction_only?: boolean;
+    station_shield_hp?: number;
     tourism_upkeep?: boolean;
     transit_deadline_bonus?: number;
     unique?: boolean;
     upgrades_from?: string;
+    weapon_cooldown?: number;
+    weapon_damage?: number;
+    weapon_damage_type?: string;
+    weapon_reach?: number;
 };
 
 export type FacilityResponse = {
@@ -1730,6 +1774,7 @@ export type FacilityResponse = {
         capacity?: number;
         category: string;
         custom_name?: string;
+        damaged?: boolean;
         description: string;
         dining_points?: number;
         facility_id: string;
@@ -1766,6 +1811,7 @@ export type FacilityResponse = {
         recipe_id?: string;
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
+        repair_complete_tick?: number;
         service?: string;
         tourism_upkeep?: boolean;
         type: string;
@@ -1802,6 +1848,7 @@ export type FacilityResponse = {
         capacity?: number;
         category: string;
         custom_name?: string;
+        damaged?: boolean;
         description: string;
         dining_points?: number;
         facility_id: string;
@@ -1838,6 +1885,7 @@ export type FacilityResponse = {
         recipe_id?: string;
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
+        repair_complete_tick?: number;
         service?: string;
         tourism_upkeep?: boolean;
         type: string;
@@ -1870,6 +1918,7 @@ export type FacilityResponse = {
         capacity?: number;
         category: string;
         custom_name?: string;
+        damaged?: boolean;
         description: string;
         dining_points?: number;
         facility_id: string;
@@ -1906,6 +1955,7 @@ export type FacilityResponse = {
         recipe_id?: string;
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
+        repair_complete_tick?: number;
         service?: string;
         tourism_upkeep?: boolean;
         type: string;
@@ -1917,6 +1967,7 @@ export type FacilityResponse = {
         capacity?: number;
         category: string;
         custom_name?: string;
+        damaged?: boolean;
         description: string;
         dining_points?: number;
         facility_id: string;
@@ -1953,6 +2004,7 @@ export type FacilityResponse = {
         recipe_id?: string;
         rent_paid_until_tick?: number;
         rent_per_cycle?: number;
+        repair_complete_tick?: number;
         service?: string;
         tourism_upkeep?: boolean;
         type: string;
@@ -1965,6 +2017,7 @@ export type FacilityResponse = {
         base_id: string;
         base_name: string;
         custom_name?: string;
+        damaged?: boolean;
         facility_id: string;
         labor_per_run?: number;
         missed_rent_cycles?: number;
@@ -1972,6 +2025,7 @@ export type FacilityResponse = {
         power_throttled?: boolean;
         rent_per_cycle: number;
         rental_fee_per_run?: number;
+        repair_complete_tick?: number;
         system_id?: string;
         type: string;
         under_construction?: boolean;
@@ -1993,6 +2047,7 @@ export type FacilityResponse = {
         base_id: string;
         base_name: string;
         custom_name?: string;
+        damaged?: boolean;
         facility_id: string;
         labor_per_run: number;
         missed_rent_cycles?: number;
@@ -2000,6 +2055,7 @@ export type FacilityResponse = {
         power_throttled?: boolean;
         rent_per_cycle: number;
         rental_fee_per_run?: number;
+        repair_complete_tick?: number;
         system_id?: string;
         type: string;
         under_construction?: boolean;
@@ -2176,6 +2232,17 @@ export type FacilityResponse = {
     facility_name: string;
     facility_type: string;
     hint: string;
+    ticks_to_complete: number;
+} | {
+    action: string;
+    complete_tick: number;
+    facility_id: string;
+    facility_name: string;
+    hint: string;
+    materials_used: Array<{
+        item_id: string;
+        quantity: number;
+    }>;
     ticks_to_complete: number;
 } | {
     action: string;
@@ -3404,16 +3471,18 @@ export type GetActionLogResponse = {
 export type GetBaseResponse = {
     base: {
         allow_outsider_facilities?: boolean;
-        defense_level: number;
+        armor: number;
         description: string;
         empire?: string;
         facilities?: Array<string>;
         faction_id?: string;
         fuel: number;
-        has_drones: boolean;
+        hull: number;
         id: string;
         market_fee_bps?: number;
         max_fuel: number;
+        max_hull: number;
+        max_shield: number;
         name: string;
         owner_id?: string;
         pirate_rep_required?: number;
@@ -3424,7 +3493,11 @@ export type GetBaseResponse = {
         service_access?: {
             [key: string]: string;
         };
+        shield: number;
         type?: string;
+        weapon_dps: number;
+        weapon_reach: number;
+        wrecked?: boolean;
     };
     condition: {
         condition: string;
@@ -3879,7 +3952,6 @@ export type GetEmpireInfoResponse = {
         default_foreign_sales_tax_bps: number;
         empire_id: string;
         eviction_grace_cycles: number;
-        facility_rent_multiplier_bps: number;
         faction_income_tax_bps: number;
         foreign_income_tax_deduction?: {
             [key: string]: number;
@@ -4169,16 +4241,18 @@ export type GetPoiResponse = {
     };
     base?: {
         allow_outsider_facilities?: boolean;
-        defense_level: number;
+        armor: number;
         description: string;
         empire?: string;
         facilities?: Array<string>;
         faction_id?: string;
         fuel: number;
-        has_drones: boolean;
+        hull: number;
         id: string;
         market_fee_bps?: number;
         max_fuel: number;
+        max_hull: number;
+        max_shield: number;
         name: string;
         owner_id?: string;
         pirate_rep_required?: number;
@@ -4189,7 +4263,11 @@ export type GetPoiResponse = {
         service_access?: {
             [key: string]: string;
         };
+        shield: number;
         type?: string;
+        weapon_dps: number;
+        weapon_reach: number;
+        wrecked?: boolean;
     };
     faction_fuel_capacity?: number;
     faction_fuel_reserve?: number;
@@ -6081,6 +6159,12 @@ export type NotificationSkillLevelUp = {
     new_level: number;
     skill_id: string;
     xp_gained?: number;
+};
+
+export type NotificationStationRepaired = {
+    base_id: string;
+    base_name: string;
+    system_id: string;
 };
 
 /**
@@ -8850,7 +8934,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationStationRepaired | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, combat_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
@@ -9281,7 +9365,7 @@ export type SpacemoltAcceptMissionResponse = SpacemoltAcceptMissionResponses[key
 export type SpacemoltAttackData = {
     body?: {
         /**
-         * Player ID to attack
+         * ID of the target: a player, pirate, empire NPC, wildlife creature, or station. Opening fire on a station starts a siege; shelling an empire station is a serious crime.
          */
         id: string;
     };
@@ -14326,6 +14410,46 @@ export type SpacemoltFacilityRemovePlayerResponses = {
 
 export type SpacemoltFacilityRemovePlayerResponse = SpacemoltFacilityRemovePlayerResponses[keyof SpacemoltFacilityRemovePlayerResponses];
 
+export type SpacemoltFacilityRepairData = {
+    body?: {
+        /**
+         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         */
+        facility_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/repair';
+};
+
+export type SpacemoltFacilityRepairErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityRepairResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: FacilityResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilityRepairResponse = SpacemoltFacilityRepairResponses[keyof SpacemoltFacilityRepairResponses];
+
 export type SpacemoltFacilitySetAccessData = {
     body?: {
         /**
@@ -18144,10 +18268,7 @@ export type SpacemoltSalvageHelpPostResponse = SpacemoltSalvageHelpPostResponses
 
 export type SpacemoltSalvageInsureData = {
     body?: {
-        /**
-         * Number of ticks to insure for
-         */
-        ticks: number;
+        [key: string]: unknown;
     };
     path?: never;
     query?: never;
