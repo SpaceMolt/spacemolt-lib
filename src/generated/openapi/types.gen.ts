@@ -177,6 +177,7 @@ export type BattleSummaryResponse = {
     origin_poi?: string;
     outcome: string;
     participant_count: number;
+    player_names?: Array<string>;
     ships_destroyed: number;
     sides: Array<{
         faction_id?: string;
