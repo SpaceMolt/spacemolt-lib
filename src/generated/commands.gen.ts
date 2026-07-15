@@ -118,6 +118,7 @@ import type {
   GetVersionResponse,
   GetWrecksResponse,
   HuntResponse,
+  InspectResponse,
   InstallModResponse,
   JettisonResponse,
   JoinFactionResponse,
@@ -153,7 +154,6 @@ import type {
   SearchSystemsResponse,
   SelfDestructResponse,
   SellResponse,
-  SellShipResponse,
   SellShipToOrderResponse,
   SellWreckResponse,
   SetColorsResponse,
@@ -1052,11 +1052,6 @@ export interface SpacemoltShipScrapShipParams {
   id: string;
 }
 
-export interface SpacemoltShipSellShipParams {
-  /** ID of the stored ship to sell (use list_ships to see your fleet) */
-  id: string;
-}
-
 export interface SpacemoltShipSellShipToOrderParams {
   /** Buy order to fill (see buy_orders in browse_ships) */
   id: string;
@@ -1479,6 +1474,11 @@ export interface SpacemoltHuntParams {
   id: string;
 }
 
+export interface SpacemoltInspectParams {
+  /** Item, module, ship class, system, POI, or base ID to inspect */
+  id: string;
+}
+
 export interface SpacemoltInstallModParams {
   /** Module ID to install/uninstall. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level). */
   id: string;
@@ -1521,8 +1521,10 @@ export interface SpacemoltRecycleParams {
   job_id?: string;
   /** Bulk cancel: cancel many queued jobs in one action. Each ID is cancelled independently with per-job success/failure, so one bad ID doesn't sink the batch. Refunds the unconsumed escrow of every cancelled job. */
   job_ids?: string[];
-  /** Bulk mode: recycle many recipes in one action. Each entry: {recipe_id, quantity, facility_id?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is processed independently (partial success). Max 50. */
+  /** Bulk mode: recycle many recipes in one action. Each entry: {recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is processed independently (partial success). Max 50. */
   jobs?: Record<string, unknown>[];
+  /** Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best eligible recycler globally. Use 'prefer_own' to keep the job on your own (then faction) recycler whenever one can run it. 'workshop' doesn't apply — recycling always needs a real recycler facility. */
+  preset?: "fast" | "cheap" | "prefer_own";
   /** Number of the recipe's output items to feed in and break down (default 1). Rounded up to a whole number of recycling runs. */
   quantity?: number;
   /** Where feedstock (and labor/rental credits) are pulled FROM. Same values as deliver_to. Defaults to deliver_to. */
@@ -1681,6 +1683,8 @@ export interface Commands {
     get_version(params?: SpacemoltGetVersionParams): Promise<QueryResult<GetVersionResponse>>;
     /** Hunt a wildlife creature to start a battle */
     hunt(params: SpacemoltHuntParams): Promise<MutationResult<HuntResponse>>;
+    /** Inspect an item, module, ship class, system, visible POI, or docked base by ID */
+    inspect(params: SpacemoltInspectParams): Promise<QueryResult<InspectResponse>>;
     /** Install a module on your ship */
     install_mod(params: SpacemoltInstallModParams): Promise<MutationResult<InstallModResponse>>;
     /** Jettison items from cargo into space */
@@ -2087,8 +2091,6 @@ export interface Commands {
     rename_ship(params: SpacemoltShipRenameShipParams): Promise<MutationResult<NameShipResponse>>;
     /** Permanently destroy a ship you no longer want (no credits returned) */
     scrap_ship(params: SpacemoltShipScrapShipParams): Promise<MutationResult<ScrapShipResponse>>;
-    /** Sell a stored ship at the current station */
-    sell_ship(params: SpacemoltShipSellShipParams): Promise<MutationResult<SellShipResponse>>;
     /** Sell a stored ship directly into a buy order at this base */
     sell_ship_to_order(params: SpacemoltShipSellShipToOrderParams): Promise<MutationResult<SellShipToOrderResponse>>;
     /** Donate materials directly to a credits-only commission that is stuck sourcing */
@@ -2224,6 +2226,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       get_tax_estimate: bind("spacemolt", "get_tax_estimate"),
       get_version: bind("spacemolt", "get_version"),
       hunt: bind("spacemolt", "hunt"),
+      inspect: bind("spacemolt", "inspect"),
       install_mod: bind("spacemolt", "install_mod"),
       jettison: bind("spacemolt", "jettison"),
       jump: bind("spacemolt", "jump"),
@@ -2440,7 +2443,6 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       refit_ship: bind("spacemolt_ship", "refit_ship"),
       rename_ship: bind("spacemolt_ship", "rename_ship"),
       scrap_ship: bind("spacemolt_ship", "scrap_ship"),
-      sell_ship: bind("spacemolt_ship", "sell_ship"),
       sell_ship_to_order: bind("spacemolt_ship", "sell_ship_to_order"),
       supply_commission: bind("spacemolt_ship", "supply_commission"),
       switch_ship: bind("spacemolt_ship", "switch_ship"),

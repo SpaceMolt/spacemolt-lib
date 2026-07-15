@@ -4533,6 +4533,656 @@ export type HuntResponse = {
     pending: boolean;
 };
 
+export type InspectResponse = {
+    base?: {
+        base: {
+            allow_outsider_facilities?: boolean;
+            armor: number;
+            description: string;
+            empire?: string;
+            facilities?: Array<string>;
+            faction_id?: string;
+            fuel: number;
+            hull: number;
+            id: string;
+            market_fee_bps?: number;
+            max_fuel: number;
+            max_hull: number;
+            max_shield: number;
+            name: string;
+            owner_id?: string;
+            pirate_rep_required?: number;
+            poi_id: string;
+            public_access: boolean;
+            refuel_price_each?: number;
+            repair_price_per_hull?: number;
+            service_access?: {
+                [key: string]: string;
+            };
+            shield: number;
+            type?: string;
+            weapon_dps: number;
+            weapon_reach: number;
+            wrecked?: boolean;
+        };
+        condition: {
+            condition: string;
+            condition_text: string;
+            satisfaction_pct: number;
+            satisfied_count: number;
+            total_service_infra: number;
+        };
+        construction?: {
+            pending?: Array<{
+                build_cost?: number;
+                category: string;
+                definition_id: string;
+                materials?: Array<{
+                    item_id: string;
+                    name?: string;
+                    quantity_in_storage: number;
+                    quantity_missing?: number;
+                    quantity_required: number;
+                }>;
+                name: string;
+                reason?: string;
+                status: string;
+                ticks_until_complete?: number;
+            }>;
+            under_construction?: Array<{
+                build_cost?: number;
+                category: string;
+                definition_id: string;
+                materials?: Array<{
+                    item_id: string;
+                    name?: string;
+                    quantity_in_storage: number;
+                    quantity_missing?: number;
+                    quantity_required: number;
+                }>;
+                name: string;
+                reason?: string;
+                status: string;
+                ticks_until_complete?: number;
+            }>;
+        };
+        faction_fuel_capacity?: number;
+        faction_fuel_reserve?: number;
+        fuel_price?: number;
+        fuel_price_all_in?: number;
+        fuel_tax_per_unit?: number;
+        life_support?: {
+            demand: number;
+            maintenance?: Array<{
+                item_id: string;
+                name?: string;
+                quantity_per_cycle: number;
+            }>;
+            maintenance_cycle_ticks: number;
+            plants: number;
+            remediation?: string;
+            starved?: Array<{
+                item_id: string;
+                name?: string;
+                quantity_per_cycle: number;
+            }>;
+            supply: number;
+        };
+        power?: {
+            battery_capacity: number;
+            battery_stored: number;
+            current_draw: number;
+            efficiency: number;
+            fuel_inputs?: Array<{
+                item_id: string;
+                name?: string;
+                quantity_per_cycle: number;
+            }>;
+            remediation?: string;
+            supply: number;
+        };
+        services: Array<string>;
+    };
+    catalog?: {
+        analysis?: {
+            alternates?: {
+                [key: string]: Array<{
+                    efficiency: string;
+                    name: string;
+                    recipe_id: string;
+                }>;
+            };
+            raw_materials: Array<{
+                category: string;
+                item_id: string;
+                name: string;
+                quantity: number;
+            }>;
+            steps: Array<{
+                batches: number;
+                inputs: Array<{
+                    item_id: string;
+                    name: string;
+                    quantity: number;
+                }>;
+                name: string;
+                output: string;
+                output_qty: number;
+                recipe_id: string;
+            }>;
+        };
+        estimated_material_cost?: number;
+        /**
+         * Catalog entries. Shape depends on the requested type: ships → ShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
+         */
+        items: Array<{
+            base_value: number;
+            category: string;
+            description: string;
+            effect?: {
+                ammo?: {
+                    anti_drone_mod?: number;
+                    anti_large_mod?: number;
+                    anti_small_mod?: number;
+                    armor_bypass?: number;
+                    armor_melt_pct?: number;
+                    armor_melt_ticks?: number;
+                    damage_mod?: number;
+                    disrupt_bonus_speed?: number;
+                    disrupt_bonus_ticks?: number;
+                    disrupt_damage?: number;
+                    disrupt_speed?: number;
+                    disrupt_ticks?: number;
+                    dot_pct?: number;
+                    dot_ticks?: number;
+                    hit_chance_mod?: number;
+                    hull_damage_mod?: number;
+                    shield_bypass?: number;
+                    shield_damage_mod?: number;
+                    splash_pct?: number;
+                    untraceable?: boolean;
+                    wear_per_shot?: number;
+                };
+                amount?: number;
+                duration?: number;
+                stat?: string;
+                subtype?: string;
+                type: string;
+            };
+            extracted_by?: string;
+            food_type?: string;
+            hazardous?: boolean;
+            hidden?: boolean;
+            id: string;
+            name: string;
+            quest_item?: boolean;
+            rarity?: string;
+            region_lock?: Array<string>;
+            size: number;
+            stackable: boolean;
+            tradeable: boolean;
+        } | {
+            accuracy_bonus?: number;
+            ammo_type?: string;
+            armor_bonus?: number;
+            armor_bypass_bonus?: number;
+            armor_repair_rate?: number;
+            base_value: number;
+            cargo_bonus?: number;
+            cloak_strength?: number;
+            cooldown?: number;
+            cpu_bonus?: number;
+            cpu_usage: number;
+            current_cool?: number;
+            damage?: number;
+            damage_reduction?: number;
+            damage_type?: string;
+            description: string;
+            dining_points?: number;
+            disruptor_power?: number;
+            drone_bandwidth?: number;
+            drone_capacity?: number;
+            fuel_efficiency?: number;
+            hidden?: boolean;
+            hull_bonus?: number;
+            hull_penalty?: number;
+            id: string;
+            leisure_points?: number;
+            magazine_size?: number;
+            max_fuel_bonus?: number;
+            mining_power?: number;
+            name: string;
+            passenger_business_berths?: number;
+            passenger_comfort?: number;
+            passenger_economy_berths?: number;
+            passenger_first_berths?: number;
+            passive_recipe?: string;
+            power_bonus?: number;
+            power_usage: number;
+            precision_factor?: number;
+            quest_item?: boolean;
+            range?: number;
+            reach?: number;
+            remote_repair_power?: number;
+            required_skills?: {
+                [key: string]: number;
+            };
+            resistance_bonus?: {
+                [key: string]: number;
+            };
+            salvage_bonus?: number;
+            scanner_power?: number;
+            scramble_power?: number;
+            shield_bonus?: number;
+            shield_bypass_bonus?: number;
+            shield_recharge_bonus?: number;
+            signature_bonus?: number;
+            size: number;
+            slot: string;
+            special?: string;
+            speed_bonus?: number;
+            speed_penalty?: number;
+            survey_power?: number;
+            survey_range?: number;
+            tow_speed_penalty?: number;
+            tracking_bonus?: number;
+            type: string;
+            type_id: string;
+            warp_stabilization?: number;
+            webify_strength?: number;
+        } | {
+            base_armor: number;
+            base_fuel: number;
+            base_hull: number;
+            base_shield: number;
+            base_shield_recharge: number;
+            base_speed: number;
+            based_on?: string;
+            build_materials?: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            build_time: number;
+            cargo_capacity: number;
+            category?: string;
+            class: string;
+            cpu_capacity: number;
+            default_loadout_version?: number;
+            default_modules?: Array<string>;
+            defense_slots: number;
+            description: string;
+            faction?: string;
+            flavor_tags?: Array<string>;
+            hidden?: boolean;
+            id: string;
+            inherent_capabilities?: Array<{
+                flag?: string;
+                type: string;
+                value?: number;
+            }>;
+            legacy?: boolean;
+            lore?: string;
+            name: string;
+            npc_role?: string;
+            passive_recipes?: Array<string>;
+            piloting_required?: number;
+            power_capacity: number;
+            prestige_lock?: string;
+            price: number;
+            required_achievement?: string;
+            required_faction_achievement?: string;
+            required_faction_leader?: boolean;
+            required_items?: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            required_reputation?: number;
+            scale: number;
+            shipyard_tier: number;
+            special?: string;
+            starter_ship?: boolean;
+            tier: number;
+            tow_speed_bonus?: number;
+            utility_slots: number;
+            weapon_slots: number;
+        } | {
+            bonus_per_level?: {
+                [key: string]: number;
+            };
+            category: string;
+            description: string;
+            empire_restriction?: string;
+            id: string;
+            max_level: number;
+            name: string;
+            training_source?: string;
+            xp_per_level: Array<number>;
+        } | {
+            category: string;
+            crafting_time: number;
+            description: string;
+            facility_only?: boolean;
+            fuel_output?: number;
+            hidden?: boolean;
+            id: string;
+            inputs: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            name: string;
+            no_recycle?: boolean;
+            outputs: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+        } | {
+            allows_contraband?: boolean;
+            always_on: boolean;
+            ammo_item?: string;
+            battery_capacity?: number;
+            build_cost: number;
+            build_materials?: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            build_time: number;
+            category: string;
+            degraded_description?: string;
+            deposit_to_empire_reserves?: boolean;
+            description: string;
+            dining_points?: number;
+            disguised?: boolean;
+            empire?: string;
+            expansion_of?: string;
+            expansion_scale?: number;
+            faction_cap?: number;
+            faction_service_type?: string;
+            fleet_upkeep?: boolean;
+            fuel_capacity?: number;
+            fuel_output?: boolean;
+            id: string;
+            is_recycler?: boolean;
+            labor_cost: number;
+            leisure_points?: number;
+            level: number;
+            life_support_draw?: number;
+            life_support_supply?: number;
+            lore?: string;
+            maintenance_inputs?: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            name: string;
+            personal_bonus_type?: string;
+            personal_bonus_value?: number;
+            personal_service_type?: string;
+            pirate_base_only?: boolean;
+            player_station_buildable?: boolean;
+            power_draw?: number;
+            power_supply?: number;
+            recipe_id?: string;
+            repair_hull_per_item?: number;
+            repair_item?: string;
+            requires_service_type?: string;
+            satisfied_description?: string;
+            scan_falloff?: number;
+            scan_power?: number;
+            self_repair_rate?: number;
+            service_type?: string;
+            station_armor?: number;
+            station_hull_hp?: number;
+            station_or_faction_only?: boolean;
+            station_shield_hp?: number;
+            tourism_upkeep?: boolean;
+            transit_deadline_bonus?: number;
+            unique?: boolean;
+            upgrades_from?: string;
+            weapon_cooldown?: number;
+            weapon_damage?: number;
+            weapon_damage_type?: string;
+            weapon_reach?: number;
+        }>;
+        message: string;
+        page: number;
+        page_size: number;
+        passive_recipe_details?: Array<{
+            category: string;
+            crafting_time: number;
+            description: string;
+            facility_only?: boolean;
+            fuel_output?: number;
+            hidden?: boolean;
+            id: string;
+            inputs: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            name: string;
+            no_recycle?: boolean;
+            outputs: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+        }>;
+        produced_by_facilities?: Array<{
+            definition_id: string;
+            level: number;
+            name: string;
+        }>;
+        recipes?: Array<{
+            category: string;
+            crafting_time: number;
+            description: string;
+            facility_only?: boolean;
+            fuel_output?: number;
+            hidden?: boolean;
+            id: string;
+            inputs: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            name: string;
+            no_recycle?: boolean;
+            outputs: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+        }>;
+        total: number;
+        total_pages: number;
+        type: string;
+    };
+    faction_poi_intel?: {
+        base_id?: string;
+        base_name?: string;
+        class?: string;
+        description?: string;
+        id: string;
+        name: string;
+        position: {
+            x: number;
+            y: number;
+        };
+        resources?: Array<{
+            depletion_percent?: number;
+            max_remaining?: number;
+            remaining: number;
+            remaining_display?: string;
+            resource_id: string;
+            richness: number;
+        }>;
+        type: string;
+    };
+    faction_system_intel?: {
+        auto_synced?: boolean;
+        connections?: Array<{
+            distance?: number;
+            name?: string;
+            system_id: string;
+        }>;
+        description?: string;
+        empire?: string;
+        name: string;
+        pois?: Array<{
+            base_id?: string;
+            base_name?: string;
+            class?: string;
+            description?: string;
+            id: string;
+            name: string;
+            position: {
+                x: number;
+                y: number;
+            };
+            resources?: Array<{
+                depletion_percent?: number;
+                max_remaining?: number;
+                remaining: number;
+                remaining_display?: string;
+                resource_id: string;
+                richness: number;
+            }>;
+            type: string;
+        }>;
+        police_level: number;
+        submitted_at_tick: number;
+        submitted_by: string;
+        submitter_name: string;
+        system_id: string;
+    };
+    id: string;
+    kind: string;
+    poi?: {
+        detail?: {
+            active_battle?: {
+                battle_id: string;
+                participants: Array<{
+                    faction_id?: string;
+                    is_npc?: boolean;
+                    kind?: string;
+                    player_id: string;
+                    ship_class?: string;
+                    side_id: number;
+                    username: string;
+                }>;
+                sides: Array<{
+                    faction_id?: string;
+                    player_count: number;
+                    side_id: number;
+                }>;
+            };
+            base?: {
+                allow_outsider_facilities?: boolean;
+                armor: number;
+                description: string;
+                empire?: string;
+                facilities?: Array<string>;
+                faction_id?: string;
+                fuel: number;
+                hull: number;
+                id: string;
+                market_fee_bps?: number;
+                max_fuel: number;
+                max_hull: number;
+                max_shield: number;
+                name: string;
+                owner_id?: string;
+                pirate_rep_required?: number;
+                poi_id: string;
+                public_access: boolean;
+                refuel_price_each?: number;
+                repair_price_per_hull?: number;
+                service_access?: {
+                    [key: string]: string;
+                };
+                shield: number;
+                type?: string;
+                weapon_dps: number;
+                weapon_reach: number;
+                wrecked?: boolean;
+            };
+            faction_fuel_capacity?: number;
+            faction_fuel_reserve?: number;
+            fuel_price?: number;
+            fuel_price_all_in?: number;
+            fuel_tax_per_unit?: number;
+            poi: {
+                base_id?: string;
+                class?: string;
+                description: string;
+                expires_at?: string;
+                hidden?: boolean;
+                id: string;
+                name: string;
+                position: {
+                    x: number;
+                    y: number;
+                };
+                resources?: Array<{
+                    max_remaining?: number;
+                    remaining: number;
+                    resource_id: string;
+                    richness: number;
+                }>;
+                reveal_difficulty?: number;
+                system_id: string;
+                type: string;
+            };
+            resources?: Array<{
+                depletion_percent?: number;
+                max_remaining?: number;
+                name: string;
+                remaining: number;
+                remaining_display: string;
+                resource_id: string;
+                richness: number;
+                supported_power?: number;
+            }>;
+            services?: Array<string>;
+            wormhole_destination?: string;
+            wormhole_destination_id?: string;
+            wormhole_expires_in?: string;
+            wormhole_prediction_hint?: string;
+        };
+        summary?: {
+            base_id?: string;
+            base_name?: string;
+            class?: string;
+            faction_fuel_capacity?: number;
+            faction_fuel_reserve?: number;
+            fuel_capacity?: number;
+            fuel_price?: number;
+            fuel_reserve: number;
+            has_base: boolean;
+            id: string;
+            name: string;
+            online: number;
+            position: {
+                x: number;
+                y: number;
+            };
+            type: string;
+        };
+    };
+    source: string;
+    system?: {
+        connections: Array<string>;
+        description?: string;
+        empire?: string;
+        is_stronghold?: boolean;
+        name: string;
+        online: number;
+        poi_count: number;
+        position: {
+            x: number;
+            y: number;
+        };
+        system_id: string;
+        visited: boolean;
+        visited_at: string;
+    };
+};
+
 export type InstallModResponse = {
     cpu_used: number;
     current_ammo?: number;
@@ -7209,24 +7859,6 @@ export type SellResponse = {
     total_earned: number;
     unsold?: number;
     xp_gained?: number;
-};
-
-export type SellShipResponse = {
-    cargo_note?: string;
-    cargo_to_storage?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
-    credits_earned: number;
-    credits_total: number;
-    days_owned: number;
-    message: string;
-    modules_note?: string;
-    modules_to_storage?: Array<{
-        module_type: string;
-        name: string;
-    }>;
 };
 
 export type SellShipToOrderResponse = {
@@ -10783,6 +11415,44 @@ export type SpacemoltHuntResponses = {
 
 export type SpacemoltHuntResponse = SpacemoltHuntResponses[keyof SpacemoltHuntResponses];
 
+export type SpacemoltInspectData = {
+    body?: {
+        /**
+         * Item, module, ship class, system, POI, or base ID to inspect
+         */
+        id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt/inspect';
+};
+
+export type SpacemoltInspectErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltInspectResponses = {
+    /**
+     * Result. structuredContent type: InspectResponse
+     */
+    200: V2Response & {
+        structuredContent?: InspectResponse;
+    };
+};
+
+export type SpacemoltInspectResponse = SpacemoltInspectResponses[keyof SpacemoltInspectResponses];
+
 export type SpacemoltInstallModData = {
     body?: {
         /**
@@ -11128,11 +11798,15 @@ export type SpacemoltRecycleData = {
          */
         job_ids?: Array<string>;
         /**
-         * Bulk mode: recycle many recipes in one action. Each entry: {recipe_id, quantity, facility_id?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is processed independently (partial success). Max 50.
+         * Bulk mode: recycle many recipes in one action. Each entry: {recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is processed independently (partial success). Max 50.
          */
         jobs?: Array<{
             [key: string]: unknown;
         }>;
+        /**
+         * Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best eligible recycler globally. Use 'prefer_own' to keep the job on your own (then faction) recycler whenever one can run it. 'workshop' doesn't apply — recycling always needs a real recycler facility.
+         */
+        preset?: 'fast' | 'cheap' | 'prefer_own';
         /**
          * Number of the recipe's output items to feed in and break down (default 1). Rounded up to a whole number of recycling runs.
          */
@@ -19356,46 +20030,6 @@ export type SpacemoltShipScrapShipResponses = {
 };
 
 export type SpacemoltShipScrapShipResponse = SpacemoltShipScrapShipResponses[keyof SpacemoltShipScrapShipResponses];
-
-export type SpacemoltShipSellShipData = {
-    body?: {
-        /**
-         * ID of the stored ship to sell (use list_ships to see your fleet)
-         */
-        id: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v2/spacemolt_ship/sell_ship';
-};
-
-export type SpacemoltShipSellShipErrors = {
-    /**
-     * Bad request — invalid params, unknown command, or game error
-     */
-    400: unknown;
-    /**
-     * Not authenticated — missing or invalid session
-     */
-    401: unknown;
-    /**
-     * Rate limited — mutations allow 1 per tick (10 seconds)
-     */
-    429: unknown;
-};
-
-export type SpacemoltShipSellShipResponses = {
-    /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SellShipResponse)
-     */
-    200: V2Response & {
-        structuredContent?: V2GameState & {
-            details?: SellShipResponse;
-        };
-    };
-};
-
-export type SpacemoltShipSellShipResponse = SpacemoltShipSellShipResponses[keyof SpacemoltShipSellShipResponses];
 
 export type SpacemoltShipSellShipToOrderData = {
     body?: {
