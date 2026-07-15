@@ -363,15 +363,20 @@ export interface SpacemoltFacilityDeployOutpostParams {
   name: string;
 }
 
+export interface SpacemoltFacilityDisassembleParams {
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  facility_id: string;
+}
+
 export interface SpacemoltFacilityDismantleParams {
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
 }
 
 export interface SpacemoltFacilityFacilitySetDescriptionParams {
   /** For 'personal_decorate': a text description of your personal quarters (what visitors see, hear, and feel). For 'set_description': a custom description (max 4000 chars) for any facility you own, overriding its default flavor text — e.g. re-flavoring your faction's bar. Send empty to clear it. */
   description?: string;
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
 }
 
@@ -382,15 +387,20 @@ export interface SpacemoltFacilityFactionBuildParams {
   facility_type: string;
 }
 
+export interface SpacemoltFacilityFactionDisassembleParams {
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  facility_id: string;
+}
+
 export interface SpacemoltFacilityFactionDismantleParams {
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
 }
 
 export interface SpacemoltFacilityFactionUpgradeParams {
   /** For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way. */
   bucket?: string;
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to. */
   facility_type: string;
@@ -408,7 +418,7 @@ export interface SpacemoltFacilityJobAddParams {
   deliver_to?: string;
   /** Job direction: 'forward' runs the recipe normally (craft); 'reverse' recycles existing items back to inputs. */
   direction?: "forward" | "reverse";
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** For 'job_add': number of runs to queue. */
   quantity?: number;
@@ -426,12 +436,12 @@ export interface SpacemoltFacilityJobCancelParams {
 }
 
 export interface SpacemoltFacilityJobListParams {
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
 }
 
 export interface SpacemoltFacilityJobReorderParams {
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** Job ID (for 'job_cancel', 'job_reorder'). Use action 'job_list' to see job IDs. */
   job_id: string;
@@ -440,7 +450,7 @@ export interface SpacemoltFacilityJobReorderParams {
 }
 
 export interface SpacemoltFacilityListForSaleParams {
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission). */
   faction?: boolean;
@@ -476,14 +486,14 @@ export interface SpacemoltFacilityRemovePlayerParams {
 }
 
 export interface SpacemoltFacilityRepairParams {
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
 }
 
 export interface SpacemoltFacilitySetAccessParams {
   /** For 'personal_decorate': who can visit your quarters. For 'set_access': 'public' opens your facility to renters, 'private' closes it. */
   access: "private" | "public";
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
 }
 
@@ -510,12 +520,12 @@ export interface SpacemoltFacilitySetMarketFeeParams {
 export interface SpacemoltFacilitySetNameParams {
   /** For 'set_name': a custom name for the facility (3-32 chars) so multiple facilities of the same type stand out. Send empty to clear it. */
   custom_name?: string;
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
 }
 
 export interface SpacemoltFacilitySetOutputPriceParams {
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected. */
   price?: number;
@@ -551,7 +561,7 @@ export interface SpacemoltFacilityStationSetNameParams {
 export interface SpacemoltFacilityTransferParams {
   /** Transfer direction: 'to_faction' moves the facility to faction ownership; 'to_player' transfers it to a specific player. */
   direction: "to_faction" | "to_player";
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** Target player ID for 'transfer' action with direction 'to_player'. */
   player_id?: string;
@@ -580,7 +590,7 @@ export interface SpacemoltFacilityUnbanParams {
 export interface SpacemoltFacilityUpgradeParams {
   /** For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way. */
   bucket?: string;
-  /** Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to. */
   facility_type: string;
@@ -1804,11 +1814,15 @@ export interface Commands {
     /** Deploy a lightweight, members-only faction outpost at your current point of interest in lawless space */
     deploy_outpost(params: SpacemoltFacilityDeployOutpostParams): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
+    disassemble(params: SpacemoltFacilityDisassembleParams): Promise<MutationResult<FacilityResponse>>;
+    /** Manage facilities at stations (production, faction, personal, sales, and more) */
     dismantle(params: SpacemoltFacilityDismantleParams): Promise<MutationResult<FacilityResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     facility_set_description(params: SpacemoltFacilityFacilitySetDescriptionParams): Promise<QueryResult<FacilityResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     faction_build(params: SpacemoltFacilityFactionBuildParams): Promise<MutationResult<FacilityResponse>>;
+    /** Manage facilities at stations (production, faction, personal, sales, and more) */
+    faction_disassemble(params: SpacemoltFacilityFactionDisassembleParams): Promise<MutationResult<FacilityResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     faction_dismantle(params: SpacemoltFacilityFactionDismantleParams): Promise<MutationResult<FacilityResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
@@ -2281,9 +2295,11 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       buy_ship_license: bind("spacemolt_facility", "buy_ship_license"),
       cancel_listing: bind("spacemolt_facility", "cancel_listing"),
       deploy_outpost: bind("spacemolt_facility", "deploy_outpost"),
+      disassemble: bind("spacemolt_facility", "disassemble"),
       dismantle: bind("spacemolt_facility", "dismantle"),
       facility_set_description: bind("spacemolt_facility", "facility_set_description"),
       faction_build: bind("spacemolt_facility", "faction_build"),
+      faction_disassemble: bind("spacemolt_facility", "faction_disassemble"),
       faction_dismantle: bind("spacemolt_facility", "faction_dismantle"),
       faction_list: bind("spacemolt_facility", "faction_list"),
       faction_owned: bind("spacemolt_facility", "faction_owned"),

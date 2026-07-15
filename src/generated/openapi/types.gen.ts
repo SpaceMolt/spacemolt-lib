@@ -2236,6 +2236,19 @@ export type FacilityResponse = {
     ticks_to_complete: number;
 } | {
     action: string;
+    base_id: string;
+    complete_tick: number;
+    facility_id: string;
+    facility_name: string;
+    facility_type: string;
+    hint: string;
+    materials_to_recover: Array<{
+        item_id: string;
+        quantity: number;
+    }>;
+    ticks_to_complete: number;
+} | {
+    action: string;
     complete_tick: number;
     facility_id: string;
     facility_name: string;
@@ -13531,10 +13544,50 @@ export type SpacemoltFacilityDeployOutpostResponses = {
 
 export type SpacemoltFacilityDeployOutpostResponse = SpacemoltFacilityDeployOutpostResponses[keyof SpacemoltFacilityDeployOutpostResponses];
 
+export type SpacemoltFacilityDisassembleData = {
+    body?: {
+        /**
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         */
+        facility_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/disassemble';
+};
+
+export type SpacemoltFacilityDisassembleErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityDisassembleResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: FacilityResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilityDisassembleResponse = SpacemoltFacilityDisassembleResponses[keyof SpacemoltFacilityDisassembleResponses];
+
 export type SpacemoltFacilityDismantleData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -13578,7 +13631,7 @@ export type SpacemoltFacilityFacilitySetDescriptionData = {
          */
         description?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -13657,10 +13710,50 @@ export type SpacemoltFacilityFactionBuildResponses = {
 
 export type SpacemoltFacilityFactionBuildResponse = SpacemoltFacilityFactionBuildResponses[keyof SpacemoltFacilityFactionBuildResponses];
 
+export type SpacemoltFacilityFactionDisassembleData = {
+    body?: {
+        /**
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         */
+        facility_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/faction_disassemble';
+};
+
+export type SpacemoltFacilityFactionDisassembleErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityFactionDisassembleResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: FacilityResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilityFactionDisassembleResponse = SpacemoltFacilityFactionDisassembleResponses[keyof SpacemoltFacilityFactionDisassembleResponses];
+
 export type SpacemoltFacilityFactionDismantleData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -13774,7 +13867,7 @@ export type SpacemoltFacilityFactionUpgradeData = {
          */
         bucket?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -13912,7 +14005,7 @@ export type SpacemoltFacilityJobAddData = {
          */
         direction?: 'forward' | 'reverse';
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -14008,7 +14101,7 @@ export type SpacemoltFacilityJobCancelResponse = SpacemoltFacilityJobCancelRespo
 export type SpacemoltFacilityJobListData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -14046,7 +14139,7 @@ export type SpacemoltFacilityJobListResponse = SpacemoltFacilityJobListResponses
 export type SpacemoltFacilityJobReorderData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -14129,7 +14222,7 @@ export type SpacemoltFacilityListResponse = SpacemoltFacilityListResponses[keyof
 export type SpacemoltFacilityListForSaleData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -14414,7 +14507,7 @@ export type SpacemoltFacilityRemovePlayerResponse = SpacemoltFacilityRemovePlaye
 export type SpacemoltFacilityRepairData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -14458,7 +14551,7 @@ export type SpacemoltFacilitySetAccessData = {
          */
         access: 'private' | 'public';
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -14662,7 +14755,7 @@ export type SpacemoltFacilitySetNameData = {
          */
         custom_name?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -14702,7 +14795,7 @@ export type SpacemoltFacilitySetNameResponse = SpacemoltFacilitySetNameResponses
 export type SpacemoltFacilitySetOutputPriceData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -14987,7 +15080,7 @@ export type SpacemoltFacilityTransferData = {
          */
         direction: 'to_faction' | 'to_player';
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -15133,7 +15226,7 @@ export type SpacemoltFacilityUpgradeData = {
          */
         bucket?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
