@@ -62,7 +62,7 @@ test('bulk array-of-object params render their element shape, not string[]', () 
     '{ deliver_to?: "cargo" | "storage"; item_id: string; price_each: number; quantity: number }[]',
   );
   // A shapeless object array (no declared properties) stays Record<string, unknown>[].
-  expect(paramType('spacemolt/craft', 'jobs')).toBe('Record<string, unknown>[]');
+  expect(paramType('spacemolt/recycle', 'jobs')).toBe('Record<string, unknown>[]');
   // An array of enum values must parenthesize the union: `(...)[]`, not `... | "x"[]`
   // (postfix `[]` binds tighter than `|`, which would change the type's meaning).
   expect(paramType('spacemolt/get_notifications', 'types')).toBe(
