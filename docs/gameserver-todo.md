@@ -191,6 +191,20 @@ becomes a pure fallback.
 
 ---
 
+## 7. Publish the station directory schemas (`GET /api/stations`)
+**Status:** todo · **Needed by:** station bindings in `src/data/stations.ts` · **Priority:** low
+
+`src/data/stations.ts` binds the public station directory with hand-written
+types (`StationSummary`, `StationEmpire`) mirrored from the server's
+`stationListEntry` (`internal/server/station_api.go`). Publish the list (and
+ideally the `/api/stations/{id}` detail) response shapes through
+`BulkDataSchemas()` (`internal/openapi/bulk_data_schemas.go`) the same way
+`CatalogDump`/`MapData` are, then swap the hand-written types for the generated
+ones so a server-side field change breaks `typecheck` instead of silently
+drifting. Note `bulk_data_schemas.go` can't import `internal/server` (import
+cycle), so the entry struct needs to move to a shared package (e.g.
+`internal/apiresponses`) first.
+
 ## 6. Rate limit `login_token` per player instead of per IP
 **Status:** merged (gameserver branch `claude/spacemolt-clerk-ratelimit-frjp3a`) · pending deploy · **Needed by:** M4 (Clerk multi-account) · **Priority:** high
 
