@@ -683,6 +683,7 @@ export type CatalogResponse = {
             item_id: string;
             quantity: number;
         }>;
+        package_operation?: string;
     } | {
         allows_contraband?: boolean;
         always_on: boolean;
@@ -715,6 +716,7 @@ export type CatalogResponse = {
         level: number;
         life_support_draw?: number;
         life_support_supply?: number;
+        logistics?: boolean;
         lore?: string;
         maintenance_inputs?: Array<{
             item_id: string;
@@ -771,6 +773,7 @@ export type CatalogResponse = {
             item_id: string;
             quantity: number;
         }>;
+        package_operation?: string;
     }>;
     produced_by_facilities?: Array<{
         definition_id: string;
@@ -795,6 +798,7 @@ export type CatalogResponse = {
             item_id: string;
             quantity: number;
         }>;
+        package_operation?: string;
     }>;
     total: number;
     total_pages: number;
@@ -1078,8 +1082,10 @@ export type CraftJobResponse = {
         external?: boolean;
         facility_id: string;
         job_id: string;
+        label?: string;
         mode: string;
         orderer: string;
+        package_id?: string;
         position: number;
         produces?: Array<{
             item_id: string;
@@ -1114,7 +1120,9 @@ export type CraftJobResponse = {
         external?: boolean;
         index: number;
         job_id?: string;
+        label?: string;
         message?: string;
+        package_id?: string;
         recipe?: string;
         runs?: number;
         success: boolean;
@@ -1142,6 +1150,7 @@ export type CraftJobResponse = {
     est_completion_tick: number;
     external?: boolean;
     facility_id: string;
+    have_capacity?: boolean;
     have_credits: boolean;
     have_inputs: boolean;
     message: string;
@@ -1193,6 +1202,24 @@ export type CraftJobResponse = {
         succeeded: number;
         total: number;
     };
+} | {
+    action: string;
+    escrowed: {
+        fee?: number;
+        inputs?: Array<{
+            item_id: string;
+            name: string;
+            quantity: number;
+        }>;
+        labor?: number;
+    };
+    eta_ticks: number;
+    external?: boolean;
+    job_id: string;
+    label: string;
+    message: string;
+    package_id: string;
+    venue: string;
 };
 
 export type CreateBuyOrderResponse = {
@@ -1696,6 +1723,7 @@ export type FacilityDefinition = {
     level: number;
     life_support_draw?: number;
     life_support_supply?: number;
+    logistics?: boolean;
     lore?: string;
     maintenance_inputs?: Array<{
         item_id: string;
@@ -1801,13 +1829,16 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_operation?: number;
             output_price_per_unit?: number;
+            pack_operations_per_hour?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
             recipe?: string;
             rental_fee_per_run?: number;
             ticks_per_run?: number;
+            unpack_operations_per_hour?: number;
         };
         recipe_id?: string;
         rent_paid_until_tick?: number;
@@ -1875,13 +1906,16 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_operation?: number;
             output_price_per_unit?: number;
+            pack_operations_per_hour?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
             recipe?: string;
             rental_fee_per_run?: number;
             ticks_per_run?: number;
+            unpack_operations_per_hour?: number;
         };
         recipe_id?: string;
         rent_paid_until_tick?: number;
@@ -1945,13 +1979,16 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_operation?: number;
             output_price_per_unit?: number;
+            pack_operations_per_hour?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
             recipe?: string;
             rental_fee_per_run?: number;
             ticks_per_run?: number;
+            unpack_operations_per_hour?: number;
         };
         recipe_id?: string;
         rent_paid_until_tick?: number;
@@ -1994,13 +2031,16 @@ export type FacilityResponse = {
             backlog_ticks: number;
             items_per_hour?: number;
             output_per_run?: number;
+            output_price_per_operation?: number;
             output_price_per_unit?: number;
+            pack_operations_per_hour?: number;
             public?: boolean;
             queued_items: number;
             queued_runs: number;
             recipe?: string;
             rental_fee_per_run?: number;
             ticks_per_run?: number;
+            unpack_operations_per_hour?: number;
         };
         recipe_id?: string;
         rent_paid_until_tick?: number;
@@ -2519,14 +2559,34 @@ export type FacilityResponse = {
     venue_type: string;
 } | {
     action: string;
+    escrowed: {
+        fee?: number;
+        inputs?: Array<{
+            item_id: string;
+            name: string;
+            quantity: number;
+        }>;
+        labor?: number;
+    };
+    eta_ticks: number;
+    external?: boolean;
+    job_id: string;
+    label: string;
+    message: string;
+    package_id: string;
+    venue: string;
+} | {
+    action: string;
     facility_id: string;
     jobs: Array<{
         eta_ticks: number;
         external?: boolean;
         facility_id: string;
         job_id: string;
+        label?: string;
         mode: string;
         orderer: string;
+        package_id?: string;
         position: number;
         produces?: Array<{
             item_id: string;
@@ -4446,12 +4506,14 @@ export type GetTradesResponse = {
         offer_credits?: number;
         offer_items: Array<{
             item_id: string;
+            name?: string;
             quantity: number;
         }>;
         offerer_name?: string;
         request_credits?: number;
         request_items: Array<{
             item_id: string;
+            name?: string;
             quantity: number;
         }>;
         target_name?: string;
@@ -4462,12 +4524,14 @@ export type GetTradesResponse = {
         offer_credits?: number;
         offer_items: Array<{
             item_id: string;
+            name?: string;
             quantity: number;
         }>;
         offerer_name?: string;
         request_credits?: number;
         request_items: Array<{
             item_id: string;
+            name?: string;
             quantity: number;
         }>;
         target_name?: string;
@@ -4875,6 +4939,7 @@ export type InspectResponse = {
                 item_id: string;
                 quantity: number;
             }>;
+            package_operation?: string;
         } | {
             allows_contraband?: boolean;
             always_on: boolean;
@@ -4907,6 +4972,7 @@ export type InspectResponse = {
             level: number;
             life_support_draw?: number;
             life_support_supply?: number;
+            logistics?: boolean;
             lore?: string;
             maintenance_inputs?: Array<{
                 item_id: string;
@@ -4963,6 +5029,7 @@ export type InspectResponse = {
                 item_id: string;
                 quantity: number;
             }>;
+            package_operation?: string;
         }>;
         produced_by_facilities?: Array<{
             definition_id: string;
@@ -4987,6 +5054,7 @@ export type InspectResponse = {
                 item_id: string;
                 quantity: number;
             }>;
+            package_operation?: string;
         }>;
         total: number;
         total_pages: number;
@@ -5052,6 +5120,34 @@ export type InspectResponse = {
     };
     id: string;
     kind: string;
+    package?: {
+        contents: Array<{
+            item_id: string;
+            name: string;
+            quantity: number;
+            size: number;
+        }>;
+        created_at: string;
+        creator: {
+            faction?: {
+                id: string;
+                name?: string;
+                tag?: string;
+                type: string;
+            };
+            player_id: string;
+            username?: string;
+        };
+        label: string;
+        owner: {
+            id: string;
+            name?: string;
+            tag?: string;
+            type: string;
+        };
+        package_id: string;
+        size: number;
+    };
     poi?: {
         detail?: {
             active_battle?: {
@@ -7214,6 +7310,7 @@ export type Recipe = {
         item_id: string;
         quantity: number;
     }>;
+    package_operation?: string;
 };
 
 export type RecycleJobResponse = {
@@ -7261,7 +7358,9 @@ export type RecycleJobResponse = {
         external?: boolean;
         index: number;
         job_id?: string;
+        label?: string;
         message?: string;
+        package_id?: string;
         recipe?: string;
         runs?: number;
         success: boolean;
@@ -7289,6 +7388,7 @@ export type RecycleJobResponse = {
     est_completion_tick: number;
     external?: boolean;
     facility_id: string;
+    have_capacity?: boolean;
     have_credits: boolean;
     have_inputs: boolean;
     message: string;
@@ -8299,6 +8399,7 @@ export type StorageResponse = {
             size: number;
         }>;
         name: string;
+        package_cap: number;
     }>;
     credits: number;
     faction_fuel_capacity?: number;
@@ -10242,6 +10343,13 @@ export type SpacemoltCraftData = {
          */
         id?: string;
         /**
+         * For pack_package: selected items to pack; total unpacked size may not exceed 100.
+         */
+        items?: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        /**
          * Cancel this queued job (refunding its unconsumed inputs, labor, and rental fee) instead of crafting. Use action='queue' to list your job IDs. Setting job_id implies cancel.
          */
         job_id?: string;
@@ -10250,11 +10358,31 @@ export type SpacemoltCraftData = {
          */
         job_ids?: Array<string>;
         /**
-         * Bulk mode: queue many crafts in one action. Each entry: {recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is queued independently (partial success). Max 50.
+         * Bulk mode: queue many crafts in one action. Package entries may include items, package_id, label, and target. Each job commits independently with partial success. Max 50.
          */
         jobs?: Array<{
-            [key: string]: unknown;
+            deliver_to?: string;
+            facility_id?: string;
+            items?: Array<{
+                item_id: string;
+                quantity: number;
+            }>;
+            label?: string;
+            package_id?: string;
+            preset?: string;
+            quantity?: number;
+            recipe_id: string;
+            source?: string;
+            target?: string;
         }>;
+        /**
+         * For pack_package: player-authored package label.
+         */
+        label?: string;
+        /**
+         * For unpack_package: package instance ID to unpack.
+         */
+        package_id?: string;
         /**
          * Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best facility globally, so a busy own facility may route to an idle public rental. Use 'prefer_own' to keep the job on your own (then faction) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.
          */
@@ -10267,6 +10395,10 @@ export type SpacemoltCraftData = {
          * Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:<bucket>'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket.
          */
         source?: string;
+        /**
+         * For package recipes: output destination (storage, cargo, faction, or faction:<bucket>); defaults to source. deliver_to is accepted as an alias.
+         */
+        target?: string;
     };
     path?: never;
     query?: never;
@@ -11418,7 +11550,7 @@ export type SpacemoltHuntResponse = SpacemoltHuntResponses[keyof SpacemoltHuntRe
 export type SpacemoltInspectData = {
     body?: {
         /**
-         * Item, module, ship class, system, POI, or base ID to inspect
+         * Visible package, item, module, ship class, system, POI, or base ID to inspect
          */
         id: string;
     };
@@ -14683,6 +14815,21 @@ export type SpacemoltFacilityJobAddData = {
          */
         facility_id: string;
         /**
+         * For job_add pack_package: selected manifest items.
+         */
+        items?: Array<{
+            item_id: string;
+            quantity: number;
+        }>;
+        /**
+         * For job_add pack_package: player label.
+         */
+        label?: string;
+        /**
+         * For job_add unpack_package: package ID.
+         */
+        package_id?: string;
+        /**
          * For 'job_add': number of runs to queue.
          */
         quantity?: number;
@@ -14694,6 +14841,10 @@ export type SpacemoltFacilityJobAddData = {
          * Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to.
          */
         source?: string;
+        /**
+         * Package job_add output destination; defaults to source.
+         */
+        target?: string;
     };
     path?: never;
     query?: never;
@@ -14904,7 +15055,7 @@ export type SpacemoltFacilityListForSaleData = {
          */
         faction?: boolean;
         /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
+         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price on ordinary production, or a once-per-package-operation price on Logistics. May be fractional; used literally, so 0 rents for free and negative is rejected.
          */
         price: number;
     };
@@ -15473,7 +15624,7 @@ export type SpacemoltFacilitySetOutputPriceData = {
          */
         facility_id: string;
         /**
-         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected.
+         * For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price on ordinary production, or a once-per-package-operation price on Logistics. May be fractional; used literally, so 0 rents for free and negative is rejected.
          */
         price?: number;
     };

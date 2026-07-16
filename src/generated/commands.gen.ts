@@ -420,12 +420,20 @@ export interface SpacemoltFacilityJobAddParams {
   direction?: "forward" | "reverse";
   /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
+  /** For job_add pack_package: selected manifest items. */
+  items?: { item_id: string; quantity: number }[];
+  /** For job_add pack_package: player label. */
+  label?: string;
+  /** For job_add unpack_package: package ID. */
+  package_id?: string;
   /** For 'job_add': number of runs to queue. */
   quantity?: number;
   /** Recipe ID to run (for 'job_add' action). */
   recipe_id: string;
   /** Input source for 'job_add': where inputs/credits are pulled from. Same values as deliver_to; defaults to deliver_to. */
   source?: string;
+  /** Package job_add output destination; defaults to source. */
+  target?: string;
 }
 
 export interface SpacemoltFacilityJobCancelParams {
@@ -454,7 +462,7 @@ export interface SpacemoltFacilityListForSaleParams {
   facility_id: string;
   /** For 'list_for_sale': set true to list a faction-owned facility (requires manage_facilities permission). */
   faction?: boolean;
-  /** For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected. */
+  /** For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price on ordinary production, or a once-per-package-operation price on Logistics. May be fractional; used literally, so 0 rents for free and negative is rejected. */
   price: number;
 }
 
@@ -527,7 +535,7 @@ export interface SpacemoltFacilitySetNameParams {
 export interface SpacemoltFacilitySetOutputPriceParams {
   /** Facility instance ID (required for 'upgrade', 'dismantle', 'disassemble', 'faction_dismantle', 'faction_disassemble', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
-  /** For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price others pay, applied to the facility's recipe output(s) automatically — may be fractional (e.g. 0.25), the per-run fee is price × output quantity rounded to a whole credit. Used literally: 0 rents the facility out for free; negative is rejected. */
+  /** For 'list_for_sale': asking price in whole credits. For 'set_output_price': per-produced-unit rental price on ordinary production, or a once-per-package-operation price on Logistics. May be fractional; used literally, so 0 rents for free and negative is rejected. */
   price?: number;
 }
 
@@ -1403,18 +1411,26 @@ export interface SpacemoltCraftParams {
   facility_id?: string;
   /** Recipe ID to craft (use catalog with type=recipes to see available recipes). Inputs are escrowed from station storage at enqueue. */
   id?: string;
+  /** For pack_package: selected items to pack; total unpacked size may not exceed 100. */
+  items?: { item_id: string; quantity: number }[];
   /** Cancel this queued job (refunding its unconsumed inputs, labor, and rental fee) instead of crafting. Use action='queue' to list your job IDs. Setting job_id implies cancel. */
   job_id?: string;
   /** Bulk cancel: cancel many queued jobs in one action. Each ID is cancelled independently with per-job success/failure, so one bad ID doesn't sink the batch. Refunds the unconsumed escrow of every cancelled job. */
   job_ids?: string[];
-  /** Bulk mode: queue many crafts in one action. Each entry: {recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is queued independently (partial success). Max 50. */
-  jobs?: Record<string, unknown>[];
+  /** Bulk mode: queue many crafts in one action. Package entries may include items, package_id, label, and target. Each job commits independently with partial success. Max 50. */
+  jobs?: { deliver_to?: string; facility_id?: string; items?: { item_id: string; quantity: number }[]; label?: string; package_id?: string; preset?: string; quantity?: number; recipe_id: string; source?: string; target?: string }[];
+  /** For pack_package: player-authored package label. */
+  label?: string;
+  /** For unpack_package: package instance ID to unpack. */
+  package_id?: string;
   /** Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best facility globally, so a busy own facility may route to an idle public rental. Use 'prefer_own' to keep the job on your own (then faction) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility. */
   preset?: "fast" | "cheap" | "prefer_own" | "workshop";
   /** Number of output items to make (default 1). Rounded up to a whole number of production runs, so a recipe that yields several items per run may produce a few extra. */
   quantity?: number;
   /** Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:<bucket>'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket. */
   source?: string;
+  /** For package recipes: output destination (storage, cargo, faction, or faction:<bucket>); defaults to source. deliver_to is accepted as an alias. */
+  target?: string;
 }
 
 export interface SpacemoltDeclineMissionParams {
@@ -1475,7 +1491,7 @@ export interface SpacemoltHuntParams {
 }
 
 export interface SpacemoltInspectParams {
-  /** Item, module, ship class, system, POI, or base ID to inspect */
+  /** Visible package, item, module, ship class, system, POI, or base ID to inspect */
   id: string;
 }
 
@@ -1683,7 +1699,7 @@ export interface Commands {
     get_version(params?: SpacemoltGetVersionParams): Promise<QueryResult<GetVersionResponse>>;
     /** Hunt a wildlife creature to start a battle */
     hunt(params: SpacemoltHuntParams): Promise<MutationResult<HuntResponse>>;
-    /** Inspect an item, module, ship class, system, visible POI, or docked base by ID */
+    /** Inspect a visible package, item, module, ship class, system, POI, or docked base by ID */
     inspect(params: SpacemoltInspectParams): Promise<QueryResult<InspectResponse>>;
     /** Install a module on your ship */
     install_mod(params: SpacemoltInstallModParams): Promise<MutationResult<InstallModResponse>>;
