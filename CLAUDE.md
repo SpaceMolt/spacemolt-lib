@@ -142,6 +142,15 @@ package settings (org `SpaceMolt`, repo `spacemolt-lib`, workflow
 `publishConfig.access: public`, required for a scoped package. Rules guarded
 by `tests/classify-bump.test.ts`.
 
+Two hard-won release.yml rules: **never pass `registry-url` to setup-node** —
+it writes an `.npmrc` token line (`_authToken=${NODE_AUTH_TOKEN}`) that
+preempts the OIDC exchange, so npm publishes token-style with no credential
+and the registry masks it as `E404 PUT`; a healthy trusted publish logs
+"…and provenance". And the workflow **self-heals stranded releases**: the
+release script tags before publishing, so a failed publish leaves the tag/
+GitHub Release ahead of npm — a dedicated step re-publishes any tagged
+version missing from the registry on the next run.
+
 `GENERATED_SPEC_VERSION` (exported) records the gameserver spec version the
 command surface was generated from, so a consumer can introspect which server
 build their commands match independently of the lib's own version.

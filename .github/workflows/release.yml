@@ -52,11 +52,16 @@ jobs:
         with:
           bun-version: latest
 
+      # NO registry-url here: that input makes setup-node write an .npmrc with
+      # an `_authToken=${NODE_AUTH_TOKEN}` line, and any configured token —
+      # even one pointing at an unset env var — preempts npm's OIDC trusted
+      # publishing. npm then publishes token-style with no usable credential
+      # and the registry masks the rejection as `E404 PUT .../@spacemolt/lib`.
+      # (Symptom check: a working trusted publish logs "... and provenance".)
       - name: Setup Node (for npm trusted publishing)
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       # Trusted publishing (OIDC) requires npm >= 11.5.1; Node's bundled npm is older.
       - name: Upgrade npm
@@ -64,6 +69,28 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # Self-heal a tagged-but-unpublished version. The release step below
+      # early-exits when the tag already exists, so a version whose npm publish
+      # failed (or was interrupted) would otherwise never reach the registry —
+      # tags and GitHub Releases run ahead of npm silently. Repairs v7.1.0 and
+      # any future stranded release on the next run.
+      - name: Publish tagged version missing from npm
+        run: |
+          set -euo pipefail
+          CURRENT=$(jq -r .version package.json)
+          if ! git rev-parse "v${CURRENT}" >/dev/null 2>&1; then
+            echo "No tag v${CURRENT}; nothing to repair."
+            exit 0
+          fi
+          PUBLISHED=$(npm view "@spacemolt/lib@${CURRENT}" version 2>/dev/null || true)
+          if [ "${PUBLISHED}" = "${CURRENT}" ]; then
+            echo "npm already has ${CURRENT}; nothing to repair."
+            exit 0
+          fi
+          echo "v${CURRENT} is tagged but missing from npm — publishing it."
+          bun run build
+          npm publish
 
       - name: Classify version bump
         id: classify
