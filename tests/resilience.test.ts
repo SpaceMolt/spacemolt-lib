@@ -648,3 +648,39 @@ test('a close while waiting for welcome rejects immediately instead of waiting o
   await expect(cp).rejects.toThrow();
   expect(Date.now() - start).toBeLessThan(100); // nowhere near the 5000ms timeout
 });
+
+test('multiple onDisconnected listeners all fire; unsubscribe removes only its own', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+    reconnect: { baseDelayMs: 1, maxRetries: 3 },
+  });
+  const cp = account.connect();
+  serveAuth(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  const codes: Array<number | undefined> = [];
+  const unsubscribeFirst = account.onDisconnected(() => codes.push(-1));
+  unsubscribeFirst();
+  const both = Promise.all([
+    new Promise<void>((resolve) =>
+      account.onDisconnected((e) => {
+        codes.push(e.code);
+        resolve();
+      }),
+    ),
+    new Promise<void>((resolve) =>
+      account.onDisconnected((e) => {
+        codes.push(e.code);
+        resolve();
+      }),
+    ),
+  ]);
+  requireValue(sockets[0]).close(4001); // session_replaced -> terminal
+  await both;
+  expect(codes).toEqual([4001, 4001]);
+});
