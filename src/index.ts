@@ -23,7 +23,10 @@ export { SpacemoltClient, type SpacemoltClientOptions } from './client.ts';
 export {
   ClerkSource,
   mintWsToken,
+  type ClerkAuth,
+  type ClerkAuthHeaders,
   type ClerkPlayer,
+  type ClerkRegistration,
   type ClerkSourceOptions,
 } from './auth/clerk.ts';
 export {

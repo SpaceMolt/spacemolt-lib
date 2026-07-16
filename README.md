@@ -187,6 +187,36 @@ a password: keep it in an env var or a secret manager, not in source. To rotate,
 generate a new one and the old one stops working. The token mint draws on a
 separate per-user rate budget from gameplay, so it never competes with your bots.
 
+### Browser / custom auth headers
+
+When the caller's Clerk credential isn't a static API key — a web app running
+inside a Clerk browser session, or a dev-mode server accepting an
+`X-Dev-Clerk-ID` header — pass `headers` instead of `apiKey` to `mintWsToken`
+or `ClerkSource`. A function is resolved fresh on every request, so short-lived
+session JWTs stay valid across reconnects:
+
+```ts
+import { Account, mintWsToken } from '@spacemolt/lib';
+
+// Fresh single-use token per (re)connect; the headers factory runs per request,
+// e.g. wrapping Clerk's useAuth().getToken() in the browser.
+const mintToken = () =>
+  mintWsToken({
+    httpBaseUrl: 'https://game.spacemolt.com',
+    playerId,
+    headers: async () => ({ authorization: `Bearer ${await getToken()}` }),
+  });
+
+const credentials = async () => ({ kind: 'login_token' as const, token: await mintToken() });
+const account = new Account({ url: 'wss://game.spacemolt.com/ws/v2', reconnect: true, credentials });
+await account.connect();
+await account.authenticate(await credentials());
+```
+
+`ClerkSource` accepts the same `headers` option, and
+`ClerkSource.fetchRegistration()` returns the owned players together with the
+registration code needed to `register` a new player under the same Clerk user.
+
 ### Bootstrapping without a Clerk key
 
 You need the raw credential paths in two cases: **creating a brand-new account**
