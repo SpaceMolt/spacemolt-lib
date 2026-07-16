@@ -182,3 +182,89 @@ test('seedState:false skips the get_status seed', async () => {
   expect(socket.sent.some((f) => f.action === 'get_status')).toBe(false);
   expect(account.player).toBeUndefined();
 });
+
+test('multiple onStateChange listeners all fire; unsubscribe removes only its own', async () => {
+  const { account, socket } = await seededAccount();
+  const first: StateSection[][] = [];
+  const second: StateSection[][] = [];
+  const unsubscribeFirst = account.onStateChange((c) => first.push(c));
+  account.onStateChange((c) => second.push(c));
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'mine') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'mine', message: 'q' } },
+      });
+      s.serverSend({
+        type: 'action_result',
+        request_id: frame.request_id,
+        payload: { command: 'mine', tick: 10, result: { cargo: [{ item_id: 'iron_ore', quantity: 11 }] } },
+      });
+    }
+  };
+
+  await account.mutate('spacemolt', 'mine');
+  expect(first.length).toBe(1);
+  expect(second.length).toBe(1);
+
+  unsubscribeFirst();
+  await account.mutate('spacemolt', 'mine');
+  expect(first.length).toBe(1);
+  expect(second.length).toBe(2);
+});
+
+test('a throwing listener does not starve later onStateChange listeners', async () => {
+  const { account, socket } = await seededAccount();
+  const survivor: StateSection[][] = [];
+  account.onStateChange(() => {
+    throw new Error('boom');
+  });
+  account.onStateChange((c) => survivor.push(c));
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'mine') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'mine', message: 'q' } },
+      });
+      s.serverSend({
+        type: 'action_result',
+        request_id: frame.request_id,
+        payload: { command: 'mine', tick: 11, result: { queue: { has_pending: false } } },
+      });
+    }
+  };
+
+  await account.mutate('spacemolt', 'mine');
+  expect(survivor.length).toBe(1);
+});
+
+test('currentTick tracks the highest tick observed and never regresses', async () => {
+  const { account, socket } = await seededAccount();
+  expect(account.currentTick).toBe(1); // welcome.current_tick
+
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'mine') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'pending', structuredContent: { pending: true, command: 'mine', message: 'q' } },
+      });
+      s.serverSend({
+        type: 'action_result',
+        request_id: frame.request_id,
+        payload: { command: 'mine', tick: 1523, result: { queue: { has_pending: false } } },
+      });
+    }
+  };
+  await account.mutate('spacemolt', 'mine');
+  expect(account.currentTick).toBe(1523);
+
+  // A tick-bearing push advances the clock...
+  socket.serverSend({ type: 'crafting_update', payload: { tick: 1600, jobs: [] } });
+  expect(account.currentTick).toBe(1600);
+  // ...but an older tick never regresses it.
+  socket.serverSend({ type: 'crafting_update', payload: { tick: 900, jobs: [] } });
+  expect(account.currentTick).toBe(1600);
+});

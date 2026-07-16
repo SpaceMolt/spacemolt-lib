@@ -16,6 +16,7 @@ import { buildCommands, type Commands } from './generated/commands.gen.ts';
 import type { AuthCredentials } from './auth/credentials.ts';
 import { mintWsToken } from './auth/clerk.ts';
 import type {
+  LoggedInPayload as LoggedInPayloadSchema,
   NotificationMarketUpdate,
   NotificationObservationUpdate,
   SubscribeMarketResponse,
@@ -43,11 +44,17 @@ import type {
   WelcomeFrame,
 } from './protocol.ts';
 import { isActionResultFrame, isErrorFrame, isLoggedInFrame, isRegisteredFrame, isWelcomeFrame } from './protocol.ts';
+import { isRecord } from './validation.ts';
 import { StateCache } from './state/cache.ts';
 import { Correlator } from './transport/correlator.ts';
 import { Socket, type WebSocketFactory } from './transport/socket.ts';
 
-export type LoggedInPayload = Record<string, unknown>;
+/**
+ * The `logged_in` frame payload, typed from the server's published
+ * `LoggedInPayload` schema: the initial `player`/`ship`/`system`/`poi` view
+ * plus login extras like `recent_chat` and `pending_trades`.
+ */
+export type LoggedInPayload = LoggedInPayloadSchema;
 
 export interface ReconnectOptions {
   /**
@@ -242,10 +249,11 @@ export class Account {
   private _welcome: WelcomeFrame['payload'] | null = null;
   private _authenticated = false;
   private _loginPayload: LoggedInPayload | null = null;
+  private _currentTick = 0;
   private _commands: Commands | null = null;
   private welcomeWaiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | null = null;
   private pendingAuth: PendingAuth | null = null;
-  private stateListener: ((changed: StateSection[]) => void) | null = null;
+  private readonly stateListeners = new Set<(changed: StateSection[]) => void>();
 
   // resilience state
   private userClosing = false;
@@ -256,9 +264,9 @@ export class Account {
   private observationSubscribedState = false;
   private observationActiveScanState = false;
   private subscribedObservationPoiId: string | undefined;
-  private reconnectedListener: (() => void) | null = null;
-  private reconnectingListener: ((attempt: number) => void) | null = null;
-  private disconnectedListener: ((err: ConnectionClosedError) => void) | null = null;
+  private readonly reconnectedListeners = new Set<() => void>();
+  private readonly reconnectingListeners = new Set<(attempt: number) => void>();
+  private readonly disconnectedListeners = new Set<(err: ConnectionClosedError) => void>();
 
   constructor(opts: AccountOptions = {}) {
     this.seedState = opts.seedState ?? true;
@@ -344,6 +352,21 @@ export class Account {
   /** The server's `welcome` payload, available after `connect()` resolves. */
   get welcome(): WelcomeFrame['payload'] | null {
     return this._welcome;
+  }
+
+  /**
+   * Highest game tick observed on this connection — from `welcome`
+   * (`current_tick`) and every subsequent tick-bearing frame (`action_result`,
+   * `action_error`, and push notifications that carry a numeric `tick`).
+   * 0 until the welcome arrives. There is no per-tick server push; between
+   * observations, extrapolate with `welcome.tick_rate` if needed.
+   */
+  get currentTick(): number {
+    return this._currentTick;
+  }
+
+  private observeTick(tick: unknown): void {
+    if (typeof tick === 'number' && tick > this._currentTick) this._currentTick = tick;
   }
 
   get authenticated(): boolean {
@@ -485,13 +508,42 @@ export class Account {
     const snapshot = requireStructuredContent(result, 'spacemolt/get_status');
     const changed = this.cache.seed(snapshot);
     if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
-    if (changed.length) this.stateListener?.(changed);
+    if (changed.length) this.emitStateChange(changed);
     return this.cache.snapshot();
   }
 
-  /** Register a listener fired with the sections that changed on each update. */
-  onStateChange(listener: (changed: StateSection[]) => void): void {
-    this.stateListener = listener;
+  /**
+   * Register a listener fired with the sections that changed on each update.
+   * Multiple listeners may be registered; returns an unsubscribe function.
+   */
+  onStateChange(listener: (changed: StateSection[]) => void): () => void {
+    this.stateListeners.add(listener);
+    return () => {
+      this.stateListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Fan an event out to every registered listener. A throwing listener is
+   * warned and skipped — it must never break the caller (frame routing,
+   * mutation correlation, the reconnect loop) or starve later listeners.
+   */
+  private notifyListeners<A extends unknown[]>(
+    listeners: ReadonlySet<(...args: A) => void>,
+    label: string,
+    ...args: A
+  ): void {
+    for (const listener of listeners) {
+      try {
+        listener(...args);
+      } catch (err) {
+        console.warn(`[spacemolt] ${label} listener threw: ${err}`);
+      }
+    }
+  }
+
+  private emitStateChange(changed: StateSection[]): void {
+    this.notifyListeners(this.stateListeners, 'onStateChange', changed);
   }
 
   /** Log out, releasing the connection's authenticated session. */
@@ -740,7 +792,7 @@ export class Account {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
     });
-    if (changed.length) this.stateListener?.(changed);
+    if (changed.length) this.emitStateChange(changed);
   }
 
   /** The current observation watch view, if subscribed. */
@@ -785,17 +837,29 @@ export class Account {
     this.socket.close();
   }
 
-  /** Fired after a successful reconnect + re-auth. */
-  onReconnected(listener: () => void): void {
-    this.reconnectedListener = listener;
+  /** Fired after a successful reconnect + re-auth. Returns an unsubscribe function. */
+  onReconnected(listener: () => void): () => void {
+    this.reconnectedListeners.add(listener);
+    return () => {
+      this.reconnectedListeners.delete(listener);
+    };
   }
-  /** Fired at the start of each reconnect attempt (1-based). */
-  onReconnecting(listener: (attempt: number) => void): void {
-    this.reconnectingListener = listener;
+  /** Fired at the start of each reconnect attempt (1-based). Returns an unsubscribe function. */
+  onReconnecting(listener: (attempt: number) => void): () => void {
+    this.reconnectingListeners.add(listener);
+    return () => {
+      this.reconnectingListeners.delete(listener);
+    };
   }
-  /** Fired when the connection is gone for good (non-reconnectable or retries exhausted). */
-  onDisconnected(listener: (err: ConnectionClosedError) => void): void {
-    this.disconnectedListener = listener;
+  /**
+   * Fired when the connection is gone for good (non-reconnectable or retries
+   * exhausted). Returns an unsubscribe function.
+   */
+  onDisconnected(listener: (err: ConnectionClosedError) => void): () => void {
+    this.disconnectedListeners.add(listener);
+    return () => {
+      this.disconnectedListeners.delete(listener);
+    };
   }
 
   // --- internals ---
@@ -864,11 +928,14 @@ export class Account {
   }
 
   private routeFrame(frame: RawFrame): void {
+    // Any frame carrying a numeric `tick` advances the observed game clock.
+    if (isRecord(frame.payload)) this.observeTick(frame.payload.tick);
     switch (frame.type) {
       case 'welcome': {
         if (!isWelcomeFrame(frame)) return this.warnMalformedFrame(frame);
         const payload = frame.payload;
         this._welcome = payload;
+        this.observeTick(payload.current_tick);
         this.welcomeWaiter?.resolve(payload);
         this.welcomeWaiter = null;
         return;
@@ -879,7 +946,9 @@ export class Account {
         return;
       case 'logged_in': {
         if (!isLoggedInFrame(frame)) return this.warnMalformedFrame(frame);
-        const payload = frame.payload;
+        // The frame guard only checks for a payload object; the shape itself
+        // is the server's published LoggedInPayload schema.
+        const payload = frame.payload as LoggedInPayload;
         const auth = this.pendingAuth;
         if (auth) {
           this.pendingAuth = null;
@@ -899,16 +968,11 @@ export class Account {
         if (delta) {
           const changed = this.cache.applyDelta(delta);
           if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
-          if (changed.length) {
-            // A throwing consumer must never block mutation correlation below —
-            // that would strand the awaiting mutate()/query() call until its
-            // timeout, on a connection that stayed perfectly healthy.
-            try {
-              this.stateListener?.(changed);
-            } catch (err) {
-              console.warn(`[spacemolt] onStateChange listener threw: ${err}`);
-            }
-          }
+          // A throwing consumer must never block mutation correlation below —
+          // that would strand the awaiting mutate()/query() call until its
+          // timeout, on a connection that stayed perfectly healthy.
+          // emitStateChange guards each listener.
+          if (changed.length) this.emitStateChange(changed);
         }
         if (!this.correlator.handle(frame)) {
           // The frame arrived and its delta was already applied to the cache
@@ -974,7 +1038,7 @@ export class Account {
     if (this.shouldReconnect(err)) {
       void this.reconnectLoop(err);
     } else if (!this.userClosing) {
-      this.disconnectedListener?.(err);
+      this.notifyListeners(this.disconnectedListeners, 'onDisconnected', err);
     }
   }
 
@@ -999,7 +1063,7 @@ export class Account {
     // has actually rolled over and tripping the same limit again.
     const retryAfterMs = retryAfterMsFromClose(err);
     for (let attempt = 1; attempt <= cfg.maxRetries; attempt++) {
-      this.reconnectingListener?.(attempt);
+      this.notifyListeners(this.reconnectingListeners, 'onReconnecting', attempt);
       const backoff =
         attempt === 1 && retryAfterMs !== undefined
           ? retryAfterMs
@@ -1012,14 +1076,14 @@ export class Account {
       try {
         await this.reconnectOnce();
         this.reconnecting = false;
-        this.reconnectedListener?.();
+        this.notifyListeners(this.reconnectedListeners, 'onReconnected');
         return;
       } catch {
         // try again until retries are exhausted
       }
     }
     this.reconnecting = false;
-    this.disconnectedListener?.(err);
+    this.notifyListeners(this.disconnectedListeners, 'onDisconnected', err);
   }
 
   /**
