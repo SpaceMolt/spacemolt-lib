@@ -1,11 +1,22 @@
+import type {
+  FacilityDefinition,
+  Item,
+  Module,
+  Recipe,
+  ShipClass,
+  SkillDefinition,
+} from '../generated/openapi/types.gen.ts';
 import { isRecord, requireRecord } from '../validation.ts';
 
 /**
  * Local copy of the bulk game catalog (`GET /api/catalog.json`).
  *
  * Reference data — ships, items, recipes, skills, facilities — that changes
- * only on a server release. The entry shapes aren't in the v2 OpenAPI spec, so
- * they're typed loosely with `id`-keyed lookups.
+ * only on a server release. Entry shapes come from the spec's published
+ * `CatalogDump` component types (`ShipClass`, `Item`/`Module`, `Recipe`,
+ * `SkillDefinition`, `FacilityDefinition`), so they track the server via the
+ * spec sync. Entries are structurally validated as JSON objects and then
+ * trusted to match the spec — the same trust model as state-cache deltas.
  *
  * The payload is large (multiple MB), so the server ships it `public,
  * max-age=3600` with a content-hash `ETag`. We keep that ETag on the cache and
@@ -15,22 +26,22 @@ import { isRecord, requireRecord } from '../validation.ts';
  * startup forever (see `SpacemoltClient.catalog`).
  */
 
-export interface CatalogEntry {
-  id?: string;
-  [key: string]: unknown;
-}
+/** A ship entry — the spec's `ShipClass` (the dump omits live prices). */
+export type CatalogShip = ShipClass;
+/** An item entry — regular items and modules share the merged `items` list. */
+export type CatalogItem = Item | Module;
+export type CatalogRecipe = Recipe;
+export type CatalogSkill = SkillDefinition;
+export type CatalogFacility = FacilityDefinition;
 
 export interface Catalog {
   version?: string;
-  ships: CatalogEntry[];
-  items: CatalogEntry[];
-  recipes: CatalogEntry[];
-  skills: CatalogEntry[];
-  facilities: CatalogEntry[];
+  ships: CatalogShip[];
+  items: CatalogItem[];
+  recipes: CatalogRecipe[];
+  skills: CatalogSkill[];
+  facilities: CatalogFacility[];
 }
-
-const SECTIONS = ['ships', 'items', 'recipes', 'skills', 'facilities'] as const;
-type Section = (typeof SECTIONS)[number];
 
 /** Result of a conditional catalog fetch. */
 export interface CatalogFetchResult {
@@ -42,19 +53,19 @@ export interface CatalogFetchResult {
   etag?: string;
 }
 
-function catalogEntries(value: unknown): CatalogEntry[] {
-  return Array.isArray(value) ? value.filter((entry): entry is CatalogEntry => isRecord(entry)) : [];
+function catalogEntries<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value.filter(isRecord) as T[]) : [];
 }
 
 function normalizeCatalog(value: unknown): Catalog {
   const data = requireRecord(value, 'catalog response');
   return {
     version: typeof data.version === 'string' ? data.version : undefined,
-    ships: catalogEntries(data.ships),
-    items: catalogEntries(data.items),
-    recipes: catalogEntries(data.recipes),
-    skills: catalogEntries(data.skills),
-    facilities: catalogEntries(data.facilities),
+    ships: catalogEntries<CatalogShip>(data.ships),
+    items: catalogEntries<CatalogItem>(data.items),
+    recipes: catalogEntries<CatalogRecipe>(data.recipes),
+    skills: catalogEntries<CatalogSkill>(data.skills),
+    facilities: catalogEntries<CatalogFacility>(data.facilities),
   };
 }
 
@@ -87,20 +98,22 @@ export async function fetchCatalog(httpBaseUrl: string): Promise<Catalog> {
 }
 
 export class CatalogCache {
-  private readonly indexes: Record<Section, Map<string, CatalogEntry>>;
+  private readonly shipsById: Map<string, CatalogShip>;
+  private readonly itemsById: Map<string, CatalogItem>;
+  private readonly recipesById: Map<string, CatalogRecipe>;
+  private readonly skillsById: Map<string, CatalogSkill>;
+  private readonly facilitiesById: Map<string, CatalogFacility>;
 
   constructor(
     readonly catalog: Catalog,
     /** The server `ETag` this catalog was fetched with, for conditional reloads. */
     readonly etag?: string,
   ) {
-    this.indexes = {
-      ships: index(catalog.ships),
-      items: index(catalog.items),
-      recipes: index(catalog.recipes),
-      skills: index(catalog.skills),
-      facilities: index(catalog.facilities),
-    };
+    this.shipsById = index(catalog.ships);
+    this.itemsById = index(catalog.items);
+    this.recipesById = index(catalog.recipes);
+    this.skillsById = index(catalog.skills);
+    this.facilitiesById = index(catalog.facilities);
   }
 
   /** Fetch the catalog and wrap it in a cache. */
@@ -126,43 +139,43 @@ export class CatalogCache {
     return this.catalog.version;
   }
 
-  ship(id: string): CatalogEntry | undefined {
-    return this.indexes.ships.get(id);
+  ship(id: string): CatalogShip | undefined {
+    return this.shipsById.get(id);
   }
-  item(id: string): CatalogEntry | undefined {
-    return this.indexes.items.get(id);
+  item(id: string): CatalogItem | undefined {
+    return this.itemsById.get(id);
   }
-  recipe(id: string): CatalogEntry | undefined {
-    return this.indexes.recipes.get(id);
+  recipe(id: string): CatalogRecipe | undefined {
+    return this.recipesById.get(id);
   }
-  skill(id: string): CatalogEntry | undefined {
-    return this.indexes.skills.get(id);
+  skill(id: string): CatalogSkill | undefined {
+    return this.skillsById.get(id);
   }
-  facility(id: string): CatalogEntry | undefined {
-    return this.indexes.facilities.get(id);
+  facility(id: string): CatalogFacility | undefined {
+    return this.facilitiesById.get(id);
   }
 
-  get ships(): readonly CatalogEntry[] {
+  get ships(): readonly CatalogShip[] {
     return this.catalog.ships;
   }
-  get items(): readonly CatalogEntry[] {
+  get items(): readonly CatalogItem[] {
     return this.catalog.items;
   }
-  get recipes(): readonly CatalogEntry[] {
+  get recipes(): readonly CatalogRecipe[] {
     return this.catalog.recipes;
   }
-  get skills(): readonly CatalogEntry[] {
+  get skills(): readonly CatalogSkill[] {
     return this.catalog.skills;
   }
-  get facilities(): readonly CatalogEntry[] {
+  get facilities(): readonly CatalogFacility[] {
     return this.catalog.facilities;
   }
 }
 
-function index(entries: CatalogEntry[]): Map<string, CatalogEntry> {
-  const map = new Map<string, CatalogEntry>();
+function index<T>(entries: T[]): Map<string, T> {
+  const map = new Map<string, T>();
   for (const entry of entries) {
-    const id = typeof entry.id === 'string' ? entry.id : undefined;
+    const id = isRecord(entry) && typeof entry.id === 'string' ? entry.id : undefined;
     if (id) map.set(id, entry);
   }
   return map;

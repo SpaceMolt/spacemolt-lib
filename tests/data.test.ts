@@ -1,6 +1,14 @@
 import { afterEach, expect, test } from 'bun:test';
-import { CatalogCache, fetchCatalog, fetchCatalogConditional } from '../src/data/catalog.ts';
+import {
+  CatalogCache,
+  type CatalogItem,
+  type CatalogShip,
+  type CatalogSkill,
+  fetchCatalog,
+  fetchCatalogConditional,
+} from '../src/data/catalog.ts';
 import { MapCache, fetchMap, httpBaseFromWs } from '../src/data/map.ts';
+import { fetchStations } from '../src/data/stations.ts';
 import { SpacemoltClient } from '../src/client.ts';
 
 const realFetch = globalThis.fetch;
@@ -41,13 +49,10 @@ test('httpBaseFromWs derives the HTTP origin', () => {
 test('CatalogCache indexes entries by id', () => {
   const cache = new CatalogCache({
     version: '0.452.0',
-    ships: [
-      { id: 'shuttle', name: 'Shuttle' },
-      { id: 'frigate', name: 'Frigate' },
-    ],
-    items: [{ id: 'iron_ore' }],
+    ships: [{ id: 'shuttle', name: 'Shuttle' } as CatalogShip, { id: 'frigate', name: 'Frigate' } as CatalogShip],
+    items: [{ id: 'iron_ore' } as CatalogItem],
     recipes: [],
-    skills: [{ id: 'mining' }],
+    skills: [{ id: 'mining' } as CatalogSkill],
     facilities: [],
   });
   expect(cache.version).toBe('0.452.0');
@@ -74,7 +79,7 @@ test('fetchCatalog validates and sanitizes external JSON', async () => {
   });
   const catalog = await fetchCatalog('https://game.spacemolt.com');
   expect(catalog.version).toBeUndefined();
-  expect(catalog.ships).toEqual([{ id: 'shuttle' }]);
+  expect(catalog.ships).toEqual([{ id: 'shuttle' } as CatalogShip]);
   expect(catalog.items).toEqual([]);
 
   stubFetch({ '/api/catalog.json': [] });
@@ -105,6 +110,30 @@ test('MapCache indexes systems by id', () => {
   expect(cache.system('sol')?.name).toBe('Sol');
   expect(cache.systems.length).toBe(2);
   expect(cache.empires.solarian).toBe('#ffd700');
+});
+
+test('fetchStations validates and sanitizes external JSON', async () => {
+  stubFetch({
+    '/api/stations': {
+      stations: [
+        null,
+        'bad',
+        { id: 'nexus_base', name: 'Nexus Station', system_id: 'nexus_prime', services: ['market'] },
+      ],
+      empires: [{ id: 'voidborn', name: 'Voidborn Collective' }, { id: 42 }, 'bad'],
+    },
+  });
+  const list = await fetchStations('https://game.spacemolt.com');
+  expect(list.stations.length).toBe(1);
+  expect(list.stations[0]?.id).toBe('nexus_base');
+  expect(list.empires).toEqual([{ id: 'voidborn', name: 'Voidborn Collective' }]);
+
+  // The server marshals an empty station list as null.
+  stubFetch({ '/api/stations': { stations: null, empires: null } });
+  expect(await fetchStations('https://game.spacemolt.com')).toEqual({ stations: [], empires: [] });
+
+  stubFetch({ '/api/stations': [] });
+  expect(fetchStations('https://game.spacemolt.com')).rejects.toThrow('stations response must be a JSON object');
 });
 
 test('fetchCatalogConditional sends If-None-Match and handles 304', async () => {
