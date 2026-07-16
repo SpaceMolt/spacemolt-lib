@@ -18,10 +18,26 @@ import { isRecord } from '../src/validation.ts';
 const ROOT = join(import.meta.dir, '..');
 const BASE = (process.argv[2] ?? process.env.SPACEMOLT_URL ?? 'https://game.spacemolt.com').replace(/\/$/, '');
 
+// The spec endpoint rate-limits fetches (1/min per IP) with a 429 — e.g. when
+// sync-spec's version probe hit the URL seconds earlier. Treat 429 (and other
+// transient statuses) as retryable with a backoff that clears the window,
+// mirroring client-v2's `curl --retry 4 --retry-delay 40`.
+const RETRYABLE = new Set([408, 429, 500, 502, 503, 504]);
+const RETRY_DELAY_MS = 40_000;
+const MAX_ATTEMPTS = 5;
+
 async function fetchJson(url: string): Promise<unknown> {
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
-  return res.json();
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(url, { headers: { accept: 'application/json' } });
+    if (res.ok) return res.json();
+    if (attempt >= MAX_ATTEMPTS || !RETRYABLE.has(res.status)) {
+      throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
+    }
+    console.log(
+      `GET ${url} -> ${res.status} ${res.statusText}; retrying in ${RETRY_DELAY_MS / 1000}s (attempt ${attempt}/${MAX_ATTEMPTS})`,
+    );
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+  }
 }
 
 async function main() {
