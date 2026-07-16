@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { Account } from '../src/account.ts';
 import { SpacemoltClient } from '../src/client.ts';
-import { ClerkSource } from '../src/auth/clerk.ts';
+import { ClerkSource, mintWsToken } from '../src/auth/clerk.ts';
 import { MemoryCredentialStore } from '../src/auth/credentials.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
 import { mockFactory, type MockSocket } from './mock-socket.ts';
@@ -255,4 +255,91 @@ test('connectOwned applies a player filter', async () => {
 test('listOwnedPlayers / connectOwned require a clerk API key', async () => {
   const client = new SpacemoltClient({ url: 'wss://game.spacemolt.com/ws/v2' });
   await expect(client.listOwnedPlayers()).rejects.toThrow(/clerkApiKey/);
+});
+
+test('mintWsToken authorizes with static headers instead of an API key (dev mode)', async () => {
+  const { fetchImpl, calls } = mockFetch({ '/api/player/plr_1/ws-token': { token: 'tok_dev', expires_in: 300 } });
+
+  const token = await mintWsToken({
+    httpBaseUrl: 'https://game.spacemolt.com',
+    playerId: 'plr_1',
+    headers: { 'X-Dev-Clerk-ID': 'dev_test_user_001' },
+    fetchImpl,
+  });
+
+  expect(token).toBe('tok_dev');
+  const sent = new Headers(requireValue(calls[0]).init?.headers);
+  expect(sent.get('x-dev-clerk-id')).toBe('dev_test_user_001');
+  expect(sent.get('authorization')).toBeNull();
+});
+
+test('mintWsToken resolves a header factory fresh per call (short-lived browser JWTs)', async () => {
+  const { fetchImpl, calls } = mockFetch({ '/api/player/plr_1/ws-token': { token: 'tok_jwt', expires_in: 300 } });
+  let minted = 0;
+  const headers = () => {
+    minted++;
+    return Promise.resolve({ authorization: `Bearer jwt_${minted}` });
+  };
+
+  await mintWsToken({ httpBaseUrl: 'https://game.spacemolt.com', playerId: 'plr_1', headers, fetchImpl });
+  await mintWsToken({ httpBaseUrl: 'https://game.spacemolt.com', playerId: 'plr_1', headers, fetchImpl });
+
+  expect(minted).toBe(2);
+  expect(new Headers(requireValue(calls[0]).init?.headers).get('authorization')).toBe('Bearer jwt_1');
+  expect(new Headers(requireValue(calls[1]).init?.headers).get('authorization')).toBe('Bearer jwt_2');
+});
+
+test('mintWsToken requires an apiKey or headers', async () => {
+  const { fetchImpl } = mockFetch({});
+  await expect(
+    mintWsToken({ httpBaseUrl: 'https://game.spacemolt.com', playerId: 'plr_1', fetchImpl }),
+  ).rejects.toThrow('Clerk auth requires an `apiKey` or `headers`');
+});
+
+test('custom headers win over the apiKey bearer on conflict', async () => {
+  const { fetchImpl, calls } = mockFetch({ '/api/player/plr_1/ws-token': { token: 'tok_hdr', expires_in: 300 } });
+
+  await mintWsToken({
+    httpBaseUrl: 'https://game.spacemolt.com',
+    playerId: 'plr_1',
+    apiKey: 'sk_test',
+    headers: { authorization: 'Bearer session_jwt' },
+    fetchImpl,
+  });
+
+  expect(new Headers(requireValue(calls[0]).init?.headers).get('authorization')).toBe('Bearer session_jwt');
+});
+
+test('ClerkSource works headers-only and exposes the registration code', async () => {
+  const { fetchImpl, calls } = mockFetch({
+    '/api/registration-code': {
+      registration_code: 'rc_777',
+      players: [{ id: 'plr_1', username: 'Nova', empire: 'solarian', hidden: false }],
+    },
+    '/api/player/plr_1/ws-token': { token: 'tok_abc', expires_in: 300 },
+  });
+  const source = new ClerkSource({
+    headers: { 'X-Dev-Clerk-ID': 'dev_test_user_001' },
+    httpBaseUrl: 'https://game.spacemolt.com',
+    fetchImpl,
+  });
+
+  expect(source.apiKey).toBeUndefined();
+
+  const registration = await source.fetchRegistration();
+  expect(registration.registrationCode).toBe('rc_777');
+  expect(registration.players).toHaveLength(1);
+
+  expect(await source.mintWsToken('plr_1')).toBe('tok_abc');
+  for (const call of calls) {
+    const sent = new Headers(call.init?.headers);
+    expect(sent.get('x-dev-clerk-id')).toBe('dev_test_user_001');
+    expect(sent.get('authorization')).toBeNull();
+  }
+});
+
+test('ClerkSource rejects construction with neither apiKey nor headers', () => {
+  expect(() => new ClerkSource({ httpBaseUrl: 'https://game.spacemolt.com' })).toThrow(
+    'ClerkSource requires an `apiKey` or `headers`',
+  );
 });

@@ -397,7 +397,7 @@ export class SpacemoltClient {
 
   /** List the player accounts the Clerk user owns. Requires `clerkApiKey`. */
   async listOwnedPlayers(): Promise<ClerkPlayer[]> {
-    return this.requireClerkSource().listPlayers();
+    return this.requireClerkAuth().source.listPlayers();
   }
 
   /**
@@ -415,7 +415,7 @@ export class SpacemoltClient {
   async connectOwned(
     opts: { filter?: (player: ClerkPlayer) => boolean; onConnect?: (account: Account) => void } = {},
   ): Promise<Account[]> {
-    const source = this.requireClerkSource();
+    const { source, apiKey } = this.requireClerkAuth();
     const players = await source.listPlayers();
     const selected = opts.filter ? players.filter(opts.filter) : players;
     const ids: string[] = [];
@@ -424,7 +424,7 @@ export class SpacemoltClient {
         id: player.username,
         credentials: {
           kind: 'clerk',
-          apiKey: source.apiKey,
+          apiKey,
           playerId: player.id,
           httpBaseUrl: source.httpBaseUrl,
         },
@@ -435,18 +435,17 @@ export class SpacemoltClient {
     return this.connectIds(ids, opts.onConnect);
   }
 
-  private requireClerkSource(): ClerkSource {
-    if (!this.clerkSource) {
-      if (!this.opts.clerkApiKey) {
-        throw new Error('connectOwned/listOwnedPlayers require `clerkApiKey` in SpacemoltClientOptions');
-      }
-      this.clerkSource = new ClerkSource({
-        apiKey: this.opts.clerkApiKey,
-        httpBaseUrl: this.httpBaseUrl,
-        fetchImpl: this.opts.fetchImpl,
-      });
+  private requireClerkAuth(): { source: ClerkSource; apiKey: string } {
+    const apiKey = this.opts.clerkApiKey;
+    if (!apiKey) {
+      throw new Error('connectOwned/listOwnedPlayers require `clerkApiKey` in SpacemoltClientOptions');
     }
-    return this.clerkSource;
+    this.clerkSource ??= new ClerkSource({
+      apiKey,
+      httpBaseUrl: this.httpBaseUrl,
+      fetchImpl: this.opts.fetchImpl,
+    });
+    return { source: this.clerkSource, apiKey };
   }
 
   /**
