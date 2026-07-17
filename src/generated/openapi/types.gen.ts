@@ -2412,6 +2412,7 @@ export type FactionEditRoleUpdates = {
 };
 
 export type FactionEditUpdates = {
+    ally_facility_access?: boolean;
     ally_fuel_access?: boolean;
     ally_intel_opt_out?: boolean;
     charter?: string;
@@ -4144,7 +4145,6 @@ export type Module = {
     power_usage: number;
     precision_factor?: number;
     quest_item?: boolean;
-    range?: number;
     reach?: number;
     remote_repair_power?: number;
     required_skills?: {
@@ -4166,7 +4166,6 @@ export type Module = {
     speed_bonus?: number;
     speed_penalty?: number;
     survey_power?: number;
-    survey_range?: number;
     tow_speed_penalty?: number;
     tracking_bonus?: number;
     type: string;
@@ -4654,6 +4653,16 @@ export type NotificationScanDetected = {
     scanner_id: string;
     scanner_ship_class?: string;
     scanner_username: string;
+};
+
+export type NotificationShipCommissionComplete = {
+    base_id: string;
+    base_name: string;
+    commission_id: string;
+    ship_class: string;
+    ship_id: string;
+    ship_name: string;
+    tick: number;
 };
 
 /**
@@ -7082,7 +7091,7 @@ export type V2GameState = {
         size?: number;
         slot?: string;
         /**
-         * Module-type-specific stats (damage, range, shield_bonus, mining_power, etc.); omitted when empty
+         * Module-type-specific stats (damage, reach, shield_bonus, mining_power, etc.); omitted when empty
          */
         stats?: {
             [key: string]: unknown;
@@ -7405,7 +7414,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationStationRepaired | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationStationRepaired | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, combat_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
@@ -8043,7 +8052,7 @@ export type SpacemoltCraftData = {
          */
         package_id?: string;
         /**
-         * Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best facility globally, so a busy own facility may route to an idle public rental. Use 'prefer_own' to keep the job on your own (then faction) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.
+         * Auto-routing preset: 'fast' (fewest ticks, default) picks the best facility globally, so a busy own facility may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.
          */
         preset?: 'fast' | 'cheap' | 'prefer_own' | 'workshop';
         /**
@@ -9595,7 +9604,7 @@ export type SpacemoltRecycleData = {
             [key: string]: unknown;
         }>;
         /**
-         * Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best eligible recycler globally. Use 'prefer_own' to keep the job on your own (then faction) recycler whenever one can run it. 'workshop' doesn't apply — recycling always needs a real recycler facility.
+         * Auto-routing preset: 'fast' (fewest ticks, default) picks the best eligible recycler globally, so a busy own recycler may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's recyclers are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) recycler whenever one can run it. Auto-routing otherwise prefers your own recycler, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority). 'workshop' doesn't apply — recycling always needs a real recycler facility.
          */
         preset?: 'fast' | 'cheap' | 'prefer_own';
         /**
@@ -14924,6 +14933,10 @@ export type SpacemoltFactionAdminCreateRoleResponse = SpacemoltFactionAdminCreat
 
 export type SpacemoltFactionAdminEditData = {
     body?: {
+        /**
+         * True to let allied faction members use your faction's facilities for free. Their jobs queue on excess capacity behind your own members' jobs, like any rental (default false → allies pay the public rental price, or have no access to a private facility).
+         */
+        ally_facility_access?: boolean;
         /**
          * True to let allied faction members refuel for free from your faction's bunker reserves (default false → opt-in).
          */

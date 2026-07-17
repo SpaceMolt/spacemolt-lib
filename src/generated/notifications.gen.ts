@@ -33,6 +33,7 @@ import type {
   NotificationPlayerKill,
   NotificationReconnected,
   NotificationScanDetected,
+  NotificationShipCommissionComplete,
   NotificationSkillLevelUp,
   NotificationStationRepaired,
   NotificationTradeCancelled,
@@ -71,6 +72,7 @@ export type TypedNotificationType =
   | "player_kill"
   | "reconnected"
   | "scan_detected"
+  | "ship_commission_complete"
   | "skill_level_up"
   | "station_repaired"
   | "trade_cancelled"
@@ -108,6 +110,7 @@ export interface NotificationPayloads {
   "player_kill": NotificationPlayerKill;
   "reconnected": NotificationReconnected;
   "scan_detected": NotificationScanDetected;
+  "ship_commission_complete": NotificationShipCommissionComplete;
   "skill_level_up": NotificationSkillLevelUp;
   "station_repaired": NotificationStationRepaired;
   "trade_cancelled": NotificationTradeCancelled;
@@ -146,6 +149,7 @@ export const TYPED_NOTIFICATION_TYPES = [
   "player_kill",
   "reconnected",
   "scan_detected",
+  "ship_commission_complete",
   "skill_level_up",
   "station_repaired",
   "trade_cancelled",

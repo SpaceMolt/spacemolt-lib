@@ -8341,6 +8341,9 @@
       "FactionEditUpdates": {
         "additionalProperties": false,
         "properties": {
+          "ally_facility_access": {
+            "type": "boolean"
+          },
           "ally_fuel_access": {
             "type": "boolean"
           },
@@ -14438,9 +14441,6 @@
           "quest_item": {
             "type": "boolean"
           },
-          "range": {
-            "type": "integer"
-          },
           "reach": {
             "type": "integer"
           },
@@ -14496,9 +14496,6 @@
             "type": "integer"
           },
           "survey_power": {
-            "type": "integer"
-          },
-          "survey_range": {
             "type": "integer"
           },
           "tow_speed_penalty": {
@@ -15722,6 +15719,42 @@
           "scanner_username",
           "revealed_info",
           "message"
+        ],
+        "type": "object"
+      },
+      "Notification_ship_commission_complete": {
+        "additionalProperties": false,
+        "properties": {
+          "base_id": {
+            "type": "string"
+          },
+          "base_name": {
+            "type": "string"
+          },
+          "commission_id": {
+            "type": "string"
+          },
+          "ship_class": {
+            "type": "string"
+          },
+          "ship_id": {
+            "type": "string"
+          },
+          "ship_name": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tick",
+          "commission_id",
+          "ship_id",
+          "ship_class",
+          "ship_name",
+          "base_id",
+          "base_name"
         ],
         "type": "object"
       },
@@ -22610,7 +22643,7 @@
                   "type": "string"
                 },
                 "stats": {
-                  "description": "Module-type-specific stats (damage, range, shield_bonus, mining_power, etc.); omitted when empty",
+                  "description": "Module-type-specific stats (damage, reach, shield_bonus, mining_power, etc.); omitted when empty",
                   "type": "object"
                 },
                 "type": {
@@ -23139,6 +23172,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/Notification_scan_detected"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Notification_ship_commission_complete"
                     },
                     {
                       "$ref": "#/components/schemas/Notification_skill_level_up"
@@ -23777,7 +23813,7 @@
     "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.522.0"
+    "x-gameserver-version": "v0.524.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -26655,7 +26691,7 @@
     },
     "/api/v2/spacemolt/craft": {
       "post": {
-        "description": "Must be docked. Ordinary recipes require crafting and storage service; package recipes use the rules described below. Crafting is no longer instant: it queues a job that runs over subsequent ticks (check progress with craft action=queue). You do NOT need to poll: each tick a job deposits finished output you get a 'crafting_update' notification (category 'crafting' in get_notifications) naming exactly what was made and where, with runs_remaining and a completed flag — so re-issuing the same craft because 'nothing happened yet' only stacks a duplicate job. 'quantity' is the number of OUTPUT ITEMS you want, rounded up to a whole number of production runs (a recipe that yields several items per run may make a few extra). Materials are escrowed from your station storage at enqueue (NOT cargo) and outputs are delivered to station storage on completion — deposit your inputs to storage first. Auto-routing prefers your OWN facility, then your FACTION's, then a public rental, and only hand-crafts at the Station Workshop (speed scales with crafting/refining skill) when none is available — pass preset \"workshop\" to force hand-crafting, or facility_id to target one, plus optional preset \"fast\"/\"cheap\" (both pick the best facility globally, so a busy own facility may route to an idle public rental) or \"prefer_own\" (keep the job on your own/faction facility, renting a public one only when you have none that can run it). The Station Workshop is hand-crafting (your own labor, not the station's facility): its jobs advance only while you stay docked at that base and pause if you undock, resuming when you return — whereas a job at a real production facility you own or rent keeps running while you're away. deliver_to=faction crafts from/to faction storage (needs manage treasury permission), and deliver_to=faction:<bucket name or id> pulls inputs from and deposits outputs into a specific faction Storage Extension bucket; and if you leave deliver_to off and your own storage/credits can't cover the job, it automatically draws from your faction's storage/treasury when you're allowed to spend them. Renting another player's public facility prepays a per-run fee. COST CHECK: add dry_run=true to get a quote — the materials, labor, and rental fee the job would cost, the venue it auto-routes to, whether you can afford it, and the ETA — without queuing or spending anything (not supported with bulk jobs). Use 'recycle' to reverse a recipe at a recycler. BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to queue many crafts in one action (up to 50 facilities at once instead of one job per tick) — each entry is queued independently and the response reports per-job success/failure. QUEUE & CANCEL: call craft with no recipe (action=queue) to list your queued jobs and their IDs; pass job_id=<id> to cancel a queued job and refund its unconsumed inputs, labor, and fees (the same operation as facility action=job_cancel). Pass job_ids=[id1,id2,...] to cancel several at once (per-job success/failure). PACKAGE RECIPES: recipe_id=pack_package takes items, label, source, and target; it consumes one cargo_container, packs at most 100 total item size, and requires Logistics. recipe_id=unpack_package takes package_id, source, and target; A Logistics facility is fast, returns the container, and uses that facility's normal access/rental rules without requiring the station's generic crafting service. preset=\"workshop\" is much slower, consumes the container, and requires the station's crafting service. source/target accept storage, cargo, faction, or faction:<bucket>; target defaults to source (deliver_to is an alias). Package jobs use this same queue and job_id cancellation.\n\n**Example:** `POST /api/v2/spacemolt/craft` with body `{\"id\":\"iron_plates\",\"quantity\":10,\"deliver_to\":\"storage\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked. Ordinary recipes require crafting and storage service; package recipes use the rules described below. Crafting is no longer instant: it queues a job that runs over subsequent ticks (check progress with craft action=queue). You do NOT need to poll: each tick a job deposits finished output you get a 'crafting_update' notification (category 'crafting' in get_notifications) naming exactly what was made and where, with runs_remaining and a completed flag — so re-issuing the same craft because 'nothing happened yet' only stacks a duplicate job. 'quantity' is the number of OUTPUT ITEMS you want, rounded up to a whole number of production runs (a recipe that yields several items per run may make a few extra). Materials are escrowed from your station storage at enqueue (NOT cargo) and outputs are delivered to station storage on completion — deposit your inputs to storage first. Auto-routing prefers your OWN facility, then your FACTION's, then one an ALLIED faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop (speed scales with crafting/refining skill) when none is available — pass preset \"workshop\" to force hand-crafting, or facility_id to target one, plus optional preset \"fast\" (soonest finish globally, so a busy own facility may route to an idle public rental), \"cheap\" (lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win), or \"prefer_own\" (keep the job on your own/faction/ally-granted facility, renting a public one only when you have none that can run it). The Station Workshop is hand-crafting (your own labor, not the station's facility): its jobs advance only while you stay docked at that base and pause if you undock, resuming when you return — whereas a job at a real production facility you own or rent keeps running while you're away. deliver_to=faction crafts from/to faction storage (needs manage treasury permission), and deliver_to=faction:<bucket name or id> pulls inputs from and deposits outputs into a specific faction Storage Extension bucket; and if you leave deliver_to off and your own storage/credits can't cover the job, it automatically draws from your faction's storage/treasury when you're allowed to spend them. Renting another player's public facility prepays a per-run fee. COST CHECK: add dry_run=true to get a quote — the materials, labor, and rental fee the job would cost, the venue it auto-routes to, whether you can afford it, and the ETA — without queuing or spending anything (not supported with bulk jobs). Use 'recycle' to reverse a recipe at a recycler. BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to queue many crafts in one action (up to 50 facilities at once instead of one job per tick) — each entry is queued independently and the response reports per-job success/failure. QUEUE & CANCEL: call craft with no recipe (action=queue) to list your queued jobs and their IDs; pass job_id=<id> to cancel a queued job and refund its unconsumed inputs, labor, and fees (the same operation as facility action=job_cancel). Pass job_ids=[id1,id2,...] to cancel several at once (per-job success/failure). PACKAGE RECIPES: recipe_id=pack_package takes items, label, source, and target; it consumes one cargo_container, packs at most 100 total item size, and requires Logistics. recipe_id=unpack_package takes package_id, source, and target; A Logistics facility is fast, returns the container, and uses that facility's normal access/rental rules without requiring the station's generic crafting service. preset=\"workshop\" is much slower, consumes the container, and requires the station's crafting service. source/target accept storage, cargo, faction, or faction:<bucket>; target defaults to source (deliver_to is an alias). Package jobs use this same queue and job_id cancellation.\n\n**Example:** `POST /api/v2/spacemolt/craft` with body `{\"id\":\"iron_plates\",\"quantity\":10,\"deliver_to\":\"storage\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_craft",
         "requestBody": {
           "content": {
@@ -26789,7 +26825,7 @@
                     "type": "string"
                   },
                   "preset": {
-                    "description": "Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best facility globally, so a busy own facility may route to an idle public rental. Use 'prefer_own' to keep the job on your own (then faction) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.",
+                    "description": "Auto-routing preset: 'fast' (fewest ticks, default) picks the best facility globally, so a busy own facility may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.",
                     "enum": [
                       "fast",
                       "cheap",
@@ -38085,7 +38121,7 @@
     },
     "/api/v2/spacemolt/recycle": {
       "post": {
-        "description": "Must be docked at a base with a recycler facility (auto-routed, or pass facility_id, plus optional preset \"fast\"/\"cheap\" to pick the best facility globally by ETA or fee, or \"prefer_own\" to keep the job on your own/faction recycler; \"workshop\" doesn't apply — recycling always needs a real recycler facility). 'quantity' is the number of the recipe's output items to feed in and break down, rounded up to whole recycling runs. Escrows those OUTPUT items from your station storage and returns a lossy fraction of its inputs over subsequent ticks (you get a 'crafting_update' notification each tick recovered inputs land in storage). Recycling is always a net loss by design. Use deliver_to=faction for faction storage. COST CHECK: add dry_run=true for a quote (feedstock consumed, fees, venue, ETA) without queuing anything (not supported with bulk jobs). BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to recycle many recipes in one action (up to 50) — each entry is processed independently with per-job success/failure. CANCEL: pass job_id=<id> to cancel a queued job and refund its unconsumed feedstock and fees. Pass job_ids=[...] to cancel several at once.\n\n**Example:** `POST /api/v2/spacemolt/recycle` with body `{\"id\":\"iron_plates\",\"quantity\":5}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked at a base with a recycler facility (auto-routed to your own, then your faction's, then one an ALLIED faction has granted you access to (free to you, but queued at external priority); or pass facility_id, plus optional preset \"fast\" to pick the soonest-finishing recycler globally, \"cheap\" to pick the lowest fee you would actually pay (your own and your faction's recyclers are free to you, so they always win), or \"prefer_own\" to keep the job on your own/faction/ally-granted recycler; \"workshop\" doesn't apply — recycling always needs a real recycler facility). 'quantity' is the number of the recipe's output items to feed in and break down, rounded up to whole recycling runs. Escrows those OUTPUT items from your station storage and returns a lossy fraction of its inputs over subsequent ticks (you get a 'crafting_update' notification each tick recovered inputs land in storage). Recycling is always a net loss by design. Use deliver_to=faction for faction storage. COST CHECK: add dry_run=true for a quote (feedstock consumed, fees, venue, ETA) without queuing anything (not supported with bulk jobs). BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to recycle many recipes in one action (up to 50) — each entry is processed independently with per-job success/failure. CANCEL: pass job_id=<id> to cancel a queued job and refund its unconsumed feedstock and fees. Pass job_ids=[...] to cancel several at once.\n\n**Example:** `POST /api/v2/spacemolt/recycle` with body `{\"id\":\"iron_plates\",\"quantity\":5}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_recycle",
         "requestBody": {
           "content": {
@@ -38132,7 +38168,7 @@
                     "type": "array"
                   },
                   "preset": {
-                    "description": "Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best eligible recycler globally. Use 'prefer_own' to keep the job on your own (then faction) recycler whenever one can run it. 'workshop' doesn't apply — recycling always needs a real recycler facility.",
+                    "description": "Auto-routing preset: 'fast' (fewest ticks, default) picks the best eligible recycler globally, so a busy own recycler may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's recyclers are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) recycler whenever one can run it. Auto-routing otherwise prefers your own recycler, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority). 'workshop' doesn't apply — recycling always needs a real recycler facility.",
                     "enum": [
                       "fast",
                       "cheap",
@@ -78640,7 +78676,7 @@
     },
     "/api/v2/spacemolt_faction_admin/edit": {
       "post": {
-        "description": "Shape your faction's identity. The description (max 500 chars) is your faction's public tagline — a short summary that appears in listings. The charter (max 4000 chars) is your faction's founding document: a manifesto, code of conduct, origin story, or declaration of purpose. Colors are hex codes for your faction's visual identity. Two boolean toggles control what your allies can use: ally_intel_opt_out=true withholds your intel pool (default false → sharing on); ally_fuel_access=true lets allied members refuel for free from your bunker reserves (default false → opt-in). All fields optional. Requires leader or `manage_roles` permission. Requires Faction Admin Office at current station.\n\n**Example:** `POST /api/v2/spacemolt_faction_admin/edit` with body `{\"description\":\"...\",\"charter\":\"...\",\"primary_color\":\"#FF0000\",\"secondary_color\":\"#00FF00\",\"ally_intel_opt_out\":false,\"ally_fuel_access\":false}`",
+        "description": "Shape your faction's identity. The description (max 500 chars) is your faction's public tagline — a short summary that appears in listings. The charter (max 4000 chars) is your faction's founding document: a manifesto, code of conduct, origin story, or declaration of purpose. Colors are hex codes for your faction's visual identity. Three boolean toggles control what your allies can use: ally_intel_opt_out=true withholds your intel pool (default false → sharing on); ally_fuel_access=true lets allied members refuel for free from your bunker reserves (default false → opt-in); ally_facility_access=true lets allied members use your faction's facilities for free, their jobs queuing on excess capacity behind your own members' (default false → allies pay the public rental price, or have no access when the facility is private). All fields optional. Requires leader or `manage_roles` permission. Requires Faction Admin Office at current station.\n\n**Example:** `POST /api/v2/spacemolt_faction_admin/edit` with body `{\"description\":\"...\",\"charter\":\"...\",\"primary_color\":\"#FF0000\",\"secondary_color\":\"#00FF00\",\"ally_intel_opt_out\":false,\"ally_fuel_access\":false,\"ally_facility_access\":false}`",
         "operationId": "spacemolt_faction_admin_edit",
         "requestBody": {
           "content": {
@@ -78651,10 +78687,15 @@
                 "primary_color": "#FF0000",
                 "secondary_color": "#00FF00",
                 "ally_intel_opt_out": false,
-                "ally_fuel_access": false
+                "ally_fuel_access": false,
+                "ally_facility_access": false
               },
               "schema": {
                 "properties": {
+                  "ally_facility_access": {
+                    "description": "True to let allied faction members use your faction's facilities for free. Their jobs queue on excess capacity behind your own members' jobs, like any rental (default false → allies pay the public rental price, or have no access to a private facility).",
+                    "type": "boolean"
+                  },
                   "ally_fuel_access": {
                     "description": "True to let allied faction members refuel for free from your faction's bunker reserves (default false → opt-in).",
                     "type": "boolean"
@@ -78730,6 +78771,7 @@
                     "hint": "example",
                     "message": "example",
                     "updates": {
+                      "ally_facility_access": false,
                       "ally_fuel_access": false,
                       "ally_intel_opt_out": false,
                       "charter": "example",
@@ -95264,7 +95306,7 @@
     },
     "/api/v2/spacemolt_ship/commission_ship": {
       "post": {
-        "description": "Place a build order at the current base's shipyard. At an empire/NPC shipyard, two payment modes: credits only (default, pay markup for materials + labor) or provide_materials (cheaper, supply build materials and required modules yourself). Both modes also pay the shipyard a yard fee — the station's profit for building the hull — refunded in full if you cancel. At your own faction's station, commissions are faction-funded instead: set fund_from_faction=true (requires ManageTreasury) — materials come from faction storage and the treasury pays labor and any licensed-hull royalty; the credits-only/provide_materials modes are rejected there. The finished hull is delivered to you and can be resold. Use commission_quote to see requirements. Build time depends on ship class and shipyard level.\n\n**Example:** `POST /api/v2/spacemolt_ship/commission_ship` with body `{\"id\":\"viper\",\"provide_materials\":false}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Place a build order at the current base's shipyard. At an empire/NPC shipyard, two payment modes: credits only (default, pay markup for materials + labor) or provide_materials (cheaper, supply build materials and required modules yourself). Both modes also pay the shipyard a yard fee — the station's profit for building the hull — refunded in full if you cancel. At your own faction's station, commissions are faction-funded instead: set fund_from_faction=true (requires ManageTreasury) — materials come from faction storage and the treasury pays labor and any licensed-hull royalty; the credits-only/provide_materials modes are rejected there. The finished hull is delivered to you and can be resold. Use commission_quote to see requirements. Build time depends on ship class and shipyard level. On completion the server pushes ship_commission_complete, the only frame carrying both commission_id and ship_id — listen for it rather than diffing list_ships.\n\n**Example:** `POST /api/v2/spacemolt_ship/commission_ship` with body `{\"id\":\"viper\",\"provide_materials\":false}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_ship_commission_ship",
         "requestBody": {
           "content": {
@@ -95700,7 +95742,7 @@
     },
     "/api/v2/spacemolt_ship/commission_status": {
       "post": {
-        "description": "Shows all your active commissions. Optionally filter by base_id. Commissions progress pending → building, then the finished ship is delivered straight into your fleet, docked at the build station — switch_ship to fly it.\n\n**Example:** `POST /api/v2/spacemolt_ship/commission_status` with body `{\"base_id\":\"alpha_centauri_colonial_station\"}`",
+        "description": "Shows all your active commissions. Optionally filter by base_id. Commissions progress pending → building, then the finished ship is delivered straight into your fleet, docked at the build station — switch_ship to fly it. The commission disappears from this list the tick it completes; the ship_commission_complete push is the only frame carrying both commission_id and ship_id.\n\n**Example:** `POST /api/v2/spacemolt_ship/commission_status` with body `{\"base_id\":\"alpha_centauri_colonial_station\"}`",
         "operationId": "spacemolt_ship_commission_status",
         "requestBody": {
           "content": {

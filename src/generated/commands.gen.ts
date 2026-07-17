@@ -659,6 +659,8 @@ export interface SpacemoltFactionAdminCreateRoleParams {
 }
 
 export interface SpacemoltFactionAdminEditParams {
+  /** True to let allied faction members use your faction's facilities for free. Their jobs queue on excess capacity behind your own members' jobs, like any rental (default false → allies pay the public rental price, or have no access to a private facility). */
+  ally_facility_access?: boolean;
   /** True to let allied faction members refuel for free from your faction's bunker reserves (default false → opt-in). */
   ally_fuel_access?: boolean;
   /** True to withhold your intel pool from allied factions (default false → sharing on). */
@@ -1579,7 +1581,7 @@ export interface SpacemoltCraftParams {
   label?: string;
   /** For unpack_package: package instance ID to unpack. */
   package_id?: string;
-  /** Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best facility globally, so a busy own facility may route to an idle public rental. Use 'prefer_own' to keep the job on your own (then faction) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility. */
+  /** Auto-routing preset: 'fast' (fewest ticks, default) picks the best facility globally, so a busy own facility may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility. */
   preset?: "fast" | "cheap" | "prefer_own" | "workshop";
   /** Number of output items to make (default 1). Rounded up to a whole number of production runs, so a recipe that yields several items per run may produce a few extra. */
   quantity?: number;
@@ -1695,7 +1697,7 @@ export interface SpacemoltRecycleParams {
   job_ids?: string[];
   /** Bulk mode: recycle many recipes in one action. Each entry: {recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is processed independently (partial success). Max 50. */
   jobs?: Record<string, unknown>[];
-  /** Auto-routing preset: 'fast' (fewest ticks, default) or 'cheap' (lowest fee) — both pick the best eligible recycler globally. Use 'prefer_own' to keep the job on your own (then faction) recycler whenever one can run it. 'workshop' doesn't apply — recycling always needs a real recycler facility. */
+  /** Auto-routing preset: 'fast' (fewest ticks, default) picks the best eligible recycler globally, so a busy own recycler may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's recyclers are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) recycler whenever one can run it. Auto-routing otherwise prefers your own recycler, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority). 'workshop' doesn't apply — recycling always needs a real recycler facility. */
   preset?: "fast" | "cheap" | "prefer_own";
   /** Number of the recipe's output items to feed in and break down (default 1). Rounded up to a whole number of recycling runs. */
   quantity?: number;
