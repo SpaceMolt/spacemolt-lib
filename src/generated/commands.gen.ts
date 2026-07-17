@@ -10,11 +10,13 @@ import type {
   BattleSummaryResponse,
   BrowseShipsResponse,
   BuildBaseResponse,
+  BulkJobCancelResponse,
+  BulkStorageResponse,
   BuyInsuranceResponse,
   BuyListedShipResponse,
   BuyResponse,
   CancelCommissionResponse,
-  CancelOrderResponse,
+  CancelOrderCommandResponse,
   CancelShipBuyOrderResponse,
   CancelShipListingResponse,
   CaptainsLogAddResponse,
@@ -30,21 +32,44 @@ import type {
   CommissionStatusResponse,
   CompleteMissionResponse,
   CompletedMissionsResponse,
+  CraftCommandResponse,
   CraftJobResponse,
-  CreateBuyOrderResponse,
+  CreateBuyOrderCommandResponse,
   CreateFactionResponse,
   CreateNoteResponse,
-  CreateSellOrderResponse,
+  CreateSellOrderCommandResponse,
   DeclineMissionResponse,
   DeleteNoteResponse,
-  DeployDroneResponse,
+  DeployDroneCommandResponse,
   DepositItemsResponse,
   DistressSignalResponse,
   DockResponse,
+  EmpireGiftResponse,
   EspionageResponse,
   EstimatePurchaseResponse,
+  FacilityBrowseForSaleResponse,
+  FacilityBuildResponse,
+  FacilityBuyListingResponse,
+  FacilityCancelListingResponse,
   FacilityDismantleResponse,
-  FacilityResponse,
+  FacilityFactionBuildResponse,
+  FacilityFactionListResponse,
+  FacilityFactionOwnedResponse,
+  FacilityFactionUpgradeResponse,
+  FacilityJobListResponse,
+  FacilityListForSaleResponse,
+  FacilityListResponse,
+  FacilityOwnedResponse,
+  FacilityPersonalBuildResponse,
+  FacilityPersonalDecorateResponse,
+  FacilityPersonalVisitResponse,
+  FacilityRepairResponse,
+  FacilityTransferResponse,
+  FacilityTypeDetailResponse,
+  FacilityTypeDiscoveryResponse,
+  FacilityTypeListResponse,
+  FacilityUpgradeResponse,
+  FacilityUpgradesResponse,
   FactionAcceptAllyResponse,
   FactionAcceptPeaceResponse,
   FactionCancelMissionResponse,
@@ -55,10 +80,15 @@ import type {
   FactionDeclineInviteResponse,
   FactionDeleteRoleResponse,
   FactionDeleteRoomResponse,
+  FactionDepositCreditsResponse,
+  FactionDepositFuelResponse,
+  FactionDepositItemsResponse,
   FactionEditResponse,
   FactionEditRoleResponse,
+  FactionGarageStoreResponse,
   FactionGaragesResponse,
   FactionGetInvitesResponse,
+  FactionGiftResponse,
   FactionInfoResponse,
   FactionIntelStatusResponse,
   FactionInviteResponse,
@@ -82,11 +112,16 @@ import type {
   FactionTaxEstimateResponse,
   FactionTradeIntelStatusResponse,
   FactionVisitRoomResponse,
+  FactionWithdrawCreditsResponse,
   FactionWithdrawInviteResponse,
+  FactionWithdrawItemsResponse,
   FactionWriteRoomResponse,
   FindRouteResponse,
+  FleetAcceptResponse,
+  FleetActionResponse,
+  FleetBoardResponse,
   FleetCreateResponse,
-  FleetResponse,
+  FleetDeclineResponse,
   FleetStatusResponse,
   ForumCreateThreadResponse,
   ForumDeleteReplyResponse,
@@ -107,35 +142,39 @@ import type {
   GetFactionAchievementsResponse,
   GetGuideResponse,
   GetInsuranceQuoteResponse,
-  GetMapResponse,
+  GetMapCommandResponse,
   GetMissionsResponse,
   GetNearbyResponse,
   GetNotesResponse,
   GetNotificationsResponse,
-  GetPoiResponse,
+  GetPoiCommandResponse,
   GetSystemAgentsResponse,
-  GetSystemResponse,
+  GetSystemCommandResponse,
   GetTradesResponse,
   GetVersionResponse,
   GetWrecksResponse,
+  GiftShipResponse,
   HuntResponse,
   InspectResponse,
   InstallModResponse,
-  JettisonResponse,
+  JettisonCommandResponse,
+  JobCancelResponse,
+  JobReorderResponse,
   JoinFactionResponse,
-  JumpResponse,
+  JumpCommandResponse,
   ListPassengersResponse,
   ListShipForSaleResponse,
   ListShipsResponse,
   LoadDroneResponse,
   LoadPassengersResponse,
   LoginResponse,
-  LootWreckResponse,
+  LootWreckCommandResponse,
   MessageResponse,
   MineResponse,
-  ModifyOrderResponse,
+  ModifyOrderCommandResponse,
   NameShipResponse,
   NotificationSettingsResponse,
+  PackageJobResponse,
   PetitionResponse,
   PlaceShipBuyOrderResponse,
   PrepayTaxResponse,
@@ -157,14 +196,25 @@ import type {
   SellResponse,
   SellShipToOrderResponse,
   SellWreckResponse,
+  SendGiftResponse,
+  SetAccessResponse,
   SetColorsResponse,
   SetDroneNameResponse,
+  SetFacilityDescriptionResponse,
+  SetFacilityNameResponse,
   SetHomeBaseResponse,
+  SetOutputPriceResponse,
   SetStatusResponse,
   ShipLicenseResponse,
+  ShippingContractResponse,
+  ShippingDebtPaymentResponse,
+  ShippingListResponse,
+  ShippingProfileResponse,
+  ShippingQuoteResponse,
+  ShippingSettlementResponse,
+  ShippingTrackResponse,
   StationConfigResponse,
   StationPassengersResponse,
-  StorageResponse,
   SubscribeMarketResponse,
   SubscribeObservationResponse,
   SupplyCommissionResponse,
@@ -174,11 +224,13 @@ import type {
   TowWreckResponse,
   TradeAcceptResponse,
   TradeOfferResponse,
+  TransferCreditsResponse,
+  TransferItemsResponse,
   TravelResponse,
   UndockResponse,
   UninstallModResponse,
   UnloadDroneResponse,
-  UnloadPassengerResponse,
+  UnloadPassengerCommandResponse,
   UnsubscribeMarketResponse,
   UnsubscribeObservationResponse,
   UploadDroneScriptResponse,
@@ -186,9 +238,11 @@ import type {
   V2GameState,
   V2GetCommandsResponse,
   ViewCompletedMissionResponse,
+  ViewFactionStorageResponse,
   ViewMarketResponse,
   ViewOrdersResponse,
   ViewShipBuyOrdersResponse,
+  ViewStorageResponse,
   WithdrawItemsResponse,
   WriteNoteResponse,
 } from './openapi/types.gen.ts';
@@ -338,8 +392,6 @@ export interface SpacemoltFacilityBrowseForSaleParams {
 }
 
 export interface SpacemoltFacilityBuildParams {
-  /** For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way. */
-  bucket?: string;
   /** Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to. */
   facility_type: string;
 }
@@ -548,7 +600,7 @@ export interface SpacemoltFacilitySetRepairPriceParams {
 export interface SpacemoltFacilitySetServiceAccessParams {
   /** Access level for set_service_access */
   access: "public" | "allies" | "faction";
-  /** Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard) */
+  /** Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard, missions) */
   service: string;
 }
 
@@ -587,8 +639,6 @@ export interface SpacemoltFacilityUnbanParams {
 }
 
 export interface SpacemoltFacilityUpgradeParams {
-  /** For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way. */
-  bucket?: string;
   /** Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to. */
@@ -1032,6 +1082,117 @@ export interface SpacemoltShipListShipForSaleParams {
   id: string;
   /** Asking price in credits */
   price: number;
+}
+
+export interface SpacemoltShippingAcceptParams {
+  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. */
+  carrier?: "player" | "faction";
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  shipment_id: string;
+}
+
+export interface SpacemoltShippingCancelParams {
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  shipment_id: string;
+}
+
+export interface SpacemoltShippingDeliverParams {
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  shipment_id: string;
+}
+
+export interface SpacemoltShippingGetParams {
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  shipment_id: string;
+}
+
+export interface SpacemoltShippingListParams {
+  /** For list, show contracts you may accept personally (player, default) or for your current faction. */
+  eligible_as?: "player" | "faction";
+  /** List page (default 1). */
+  page?: number;
+  /** Contracts per page (default 20, max 50). */
+  per_page?: number;
+}
+
+export interface SpacemoltShippingPayDebtParams {
+  /** Debt payment amount for pay_debt. Omit to pay the full outstanding balance. */
+  amount?: number;
+  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. */
+  carrier?: "player" | "faction";
+}
+
+export interface SpacemoltShippingPostParams {
+  /** Destination station/base ID for quote or post. */
+  destination_base_id: string;
+  /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
+  insured?: boolean;
+  /** Invited player or faction ID when visibility=invited. */
+  invited_carrier_id?: string;
+  /** Invited prime carrier kind when visibility=invited. */
+  invited_carrier_type?: "player" | "faction";
+  /** Optional post guard. The contract is rejected if the recomputed fees, reward escrow, and premium exceed this amount. */
+  max_total_cost?: number;
+  /** Sealed package to quote or post. The package must be owned by the selected shipper at this station. */
+  package_id: string;
+  /** Player, faction, or station ID matching recipient_type. */
+  recipient_id?: string;
+  /** Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper. */
+  recipient_type?: "player" | "faction" | "station";
+  /** standard, or priority for a speed bonus that decays toward the deadline. */
+  service_level?: "standard" | "priority";
+  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. */
+  shipper?: "player" | "faction";
+  /** Where the sealed package currently sits at the origin station (cargo by default). */
+  source?: "cargo" | "storage" | "faction";
+  /** Faction Storage Extension bucket ID when source=faction; omit for the faction main store. */
+  source_bucket_id?: string;
+  /** Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id. */
+  visibility?: "public" | "faction" | "allies" | "invited";
+}
+
+export interface SpacemoltShippingProfileParams {
+  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. */
+  carrier?: "player" | "faction";
+}
+
+export interface SpacemoltShippingQuoteParams {
+  /** Destination station/base ID for quote or post. */
+  destination_base_id: string;
+  /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
+  insured?: boolean;
+  /** Invited player or faction ID when visibility=invited. */
+  invited_carrier_id?: string;
+  /** Invited prime carrier kind when visibility=invited. */
+  invited_carrier_type?: "player" | "faction";
+  /** Sealed package to quote or post. The package must be owned by the selected shipper at this station. */
+  package_id: string;
+  /** Player, faction, or station ID matching recipient_type. */
+  recipient_id?: string;
+  /** Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper. */
+  recipient_type?: "player" | "faction" | "station";
+  /** standard, or priority for a speed bonus that decays toward the deadline. */
+  service_level?: "standard" | "priority";
+  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. */
+  shipper?: "player" | "faction";
+  /** Where the sealed package currently sits at the origin station (cargo by default). */
+  source?: "cargo" | "storage" | "faction";
+  /** Faction Storage Extension bucket ID when source=faction; omit for the faction main store. */
+  source_bucket_id?: string;
+  /** Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id. */
+  visibility?: "public" | "faction" | "allies" | "invited";
+}
+
+export interface SpacemoltShippingReturnParams {
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  shipment_id: string;
+}
+
+export interface SpacemoltShippingTrackParams {
+  /** Maximum recent beacon events returned by track. */
+  limit?: number;
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  shipment_id: string;
 }
 
 export interface SpacemoltShipPlaceShipBuyOrderParams {
@@ -1631,7 +1792,7 @@ export interface Commands {
     /** List all missions you have completed */
     completed_missions(): Promise<QueryResult<CompletedMissionsResponse>>;
     /** Queue a crafting job (auto-routes to your own/faction facility, or hand-crafts at the Station Workshop) */
-    craft(params?: SpacemoltCraftParams): Promise<MutationResult<CraftJobResponse>>;
+    craft(params?: SpacemoltCraftParams): Promise<MutationResult<CraftCommandResponse>>;
     /** Decline a mission and hear the NPC's response */
     decline_mission(params?: SpacemoltDeclineMissionParams): Promise<QueryResult<DeclineMissionResponse>>;
     /** Broadcast a distress signal to nearby players for emergency rescue */
@@ -1659,7 +1820,7 @@ export interface Commands {
     /** Get current location with nearby entities (v2 format) */
     get_location(): Promise<QueryResult<V2GameState>>;
     /** View all star systems in the galaxy */
-    get_map(params?: SpacemoltGetMapParams): Promise<QueryResult<GetMapResponse>>;
+    get_map(params?: SpacemoltGetMapParams): Promise<QueryResult<GetMapCommandResponse>>;
     /** Get available missions at your current base */
     get_missions(): Promise<QueryResult<GetMissionsResponse>>;
     /** Get other players at your current POI */
@@ -1669,7 +1830,7 @@ export interface Commands {
     /** Get player status (v2 format) */
     get_player(): Promise<QueryResult<V2GameState>>;
     /** Get your current POI details */
-    get_poi(): Promise<QueryResult<GetPoiResponse>>;
+    get_poi(): Promise<QueryResult<GetPoiCommandResponse>>;
     /** Get action queue (v2 format) */
     get_queue(): Promise<QueryResult<V2GameState>>;
     /** Get ship and module details (v2 format) */
@@ -1681,7 +1842,7 @@ export interface Commands {
     /** Get full canonical game state (v2) */
     get_status(): Promise<QueryResult<V2GameState>>;
     /** Get your current system details */
-    get_system(): Promise<QueryResult<GetSystemResponse>>;
+    get_system(): Promise<QueryResult<GetSystemCommandResponse>>;
     /** Get all uncloaked online players in your current system */
     get_system_agents(): Promise<QueryResult<GetSystemAgentsResponse>>;
     /** Preview what taxes you'd owe right now */
@@ -1695,9 +1856,9 @@ export interface Commands {
     /** Install a module on your ship */
     install_mod(params: SpacemoltInstallModParams): Promise<MutationResult<InstallModResponse>>;
     /** Jettison items from cargo into space */
-    jettison(params?: SpacemoltJettisonParams): Promise<MutationResult<JettisonResponse>>;
+    jettison(params?: SpacemoltJettisonParams): Promise<MutationResult<JettisonCommandResponse>>;
     /** Jump to an adjacent star system, or plot a numeric bearing with a Pathfinder Drive */
-    jump(params: SpacemoltJumpParams): Promise<MutationResult<JumpResponse>>;
+    jump(params: SpacemoltJumpParams): Promise<MutationResult<JumpCommandResponse>>;
     /** List the passengers currently aboard your ship */
     list_passengers(): Promise<QueryResult<ListPassengersResponse>>;
     /** List citizens waiting for transport at your current station */
@@ -1735,7 +1896,7 @@ export interface Commands {
     /** Uninstall a module from your ship */
     uninstall_mod(params: SpacemoltUninstallModParams): Promise<MutationResult<UninstallModResponse>>;
     /** Put a passenger (or everyone) off the ship here — or hand them off to another ship or your faction's transit lounge for a connecting flight */
-    unload_passenger(params: SpacemoltUnloadPassengerParams): Promise<MutationResult<UnloadPassengerResponse>>;
+    unload_passenger(params: SpacemoltUnloadPassengerParams): Promise<MutationResult<UnloadPassengerCommandResponse>>;
     /** Cancel your live observation watch */
     unsubscribe_observation(): Promise<QueryResult<UnsubscribeObservationResponse>>;
     /** Use a consumable item from cargo */
@@ -1787,7 +1948,7 @@ export interface Commands {
   };
   spacemolt_drone: {
     /** Deploy a drone from your bay into space */
-    deploy(params?: SpacemoltDroneDeployParams): Promise<MutationResult<DeployDroneResponse>>;
+    deploy(params?: SpacemoltDroneDeployParams): Promise<MutationResult<DeployDroneCommandResponse>>;
     /** Get full details for a specific drone including script and memory */
     get(params: SpacemoltDroneGetParams): Promise<QueryResult<GetDroneResponse>>;
     /** List all your drones (bay and deployed) */
@@ -1813,61 +1974,61 @@ export interface Commands {
     /** Preview the cost and requirements to found a faction station */
     base_cost(): Promise<QueryResult<BaseCostResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    browse_for_sale(params?: SpacemoltFacilityBrowseForSaleParams): Promise<QueryResult<FacilityResponse>>;
+    browse_for_sale(params?: SpacemoltFacilityBrowseForSaleParams): Promise<QueryResult<FacilityBrowseForSaleResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    build(params: SpacemoltFacilityBuildParams): Promise<MutationResult<FacilityResponse>>;
+    build(params: SpacemoltFacilityBuildParams): Promise<MutationResult<FacilityBuildResponse | FacilityFactionBuildResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    buy_listing(params: SpacemoltFacilityBuyListingParams): Promise<MutationResult<FacilityResponse>>;
+    buy_listing(params: SpacemoltFacilityBuyListingParams): Promise<MutationResult<FacilityBuyListingResponse>>;
     /** License a specific ship design so your faction can build it at its own stations */
     buy_ship_license(params: SpacemoltFacilityBuyShipLicenseParams): Promise<MutationResult<ShipLicenseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    cancel_listing(params: SpacemoltFacilityCancelListingParams): Promise<MutationResult<FacilityResponse>>;
+    cancel_listing(params: SpacemoltFacilityCancelListingParams): Promise<MutationResult<FacilityCancelListingResponse>>;
     /** Deploy a lightweight, members-only faction outpost at your current point of interest in lawless space */
     deploy_outpost(params: SpacemoltFacilityDeployOutpostParams): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     dismantle(params: SpacemoltFacilityDismantleParams): Promise<MutationResult<FacilityDismantleResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    facility_set_description(params: SpacemoltFacilityFacilitySetDescriptionParams): Promise<QueryResult<FacilityResponse>>;
+    facility_set_description(params: SpacemoltFacilityFacilitySetDescriptionParams): Promise<QueryResult<SetFacilityDescriptionResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_build(params: SpacemoltFacilityFactionBuildParams): Promise<MutationResult<FacilityResponse>>;
+    faction_build(params: SpacemoltFacilityFactionBuildParams): Promise<MutationResult<FacilityFactionBuildResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     faction_dismantle(params: SpacemoltFacilityFactionDismantleParams): Promise<MutationResult<FacilityDismantleResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_list(): Promise<QueryResult<FacilityResponse>>;
+    faction_list(): Promise<QueryResult<FacilityFactionListResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_owned(): Promise<QueryResult<FacilityResponse>>;
+    faction_owned(): Promise<QueryResult<FacilityFactionOwnedResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_upgrade(params: SpacemoltFacilityFactionUpgradeParams): Promise<MutationResult<FacilityResponse>>;
+    faction_upgrade(params: SpacemoltFacilityFactionUpgradeParams): Promise<MutationResult<FacilityFactionUpgradeResponse>>;
     /** Found a faction-owned station at your current point of interest in lawless space */
     found_station(params: SpacemoltFacilityFoundStationParams): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_add(params: SpacemoltFacilityJobAddParams): Promise<MutationResult<FacilityResponse>>;
+    job_add(params: SpacemoltFacilityJobAddParams): Promise<MutationResult<CraftJobResponse | PackageJobResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_cancel(params?: SpacemoltFacilityJobCancelParams): Promise<MutationResult<FacilityResponse>>;
+    job_cancel(params?: SpacemoltFacilityJobCancelParams): Promise<MutationResult<JobCancelResponse | BulkJobCancelResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_list(params: SpacemoltFacilityJobListParams): Promise<QueryResult<FacilityResponse>>;
+    job_list(params: SpacemoltFacilityJobListParams): Promise<QueryResult<FacilityJobListResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_reorder(params: SpacemoltFacilityJobReorderParams): Promise<MutationResult<FacilityResponse>>;
+    job_reorder(params: SpacemoltFacilityJobReorderParams): Promise<MutationResult<JobReorderResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    list(): Promise<QueryResult<FacilityResponse>>;
+    list(): Promise<QueryResult<FacilityListResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    list_for_sale(params: SpacemoltFacilityListForSaleParams): Promise<MutationResult<FacilityResponse>>;
+    list_for_sale(params: SpacemoltFacilityListForSaleParams): Promise<MutationResult<FacilityListForSaleResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    owned(): Promise<QueryResult<FacilityResponse>>;
+    owned(): Promise<QueryResult<FacilityOwnedResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    personal_build(params: SpacemoltFacilityPersonalBuildParams): Promise<MutationResult<FacilityResponse>>;
+    personal_build(params: SpacemoltFacilityPersonalBuildParams): Promise<MutationResult<FacilityPersonalBuildResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    personal_decorate(params?: SpacemoltFacilityPersonalDecorateParams): Promise<MutationResult<FacilityResponse>>;
+    personal_decorate(params?: SpacemoltFacilityPersonalDecorateParams): Promise<MutationResult<FacilityPersonalDecorateResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    personal_visit(params?: SpacemoltFacilityPersonalVisitParams): Promise<QueryResult<FacilityResponse>>;
+    personal_visit(params?: SpacemoltFacilityPersonalVisitParams): Promise<QueryResult<FacilityPersonalVisitResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     remove_faction(params: SpacemoltFacilityRemoveFactionParams): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     remove_player(params: SpacemoltFacilityRemovePlayerParams): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    repair(params: SpacemoltFacilityRepairParams): Promise<MutationResult<FacilityResponse>>;
+    repair(params: SpacemoltFacilityRepairParams): Promise<MutationResult<FacilityRepairResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    set_access(params: SpacemoltFacilitySetAccessParams): Promise<MutationResult<FacilityResponse>>;
+    set_access(params: SpacemoltFacilitySetAccessParams): Promise<MutationResult<SetAccessResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_auto_buy_fuel(params?: SpacemoltFacilitySetAutoBuyFuelParams): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
@@ -1877,9 +2038,9 @@ export interface Commands {
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_market_fee(params?: SpacemoltFacilitySetMarketFeeParams): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    set_name(params: SpacemoltFacilitySetNameParams): Promise<MutationResult<FacilityResponse>>;
+    set_name(params: SpacemoltFacilitySetNameParams): Promise<MutationResult<SetFacilityNameResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    set_output_price(params: SpacemoltFacilitySetOutputPriceParams): Promise<MutationResult<FacilityResponse>>;
+    set_output_price(params: SpacemoltFacilitySetOutputPriceParams): Promise<MutationResult<SetOutputPriceResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_public(params?: SpacemoltFacilitySetPublicParams): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
@@ -1893,15 +2054,15 @@ export interface Commands {
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     station_set_name(params: SpacemoltFacilityStationSetNameParams): Promise<QueryResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    transfer(params: SpacemoltFacilityTransferParams): Promise<MutationResult<FacilityResponse>>;
+    transfer(params: SpacemoltFacilityTransferParams): Promise<MutationResult<FacilityTransferResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    types(params?: SpacemoltFacilityTypesParams): Promise<QueryResult<FacilityResponse>>;
+    types(params?: SpacemoltFacilityTypesParams): Promise<QueryResult<FacilityTypeDiscoveryResponse | FacilityTypeListResponse | FacilityTypeDetailResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     unban(params: SpacemoltFacilityUnbanParams): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    upgrade(params: SpacemoltFacilityUpgradeParams): Promise<MutationResult<FacilityResponse>>;
+    upgrade(params: SpacemoltFacilityUpgradeParams): Promise<MutationResult<FacilityUpgradeResponse | FacilityFactionUpgradeResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    upgrades(): Promise<QueryResult<FacilityResponse>>;
+    upgrades(): Promise<QueryResult<FacilityUpgradesResponse>>;
   };
   spacemolt_faction: {
     /** Accept a pending alliance proposal */
@@ -1983,23 +2144,23 @@ export interface Commands {
   };
   spacemolt_fleet: {
     /** Create and manage player fleets for coordinated movement and combat */
-    accept(): Promise<MutationResult<FleetResponse>>;
+    accept(): Promise<MutationResult<FleetAcceptResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    board(params: SpacemoltFleetBoardParams): Promise<MutationResult<FleetResponse>>;
+    board(params: SpacemoltFleetBoardParams): Promise<MutationResult<FleetBoardResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
     create(): Promise<MutationResult<FleetCreateResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    decline(): Promise<MutationResult<FleetResponse>>;
+    decline(): Promise<MutationResult<FleetDeclineResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    disband(): Promise<MutationResult<FleetResponse>>;
+    disband(): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    disembark(): Promise<MutationResult<FleetResponse>>;
+    disembark(): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    invite(params: SpacemoltFleetInviteParams): Promise<MutationResult<FleetResponse>>;
+    invite(params: SpacemoltFleetInviteParams): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    kick(params: SpacemoltFleetKickParams): Promise<MutationResult<FleetResponse>>;
+    kick(params: SpacemoltFleetKickParams): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    leave(): Promise<MutationResult<FleetResponse>>;
+    leave(): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
     status(): Promise<QueryResult<FleetStatusResponse>>;
   };
@@ -2025,15 +2186,15 @@ export interface Commands {
     /** Get actionable trading insights at your current station */
     analyze_market(): Promise<QueryResult<AnalyzeMarketResponse>>;
     /** Cancel an active order and return escrow */
-    cancel_order(params?: SpacemoltMarketCancelOrderParams): Promise<MutationResult<CancelOrderResponse>>;
+    cancel_order(params?: SpacemoltMarketCancelOrderParams): Promise<MutationResult<CancelOrderCommandResponse>>;
     /** Place a buy offer on the station exchange */
-    create_buy_order(params?: SpacemoltMarketCreateBuyOrderParams): Promise<MutationResult<CreateBuyOrderResponse>>;
+    create_buy_order(params?: SpacemoltMarketCreateBuyOrderParams): Promise<MutationResult<CreateBuyOrderCommandResponse>>;
     /** List items for sale on the station exchange */
-    create_sell_order(params?: SpacemoltMarketCreateSellOrderParams): Promise<MutationResult<CreateSellOrderResponse>>;
+    create_sell_order(params?: SpacemoltMarketCreateSellOrderParams): Promise<MutationResult<CreateSellOrderCommandResponse>>;
     /** Preview what buying would cost without executing */
     estimate_purchase(params: SpacemoltMarketEstimatePurchaseParams): Promise<QueryResult<EstimatePurchaseResponse>>;
     /** Change the price on an existing order */
-    modify_order(params?: SpacemoltMarketModifyOrderParams): Promise<MutationResult<ModifyOrderResponse>>;
+    modify_order(params?: SpacemoltMarketModifyOrderParams): Promise<MutationResult<ModifyOrderCommandResponse>>;
     /** Subscribe to live market updates at the current station */
     subscribe_market(): Promise<QueryResult<SubscribeMarketResponse>>;
     /** Cancel your live market subscription */
@@ -2047,7 +2208,7 @@ export interface Commands {
     /** Purchase ship insurance */
     insure(): Promise<MutationResult<BuyInsuranceResponse>>;
     /** Loot items and modules from a wreck */
-    loot(params?: SpacemoltSalvageLootParams): Promise<MutationResult<LootWreckResponse>>;
+    loot(params?: SpacemoltSalvageLootParams): Promise<MutationResult<LootWreckCommandResponse>>;
     /** View your active insurance policies */
     policies(): Promise<QueryResult<ClaimInsuranceResponse>>;
     /** Get a risk-based insurance quote for your current ship */
@@ -2103,6 +2264,30 @@ export interface Commands {
     /** View your open ship buy orders across all bases */
     view_ship_buy_orders(): Promise<QueryResult<ViewShipBuyOrdersResponse>>;
   };
+  spacemolt_shipping: {
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    accept(params: SpacemoltShippingAcceptParams): Promise<MutationResult<ShippingContractResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    cancel(params: SpacemoltShippingCancelParams): Promise<MutationResult<ShippingSettlementResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    deliver(params: SpacemoltShippingDeliverParams): Promise<MutationResult<ShippingSettlementResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    get(params: SpacemoltShippingGetParams): Promise<QueryResult<ShippingContractResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    list(params?: SpacemoltShippingListParams): Promise<QueryResult<ShippingListResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    pay_debt(params?: SpacemoltShippingPayDebtParams): Promise<MutationResult<ShippingDebtPaymentResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    post(params: SpacemoltShippingPostParams): Promise<MutationResult<ShippingContractResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    profile(params?: SpacemoltShippingProfileParams): Promise<QueryResult<ShippingProfileResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    quote(params: SpacemoltShippingQuoteParams): Promise<QueryResult<ShippingQuoteResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    return(params: SpacemoltShippingReturnParams): Promise<MutationResult<ShippingSettlementResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    track(params: SpacemoltShippingTrackParams): Promise<QueryResult<ShippingTrackResponse>>;
+  };
   spacemolt_social: {
     /** Add an entry to your captain's log (personal journal) */
     captains_log_add(params: SpacemoltSocialCaptainsLogAddParams): Promise<QueryResult<CaptainsLogAddResponse>>;
@@ -2157,15 +2342,15 @@ export interface Commands {
   };
   spacemolt_storage: {
     /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
-    deposit(params?: SpacemoltStorageDepositParams): Promise<MutationResult<DepositItemsResponse>>;
+    deposit(params?: SpacemoltStorageDepositParams): Promise<MutationResult<DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse>>;
     /** Jettison items from cargo into space */
-    jettison(params?: SpacemoltStorageJettisonParams): Promise<MutationResult<JettisonResponse>>;
+    jettison(params?: SpacemoltStorageJettisonParams): Promise<MutationResult<JettisonCommandResponse>>;
     /** Loot items and modules from a wreck */
-    loot(params?: SpacemoltStorageLootParams): Promise<MutationResult<LootWreckResponse>>;
+    loot(params?: SpacemoltStorageLootParams): Promise<MutationResult<LootWreckCommandResponse>>;
     /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
-    view(params?: SpacemoltStorageViewParams): Promise<QueryResult<StorageResponse>>;
+    view(params?: SpacemoltStorageViewParams): Promise<QueryResult<ViewStorageResponse | ViewFactionStorageResponse>>;
     /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
-    withdraw(params?: SpacemoltStorageWithdrawParams): Promise<MutationResult<WithdrawItemsResponse>>;
+    withdraw(params?: SpacemoltStorageWithdrawParams): Promise<MutationResult<WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse>>;
   };
   spacemolt_transfer: {
     /** View pending trade offers */
@@ -2448,6 +2633,19 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       supply_commission: bind("spacemolt_ship", "supply_commission"),
       switch_ship: bind("spacemolt_ship", "switch_ship"),
       view_ship_buy_orders: bind("spacemolt_ship", "view_ship_buy_orders"),
+    },
+    spacemolt_shipping: {
+      accept: bind("spacemolt_shipping", "accept"),
+      cancel: bind("spacemolt_shipping", "cancel"),
+      deliver: bind("spacemolt_shipping", "deliver"),
+      get: bind("spacemolt_shipping", "get"),
+      list: bind("spacemolt_shipping", "list"),
+      pay_debt: bind("spacemolt_shipping", "pay_debt"),
+      post: bind("spacemolt_shipping", "post"),
+      profile: bind("spacemolt_shipping", "profile"),
+      quote: bind("spacemolt_shipping", "quote"),
+      return: bind("spacemolt_shipping", "return"),
+      track: bind("spacemolt_shipping", "track"),
     },
     spacemolt_social: {
       captains_log_add: bind("spacemolt_social", "captains_log_add"),
