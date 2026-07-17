@@ -62,7 +62,7 @@ test('commands facade dispatches a mutation and forwards typed params', async ()
           tick: 9,
           result: {
             location: { system_id: 'sol' },
-            details: { action: 'jump', from_system: 'alpha', system: 'Sol', system_id: 'sol', navigation_xp: 5 },
+            details: { action: 'jumped', from_system: 'alpha', system: 'Sol', system_id: 'sol', navigation_xp: 5 },
           },
         },
       });
@@ -77,7 +77,9 @@ test('commands facade dispatches a mutation and forwards typed params', async ()
   // jump variant) only typechecks because MutationResult<JumpResponse>
   // actually flows through account.commands.spacemolt.jump()'s return type.
   const details = res.delta.details;
-  expect(details?.action).toBe('jump');
+  // 'jumped' is the literal the server actually emits (JumpResponse.Action);
+  // the old fixture said 'jump', which the pre-enum `string` type let slip.
+  expect(details?.action).toBe('jumped');
   if (details && 'system_id' in details) {
     expect(details.system_id).toBe('sol');
     expect(details.navigation_xp).toBe(5);

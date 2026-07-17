@@ -36,12 +36,15 @@ interface OpenAPIProperty {
   items?: OpenAPIProperty;
   properties?: Record<string, OpenAPIProperty>;
   required?: string[];
+  oneOf?: OpenAPIProperty[];
+  anyOf?: OpenAPIProperty[];
   'x-positional-index'?: number;
 }
 
 interface OpenAPISchemaRef {
   $ref?: string;
   allOf?: OpenAPISchemaRef[];
+  oneOf?: OpenAPISchemaRef[];
   properties?: Record<string, OpenAPISchemaRef>;
 }
 
@@ -108,6 +111,13 @@ function refBasename(ref: string): string {
 
 function tsType(p: OpenAPIProperty): string {
   if (p.enum?.length) return p.enum.map((v) => JSON.stringify(v)).join(' | ');
+  // Union schemas: map each branch and join. Without this, a oneOf/anyOf
+  // request property silently fell through to the `string` default.
+  const branches = p.oneOf ?? p.anyOf;
+  if (branches?.length) {
+    const parts = [...new Set(branches.map((b) => tsType(b)))];
+    return parts.join(' | ');
+  }
   switch (p.type) {
     case 'integer':
     case 'number':
@@ -170,14 +180,32 @@ function exportedTypeNames(): Map<string, string> {
  * `structuredContent` is shaped differently (the full state delta, not a
  * single ref) — see `extractMutationDetailsType` for that case.
  */
+
+/**
+ * Resolve a response schema node to a TS type expression: a single $ref maps
+ * to its exported name; a oneOf whose branches are all $refs maps to a union
+ * of the exported names (the spec forbids anonymous union branches). Returns
+ * undefined when any branch can't be resolved.
+ */
+function refNodeType(node: OpenAPISchemaRef | undefined): string | undefined {
+  if (!node) return undefined;
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (node.$ref) return exportedTypeNames().get(norm(refBasename(node.$ref)));
+  if (node.oneOf?.length) {
+    const names = node.oneOf.map((b) => (b.$ref ? exportedTypeNames().get(norm(refBasename(b.$ref))) : undefined));
+    if (names.some((n) => !n)) return undefined;
+    return [...new Set(names as string[])].join(' | ');
+  }
+  return undefined;
+}
+
 function extractResponseType(op: OpenAPIOperation): string | undefined {
   const schema = op.responses?.['200']?.content?.['application/json']?.schema;
   if (!schema) return undefined;
   const parts = schema.allOf ?? [schema];
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   for (const part of parts) {
-    const ref = part.properties?.structuredContent?.$ref;
-    if (ref) return exportedTypeNames().get(norm(refBasename(ref)));
+    const t = refNodeType(part.properties?.structuredContent);
+    if (t) return t;
   }
   return undefined;
 }
@@ -196,13 +224,12 @@ function extractResponseType(op: OpenAPIOperation): string | undefined {
 function extractMutationDetailsType(op: OpenAPIOperation): string | undefined {
   const schema = op.responses?.['200']?.content?.['application/json']?.schema;
   if (!schema) return undefined;
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   for (const part of schema.allOf ?? [schema]) {
     const sc = part.properties?.structuredContent;
     if (!sc) continue;
     for (const scPart of sc.allOf ?? [sc]) {
-      const ref = scPart.properties?.details?.$ref;
-      if (ref) return exportedTypeNames().get(norm(refBasename(ref)));
+      const t = refNodeType(scPart.properties?.details);
+      if (t) return t;
     }
   }
   return undefined;
@@ -359,9 +386,14 @@ function emitCommands(actions: ActionDef[]): string {
   // Import the generated response types so query commands return them directly,
   // and mutation commands return their delta.details typed too (not just the
   // generic StateDelta shape every mutation would otherwise share).
+  // A response/details type may be a union expression ("A | B") for actions
+  // with genuinely polymorphic responses — import each member name.
   const responseTypes = [
     ...new Set(
-      actions.map((a) => (a.kind === 'query' ? a.responseType : a.detailsType)).filter((t): t is string => !!t),
+      actions
+        .map((a) => (a.kind === 'query' ? a.responseType : a.detailsType))
+        .filter((t): t is string => !!t)
+        .flatMap((t) => t.split(' | ')),
     ),
   ].sort();
   if (responseTypes.length) {

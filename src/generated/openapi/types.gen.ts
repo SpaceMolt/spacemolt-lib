@@ -16,36 +16,195 @@ export type AcceptMissionResponse = {
     type: string;
 };
 
+export type AchievementEntry = {
+    category: string;
+    description: string;
+    earned: boolean;
+    earned_at?: string;
+    hidden: boolean;
+    id: string;
+    name: string;
+    points: number;
+    progress?: AchievementProgressInfo;
+    share_url?: string;
+};
+
+export type AchievementProgressInfo = {
+    current: number;
+    target: number;
+};
+
+export type AchievementSummary = {
+    earned: number;
+    points: number;
+    total: number;
+};
+
+export type ActionLogData = {
+    [key: string]: string | number | number | boolean;
+};
+
+export type ActionLogEntry = {
+    category: string;
+    created_at: string;
+    data?: ActionLogData;
+    event_type: string;
+    id: number;
+    summary: string;
+};
+
+export type ActiveBattleInfo = {
+    battle_id: string;
+    participants: Array<ActiveBattleParticipantInfo>;
+    sides: Array<BattleSideInfo>;
+};
+
+export type ActiveBattleParticipantInfo = {
+    faction_id?: string;
+    is_npc?: boolean;
+    kind?: string;
+    player_id: string;
+    ship_class?: string;
+    side_id: number;
+    username: string;
+};
+
+export type ActiveBuff = {
+    amount: number;
+    expires_at: number;
+    item_id: string;
+    stat: string;
+    ticks_left: number;
+};
+
+export type Alternate = {
+    efficiency: string;
+    name: string;
+    recipe_id: string;
+};
+
+export type AmmoStats = {
+    anti_drone_mod?: number;
+    anti_large_mod?: number;
+    anti_small_mod?: number;
+    armor_bypass?: number;
+    armor_melt_pct?: number;
+    armor_melt_ticks?: number;
+    damage_mod?: number;
+    disrupt_bonus_speed?: number;
+    disrupt_bonus_ticks?: number;
+    disrupt_damage?: number;
+    disrupt_speed?: number;
+    disrupt_ticks?: number;
+    dot_pct?: number;
+    dot_ticks?: number;
+    hit_chance_mod?: number;
+    hull_damage_mod?: number;
+    shield_bypass?: number;
+    shield_damage_mod?: number;
+    splash_pct?: number;
+    untraceable?: boolean;
+    wear_per_shot?: number;
+};
+
+export type AnalysisInput = {
+    item_id: string;
+    name: string;
+    quantity: number;
+};
+
+export type AnalysisMaterial = {
+    category: string;
+    item_id: string;
+    name: string;
+    quantity: number;
+};
+
+export type AnalysisStep = {
+    batches: number;
+    inputs: Array<AnalysisInput>;
+    name: string;
+    output: string;
+    output_qty: number;
+    recipe_id: string;
+};
+
 export type AnalyzeMarketResponse = {
-    insights: Array<{
-        category: string;
-        item: string;
-        item_id: string;
-        message: string;
-        priority: number;
-    }>;
+    insights: Array<MarketInsight>;
     message: string;
     skill_level: number;
     station: string;
 };
 
-export type AttackResponse = {
-    action: string;
+export type AttackLogEntry = {
+    after_def_buff?: number;
+    after_stance?: number;
+    attacker_id: string;
+    capital_bonus_pct?: number;
+    damage_type: string;
+    def_buff_pct?: number;
+    disrupted?: boolean;
+    final_damage: number;
+    flat_reduction_pct?: number;
+    hit_chance: number;
+    hit_roll: number;
+    hit_success: boolean;
+    hull_damage: number;
+    off_buff_pct?: number;
+    pre_hit_damage: number;
+    raw_damage: number;
+    shield_damage: number;
+    shield_resist_pct?: number;
+    splash?: boolean;
+    stance_mult?: number;
+    target_id: string;
+    type_resist_pct?: number;
+    weapon_skill_pct: number;
+    weapons: Array<WeaponFireDetail>;
+    zone_distance: number;
+};
+
+export type AttackNpcResponse = {
+    action: 'attack';
     auto_docked?: boolean;
     auto_undocked?: boolean;
+    kind: 'npc';
     target: string;
     target_name: string;
     target_type: string;
-} | {
-    action: string;
+};
+
+export type AttackPlayerResponse = {
+    action: 'attack';
     auto_docked?: boolean;
     auto_undocked?: boolean;
     battle_id: string;
+    kind: 'player';
     message: string;
     system: string;
     target: string;
     your_side: number;
     your_zone: string;
+};
+
+export type AttackResponse = ({
+    kind: 'npc';
+} & AttackNpcResponse) | ({
+    kind: 'player';
+} & AttackPlayerResponse);
+
+export type AutoListedOrder = {
+    escrow?: number;
+    listing_fee?: number;
+    order_id: string;
+    price_each: number;
+    quantity: number;
+};
+
+export type AutoPilotLogEntry = {
+    chosen_target?: string;
+    player_id: string;
+    reason: string;
 };
 
 /**
@@ -139,33 +298,178 @@ export type BaseCostResponse = {
     station_core_item: string;
 };
 
+export type BattleCombatState = {
+    /**
+     * Whether you can flee at all. False only when warp disruption is holding you in place.
+     */
+    can_escape: boolean;
+    /**
+     * Remaining ticks of EM disruption (present only while em_disrupted).
+     */
+    disruption_ticks?: number;
+    /**
+     * Your ship speed after disruption penalties. Higher than your pursuers means you can disengage; lower means you are pinned.
+     */
+    effective_speed: number;
+    /**
+     * An EM-damage disruption debuff is active on you (reduces speed and damage output for a few ticks).
+     */
+    em_disrupted: boolean;
+    /**
+     * Consecutive flee ticks accumulated. Counts only while in the flee stance at the outer ring; resets if you stop fleeing.
+     */
+    flee_counter: number;
+    /**
+     * Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted when warp-disrupted because escape is impossible until the tackle is removed.
+     */
+    flee_required?: number;
+    /**
+     * Largest zone distance any of your fitted weapons can fire across. An enemy whose zone_distance exceeds this is out of your range.
+     */
+    max_weapon_reach: number;
+    /**
+     * Current speed reduction from EM disruption as a percentage (present only while em_disrupted).
+     */
+    speed_penalty_pct?: number;
+    /**
+     * An enemy warp disruptor/scrambler is blocking your escape (net of your own warp core stabilizers). Kill the tackler or out-stabilize it to break free.
+     */
+    warp_disrupted: boolean;
+    /**
+     * An enemy stasis webifier is reducing your effective speed (slower escape and easier for enemies to hit you).
+     */
+    webbed: boolean;
+};
+
+export type BattleCommandResponse = ({
+    action: 'advance' | 'engage' | 'retreat' | 'stance' | 'target';
+} & BattleResponse) | ({
+    action: 'help';
+} & CommandHelpResponse);
+
+export type BattleEndLogEntry = {
+    category: string;
+    duration: number;
+    outcome: string;
+    participant_names?: Array<string>;
+    participants: Array<ParticipantSummary>;
+    ships_destroyed: number;
+    total_damage: number;
+    winning_side: number;
+};
+
+export type BattleEndedParticipantInfo = {
+    damage_dealt: number;
+    damage_taken: number;
+    kill_count: number;
+    player_id: string;
+    side_id: number;
+    survived: boolean;
+    username: string;
+};
+
+export type BattleLogEntry = {
+    attacks?: Array<AttackLogEntry>;
+    autopilot?: Array<AutoPilotLogEntry>;
+    battle_ended?: BattleEndLogEntry;
+    battle_id: string;
+    burns?: Array<BurnLogEntry>;
+    commands?: Array<CommandLogEntry>;
+    flee?: Array<FleeLogEntry>;
+    fuel?: Array<FuelLogEntry>;
+    joins?: Array<JoinLogEntry>;
+    kills?: Array<KillLogEntry>;
+    regen?: Array<RegenLogEntry>;
+    snapshots: Array<ParticipantSnapshot>;
+    system_id: string;
+    tick: number;
+    zone_moves?: Array<ZoneMoveLogEntry>;
+};
+
+export type BattleParticipant = {
+    auto_pilot: boolean;
+    /**
+     * Total damage dealt by you so far this battle (self only)
+     */
+    damage_dealt?: number;
+    /**
+     * Total damage taken by you so far this battle (self only)
+     */
+    damage_taken?: number;
+    /**
+     * Hull integrity as a percentage of max (0-100)
+     */
+    hull_pct?: number;
+    /**
+     * Ships you have destroyed this battle (self only)
+     */
+    kill_count?: number;
+    player_id: string;
+    /**
+     * Shield strength as a percentage of max (0-100)
+     */
+    shield_pct?: number;
+    ship_class?: string;
+    ship_name?: string;
+    side_id: number;
+    /**
+     * Combat stance this tick (self only): fire/evade/brace/flee
+     */
+    stance?: string;
+    /**
+     * Player ID this ship is focusing fire on (self only; empty = auto-target)
+     */
+    target_id?: string;
+    username: string;
+    /**
+     * Distance ring this ship occupies: outer/mid/inner/engaged
+     */
+    zone?: string;
+    /**
+     * Zone separation from the requesting player (0 = same ring; higher = farther). Compare against your combat_state.max_weapon_reach to see if you can fire. Omitted when the requester is not a participant.
+     */
+    zone_distance?: number;
+};
+
+export type BattleParticipantInfo = {
+    hull_pct?: number;
+    player_id: string;
+    shield_pct?: number;
+    ship_class?: string;
+    ship_name?: string;
+    side_id: number;
+    stance?: string;
+    username: string;
+    zone: string;
+};
+
 export type BattleResponse = {
-    action: string;
+    action: 'advance' | 'retreat' | 'stance' | 'target' | 'engage';
     battle_id?: string;
     message: string;
     stance?: string;
     target_id?: string;
-} | {
-    actions: Array<{
-        action: string;
-        description: string;
-        example?: {
-            [key: string]: string;
-        };
-        examples?: Array<{
-            [key: string]: string;
-        }>;
-        params?: Array<string>;
-    }>;
-    command: string;
-    description: string;
-    notes?: Array<string>;
-    sources?: {
-        [key: string]: string;
-    };
-    targets?: {
-        [key: string]: string;
-    };
+};
+
+export type BattleSide = {
+    faction_id?: string;
+    faction_name?: string;
+    faction_tag?: string;
+    player_count: number;
+    side_id: number;
+};
+
+export type BattleSideInfo = {
+    faction_id?: string;
+    player_count: number;
+    side_id: number;
+};
+
+export type BattleSideSummary = {
+    faction_id?: string;
+    faction_tag?: string;
+    participants: Array<string>;
+    side_id: number;
 };
 
 export type BattleSummaryResponse = {
@@ -179,57 +483,27 @@ export type BattleSummaryResponse = {
     participant_count: number;
     player_names?: Array<string>;
     ships_destroyed: number;
-    sides: Array<{
-        faction_id?: string;
-        faction_tag?: string;
-        participants: Array<string>;
-        side_id: number;
-    }>;
+    sides: Array<BattleSideSummary>;
     start_tick: number;
     status: string;
     system_id: string;
     system_name: string;
-    top_damage?: {
-        damage: number;
-        username: string;
-    };
+    top_damage?: BattleTopDamage;
     total_damage: number;
     winning_side: number;
+};
+
+export type BattleTopDamage = {
+    damage: number;
+    username: string;
 };
 
 export type BrowseShipsResponse = {
     base_id: string;
     base_name: string;
-    buy_orders?: Array<{
-        base_id?: string;
-        base_name?: string;
-        being_built?: boolean;
-        buyer?: string;
-        class_id: string;
-        class_name?: string;
-        created_at?: string;
-        order_id: string;
-        price: number;
-        tax_escrow?: number;
-    }>;
+    buy_orders?: Array<ShipBuyOrderInfo>;
     count: number;
-    listings: Array<{
-        category?: string;
-        class_id: string;
-        custom_name?: string;
-        hull?: number;
-        listed_at: string;
-        listing_id: string;
-        max_hull?: number;
-        modules_count?: number;
-        price: number;
-        scale?: number;
-        seller?: string;
-        shield?: number;
-        ship_id: string;
-        ship_name?: string;
-        tier?: number;
-    }>;
+    listings: Array<ShipListing>;
 };
 
 export type BuildBaseResponse = {
@@ -242,14 +516,196 @@ export type BuildBaseResponse = {
     system_id: string;
 };
 
+export type BulkBuyOrderResult = {
+    consolidated?: boolean;
+    error?: string;
+    error_code?: string;
+    escrow_refunded?: number;
+    fills?: Array<Fill>;
+    index: number;
+    item?: string;
+    item_id?: string;
+    listing_fee?: number;
+    message?: string;
+    order_id?: string;
+    price_each?: number;
+    quantity?: number;
+    quantity_filled?: number;
+    quantity_listed?: number;
+    quantity_not_listed?: number;
+    remaining_escrowed?: number;
+    self_clear_returned?: number;
+    self_cleared?: number;
+    success: boolean;
+    total_escrowed?: number;
+    total_spent?: number;
+};
+
+export type BulkCancelOrderResult = {
+    delivered_to?: string;
+    error?: string;
+    error_code?: string;
+    index: number;
+    message?: string;
+    order_id?: string;
+    returned_credits?: number;
+    returned_items?: BulkCancelReturns;
+    success: boolean;
+};
+
+export type BulkCancelOrdersResponse = {
+    action: 'cancel_order';
+    kind: 'bulk';
+    mode: 'bulk';
+    results: Array<BulkCancelOrderResult>;
+    summary: BulkSummary;
+};
+
+export type BulkCancelReturns = {
+    item_id: string;
+    item_name: string;
+    quantity: number;
+};
+
+export type BulkCraftResponse = {
+    action: 'craft' | 'recycle';
+    kind: 'bulk_craft';
+    mode: 'bulk';
+    results: Array<BulkCraftResult>;
+    summary: BulkSummary;
+};
+
+export type BulkCraftResult = {
+    error?: string;
+    error_code?: string;
+    escrowed?: EscrowSummary;
+    external?: boolean;
+    index: number;
+    job_id?: string;
+    label?: string;
+    message?: string;
+    package_id?: string;
+    recipe?: string;
+    runs?: number;
+    success: boolean;
+    venue?: string;
+};
+
+export type BulkCreateBuyOrdersResponse = {
+    action: 'create_buy_order';
+    kind: 'bulk';
+    mode: 'bulk';
+    results: Array<BulkBuyOrderResult>;
+    summary: BulkSummary;
+};
+
+export type BulkCreateSellOrdersResponse = {
+    action: 'create_sell_order';
+    kind: 'bulk';
+    mode: 'bulk';
+    results: Array<BulkSellOrderResult>;
+    summary: BulkSummary;
+};
+
+export type BulkJobCancelResponse = {
+    action: 'job_cancel';
+    kind: 'bulk_cancel';
+    message: string;
+    mode: 'bulk';
+    results: Array<JobCancelResult>;
+    summary: BulkSummary;
+};
+
+export type BulkModifyOrderResult = {
+    error?: string;
+    error_code?: string;
+    index: number;
+    listing_fee?: number;
+    message?: string;
+    new_price?: number;
+    old_price?: number;
+    order_id?: string;
+    success: boolean;
+};
+
+export type BulkModifyOrdersResponse = {
+    action: 'modify_order';
+    kind: 'bulk';
+    mode: 'bulk';
+    results: Array<BulkModifyOrderResult>;
+    summary: BulkSummary;
+};
+
+export type BulkSellOrderResult = {
+    consolidated?: boolean;
+    error?: string;
+    error_code?: string;
+    fills?: Array<Fill>;
+    from_cargo?: number;
+    from_storage?: number;
+    index: number;
+    item?: string;
+    item_id?: string;
+    listing_fee?: number;
+    message?: string;
+    order_id?: string;
+    price_each?: number;
+    quantity?: number;
+    quantity_filled?: number;
+    quantity_listed?: number;
+    returned_to_storage?: number;
+    self_clear_refund?: number;
+    self_cleared?: number;
+    success: boolean;
+    total_earned?: number;
+};
+
+/**
+ * The single-item storage response for this entry (deposit, withdraw, gift, or faction/empire variant).
+ */
+export type BulkStorageItemData = {
+    [key: string]: unknown;
+};
+
+export type BulkStorageItemResult = {
+    error?: string;
+    item_id: string;
+    message?: string;
+    quantity: number;
+    result?: BulkStorageItemData;
+    success: boolean;
+};
+
+export type BulkStorageResponse = {
+    action: 'bulk_deposit' | 'bulk_withdraw' | 'bulk_transfer';
+    bucket?: string;
+    bucket_id?: string;
+    dest_bucket?: string;
+    dest_bucket_id?: string;
+    failed: number;
+    requested: number;
+    results: Array<BulkStorageItemResult>;
+    succeeded: number;
+    target?: string;
+};
+
+export type BulkSummary = {
+    failed: number;
+    succeeded: number;
+    total: number;
+};
+
+export type BurnLogEntry = {
+    damage: number;
+    destroyed?: boolean;
+    target_id: string;
+    ticks_remaining: number;
+};
+
 export type BuyInsuranceResponse = {
     coverage: number;
     expires_at: string;
-    factors?: Array<{
-        detail: string;
-        multiplier: number;
-        name: string;
-    }>;
+    factors?: Array<RiskFactor>;
     message: string;
     policy_id: string;
     premium: number;
@@ -268,22 +724,10 @@ export type BuyListedShipResponse = {
 
 export type BuyResponse = {
     action: string;
-    auto_listed?: {
-        escrow?: number;
-        listing_fee?: number;
-        order_id: string;
-        price_each: number;
-        quantity: number;
-    };
+    auto_listed?: AutoListedOrder;
     delivered_to_cargo?: number;
     delivered_to_storage?: number;
-    fills: Array<{
-        counterparty?: string;
-        price_each: number;
-        quantity: number;
-        source?: string;
-        subtotal: number;
-    }>;
+    fills: Array<Fill>;
     item: string;
     item_id: string;
     level_up: boolean;
@@ -297,50 +741,26 @@ export type BuyResponse = {
 export type CancelCommissionResponse = {
     credits_total: number;
     materials_note?: string;
-    materials_returned?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-        size: number;
-    }>;
+    materials_returned?: Array<CargoItem>;
     message: string;
     refund: number;
 };
 
+export type CancelOrderCommandResponse = ({
+    kind: 'single';
+} & CancelOrderResponse) | ({
+    kind: 'bulk';
+} & BulkCancelOrdersResponse);
+
 export type CancelOrderResponse = {
-    action: string;
+    action: 'cancel_order';
     delivered_to?: string;
     faction_order?: boolean;
+    kind: 'single';
     message: string;
     order_id: string;
     returned_credits?: number;
-    returned_items?: {
-        item_id: string;
-        quantity: number;
-    };
-} | {
-    action: string;
-    mode: string;
-    results: Array<{
-        delivered_to?: string;
-        error?: string;
-        error_code?: string;
-        index: number;
-        message?: string;
-        order_id?: string;
-        returned_credits?: number;
-        returned_items?: {
-            item_id: string;
-            item_name: string;
-            quantity: number;
-        };
-        success: boolean;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
+    returned_items?: ReturnedItems;
 };
 
 export type CancelShipBuyOrderResponse = {
@@ -368,6 +788,18 @@ export type CaptainsLogDeleteResponse = {
     remaining_count: number;
 };
 
+export type CaptainsLogEntry = {
+    created_at: string;
+    entry: string;
+    index: number;
+};
+
+export type CaptainsLogEntryInfo = {
+    created_at: string;
+    entry: string;
+    index: number;
+};
+
 export type CaptainsLogGetResponse = {
     created_at: string;
     entry: string;
@@ -375,11 +807,7 @@ export type CaptainsLogGetResponse = {
 };
 
 export type CaptainsLogListResponse = {
-    entry?: {
-        created_at: string;
-        entry: string;
-        index: number;
-    };
+    entry?: CaptainsLogEntryInfo;
     has_next: boolean;
     has_prev: boolean;
     index: number;
@@ -403,42 +831,28 @@ export type CargoItem = {
     size?: number;
 };
 
+export type CatalogAchievement = {
+    after?: string;
+    category: string;
+    credits?: number;
+    criteria: string;
+    description: string;
+    emblem?: string;
+    faction?: boolean;
+    id: string;
+    name: string;
+    points: number;
+    series?: string;
+    skill_xp?: {
+        [key: string]: number;
+    };
+    title?: string;
+};
+
 export type CatalogDump = {
-    achievements: Array<{
-        after?: string;
-        category: string;
-        credits?: number;
-        criteria: string;
-        description: string;
-        emblem?: string;
-        faction?: boolean;
-        id: string;
-        name: string;
-        points: number;
-        series?: string;
-        skill_xp?: {
-            [key: string]: number;
-        };
-        title?: string;
-    }>;
+    achievements: Array<CatalogAchievement>;
     facilities: Array<FacilityDefinition>;
-    faction_achievements: Array<{
-        after?: string;
-        category: string;
-        credits?: number;
-        criteria: string;
-        description: string;
-        emblem?: string;
-        faction?: boolean;
-        id: string;
-        name: string;
-        points: number;
-        series?: string;
-        skill_xp?: {
-            [key: string]: number;
-        };
-        title?: string;
-    }>;
+    faction_achievements: Array<CatalogAchievement>;
     hidden_achievement_count: number;
     hidden_faction_achievement_count: number;
     /**
@@ -452,357 +866,83 @@ export type CatalogDump = {
 };
 
 export type CatalogResponse = {
-    analysis?: {
-        alternates?: {
-            [key: string]: Array<{
-                efficiency: string;
-                name: string;
-                recipe_id: string;
-            }>;
-        };
-        raw_materials: Array<{
-            category: string;
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        steps: Array<{
-            batches: number;
-            inputs: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            name: string;
-            output: string;
-            output_qty: number;
-            recipe_id: string;
-        }>;
-    };
+    analysis?: RecipeAnalysis;
     estimated_material_cost?: number;
     /**
      * Catalog entries. Shape depends on the requested type: ships → ShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
      */
-    items: Array<{
-        base_value: number;
-        category: string;
-        description: string;
-        effect?: {
-            ammo?: {
-                anti_drone_mod?: number;
-                anti_large_mod?: number;
-                anti_small_mod?: number;
-                armor_bypass?: number;
-                armor_melt_pct?: number;
-                armor_melt_ticks?: number;
-                damage_mod?: number;
-                disrupt_bonus_speed?: number;
-                disrupt_bonus_ticks?: number;
-                disrupt_damage?: number;
-                disrupt_speed?: number;
-                disrupt_ticks?: number;
-                dot_pct?: number;
-                dot_ticks?: number;
-                hit_chance_mod?: number;
-                hull_damage_mod?: number;
-                shield_bypass?: number;
-                shield_damage_mod?: number;
-                splash_pct?: number;
-                untraceable?: boolean;
-                wear_per_shot?: number;
-            };
-            amount?: number;
-            duration?: number;
-            stat?: string;
-            subtype?: string;
-            type: string;
-        };
-        extracted_by?: string;
-        food_type?: string;
-        hazardous?: boolean;
-        hidden?: boolean;
-        id: string;
-        name: string;
-        quest_item?: boolean;
-        rarity?: string;
-        region_lock?: Array<string>;
-        size: number;
-        stackable: boolean;
-        tradeable: boolean;
-    } | {
-        accuracy_bonus?: number;
-        ammo_type?: string;
-        armor_bonus?: number;
-        armor_bypass_bonus?: number;
-        armor_repair_rate?: number;
-        base_value: number;
-        cargo_bonus?: number;
-        cloak_strength?: number;
-        cooldown?: number;
-        cpu_bonus?: number;
-        cpu_usage: number;
-        current_cool?: number;
-        damage?: number;
-        damage_reduction?: number;
-        damage_type?: string;
-        description: string;
-        dining_points?: number;
-        disruptor_power?: number;
-        drone_bandwidth?: number;
-        drone_capacity?: number;
-        fuel_efficiency?: number;
-        hidden?: boolean;
-        hull_bonus?: number;
-        hull_penalty?: number;
-        id: string;
-        leisure_points?: number;
-        magazine_size?: number;
-        max_fuel_bonus?: number;
-        mining_power?: number;
-        name: string;
-        passenger_business_berths?: number;
-        passenger_comfort?: number;
-        passenger_economy_berths?: number;
-        passenger_first_berths?: number;
-        passive_recipe?: string;
-        power_bonus?: number;
-        power_usage: number;
-        precision_factor?: number;
-        quest_item?: boolean;
-        range?: number;
-        reach?: number;
-        remote_repair_power?: number;
-        required_skills?: {
-            [key: string]: number;
-        };
-        resistance_bonus?: {
-            [key: string]: number;
-        };
-        salvage_bonus?: number;
-        scanner_power?: number;
-        scramble_power?: number;
-        shield_bonus?: number;
-        shield_bypass_bonus?: number;
-        shield_recharge_bonus?: number;
-        signature_bonus?: number;
-        size: number;
-        slot: string;
-        special?: string;
-        speed_bonus?: number;
-        speed_penalty?: number;
-        survey_power?: number;
-        survey_range?: number;
-        tow_speed_penalty?: number;
-        tracking_bonus?: number;
-        type: string;
-        type_id: string;
-        warp_stabilization?: number;
-        webify_strength?: number;
-    } | {
-        base_armor: number;
-        base_fuel: number;
-        base_hull: number;
-        base_shield: number;
-        base_shield_recharge: number;
-        base_speed: number;
-        based_on?: string;
-        build_materials?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        build_time: number;
-        cargo_capacity: number;
-        category?: string;
-        class: string;
-        cpu_capacity: number;
-        default_loadout_version?: number;
-        default_modules?: Array<string>;
-        defense_slots: number;
-        description: string;
-        faction?: string;
-        flavor_tags?: Array<string>;
-        hidden?: boolean;
-        id: string;
-        inherent_capabilities?: Array<{
-            flag?: string;
-            type: string;
-            value?: number;
-        }>;
-        legacy?: boolean;
-        lore?: string;
-        name: string;
-        npc_role?: string;
-        passive_recipes?: Array<string>;
-        piloting_required?: number;
-        power_capacity: number;
-        prestige_lock?: string;
-        price: number;
-        required_achievement?: string;
-        required_faction_achievement?: string;
-        required_faction_leader?: boolean;
-        required_items?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        required_reputation?: number;
-        scale: number;
-        shipyard_tier: number;
-        special?: string;
-        starter_ship?: boolean;
-        tier: number;
-        tow_speed_bonus?: number;
-        utility_slots: number;
-        weapon_slots: number;
-    } | {
-        bonus_per_level?: {
-            [key: string]: number;
-        };
-        category: string;
-        description: string;
-        empire_restriction?: string;
-        id: string;
-        max_level: number;
-        name: string;
-        training_source?: string;
-        xp_per_level: Array<number>;
-    } | {
-        category: string;
-        crafting_time: number;
-        description: string;
-        facility_only?: boolean;
-        fuel_output?: number;
-        hidden?: boolean;
-        id: string;
-        inputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        name: string;
-        no_recycle?: boolean;
-        outputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        package_operation?: string;
-    } | {
-        allows_contraband?: boolean;
-        always_on: boolean;
-        ammo_item?: string;
-        battery_capacity?: number;
-        build_cost: number;
-        build_materials?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        build_time: number;
-        category: string;
-        degraded_description?: string;
-        deposit_to_empire_reserves?: boolean;
-        description: string;
-        dining_points?: number;
-        disguised?: boolean;
-        empire?: string;
-        expansion_of?: string;
-        expansion_scale?: number;
-        faction_cap?: number;
-        faction_service_type?: string;
-        fleet_upkeep?: boolean;
-        fuel_capacity?: number;
-        fuel_output?: boolean;
-        id: string;
-        is_recycler?: boolean;
-        labor_cost: number;
-        leisure_points?: number;
-        level: number;
-        life_support_draw?: number;
-        life_support_supply?: number;
-        logistics?: boolean;
-        lore?: string;
-        maintenance_inputs?: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        name: string;
-        personal_bonus_type?: string;
-        personal_bonus_value?: number;
-        personal_service_type?: string;
-        pirate_base_only?: boolean;
-        player_station_buildable?: boolean;
-        power_draw?: number;
-        power_supply?: number;
-        recipe_id?: string;
-        repair_hull_per_item?: number;
-        repair_item?: string;
-        requires_service_type?: string;
-        satisfied_description?: string;
-        scan_falloff?: number;
-        scan_power?: number;
-        self_repair_rate?: number;
-        service_type?: string;
-        station_armor?: number;
-        station_hull_hp?: number;
-        station_or_faction_only?: boolean;
-        station_shield_hp?: number;
-        tourism_upkeep?: boolean;
-        transit_deadline_bonus?: number;
-        unique?: boolean;
-        upgrades_from?: string;
-        weapon_cooldown?: number;
-        weapon_damage?: number;
-        weapon_damage_type?: string;
-        weapon_reach?: number;
-    }>;
+    items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition>;
     message: string;
     page: number;
     page_size: number;
-    passive_recipe_details?: Array<{
-        category: string;
-        crafting_time: number;
-        description: string;
-        facility_only?: boolean;
-        fuel_output?: number;
-        hidden?: boolean;
-        id: string;
-        inputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        name: string;
-        no_recycle?: boolean;
-        outputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        package_operation?: string;
-    }>;
-    produced_by_facilities?: Array<{
-        definition_id: string;
-        level: number;
-        name: string;
-    }>;
-    recipes?: Array<{
-        category: string;
-        crafting_time: number;
-        description: string;
-        facility_only?: boolean;
-        fuel_output?: number;
-        hidden?: boolean;
-        id: string;
-        inputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        name: string;
-        no_recycle?: boolean;
-        outputs: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        package_operation?: string;
-    }>;
+    passive_recipe_details?: Array<Recipe>;
+    produced_by_facilities?: Array<RecipeFacility>;
+    recipes?: Array<Recipe>;
     total: number;
     total_pages: number;
     type: string;
+};
+
+export type CatalogShipSummary = {
+    base_armor: number;
+    base_fuel: number;
+    base_hull: number;
+    base_shield: number;
+    base_shield_recharge: number;
+    base_speed: number;
+    based_on?: string;
+    build_materials?: Array<RecipeInput>;
+    build_time: number;
+    cargo_capacity: number;
+    category?: string;
+    class: string;
+    cpu_capacity: number;
+    default_loadout_version?: number;
+    default_modules?: Array<string>;
+    defense_slots: number;
+    description: string;
+    faction?: string;
+    flavor_tags?: Array<string>;
+    hidden?: boolean;
+    id: string;
+    inherent_capabilities?: Array<InherentCapability>;
+    legacy?: boolean;
+    lore?: string;
+    name: string;
+    npc_role?: string;
+    passive_recipes?: Array<string>;
+    piloting_required?: number;
+    power_capacity: number;
+    prestige_lock?: string;
+    price: number;
+    required_achievement?: string;
+    required_faction_achievement?: string;
+    required_faction_leader?: boolean;
+    required_items?: Array<ItemRequirement>;
+    required_reputation?: number;
+    scale: number;
+    shipyard_tier: number;
+    special?: string;
+    starter_ship?: boolean;
+    tier: number;
+    tow_speed_bonus?: number;
+    utility_slots: number;
+    weapon_slots: number;
+};
+
+export type ChatHistoryMessage = {
+    channel: string;
+    content: string;
+    empire_official?: boolean;
+    faction_id?: string;
+    id: string;
+    poi_id?: string;
+    sender: string;
+    sender_id: string;
+    system_id?: string;
+    target_id?: string;
+    target_name?: string;
+    timestamp_utc: string;
 };
 
 export type ChatResponse = {
@@ -812,86 +952,58 @@ export type ChatResponse = {
     warning?: string;
 };
 
+export type Citizenship = {
+    empire_id: string;
+    granted_at: string;
+    granted_by?: string;
+};
+
+export type CitizenshipPetition = {
+    created_at: string;
+    credits: number;
+    decided_at?: string;
+    decided_by?: string;
+    decision?: string;
+    empire_id: string;
+    fee_paid: number;
+    held_citizenships?: Array<string>;
+    id: string;
+    player_home_empire: string;
+    player_id: string;
+    player_name: string;
+    reputation: number;
+    status: string;
+};
+
+export type CitizenshipPolicySummary = {
+    auto_approve: boolean;
+    eligible: boolean;
+    empire_id: string;
+    empire_name: string;
+    exclusive: boolean;
+    fee: number;
+    has_pending: boolean;
+    ineligible_reason?: string;
+    is_citizen: boolean;
+    min_balance: number;
+    min_reputation: number;
+    open: boolean;
+    your_reputation: number;
+};
+
 export type CitizenshipResponse = {
-    citizenship?: {
-        empire_id: string;
-        granted_at: string;
-        granted_by?: string;
-    };
-    citizenships?: Array<{
-        empire_id: string;
-        granted_at: string;
-        granted_by?: string;
-    }>;
+    citizenship?: Citizenship;
+    citizenships?: Array<Citizenship>;
     empire_id?: string;
-    empires?: Array<{
-        auto_approve: boolean;
-        eligible: boolean;
-        empire_id: string;
-        empire_name: string;
-        exclusive: boolean;
-        fee: number;
-        has_pending: boolean;
-        ineligible_reason?: string;
-        is_citizen: boolean;
-        min_balance: number;
-        min_reputation: number;
-        open: boolean;
-        your_reputation: number;
-    }>;
+    empires?: Array<CitizenshipPolicySummary>;
     fee_paid?: number;
     fee_refunded?: number;
     message?: string;
     origin?: string;
-    pending_petitions?: Array<{
-        created_at: string;
-        credits: number;
-        decided_at?: string;
-        decided_by?: string;
-        decision?: string;
-        empire_id: string;
-        fee_paid: number;
-        held_citizenships?: Array<string>;
-        id: string;
-        player_home_empire: string;
-        player_id: string;
-        player_name: string;
-        reputation: number;
-        status: string;
-    }>;
-    petition?: {
-        created_at: string;
-        credits: number;
-        decided_at?: string;
-        decided_by?: string;
-        decision?: string;
-        empire_id: string;
-        fee_paid: number;
-        held_citizenships?: Array<string>;
-        id: string;
-        player_home_empire: string;
-        player_id: string;
-        player_name: string;
-        reputation: number;
-        status: string;
-    };
+    pending_petitions?: Array<CitizenshipPetition>;
+    petition?: CitizenshipPetition;
     petition_id?: string;
-    recent_decisions?: Array<{
-        created_at: string;
-        credits: number;
-        decided_at?: string;
-        decided_by?: string;
-        decision?: string;
-        empire_id: string;
-        fee_paid: number;
-        held_citizenships?: Array<string>;
-        id: string;
-        player_home_empire: string;
-        player_id: string;
-        player_name: string;
-        reputation: number;
-        status: string;
-    }>;
+    recent_decisions?: Array<CitizenshipPetition>;
     renounced?: Array<string>;
     rules?: Array<string>;
     status?: string;
@@ -899,21 +1011,42 @@ export type CitizenshipResponse = {
 
 export type ClaimInsuranceResponse = {
     message: string;
-    policies: Array<{
-        base_id?: string;
-        coverage?: number;
-        expires_at?: string;
-        policy_id: string;
-        premium?: number;
-        risk_factors?: Array<{
-            detail: string;
-            multiplier: number;
-            name: string;
-        }>;
-        risk_score?: number;
-        self_destruct_excluded: boolean;
-        ship_class?: string;
-    }>;
+    policies: Array<InsurancePolicy>;
+};
+
+export type ClientConnectionInfo = {
+    distance?: number;
+    name: string;
+    system_id: string;
+};
+
+export type ClientPoiInfo = {
+    base_id?: string;
+    base_name?: string;
+    class?: string;
+    faction_fuel_capacity?: number;
+    faction_fuel_reserve?: number;
+    fuel_capacity?: number;
+    fuel_price?: number;
+    fuel_reserve: number;
+    has_base: boolean;
+    id: string;
+    name: string;
+    online: number;
+    position: Position;
+    type: string;
+};
+
+export type ClientSystemInfo = {
+    connections: Array<ClientConnectionInfo>;
+    description?: string;
+    empire?: string;
+    id: string;
+    is_stronghold: boolean;
+    name: string;
+    pois: Array<ClientPoiInfo>;
+    police_level: number;
+    security_status?: string;
 };
 
 export type CloakResponse = {
@@ -922,18 +1055,35 @@ export type CloakResponse = {
     message: string;
 };
 
-export type CommandHelpResponse = {
-    actions: Array<{
-        action: string;
-        description: string;
-        example?: {
-            [key: string]: string;
-        };
-        examples?: Array<{
-            [key: string]: string;
-        }>;
-        params?: Array<string>;
+export type CombatLogSummary = {
+    attacker_ship?: string;
+    combat_rounds: number;
+    death_location: string;
+    death_system: string;
+    hull_damage: number;
+    message: string;
+    shield_damage: number;
+    total_damage: number;
+    weapons_used?: {
+        [key: string]: number;
+    };
+};
+
+export type CommandHelpAction = {
+    action: string;
+    description: string;
+    example?: {
+        [key: string]: string;
+    };
+    examples?: Array<{
+        [key: string]: string;
     }>;
+    params?: Array<string>;
+};
+
+export type CommandHelpResponse = {
+    action: 'help';
+    actions: Array<CommandHelpAction>;
     command: string;
     description: string;
     notes?: Array<string>;
@@ -945,14 +1095,67 @@ export type CommandHelpResponse = {
     };
 };
 
+export type CommandInfoPayload = {
+    category: string;
+    description: string;
+    format: string;
+    is_mutation: boolean;
+    name: string;
+    notes: string;
+    requires_auth: boolean;
+};
+
+export type CommandLogEntry = {
+    command: string;
+    player_id: string;
+    stance?: string;
+    target_id?: string;
+};
+
+export type CommissionActive = {
+    class_id: string;
+    commission_id: string;
+    eta_seconds?: number;
+    ship_class: string;
+    status: string;
+    ticks_remaining?: number;
+};
+
+export type CommissionEntry = {
+    base_id?: string;
+    base_name?: string;
+    build_complete_tick?: number;
+    build_start_tick?: number;
+    built_ship_id?: string;
+    commission_id: string;
+    created_at?: string;
+    credits_paid?: number;
+    earmarked_credits?: number;
+    material_cost_estimate?: number;
+    materials_gathered?: {
+        [key: string]: number;
+    };
+    materials_provided: boolean;
+    required_materials?: {
+        [key: string]: number;
+    };
+    ship_class_id: string;
+    ship_name?: string;
+    status: string;
+    ticks_remaining?: number;
+};
+
+export type CommissionMaterialStatus = {
+    complete: boolean;
+    gathered: number;
+    item_id: string;
+    name: string;
+    needed: number;
+};
+
 export type CommissionQuoteResponse = {
     blockers?: Array<string>;
-    build_materials?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-        size: number;
-    }>;
+    build_materials?: Array<CargoItem>;
     build_time?: number;
     can_afford_credits_only: boolean;
     can_afford_provide_materials: boolean;
@@ -986,29 +1189,7 @@ export type CommissionShipResponse = {
 };
 
 export type CommissionStatusResponse = {
-    commissions: Array<{
-        base_id?: string;
-        base_name?: string;
-        build_complete_tick?: number;
-        build_start_tick?: number;
-        built_ship_id?: string;
-        commission_id: string;
-        created_at?: string;
-        credits_paid?: number;
-        earmarked_credits?: number;
-        material_cost_estimate?: number;
-        materials_gathered?: {
-            [key: string]: number;
-        };
-        materials_provided: boolean;
-        required_materials?: {
-            [key: string]: number;
-        };
-        ship_class_id: string;
-        ship_name?: string;
-        status: string;
-        ticks_remaining?: number;
-    }>;
+    commissions: Array<CommissionEntry>;
     count: number;
 };
 
@@ -1033,119 +1214,65 @@ export type CompleteMissionResponse = {
     title: string;
 };
 
+export type CompletedMissionSummary = {
+    completion_time: string;
+    difficulty: number;
+    giver?: MissionGiverInfo;
+    template_id: string;
+    title: string;
+    type: string;
+};
+
 export type CompletedMissionsResponse = {
-    missions: Array<{
-        completion_time: string;
-        difficulty: number;
-        giver?: {
-            name: string;
-            title: string;
-        };
-        template_id: string;
-        title: string;
-        type: string;
-    }>;
+    missions: Array<CompletedMissionSummary>;
     total_count: number;
 };
 
+export type CraftCommandResponse = ({
+    kind: 'job';
+} & CraftJobResponse) | ({
+    kind: 'queue';
+} & CraftQueueResponse) | ({
+    kind: 'bulk_craft';
+} & BulkCraftResponse) | ({
+    kind: 'quote';
+} & CraftQuoteResponse) | ({
+    kind: 'cancel';
+} & JobCancelResponse) | ({
+    kind: 'bulk_cancel';
+} & BulkJobCancelResponse) | ({
+    kind: 'package';
+} & PackageJobResponse);
+
 export type CraftJobResponse = {
-    action: string;
+    action: 'craft' | 'recycle' | 'job_add';
     effective_time_per_run: number;
-    escrowed: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
+    escrowed: EscrowSummary;
     est_completion_tick: number;
     external?: boolean;
     facility_id: string;
     job_id: string;
+    kind: 'job';
     message: string;
-    mode: string;
-    produces?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
+    mode: 'craft' | 'recycle';
+    produces?: Array<ItemQuantity>;
     recipe: string;
     runs: number;
     venue: string;
     venue_type: string;
-} | {
-    action: string;
-    jobs: Array<{
-        base_id?: string;
-        base_name?: string;
-        eta_ticks: number;
-        external?: boolean;
-        facility_id: string;
-        job_id: string;
-        label?: string;
-        mode: string;
-        orderer: string;
-        package_id?: string;
-        position: number;
-        produces?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        progress: number;
-        recipe: string;
-        runs_done: number;
-        runs_remaining: number;
-        runs_total: number;
-        status: string;
-        venue?: string;
-    }>;
+};
+
+export type CraftQueueResponse = {
+    action: 'queue';
+    jobs: Array<JobView>;
+    kind: 'queue';
     message?: string;
     total_jobs: number;
-} | {
-    action: string;
-    mode: string;
-    results: Array<{
-        error?: string;
-        error_code?: string;
-        escrowed?: {
-            fee?: number;
-            inputs?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            labor?: number;
-        };
-        external?: boolean;
-        index: number;
-        job_id?: string;
-        label?: string;
-        message?: string;
-        package_id?: string;
-        recipe?: string;
-        runs?: number;
-        success: boolean;
-        venue?: string;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
-} | {
-    action: string;
-    cost: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
+};
+
+export type CraftQuoteResponse = {
+    action: 'craft' | 'recycle';
+    cost: EscrowSummary;
     credits_total: number;
     dry_run: boolean;
     effective_time_per_run: number;
@@ -1155,90 +1282,53 @@ export type CraftJobResponse = {
     have_capacity?: boolean;
     have_credits: boolean;
     have_inputs: boolean;
+    kind: 'quote';
     message: string;
-    mode: string;
-    produces?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
+    mode: 'craft' | 'recycle';
+    produces?: Array<ItemQuantity>;
     quantity: number;
     recipe: string;
     runs: number;
     venue: string;
     venue_type: string;
-} | {
-    action: string;
-    job_id: string;
-    message: string;
-    refunded: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
-} | {
-    action: string;
-    message: string;
-    mode: string;
-    results: Array<{
-        error?: string;
-        error_code?: string;
-        job_id: string;
-        refunded?: {
-            fee?: number;
-            inputs?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            labor?: number;
-        };
-        success: boolean;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
-} | {
-    action: string;
-    escrowed: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
-    eta_ticks: number;
+};
+
+export type CraftingDeposit = {
+    item_id: string;
+    item_name: string;
+    quantity: number;
+};
+
+export type CraftingJobUpdate = {
+    completed: boolean;
+    deposited: Array<CraftingDeposit>;
+    escrowed_credits: number;
     external?: boolean;
     job_id: string;
-    label: string;
-    message: string;
-    package_id: string;
+    mode: string;
+    recipe: string;
+    runs_done: number;
+    runs_remaining: number;
+    storage: string;
     venue: string;
 };
 
+export type CreateBuyOrderCommandResponse = ({
+    kind: 'single';
+} & CreateBuyOrderResponse) | ({
+    kind: 'bulk';
+} & BulkCreateBuyOrdersResponse);
+
 export type CreateBuyOrderResponse = {
-    action: string;
+    action: 'create_buy_order';
     consolidated?: boolean;
     delivered_to_cargo?: number;
     delivered_to_storage?: number;
     escrow_refunded?: number;
-    fills?: Array<{
-        counterparty?: string;
-        price_each: number;
-        quantity: number;
-        source?: string;
-        subtotal: number;
-    }>;
+    fills?: Array<Fill>;
     item: string;
     item_id: string;
+    kind: 'single';
     listing_fee: number;
     message: string;
     order_id?: string;
@@ -1252,44 +1342,6 @@ export type CreateBuyOrderResponse = {
     self_cleared?: number;
     total_escrowed: number;
     total_spent?: number;
-} | {
-    action: string;
-    mode: string;
-    results: Array<{
-        consolidated?: boolean;
-        error?: string;
-        error_code?: string;
-        escrow_refunded?: number;
-        fills?: Array<{
-            counterparty?: string;
-            price_each: number;
-            quantity: number;
-            source?: string;
-            subtotal: number;
-        }>;
-        index: number;
-        item?: string;
-        item_id?: string;
-        listing_fee?: number;
-        message?: string;
-        order_id?: string;
-        price_each?: number;
-        quantity?: number;
-        quantity_filled?: number;
-        quantity_listed?: number;
-        quantity_not_listed?: number;
-        remaining_escrowed?: number;
-        self_clear_returned?: number;
-        self_cleared?: number;
-        success: boolean;
-        total_escrowed?: number;
-        total_spent?: number;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
 };
 
 export type CreateFactionResponse = {
@@ -1306,20 +1358,21 @@ export type CreateNoteResponse = {
     title: string;
 };
 
+export type CreateSellOrderCommandResponse = ({
+    kind: 'single';
+} & CreateSellOrderResponse) | ({
+    kind: 'bulk';
+} & BulkCreateSellOrdersResponse);
+
 export type CreateSellOrderResponse = {
-    action: string;
+    action: 'create_sell_order';
     consolidated?: boolean;
-    fills?: Array<{
-        counterparty?: string;
-        price_each: number;
-        quantity: number;
-        source?: string;
-        subtotal: number;
-    }>;
+    fills?: Array<Fill>;
     from_cargo?: number;
     from_storage?: number;
     item: string;
     item_id: string;
+    kind: 'single';
     listing_fee: number;
     message: string;
     order_id?: string;
@@ -1333,50 +1386,20 @@ export type CreateSellOrderResponse = {
     smuggling_level_up?: boolean;
     smuggling_xp?: number;
     total_earned?: number;
-} | {
-    action: string;
-    mode: string;
-    results: Array<{
-        consolidated?: boolean;
-        error?: string;
-        error_code?: string;
-        fills?: Array<{
-            counterparty?: string;
-            price_each: number;
-            quantity: number;
-            source?: string;
-            subtotal: number;
-        }>;
-        from_cargo?: number;
-        from_storage?: number;
-        index: number;
-        item?: string;
-        item_id?: string;
-        listing_fee?: number;
-        message?: string;
-        order_id?: string;
-        price_each?: number;
-        quantity?: number;
-        quantity_filled?: number;
-        quantity_listed?: number;
-        returned_to_storage?: number;
-        self_clear_refund?: number;
-        self_cleared?: number;
-        success: boolean;
-        total_earned?: number;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
+};
+
+export type CreatureInfo = {
+    creature_id: string;
+    hull: number;
+    in_combat: boolean;
+    max_hull: number;
+    name: string;
+    role: string;
+    species: string;
 };
 
 export type DeclineMissionResponse = {
-    giver?: {
-        name: string;
-        title: string;
-    };
+    giver?: MissionGiverInfo;
     message: string;
     template_id: string;
     title: string;
@@ -1388,16 +1411,8 @@ export type DeleteNoteResponse = {
     title: string;
 };
 
-export type DeployDroneResponse = {
-    bandwidth_total: number;
-    bandwidth_used: number;
-    drone_id: string;
-    drone_type: string;
-    hull: number;
-    max_hull: number;
-    message: string;
-    status: string;
-} | {
+export type DeployAllDronesResponse = {
+    action: 'deploy_all_drones';
     bandwidth_total: number;
     bandwidth_used: number;
     deployed: number;
@@ -1405,120 +1420,31 @@ export type DeployDroneResponse = {
     skipped: number;
 };
 
-export type DepositItemsResponse = {
-    action: string;
-    cargo_remaining: number;
-    cargo_space: number;
-    item_id: string;
-    quantity: number;
-    storage_total: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    dest_bucket?: string;
-    dest_bucket_id?: string;
-    dest_total: number;
-    destination: string;
-    item_id: string;
-    quantity: number;
-    source: string;
-    source_remaining: number;
-} | {
-    action: string;
-    amount: number;
-    dest_credits: number;
-    destination: string;
-    source: string;
-    source_credits: number;
-} | {
-    action: string;
-    base_id: string;
-    cargo_remaining?: number;
-    credits_sent?: number;
-    item_id?: string;
-    message?: string;
-    quantity?: number;
-    recipient: string;
-    source?: string;
-    storage_remaining?: number;
-    wallet_remaining?: number;
-} | {
-    action: string;
-    base_id: string;
-    class_id: string;
-    class_name?: string;
-    message?: string;
-    recipient: string;
-    ship_id: string;
-} | {
-    action: string;
-    credits_sent: number;
-    faction_id: string;
-    faction_name: string;
-    items_sent: number;
+export type DeployDroneCommandResponse = ({
+    action: 'deploy_drone';
+} & DeployDroneResponse) | ({
+    action: 'deploy_all_drones';
+} & DeployAllDronesResponse);
+
+export type DeployDroneResponse = {
+    action: 'deploy_drone';
+    bandwidth_total: number;
+    bandwidth_used: number;
+    drone_id: string;
+    drone_type: string;
+    hull: number;
+    max_hull: number;
     message: string;
-} | {
-    action: string;
-    base_id: string;
-    base_name: string;
-    cargo_remaining?: number;
-    class_id?: string;
-    class_name?: string;
-    credits_sent?: number;
-    empire_id: string;
-    empire_name: string;
-    fleet_id?: string;
-    fleet_name?: string;
-    hull_designator?: string;
-    item_id?: string;
-    message?: string;
-    npc_id?: string;
-    petition_id?: string;
-    petition_notice?: string;
-    quantity?: number;
-    ship_id?: string;
-    wallet_remaining?: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
+    status: 'idle';
+};
+
+export type DepositItemsResponse = {
+    action: 'deposit_items';
     cargo_remaining: number;
     cargo_space: number;
     item_id: string;
     quantity: number;
     storage_total: number;
-} | {
-    action: string;
-    amount: number;
-    faction_credits: number;
-    player_credits: number;
-} | {
-    action: string;
-    fuel: number;
-    fuel_capacity: number;
-    ship_fuel: number;
-    storage_fuel: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    dest_bucket?: string;
-    dest_bucket_id?: string;
-    failed: number;
-    requested: number;
-    results: Array<{
-        error?: string;
-        item_id: string;
-        message?: string;
-        quantity: number;
-        result?: {
-            [key: string]: unknown;
-        };
-        success: boolean;
-    }>;
-    succeeded: number;
-    target?: string;
 };
 
 export type DistressSignalResponse = {
@@ -1539,131 +1465,159 @@ export type DockResponse = {
     auto_undocked?: boolean;
     base: string;
     claimed_note?: string;
-    claimed_ships?: Array<{
-        class_id: string;
-        class_name?: string;
-        ship_id: string;
-    }>;
-    commissions_active?: Array<{
-        class_id: string;
-        commission_id: string;
-        eta_seconds?: number;
-        ship_class: string;
-        status: string;
-        ticks_remaining?: number;
-    }>;
+    claimed_ships?: Array<StoredShipInfo>;
+    commissions_active?: Array<CommissionActive>;
     facility_note?: string;
     fuel_warning?: string;
-    gifts?: Array<{
-        credits?: number;
-        items?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        message?: string;
-        sender: string;
-        sender_id: string;
-        timestamp: string;
-    }>;
+    gifts?: Array<GiftNotification>;
     gifts_count?: number;
     gifts_note?: string;
     gifts_truncated?: boolean;
-    messages?: Array<{
-        body: string;
-        from: string;
-        timestamp: string;
-    }>;
+    messages?: Array<StorageMessage>;
     messages_count?: number;
-    open_orders?: Array<{
-        item_id: string;
-        item_name: string;
-        order_id: string;
-        price_each: number;
-        quantity: number;
-        remaining: number;
-        type: string;
-    }>;
+    open_orders?: Array<OpenOrderSummary>;
     open_orders_count?: number;
     open_orders_truncated?: boolean;
-    passenger_arrivals?: {
-        delivered?: Array<{
-            base_fare: number;
-            berth_class?: string;
-            bio: string;
-            citizen_id: string;
-            class: string;
-            connecting?: boolean;
-            destination: string;
-            destination_name: string;
-            destination_system?: string;
-            name: string;
-            speed_bonus?: number;
-            ticks_remaining: number;
-        }>;
-        fare_collected?: number;
-        reputation_changes?: {
-            [key: string]: number;
-        };
-        stranded?: Array<{
-            base_fare: number;
-            berth_class?: string;
-            bio: string;
-            citizen_id: string;
-            class: string;
-            connecting?: boolean;
-            destination: string;
-            destination_name: string;
-            destination_system?: string;
-            name: string;
-            speed_bonus?: number;
-            ticks_remaining: number;
-        }>;
-    };
-    station_condition: {
-        condition: string;
-        condition_text: string;
-        satisfaction_pct: number;
-        satisfied_count: number;
-        total_service_infra: number;
-    };
+    passenger_arrivals?: PassengerArrivalSummary;
+    station_condition: StationHealth;
     storage_items?: number;
-    stored_ships?: Array<{
-        class_id: string;
-        class_name?: string;
-        ship_id: string;
-    }>;
+    stored_ships?: Array<StoredShipInfo>;
     stored_ships_count?: number;
     story: string;
-    trade_fills?: Array<{
-        item_id: string;
-        item_name: string;
-        price_each: number;
-        quantity: number;
-        timestamp: string;
-        total: number;
-        type: string;
-    }>;
+    trade_fills?: Array<TradeFillNotification>;
     trade_fills_count?: number;
     trade_fills_truncated?: boolean;
-    unread_chat?: {
-        faction: number;
-        local: number;
-        private: number;
-        system: number;
-    };
+    unread_chat?: UnreadChatCounts;
     unread_chat_note?: string;
-    your_facilities?: Array<{
-        facility_id: string;
-        maintenance_satisfied: boolean;
-        missed_rent_cycles?: number;
-        name: string;
-        recipe_id?: string;
-        rent_per_cycle: number;
-        status: string;
-        ticks_until_complete?: number;
-        type: string;
-    }>;
+    your_facilities?: Array<FacilitySummary>;
+};
+
+export type DroneInfo = {
+    cargo_pct: number;
+    has_script: boolean;
+    hull: number;
+    id: string;
+    max_hull: number;
+    name?: string;
+    poi_id?: string;
+    script_preview?: string;
+    status: string;
+    travel_ticks?: number;
+    travel_to?: string;
+    type: string;
+};
+
+export type EmpireGiftResponse = {
+    action: 'empire_gift_credits' | 'empire_gift_items' | 'empire_gift_ship';
+    base_id: string;
+    base_name: string;
+    cargo_remaining?: number;
+    class_id?: string;
+    class_name?: string;
+    credits_sent?: number;
+    empire_id: string;
+    empire_name: string;
+    fleet_id?: string;
+    fleet_name?: string;
+    hull_designator?: string;
+    item_id?: string;
+    message?: string;
+    npc_id?: string;
+    petition_id?: string;
+    petition_notice?: string;
+    quantity?: number;
+    ship_id?: string;
+    wallet_remaining?: number;
+};
+
+export type EmpireNpcInfo = {
+    empire: string;
+    fleet_name?: string;
+    in_combat: boolean;
+    name: string;
+    npc_id: string;
+    role: string;
+    ship_class?: string;
+    ship_name?: string;
+};
+
+export type EmpirePolicySnapshot = {
+    bounty_attack: number;
+    bounty_kill: number;
+    bounty_rep_restoration_bps: number;
+    bounty_rep_restoration_cap: number;
+    citizenship_auto_approve: boolean;
+    citizenship_exclusive: boolean;
+    citizenship_fee: number;
+    citizenship_min_balance: number;
+    citizenship_min_reputation: number;
+    citizenship_open: boolean;
+    contraband_items: Array<string>;
+    customs_fine_multiplier_bps: number;
+    default_foreign_sales_tax_bps: number;
+    empire_id: string;
+    eviction_grace_cycles: number;
+    faction_income_tax_bps: number;
+    foreign_income_tax_deduction?: {
+        [key: string]: number;
+    };
+    foreign_sales_tax_bps?: {
+        [key: string]: number;
+    };
+    fuel_tax_per_unit: number;
+    income_tax_bps: number;
+    jail_duration_hours: number;
+    listing_fee_bps: number;
+    policy_updated_at?: number;
+    property_tax_bps: number;
+    rep_baseline_citizen: number;
+    rep_baseline_outsider: number;
+    rep_decay_amount: number;
+    rep_penalty_attack: number;
+    rep_penalty_kill: number;
+    rep_trade_fill_cap: number;
+    rep_trade_fill_divisor: number;
+    repair_cost_per_hull: number;
+    sales_tax_bps: number;
+    ship_listing_fee_bps: number;
+    shoot_on_sight_threshold: number;
+    starting_credits: number;
+    stateless_sales_tax_bps: number;
+    tax_delinquency_bounty_per_credit: number;
+};
+
+export type EnrichedWreck = {
+    cargo: Array<ShipCargoItem>;
+    created_at: string;
+    expire_tick: number;
+    expires_at: string;
+    id: string;
+    insurance_policy_id?: string;
+    killer_id?: string;
+    killer_name?: string;
+    modules: Array<LootedModule>;
+    poi_id: string;
+    salvage_value: number;
+    ship_class: string;
+    ship_name?: string;
+    system_id: string;
+    towed_by_player_id?: string;
+    type: string;
+    victim_id: string;
+    victim_name: string;
+};
+
+export type EscrowSummary = {
+    fee?: number;
+    inputs?: Array<ItemQuantity>;
+    labor?: number;
+};
+
+export type EscrowedRewards = {
+    credits: number;
+    items?: {
+        [key: string]: number;
+    };
 };
 
 export type EspionageResponse = {
@@ -1676,13 +1630,7 @@ export type EspionageResponse = {
 export type EstimatePurchaseResponse = {
     action: string;
     available: number;
-    fills: Array<{
-        counterparty?: string;
-        price_each: number;
-        quantity: number;
-        source?: string;
-        subtotal: number;
-    }>;
+    fills: Array<Fill>;
     item: string;
     message: string;
     quantity_requested: number;
@@ -1693,16 +1641,90 @@ export type EstimatePurchaseResponse = {
     unfilled: number;
 };
 
+export type ExchangeOrder = {
+    created_at: string;
+    created_by?: string;
+    faction_order?: boolean;
+    filled_quantity: number;
+    item_id: string;
+    item_name?: string;
+    listing_fee: number;
+    order_id: string;
+    order_type: string;
+    price_each: number;
+    quantity: number;
+    remaining: number;
+    side: string;
+};
+
+export type FacilityBrowseForSaleResponse = {
+    action: 'browse_for_sale';
+    base_id: string;
+    base_name: string;
+    count: number;
+    listings: Array<FacilityListingEntry>;
+};
+
+export type FacilityBuildResponse = {
+    action: 'build';
+    base_id: string;
+    facility_id: string;
+    facility_name: string;
+    facility_type: string;
+    hint: string;
+    recipe_id?: string;
+    rent_per_cycle: number;
+    skill_xp?: {
+        [key: string]: number;
+    };
+};
+
+export type FacilityBuyListingResponse = {
+    action: 'buy_listing';
+    credits_left: number;
+    definition_id: string;
+    facility_id: string;
+    message: string;
+    price: number;
+    sales_tax?: number;
+};
+
+export type FacilityCancelListingResponse = {
+    action: 'cancel_listing';
+    facility_id: string;
+    message: string;
+};
+
+export type FacilityCategoryInfo = {
+    buildable?: number;
+    count: number;
+    description: string;
+};
+
+export type FacilityDefSummary = {
+    build_cost: number;
+    build_materials?: Array<ItemQuantity>;
+    build_time: number;
+    category: string;
+    description: string;
+    faction_cap?: number;
+    faction_service?: string;
+    labor_cost: number;
+    level: number;
+    maintenance_per_cycle?: Array<ItemQuantity>;
+    name: string;
+    recipe_id?: string;
+    rent_per_cycle: number;
+    type_id: string;
+};
+
 export type FacilityDefinition = {
     allows_contraband?: boolean;
     always_on: boolean;
     ammo_item?: string;
     battery_capacity?: number;
     build_cost: number;
-    build_materials?: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
+    build_materials?: Array<RecipeInput>;
     build_time: number;
     category: string;
     degraded_description?: string;
@@ -1727,10 +1749,7 @@ export type FacilityDefinition = {
     life_support_supply?: number;
     logistics?: boolean;
     lore?: string;
-    maintenance_inputs?: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
+    maintenance_inputs?: Array<RecipeInput>;
     name: string;
     personal_bonus_type?: string;
     personal_bonus_value?: number;
@@ -1762,551 +1781,61 @@ export type FacilityDefinition = {
     weapon_reach?: number;
 };
 
+export type FacilityDismantleMaterial = {
+    item_id: string;
+    quantity: number;
+};
+
 export type FacilityDismantleResponse = {
-    action: string;
+    action: 'dismantle' | 'faction_dismantle';
     base_id: string;
     complete_tick: number;
     facility_id: string;
     facility_name: string;
     facility_type: string;
     hint: string;
-    materials_to_package: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
+    materials_to_package: Array<FacilityDismantleMaterial>;
     package_count: number;
     ticks_to_complete: number;
 };
 
-export type FacilityResponse = {
-    action: string;
-    base_id: string;
-    construction?: {
-        pending?: Array<{
-            build_cost?: number;
-            category: string;
-            definition_id: string;
-            materials?: Array<{
-                item_id: string;
-                name?: string;
-                quantity_in_storage: number;
-                quantity_missing?: number;
-                quantity_required: number;
-            }>;
-            name: string;
-            reason?: string;
-            status: string;
-            ticks_until_complete?: number;
-        }>;
-        under_construction?: Array<{
-            build_cost?: number;
-            category: string;
-            definition_id: string;
-            materials?: Array<{
-                item_id: string;
-                name?: string;
-                quantity_in_storage: number;
-                quantity_missing?: number;
-                quantity_required: number;
-            }>;
-            name: string;
-            reason?: string;
-            status: string;
-            ticks_until_complete?: number;
-        }>;
-    };
-    faction_facilities: Array<{
-        bonus_type?: string;
-        bonus_value?: number;
-        capacity?: number;
-        category: string;
-        custom_name?: string;
-        damaged?: boolean;
-        description: string;
-        dining_points?: number;
-        facility_id: string;
-        faction_id?: string;
-        faction_service?: string;
-        is_recycler?: boolean;
-        labor_per_cycle?: number;
-        leisure_points?: number;
-        level: number;
-        maintenance_level?: number;
-        maintenance_per_cycle?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        maintenance_satisfied?: boolean;
-        missed_rent_cycles?: number;
-        name: string;
-        owner_id?: string;
-        personal_service?: string;
-        power_throttled?: boolean;
-        production?: {
-            backlog_ticks: number;
-            items_per_hour?: number;
-            output_per_run?: number;
-            output_price_per_operation?: number;
-            output_price_per_unit?: number;
-            pack_operations_per_hour?: number;
-            public?: boolean;
-            queued_items: number;
-            queued_runs: number;
-            recipe?: string;
-            rental_fee_per_run?: number;
-            ticks_per_run?: number;
-            unpack_operations_per_hour?: number;
-        };
-        recipe_id?: string;
-        rent_paid_until_tick?: number;
-        rent_per_cycle?: number;
-        repair_complete_tick?: number;
-        service?: string;
-        tourism_upkeep?: boolean;
-        type: string;
-        under_construction?: boolean;
-    }>;
-    faction_rent?: {
-        arrears_owed?: number;
-        est_rent_per_day: number;
-        facilities: number;
-        grace_cycles?: number;
-        note?: string;
-        total_rent_per_cycle: number;
-    };
-    life_support?: {
-        demand: number;
-        maintenance?: Array<{
-            item_id: string;
-            name?: string;
-            quantity_per_cycle: number;
-        }>;
-        maintenance_cycle_ticks: number;
-        plants: number;
-        remediation?: string;
-        starved?: Array<{
-            item_id: string;
-            name?: string;
-            quantity_per_cycle: number;
-        }>;
-        supply: number;
-    };
-    player_facilities: Array<{
-        bonus_type?: string;
-        bonus_value?: number;
-        capacity?: number;
-        category: string;
-        custom_name?: string;
-        damaged?: boolean;
-        description: string;
-        dining_points?: number;
-        facility_id: string;
-        faction_id?: string;
-        faction_service?: string;
-        is_recycler?: boolean;
-        labor_per_cycle?: number;
-        leisure_points?: number;
-        level: number;
-        maintenance_level?: number;
-        maintenance_per_cycle?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        maintenance_satisfied?: boolean;
-        missed_rent_cycles?: number;
-        name: string;
-        owner_id?: string;
-        personal_service?: string;
-        power_throttled?: boolean;
-        production?: {
-            backlog_ticks: number;
-            items_per_hour?: number;
-            output_per_run?: number;
-            output_price_per_operation?: number;
-            output_price_per_unit?: number;
-            pack_operations_per_hour?: number;
-            public?: boolean;
-            queued_items: number;
-            queued_runs: number;
-            recipe?: string;
-            rental_fee_per_run?: number;
-            ticks_per_run?: number;
-            unpack_operations_per_hour?: number;
-        };
-        recipe_id?: string;
-        rent_paid_until_tick?: number;
-        rent_per_cycle?: number;
-        repair_complete_tick?: number;
-        service?: string;
-        tourism_upkeep?: boolean;
-        type: string;
-        under_construction?: boolean;
-    }>;
-    player_rent?: {
-        arrears_owed?: number;
-        est_rent_per_day: number;
-        facilities: number;
-        grace_cycles?: number;
-        note?: string;
-        total_rent_per_cycle: number;
-    };
-    power?: {
-        battery_capacity: number;
-        battery_stored: number;
-        current_draw: number;
-        efficiency: number;
-        fuel_inputs?: Array<{
-            item_id: string;
-            name?: string;
-            quantity_per_cycle: number;
-        }>;
-        remediation?: string;
-        supply: number;
-    };
-    public_facilities?: Array<{
-        bonus_type?: string;
-        bonus_value?: number;
-        capacity?: number;
-        category: string;
-        custom_name?: string;
-        damaged?: boolean;
-        description: string;
-        dining_points?: number;
-        facility_id: string;
-        faction_id?: string;
-        faction_service?: string;
-        is_recycler?: boolean;
-        labor_per_cycle?: number;
-        leisure_points?: number;
-        level: number;
-        maintenance_level?: number;
-        maintenance_per_cycle?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        maintenance_satisfied?: boolean;
-        missed_rent_cycles?: number;
-        name: string;
-        owner_id?: string;
-        personal_service?: string;
-        power_throttled?: boolean;
-        production?: {
-            backlog_ticks: number;
-            items_per_hour?: number;
-            output_per_run?: number;
-            output_price_per_operation?: number;
-            output_price_per_unit?: number;
-            pack_operations_per_hour?: number;
-            public?: boolean;
-            queued_items: number;
-            queued_runs: number;
-            recipe?: string;
-            rental_fee_per_run?: number;
-            ticks_per_run?: number;
-            unpack_operations_per_hour?: number;
-        };
-        recipe_id?: string;
-        rent_paid_until_tick?: number;
-        rent_per_cycle?: number;
-        repair_complete_tick?: number;
-        service?: string;
-        tourism_upkeep?: boolean;
-        type: string;
-        under_construction?: boolean;
-    }>;
-    station_facilities: Array<{
-        bonus_type?: string;
-        bonus_value?: number;
-        capacity?: number;
-        category: string;
-        custom_name?: string;
-        damaged?: boolean;
-        description: string;
-        dining_points?: number;
-        facility_id: string;
-        faction_id?: string;
-        faction_service?: string;
-        is_recycler?: boolean;
-        labor_per_cycle?: number;
-        leisure_points?: number;
-        level: number;
-        maintenance_level?: number;
-        maintenance_per_cycle?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        maintenance_satisfied?: boolean;
-        missed_rent_cycles?: number;
-        name: string;
-        owner_id?: string;
-        personal_service?: string;
-        power_throttled?: boolean;
-        production?: {
-            backlog_ticks: number;
-            items_per_hour?: number;
-            output_per_run?: number;
-            output_price_per_operation?: number;
-            output_price_per_unit?: number;
-            pack_operations_per_hour?: number;
-            public?: boolean;
-            queued_items: number;
-            queued_runs: number;
-            recipe?: string;
-            rental_fee_per_run?: number;
-            ticks_per_run?: number;
-            unpack_operations_per_hour?: number;
-        };
-        recipe_id?: string;
-        rent_paid_until_tick?: number;
-        rent_per_cycle?: number;
-        repair_complete_tick?: number;
-        service?: string;
-        tourism_upkeep?: boolean;
-        type: string;
-        under_construction?: boolean;
-    }>;
-} | {
-    action: string;
-    facilities: Array<{
-        arrears_owed?: number;
-        base_id: string;
-        base_name: string;
-        custom_name?: string;
-        damaged?: boolean;
-        facility_id: string;
-        labor_per_run?: number;
-        missed_rent_cycles?: number;
-        name: string;
-        power_throttled?: boolean;
-        rent_per_cycle: number;
-        rental_fee_per_run?: number;
-        repair_complete_tick?: number;
-        system_id?: string;
-        type: string;
-        under_construction?: boolean;
-    }>;
-    hint?: string;
-    rent: {
-        arrears_owed?: number;
-        est_rent_per_day: number;
-        facilities: number;
-        grace_cycles?: number;
-        note?: string;
-        total_rent_per_cycle: number;
-    };
-} | {
-    action: string;
-    arrears_owed?: number;
-    facilities: Array<{
-        arrears_owed?: number;
-        base_id: string;
-        base_name: string;
-        custom_name?: string;
-        damaged?: boolean;
-        facility_id: string;
-        labor_per_run: number;
-        missed_rent_cycles?: number;
-        name: string;
-        power_throttled?: boolean;
-        rent_per_cycle: number;
-        rental_fee_per_run?: number;
-        repair_complete_tick?: number;
-        system_id?: string;
-        type: string;
-        under_construction?: boolean;
-    }>;
-    faction_id: string;
-    grace_cycles?: number;
-    hint?: string;
-    note?: string;
-    total_rent_per_cycle: number;
-} | {
-    help: string;
-} | {
-    action: string;
-    base_id: string;
-    facility_id: string;
-    facility_name: string;
-    facility_type: string;
-    hint: string;
-    recipe_id?: string;
-    rent_per_cycle: number;
-    skill_xp?: {
-        [key: string]: number;
-    };
-} | {
-    action: string;
-    base_id: string;
-    faction_locked_upgrades?: Array<{
-        current_level: number;
-        requires?: string;
-        upgrade_to: {
-            build_cost: number;
-            build_materials?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            build_time: number;
-            category: string;
-            description: string;
-            faction_cap?: number;
-            faction_service?: string;
-            labor_cost: number;
-            level: number;
-            maintenance_per_cycle?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            name: string;
-            recipe_id?: string;
-            rent_per_cycle: number;
-            type_id: string;
-        };
-        your_facility_id: string;
-        your_facility_name: string;
-        your_facility_type: string;
-    }>;
-    faction_upgrade_hint?: string;
-    faction_upgrades?: Array<{
-        current_level: number;
-        requires?: string;
-        upgrade_to: {
-            build_cost: number;
-            build_materials?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            build_time: number;
-            category: string;
-            description: string;
-            faction_cap?: number;
-            faction_service?: string;
-            labor_cost: number;
-            level: number;
-            maintenance_per_cycle?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            name: string;
-            recipe_id?: string;
-            rent_per_cycle: number;
-            type_id: string;
-        };
-        your_facility_id: string;
-        your_facility_name: string;
-        your_facility_type: string;
-    }>;
-    hint: string;
-    locked_upgrades?: Array<{
-        current_level: number;
-        requires?: string;
-        upgrade_to: {
-            build_cost: number;
-            build_materials?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            build_time: number;
-            category: string;
-            description: string;
-            faction_cap?: number;
-            faction_service?: string;
-            labor_cost: number;
-            level: number;
-            maintenance_per_cycle?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            name: string;
-            recipe_id?: string;
-            rent_per_cycle: number;
-            type_id: string;
-        };
-        your_facility_id: string;
-        your_facility_name: string;
-        your_facility_type: string;
-    }>;
-    upgrades: Array<{
-        current_level: number;
-        requires?: string;
-        upgrade_to: {
-            build_cost: number;
-            build_materials?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            build_time: number;
-            category: string;
-            description: string;
-            faction_cap?: number;
-            faction_service?: string;
-            labor_cost: number;
-            level: number;
-            maintenance_per_cycle?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            name: string;
-            recipe_id?: string;
-            rent_per_cycle: number;
-            type_id: string;
-        };
-        your_facility_id: string;
-        your_facility_name: string;
-        your_facility_type: string;
-    }>;
-} | {
-    action: string;
-    base_id: string;
+export type FacilityEntry = {
     bonus_type?: string;
     bonus_value?: number;
+    capacity?: number;
+    category: string;
+    custom_name?: string;
+    damaged?: boolean;
+    description: string;
+    dining_points?: number;
     facility_id: string;
-    facility_name: string;
-    facility_type: string;
-    hint: string;
+    faction_id?: string;
+    faction_service?: string;
+    is_recycler?: boolean;
+    labor_per_cycle?: number;
+    leisure_points?: number;
     level: number;
+    maintenance_level?: number;
+    maintenance_per_cycle?: Array<ItemQuantity>;
+    maintenance_satisfied?: boolean;
+    missed_rent_cycles?: number;
+    name: string;
+    owner_id?: string;
     personal_service?: string;
+    power_throttled?: boolean;
+    production?: FacilityProduction;
     recipe_id?: string;
-    rent_per_cycle: number;
-} | {
-    action: string;
-    base_id: string;
-    complete_tick: number;
-    facility_id: string;
-    facility_name: string;
-    facility_type: string;
-    hint: string;
-    materials_to_package: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
-    package_count: number;
-    ticks_to_complete: number;
-} | {
-    action: string;
-    complete_tick: number;
-    facility_id: string;
-    facility_name: string;
-    hint: string;
-    materials_used: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
-    ticks_to_complete: number;
-} | {
-    action: string;
+    rent_paid_until_tick?: number;
+    rent_per_cycle?: number;
+    repair_complete_tick?: number;
+    service?: string;
+    tourism_upkeep?: boolean;
+    type: string;
+    under_construction?: boolean;
+};
+
+export type FacilityFactionBuildResponse = {
+    action: 'faction_build';
     base_id: string;
     capacity?: number;
     facility_id: string;
@@ -2321,8 +1850,51 @@ export type FacilityResponse = {
         [key: string]: number;
     };
     under_construction?: boolean;
-} | {
-    action: string;
+};
+
+export type FacilityFactionEntry = {
+    capacity?: number;
+    custom_name?: string;
+    facility_id: string;
+    faction_service: string;
+    level: number;
+    missed_rent_cycles?: number;
+    name: string;
+    rent_per_cycle: number;
+    rental_fee_per_run?: number;
+    status: string;
+    ticks_until_complete?: number;
+    type: string;
+};
+
+export type FacilityFactionListResponse = {
+    action: 'faction_list';
+    base_id: string;
+    faction_facilities: Array<FacilityFactionEntry>;
+    faction_id: string;
+    faction_storage?: FacilityFactionStorage;
+    hint: string;
+};
+
+export type FacilityFactionOwnedResponse = {
+    action: 'faction_owned';
+    arrears_owed?: number;
+    facilities: Array<FactionOwnedFacilityEntry>;
+    faction_id: string;
+    grace_cycles?: number;
+    hint?: string;
+    note?: string;
+    total_rent_per_cycle: number;
+};
+
+export type FacilityFactionStorage = {
+    credits: number;
+    item_types: number;
+    rooms: number;
+};
+
+export type FacilityFactionUpgradeResponse = {
+    action: 'faction_upgrade';
     base_id: string;
     capacity?: number;
     facility_id: string;
@@ -2335,38 +1907,79 @@ export type FacilityResponse = {
     skill_xp?: {
         [key: string]: number;
     };
-} | {
-    action: string;
-    base_id: string;
-    faction_facilities: Array<{
-        capacity?: number;
-        custom_name?: string;
-        facility_id: string;
-        faction_service: string;
-        level: number;
-        missed_rent_cycles?: number;
-        name: string;
-        rent_per_cycle: number;
-        rental_fee_per_run?: number;
-        status: string;
-        ticks_until_complete?: number;
-        type: string;
-    }>;
-    faction_id: string;
-    faction_storage?: {
-        credits: number;
-        item_types: number;
-        rooms: number;
-    };
-    hint: string;
-} | {
-    action: string;
-    direction: string;
+};
+
+export type FacilityHelpResponse = {
+    action: 'help';
+    help: string;
+};
+
+export type FacilityJobListResponse = {
+    action: 'job_list';
     facility_id: string;
-    hint: string;
-    new_owner?: string;
-} | {
-    action: string;
+    jobs: Array<JobView>;
+    message?: string;
+    total_jobs: number;
+    venue: string;
+};
+
+export type FacilityListForSaleResponse = {
+    action: 'list_for_sale';
+    credits_left?: number;
+    definition_id: string;
+    facility_id: string;
+    fee: number;
+    listing_id: string;
+    message: string;
+    price: number;
+};
+
+export type FacilityListResponse = {
+    action: 'list';
+    base_id: string;
+    construction?: StationConstructionResponse;
+    faction_facilities: Array<FacilityEntry>;
+    faction_rent?: FacilityRentSummary;
+    life_support?: StationLifeSupportStatus;
+    player_facilities: Array<FacilityEntry>;
+    player_rent?: FacilityRentSummary;
+    power?: StationPowerStatus;
+    public_facilities?: Array<FacilityEntry>;
+    station_facilities: Array<FacilityEntry>;
+};
+
+export type FacilityListingEntry = {
+    build_cost?: number;
+    build_time?: number;
+    category?: string;
+    compatibility_note?: string;
+    definition_id: string;
+    facility_id: string;
+    facility_name?: string;
+    fuel_capacity_bonus?: number;
+    fuel_output?: boolean;
+    level?: number;
+    listed_at: string;
+    listing_id: string;
+    price: number;
+    recipe_id?: string;
+    required_skill_level?: number;
+    seller_name?: string;
+    seller_type: string;
+    skill_met?: boolean;
+    station_or_faction_only?: boolean;
+    under_construction?: boolean;
+};
+
+export type FacilityOwnedResponse = {
+    action: 'owned';
+    facilities: Array<OwnedFacilityEntry>;
+    hint?: string;
+    rent: FacilityRentSummary;
+};
+
+export type FacilityPersonalBuildResponse = {
+    action: 'personal_build';
     base_id: string;
     bonus_type?: string;
     bonus_value?: number;
@@ -2381,71 +1994,103 @@ export type FacilityResponse = {
         [key: string]: number;
     };
     under_construction?: boolean;
-} | {
+};
+
+export type FacilityPersonalDecorateResponse = {
     access: string;
-    action: string;
+    action: 'personal_decorate';
     facility_id: string;
     facility_name: string;
     hint?: string;
     message?: string;
-} | {
+};
+
+export type FacilityPersonalVisitResponse = {
     access?: string;
-    action: string;
+    action: 'personal_visit';
     base_id: string;
     description: string;
     facility_name: string;
     hint?: string;
     owner: string;
-} | {
-    action: string;
-    categories: {
-        [key: string]: {
-            buildable?: number;
-            count: number;
-            description: string;
-        };
-    };
-    filters: {
-        category: string;
-        level: string;
-        name: string;
-    };
+};
+
+export type FacilityProduction = {
+    backlog_ticks: number;
+    items_per_hour?: number;
+    output_per_run?: number;
+    output_price_per_operation?: number;
+    output_price_per_unit?: number;
+    pack_operations_per_hour?: number;
+    public?: boolean;
+    queued_items: number;
+    queued_runs: number;
+    recipe?: string;
+    rental_fee_per_run?: number;
+    ticks_per_run?: number;
+    unpack_operations_per_hour?: number;
+};
+
+export type FacilityRecipeInfo = {
+    crafting_time: number;
+    id: string;
+    inputs: Array<ItemQuantity>;
+    name: string;
+    outputs: Array<ItemQuantity>;
+};
+
+export type FacilityRentSummary = {
+    arrears_owed?: number;
+    est_rent_per_day: number;
+    facilities: number;
+    grace_cycles?: number;
+    note?: string;
+    total_rent_per_cycle: number;
+};
+
+export type FacilityRepairMaterial = {
+    item_id: string;
+    quantity: number;
+};
+
+export type FacilityRepairResponse = {
+    action: 'repair';
+    complete_tick: number;
+    facility_id: string;
+    facility_name: string;
     hint: string;
-    pagination: {
-        page: string;
-        per_page: string;
-    };
-    total: number;
-} | {
-    action: string;
+    materials_used: Array<FacilityRepairMaterial>;
+    ticks_to_complete: number;
+};
+
+export type FacilityResponse = FacilityListResponse | FacilityOwnedResponse | FacilityFactionOwnedResponse | FacilityHelpResponse | FacilityBuildResponse | FacilityUpgradesResponse | FacilityUpgradeResponse | FacilityDismantleResponse | FacilityRepairResponse | FacilityFactionBuildResponse | FacilityFactionUpgradeResponse | FacilityFactionListResponse | FacilityTransferResponse | FacilityPersonalBuildResponse | FacilityPersonalDecorateResponse | FacilityPersonalVisitResponse | FacilityTypeDiscoveryResponse | FacilityTypeListResponse | FacilityTypeDetailResponse | FacilityListForSaleResponse | FacilityBrowseForSaleResponse | FacilityBuyListingResponse | FacilityCancelListingResponse | CraftJobResponse | PackageJobResponse | FacilityJobListResponse | JobCancelResponse | BulkJobCancelResponse | JobReorderResponse | SetOutputPriceResponse | SetAccessResponse | SetFacilityNameResponse | SetFacilityDescriptionResponse;
+
+export type FacilitySummary = {
+    facility_id: string;
+    maintenance_satisfied: boolean;
+    missed_rent_cycles?: number;
+    name: string;
+    recipe_id?: string;
+    rent_per_cycle: number;
+    status: string;
+    ticks_until_complete?: number;
+    type: string;
+};
+
+export type FacilityTransferResponse = {
+    action: 'transfer';
+    direction: string;
+    facility_id: string;
     hint: string;
-    page: number;
-    per_page: number;
-    total: number;
-    total_pages: number;
-    types: Array<{
-        bonus_type?: string;
-        bonus_value?: number;
-        build_cost: number;
-        buildable?: boolean;
-        category: string;
-        id: string;
-        level: number;
-        name: string;
-        personal_service?: string;
-        recipe_id?: string;
-        service?: string;
-    }>;
-} | {
-    action: string;
+    new_owner?: string;
+};
+
+export type FacilityTypeDetailResponse = {
+    action: 'types';
     bonus_type?: string;
     bonus_value?: number;
     build_cost: number;
-    build_materials?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
+    build_materials?: Array<ItemQuantity>;
     build_time: number;
     buildable: boolean;
     category: string;
@@ -2454,31 +2099,14 @@ export type FacilityResponse = {
     faction_cap?: number;
     faction_service?: string;
     hint?: string;
+    kind: 'detail';
     labor_cost: number;
     level: number;
     lore?: string;
-    maintenance_per_cycle?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
+    maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
     personal_service?: string;
-    recipe?: {
-        crafting_time: number;
-        id: string;
-        inputs: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        name: string;
-        outputs: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-    };
+    recipe?: FacilityRecipeInfo;
     recipe_id?: string;
     rent_per_cycle: number;
     requires_service_name?: string;
@@ -2489,193 +2117,89 @@ export type FacilityResponse = {
     upgrades_from_name?: string;
     upgrades_to?: string;
     upgrades_to_name?: string;
-} | {
-    action: string;
-    credits_left?: number;
-    definition_id: string;
-    facility_id: string;
-    fee: number;
-    listing_id: string;
-    message: string;
-    price: number;
-} | {
-    action: string;
+};
+
+export type FacilityTypeDiscoveryResponse = {
+    action: 'types';
+    categories: {
+        [key: string]: FacilityCategoryInfo;
+    };
+    filters: FacilityTypeFilterInfo;
+    hint: string;
+    kind: 'discovery';
+    pagination: FacilityTypePaginationInfo;
+    total: number;
+};
+
+export type FacilityTypeFilterInfo = {
+    category: string;
+    level: string;
+    name: string;
+};
+
+export type FacilityTypeListResponse = {
+    action: 'types';
+    hint: string;
+    kind: 'list';
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+    types: Array<FacilityTypeSummary>;
+};
+
+export type FacilityTypePaginationInfo = {
+    page: string;
+    per_page: string;
+};
+
+export type FacilityTypeSummary = {
+    bonus_type?: string;
+    bonus_value?: number;
+    build_cost: number;
+    buildable?: boolean;
+    category: string;
+    id: string;
+    level: number;
+    name: string;
+    personal_service?: string;
+    recipe_id?: string;
+    service?: string;
+};
+
+export type FacilityUpgradeEntry = {
+    current_level: number;
+    requires?: string;
+    upgrade_to: FacilityDefSummary;
+    your_facility_id: string;
+    your_facility_name: string;
+    your_facility_type: string;
+};
+
+export type FacilityUpgradeResponse = {
+    action: 'upgrade';
     base_id: string;
-    base_name: string;
-    count: number;
-    listings: Array<{
-        build_cost?: number;
-        build_time?: number;
-        category?: string;
-        compatibility_note?: string;
-        definition_id: string;
-        facility_id: string;
-        facility_name?: string;
-        fuel_capacity_bonus?: number;
-        fuel_output?: boolean;
-        level?: number;
-        listed_at: string;
-        listing_id: string;
-        price: number;
-        recipe_id?: string;
-        required_skill_level?: number;
-        seller_name?: string;
-        seller_type: string;
-        skill_met?: boolean;
-        station_or_faction_only?: boolean;
-        under_construction?: boolean;
-    }>;
-} | {
-    action: string;
-    credits_left: number;
-    definition_id: string;
+    bonus_type?: string;
+    bonus_value?: number;
     facility_id: string;
-    message: string;
-    price: number;
-    sales_tax?: number;
-} | {
-    action: string;
-    facility_id: string;
-    message: string;
-} | {
-    action: string;
-    effective_time_per_run: number;
-    escrowed: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
-    est_completion_tick: number;
-    external?: boolean;
-    facility_id: string;
-    job_id: string;
-    message: string;
-    mode: string;
-    produces?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
-    recipe: string;
-    runs: number;
-    venue: string;
-    venue_type: string;
-} | {
-    action: string;
-    escrowed: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
-    eta_ticks: number;
-    external?: boolean;
-    job_id: string;
-    label: string;
-    message: string;
-    package_id: string;
-    venue: string;
-} | {
-    action: string;
-    facility_id: string;
-    jobs: Array<{
-        base_id?: string;
-        base_name?: string;
-        eta_ticks: number;
-        external?: boolean;
-        facility_id: string;
-        job_id: string;
-        label?: string;
-        mode: string;
-        orderer: string;
-        package_id?: string;
-        position: number;
-        produces?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        progress: number;
-        recipe: string;
-        runs_done: number;
-        runs_remaining: number;
-        runs_total: number;
-        status: string;
-        venue?: string;
-    }>;
-    message?: string;
-    total_jobs: number;
-    venue: string;
-} | {
-    action: string;
-    job_id: string;
-    message: string;
-    refunded: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
-} | {
-    action: string;
-    message: string;
-    mode: string;
-    results: Array<{
-        error?: string;
-        error_code?: string;
-        job_id: string;
-        refunded?: {
-            fee?: number;
-            inputs?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            labor?: number;
-        };
-        success: boolean;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
-} | {
-    action: string;
-    facility_id: string;
-    job_id: string;
-    message: string;
-    position: number;
-} | {
-    action: string;
-    facility_id: string;
-    message: string;
-    price: number;
-} | {
-    access: string;
-    action: string;
-    facility_id: string;
-    message: string;
-} | {
-    action: string;
-    custom_name?: string;
-    facility_id: string;
-    message: string;
-} | {
-    action: string;
-    description?: string;
-    facility_id: string;
-    message: string;
+    facility_name: string;
+    facility_type: string;
+    hint: string;
+    level: number;
+    personal_service?: string;
+    recipe_id?: string;
+    rent_per_cycle: number;
+};
+
+export type FacilityUpgradesResponse = {
+    action: 'upgrades';
+    base_id: string;
+    faction_locked_upgrades?: Array<FacilityUpgradeEntry>;
+    faction_upgrade_hint?: string;
+    faction_upgrades?: Array<FacilityUpgradeEntry>;
+    hint: string;
+    locked_upgrades?: Array<FacilityUpgradeEntry>;
+    upgrades: Array<FacilityUpgradeEntry>;
 };
 
 export type FactionAcceptAllyResponse = {
@@ -2688,6 +2212,22 @@ export type FactionAcceptPeaceResponse = {
     message: string;
     target_faction_id: string;
     target_name: string;
+};
+
+export type FactionActivityEntry = {
+    action: string;
+    credits?: number;
+    item?: string;
+    player: string;
+    quantity?: number;
+    timestamp: string;
+};
+
+export type FactionAllianceProposal = {
+    from_faction_id: string;
+    from_faction_name: string;
+    from_faction_tag: string;
+    proposed_at: string;
 };
 
 export type FactionCancelMissionResponse = {
@@ -2713,6 +2253,19 @@ export type FactionCreateBuyOrderResponse = {
     quantity_listed?: number;
     total_escrowed: number;
     total_spent?: number;
+};
+
+export type FactionCreateRolePermissions = {
+    broadcast: boolean;
+    invite: boolean;
+    kick: boolean;
+    manage_bases: boolean;
+    manage_diplomacy: boolean;
+    manage_facilities: boolean;
+    manage_roles: boolean;
+    manage_treasury: boolean;
+    officer_room_access: boolean;
+    promote: boolean;
 };
 
 export type FactionCreateRoleResponse = {
@@ -2764,117 +2317,124 @@ export type FactionDeleteRoomResponse = {
     room_id: string;
 };
 
+export type FactionDepositCreditsResponse = {
+    action: 'faction_deposit_credits';
+    amount: number;
+    faction_credits: number;
+    player_credits: number;
+};
+
+export type FactionDepositFuelResponse = {
+    action: 'faction_deposit_fuel';
+    fuel: number;
+    fuel_capacity: number;
+    ship_fuel: number;
+    storage_fuel: number;
+};
+
+export type FactionDepositItemsResponse = {
+    action: 'faction_deposit_items';
+    bucket?: string;
+    bucket_id?: string;
+    cargo_remaining: number;
+    cargo_space: number;
+    item_id: string;
+    quantity: number;
+    storage_total: number;
+};
+
 export type FactionEditResponse = {
     hint?: string;
     message: string;
-    updates: {
-        ally_fuel_access?: boolean;
-        ally_intel_opt_out?: boolean;
-        charter?: string;
-        description?: string;
-        primary_color?: string;
-        secondary_color?: string;
-    };
+    updates: FactionEditUpdates;
 };
 
 export type FactionEditRoleResponse = {
     message: string;
     role_id: string;
-    updates: {
-        name?: string;
-        permissions?: {
-            broadcast: boolean;
-            invite: boolean;
-            kick: boolean;
-            manage_bases: boolean;
-            manage_diplomacy: boolean;
-            manage_facilities: boolean;
-            manage_roles: boolean;
-            manage_treasury: boolean;
-            officer_room_access: boolean;
-            promote: boolean;
-        };
-    };
+    updates: FactionEditRoleUpdates;
+};
+
+export type FactionEditRoleUpdates = {
+    name?: string;
+    permissions?: FactionCreateRolePermissions;
+};
+
+export type FactionEditUpdates = {
+    ally_fuel_access?: boolean;
+    ally_intel_opt_out?: boolean;
+    charter?: string;
+    description?: string;
+    primary_color?: string;
+    secondary_color?: string;
+};
+
+export type FactionFacilityPresence = {
+    active: boolean;
+    base_id: string;
+    facility_id: string;
+    faction_service?: string;
+    name: string;
+    type: string;
+    under_construction?: boolean;
+};
+
+export type FactionFuelBunker = {
+    base_id: string;
+    base_name?: string;
+    fuel_capacity: number;
+    fuel_reserve: number;
+};
+
+export type FactionGarageStationEntry = {
+    base_id: string;
+    base_name?: string;
+    capacity: number;
+    ships: Array<GaragedShipEntry>;
+    system_name?: string;
+    used: number;
+};
+
+export type FactionGarageStoreResponse = {
+    action: 'faction_garage_store';
+    base_id: string;
+    capacity: number;
+    hint: string;
+    ship_id: string;
+    ship_name: string;
+    used: number;
 };
 
 export type FactionGaragesResponse = {
     station_count: number;
-    stations: Array<{
-        base_id: string;
-        base_name?: string;
-        capacity: number;
-        ships: Array<{
-            class_id: string;
-            class_name?: string;
-            custom_name?: string;
-            deposited_tick: number;
-            depositor_id: string;
-            depositor_name?: string;
-            ship_id: string;
-        }>;
-        system_name?: string;
-        used: number;
-    }>;
+    stations: Array<FactionGarageStationEntry>;
     total_ships: number;
 };
 
 export type FactionGetInvitesResponse = {
-    invites: Array<{
-        faction_id: string;
-        faction_name: string;
-        faction_tag: string;
-        invited_at: string;
-        invited_by: string;
-    }>;
+    invites: Array<FactionInvite>;
+};
+
+export type FactionGiftResponse = {
+    action: 'faction_gift';
+    credits_sent: number;
+    faction_id: string;
+    faction_name: string;
+    items_sent: number;
+    message: string;
 };
 
 export type FactionInfoResponse = {
-    alliance_proposals?: Array<{
-        from_faction_id: string;
-        from_faction_name: string;
-        from_faction_tag: string;
-        proposed_at: string;
-    }>;
-    allies?: Array<{
-        id: string;
-        leader_username: string;
-        member_count: number;
-        name: string;
-        owned_bases: number;
-        primary_color: string;
-        secondary_color: string;
-        tag: string;
-    }>;
+    alliance_proposals?: Array<FactionAllianceProposal>;
+    allies?: Array<FactionListItem>;
     at_war: boolean;
     charter: string;
     created_at: string;
     description: string;
     emblem?: string;
-    enemies?: Array<{
-        id: string;
-        leader_username: string;
-        member_count: number;
-        name: string;
-        owned_bases: number;
-        primary_color: string;
-        secondary_color: string;
-        tag: string;
-    }>;
-    facilities?: Array<{
-        active: boolean;
-        base_id: string;
-        facility_id: string;
-        faction_service?: string;
-        name: string;
-        type: string;
-        under_construction?: boolean;
-    }>;
-    fuel_bunkers?: Array<{
-        base_id: string;
-        base_name?: string;
-        fuel_capacity: number;
-        fuel_reserve: number;
-    }>;
+    enemies?: Array<FactionListItem>;
+    facilities?: Array<FactionFacilityPresence>;
+    fuel_bunkers?: Array<FactionFuelBunker>;
     id: string;
     is_ally: boolean;
     is_enemy: boolean;
@@ -2882,58 +2442,21 @@ export type FactionInfoResponse = {
     leader_id: string;
     leader_username: string;
     member_count: number;
-    members?: Array<{
-        is_online: boolean;
-        joined_at: string;
-        last_seen: string;
-        player_id: string;
-        role: string;
-        username: string;
-    }>;
+    members?: Array<FactionMember>;
     members_limit?: number;
     members_offset?: number;
     members_truncated?: boolean;
     name: string;
     owned_bases: number;
-    peace_proposals?: Array<{
-        from_faction_id: string;
-        from_faction_name: string;
-        proposed_at: string;
-        terms?: string;
-    }>;
+    peace_proposals?: Array<FactionPeaceProposal>;
     primary_color: string;
-    roles?: Array<{
-        id: string;
-        name: string;
-        permissions: {
-            broadcast: boolean;
-            invite: boolean;
-            kick: boolean;
-            manage_bases: boolean;
-            manage_diplomacy: boolean;
-            manage_facilities: boolean;
-            manage_roles: boolean;
-            manage_treasury: boolean;
-            officer_room_access: boolean;
-            promote: boolean;
-        };
-        priority: number;
-    }>;
+    roles?: Array<FactionRoleInfo>;
     secondary_color: string;
     tag: string;
     total_fuel_capacity: number;
     total_fuel_reserve: number;
     treasury?: number;
-    wars?: Array<{
-        declared_by: string;
-        our_kills: number;
-        reason?: string;
-        started_at: string;
-        target_faction_id: string;
-        target_faction_name: string;
-        target_faction_tag: string;
-        their_kills: number;
-    }>;
+    wars?: Array<FactionWarInfo>;
 };
 
 export type FactionIntelStatusResponse = {
@@ -2948,6 +2471,14 @@ export type FactionIntelStatusResponse = {
     total_systems?: number;
 };
 
+export type FactionInvite = {
+    faction_id: string;
+    faction_name: string;
+    faction_tag: string;
+    invited_at: string;
+    invited_by: string;
+};
+
 export type FactionInviteResponse = {
     message: string;
     player_id: string;
@@ -2958,44 +2489,78 @@ export type FactionKickResponse = {
     player_id: string;
 };
 
+export type FactionListItem = {
+    id: string;
+    leader_username: string;
+    member_count: number;
+    name: string;
+    owned_bases: number;
+    primary_color: string;
+    secondary_color: string;
+    tag: string;
+};
+
 export type FactionListMissionsResponse = {
     count: number;
     max_posted: number;
     message: string;
-    missions: Array<{
-        active_instances: number;
-        difficulty: number;
-        posted_by?: string;
-        reward_credits: number;
-        template_id: string;
-        title: string;
-        type: string;
-    }>;
+    missions: Array<FactionMissionEntry>;
 };
 
 export type FactionListResponse = {
-    factions: Array<{
-        id: string;
-        leader_username: string;
-        member_count: number;
-        name: string;
-        owned_bases: number;
-        primary_color: string;
-        secondary_color: string;
-        tag: string;
-    }>;
+    factions: Array<FactionListItem>;
     limit: number;
     offset: number;
     total_count: number;
 };
 
+export type FactionMember = {
+    is_online: boolean;
+    joined_at: string;
+    last_seen: string;
+    player_id: string;
+    role: string;
+    username: string;
+};
+
+export type FactionMissionEntry = {
+    active_instances: number;
+    difficulty: number;
+    posted_by?: string;
+    reward_credits: number;
+    template_id: string;
+    title: string;
+    type: string;
+};
+
+export type FactionOwnedFacilityEntry = {
+    arrears_owed?: number;
+    base_id: string;
+    base_name: string;
+    custom_name?: string;
+    damaged?: boolean;
+    facility_id: string;
+    labor_per_run: number;
+    missed_rent_cycles?: number;
+    name: string;
+    power_throttled?: boolean;
+    rent_per_cycle: number;
+    rental_fee_per_run?: number;
+    repair_complete_tick?: number;
+    system_id?: string;
+    type: string;
+    under_construction?: boolean;
+};
+
+export type FactionPeaceProposal = {
+    from_faction_id: string;
+    from_faction_name: string;
+    proposed_at: string;
+    terms?: string;
+};
+
 export type FactionPostMissionResponse = {
-    escrowed: {
-        credits: number;
-        items?: {
-            [key: string]: number;
-        };
-    };
+    escrowed: EscrowedRewards;
     message: string;
     status: string;
     template_id: string;
@@ -3032,43 +2597,7 @@ export type FactionProposePeaceResponse = {
 export type FactionQueryIntelResponse = {
     count: number;
     current_tick: number;
-    entries: Array<{
-        auto_synced?: boolean;
-        connections?: Array<{
-            distance?: number;
-            name?: string;
-            system_id: string;
-        }>;
-        description?: string;
-        empire?: string;
-        name: string;
-        pois?: Array<{
-            base_id?: string;
-            base_name?: string;
-            class?: string;
-            description?: string;
-            id: string;
-            name: string;
-            position: {
-                x: number;
-                y: number;
-            };
-            resources?: Array<{
-                depletion_percent?: number;
-                max_remaining?: number;
-                remaining: number;
-                remaining_display?: string;
-                resource_id: string;
-                richness: number;
-            }>;
-            type: string;
-        }>;
-        police_level: number;
-        submitted_at_tick: number;
-        submitted_by: string;
-        submitter_name: string;
-        system_id: string;
-    }>;
+    entries: Array<IntelEntry>;
     intel_level: number;
     limit?: number;
     live_systems?: Array<string>;
@@ -3078,23 +2607,7 @@ export type FactionQueryIntelResponse = {
 };
 
 export type FactionQueryTradeIntelResponse = {
-    entries: Array<{
-        auto_synced?: boolean;
-        base_id: string;
-        items: Array<{
-            best_buy: number;
-            best_sell: number;
-            buy_volume: number;
-            item_id: string;
-            item_name: string;
-            sell_volume: number;
-        }>;
-        station_name: string;
-        submitted_at_tick: number;
-        submitted_by: string;
-        submitter_name: string;
-        system_id: string;
-    }>;
+    entries: Array<TradeIntelEntry>;
     intel_level: number;
     limit?: number;
     offset?: number;
@@ -3116,51 +2629,47 @@ export type FactionRemoveEnemyResponse = {
     target_name: string;
 };
 
+export type FactionRoleInfo = {
+    id: string;
+    name: string;
+    permissions: FactionCreateRolePermissions;
+    priority: number;
+};
+
+export type FactionRoom = {
+    access?: string;
+    author?: string;
+    name: string;
+    room_id: string;
+    updated_at?: string;
+};
+
 export type FactionRoomsResponse = {
     action: string;
     faction: string;
     max_rooms: number;
     message: string;
-    rooms: Array<{
-        access?: string;
-        author?: string;
-        name: string;
-        room_id: string;
-        updated_at?: string;
-    }>;
+    rooms: Array<FactionRoom>;
     station: string;
     tag: string;
 };
 
+export type FactionScanNpcContact = {
+    empire?: string;
+    id: string;
+    name?: string;
+    role?: string;
+    ship_class?: string;
+};
+
 export type FactionScanPoiResponse = {
-    contacts?: Array<{
-        cloaked?: boolean;
-        faction_id?: string;
-        hull?: number;
-        revealed_info: Array<string>;
-        shield?: number;
-        ship_class?: string;
-        ship_name?: string;
-        target_id: string;
-        username?: string;
-    }>;
+    contacts?: Array<ScanContact>;
     facility_level: number;
     facility_station?: string;
     hops: number;
     message: string;
-    npcs?: Array<{
-        empire?: string;
-        id: string;
-        name?: string;
-        role?: string;
-        ship_class?: string;
-    }>;
-    pirates?: Array<{
-        id: string;
-        name?: string;
-        role?: string;
-        ship_class?: string;
-    }>;
+    npcs?: Array<FactionScanNpcContact>;
+    pirates?: Array<FactionScanPirateContact>;
     poi_id: string;
     poi_name?: string;
     scan_power: number;
@@ -3168,10 +2677,25 @@ export type FactionScanPoiResponse = {
     system_id?: string;
 };
 
+export type FactionScanPirateContact = {
+    id: string;
+    name?: string;
+    role?: string;
+    ship_class?: string;
+};
+
 export type FactionSetEnemyResponse = {
     message: string;
     target_faction_id: string;
     target_name: string;
+};
+
+export type FactionStorageBucket = {
+    cap_per_item: number;
+    id: string;
+    items: Array<CargoItem>;
+    name: string;
+    package_cap: number;
 };
 
 export type FactionSubmitIntelResponse = {
@@ -3186,26 +2710,20 @@ export type FactionSubmitTradeIntelResponse = {
     status: string;
 };
 
+export type FactionTaxDebtRow = {
+    amount: number;
+    empire: string;
+};
+
 export type FactionTaxEstimateResponse = {
     action: string;
-    carried_debt?: Array<{
-        amount: number;
-        empire: string;
-    }>;
+    carried_debt?: Array<FactionTaxDebtRow>;
     carried_debt_total?: number;
     deductible_expenses_to_date: number;
     domicile: string;
     faction_id: string;
     faction_name: string;
-    income_tax: Array<{
-        basis: string;
-        credit?: number;
-        empire: string;
-        gross: number;
-        owed: number;
-        rate_bps: number;
-        taxed_profit: number;
-    }>;
+    income_tax: Array<FactionTaxEstimateRow>;
     income_tax_total: number;
     last_assessed_at?: number;
     loss_carryforward_applied?: number;
@@ -3215,6 +2733,16 @@ export type FactionTaxEstimateResponse = {
     tax_collection_active: boolean;
     tax_prepaid: number;
     taxable_income_to_date: number;
+};
+
+export type FactionTaxEstimateRow = {
+    basis: string;
+    credit?: number;
+    empire: string;
+    gross: number;
+    owed: number;
+    rate_bps: number;
+    taxed_profit: number;
 };
 
 export type FactionTradeIntelStatusResponse = {
@@ -3240,9 +2768,38 @@ export type FactionVisitRoomResponse = {
     updated_at: string;
 };
 
+export type FactionWarInfo = {
+    declared_by: string;
+    our_kills: number;
+    reason?: string;
+    started_at: string;
+    target_faction_id: string;
+    target_faction_name: string;
+    target_faction_tag: string;
+    their_kills: number;
+};
+
+export type FactionWithdrawCreditsResponse = {
+    action: 'faction_withdraw_credits';
+    amount: number;
+    faction_credits: number;
+    player_credits: number;
+};
+
 export type FactionWithdrawInviteResponse = {
     message: string;
     player_id: string;
+};
+
+export type FactionWithdrawItemsResponse = {
+    action: 'faction_withdraw_items';
+    bucket?: string;
+    bucket_id?: string;
+    cargo_space: number;
+    cargo_total: number;
+    item_id: string;
+    quantity: number;
+    storage_remaining: number;
 };
 
 export type FactionWriteRoomResponse = {
@@ -3255,129 +2812,168 @@ export type FactionWriteRoomResponse = {
     room_id: string;
 };
 
+export type FaintSignature = {
+    difficulty?: string;
+    hint: string;
+    type: string;
+};
+
+export type Fill = {
+    counterparty?: string;
+    price_each: number;
+    quantity: number;
+    source?: string;
+    subtotal: number;
+};
+
 export type FindRouteResponse = {
     cargo_used: number;
     estimated_fuel: number;
-    fleet_fuel?: Array<{
-        can_complete: boolean;
-        estimated_fuel: number;
-        fuel_available: number;
-        fuel_on_arrival: number;
-        fuel_per_jump: number;
-        player_id: string;
-        ship_class: string;
-        username: string;
-    }>;
+    fleet_fuel?: Array<FleetMemberFuel>;
     found: boolean;
     fuel_available: number;
     fuel_per_jump: number;
     message: string;
-    route: Array<{
-        entrance_poi?: string;
-        jumps: number;
-        name: string;
-        system_id: string;
-        via_wormhole?: boolean;
-    }>;
+    route: Array<RouteStep>;
     target_poi?: string;
     target_poi_name?: string;
     target_system: string;
     total_jumps: number;
 };
 
+export type FittedModuleSnapshot = {
+    category: string;
+    current_ammo?: number;
+    loaded_ammo?: string;
+    magazine_size?: number;
+    name: string;
+};
+
+export type FleeLogEntry = {
+    escaped: boolean;
+    flee_counter: number;
+    flee_required: number;
+    player_id: string;
+};
+
+export type FleetAcceptResponse = {
+    action: 'accept';
+    fleet_id: string;
+    leader_name: string;
+    message: string;
+};
+
+export type FleetActionResponse = {
+    action: 'invite' | 'leave' | 'kick' | 'disband' | 'disembark';
+    message: string;
+};
+
+export type FleetBoardResponse = {
+    action: 'board';
+    carrier: string;
+    carrier_ship_id: string;
+    garaged_ship_id: string;
+    message: string;
+    parked_ship_id: string;
+};
+
+export type FleetCargoItem = {
+    item_id: string;
+    name: string;
+    quantity: number;
+};
+
 export type FleetCreateResponse = {
-    action: string;
+    action: 'create';
     fleet_id: string;
     max_size: number;
     message: string;
 };
 
-export type FleetResponse = {
-    action: string;
-    fleet_id?: string;
-    in_fleet: boolean;
-    invite_fleet?: string;
-    invite_from?: string;
-    invites?: Array<{
-        player_id: string;
-        username: string;
-    }>;
-    is_leader?: boolean;
-    leader?: string;
-    max_size?: number;
-    members?: Array<{
-        cargo?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        fuel_per_jump?: number;
-        is_leader: boolean;
-        passenger?: boolean;
-        player_id: string;
-        riding_ship_id?: string;
-        username: string;
-    }>;
-    pending_invite?: boolean;
-    poi_id?: string;
-    system_id?: string;
-} | {
-    action: string;
-    fleet_id: string;
-    max_size: number;
+export type FleetDeclineResponse = {
+    action: 'decline';
     message: string;
-} | {
-    action: string;
-    message: string;
-} | {
-    actions: Array<{
-        action: string;
-        description: string;
-        example?: {
-            [key: string]: string;
-        };
-        examples?: Array<{
-            [key: string]: string;
-        }>;
-        params?: Array<string>;
-    }>;
-    command: string;
-    description: string;
-    notes?: Array<string>;
-    sources?: {
-        [key: string]: string;
-    };
-    targets?: {
-        [key: string]: string;
-    };
+};
+
+export type FleetMemberFuel = {
+    can_complete: boolean;
+    estimated_fuel: number;
+    fuel_available: number;
+    fuel_on_arrival: number;
+    fuel_per_jump: number;
+    player_id: string;
+    ship_class: string;
+    username: string;
+};
+
+export type FleetResponse = ({
+    action: 'status';
+} & FleetStatusResponse) | ({
+    action: 'create';
+} & FleetCreateResponse) | ({
+    action: 'decline';
+} & FleetDeclineResponse) | ({
+    action: 'disband' | 'disembark' | 'invite' | 'kick' | 'leave';
+} & FleetActionResponse) | ({
+    action: 'accept';
+} & FleetAcceptResponse) | ({
+    action: 'board';
+} & FleetBoardResponse) | ({
+    action: 'help';
+} & CommandHelpResponse);
+
+export type FleetShipFuel = {
+    fuel: number;
+    fuel_pct: number;
+    fuel_per_jump: number;
+    is_leader: boolean;
+    is_you: boolean;
+    max_fuel: number;
+    player_id: string;
+    ship_class: string;
+    ship_id: string;
+    username: string;
+};
+
+export type FleetShipHull = {
+    hull: number;
+    hull_pct: number;
+    is_leader: boolean;
+    is_you: boolean;
+    max_hull: number;
+    max_shield: number;
+    player_id: string;
+    shield: number;
+    ship_class: string;
+    username: string;
+};
+
+export type FleetStatusInvite = {
+    player_id: string;
+    username: string;
+};
+
+export type FleetStatusMember = {
+    cargo?: Array<FleetCargoItem>;
+    fuel_per_jump?: number;
+    is_leader: boolean;
+    passenger?: boolean;
+    player_id: string;
+    riding_ship_id?: string;
+    username: string;
 };
 
 export type FleetStatusResponse = {
-    action: string;
+    action: 'status';
     fleet_id?: string;
     in_fleet: boolean;
     invite_fleet?: string;
     invite_from?: string;
-    invites?: Array<{
-        player_id: string;
-        username: string;
-    }>;
+    invites?: Array<FleetStatusInvite>;
     is_leader?: boolean;
     leader?: string;
     max_size?: number;
-    members?: Array<{
-        cargo?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        fuel_per_jump?: number;
-        is_leader: boolean;
-        passenger?: boolean;
-        player_id: string;
-        riding_ship_id?: string;
-        username: string;
-    }>;
+    members?: Array<FleetStatusMember>;
     pending_invite?: boolean;
     poi_id?: string;
     system_id?: string;
@@ -3403,47 +2999,8 @@ export type ForumGetThreadResponse = {
     has_more: boolean;
     page: number;
     per_page: number;
-    replies: Array<{
-        author: string;
-        author_empire?: string;
-        author_faction_tag?: string;
-        author_id: string;
-        content: string;
-        created_at: string;
-        id: string;
-        is_dev_team: boolean;
-        thread_id: string;
-        upvotes: number;
-    }>;
-    thread: {
-        author: string;
-        author_empire?: string;
-        author_faction_tag?: string;
-        author_id: string;
-        category: string;
-        content: string;
-        created_at: string;
-        id: string;
-        is_dev_team: boolean;
-        locked: boolean;
-        pinned: boolean;
-        replies?: Array<{
-            author: string;
-            author_empire?: string;
-            author_faction_tag?: string;
-            author_id: string;
-            content: string;
-            created_at: string;
-            id: string;
-            is_dev_team: boolean;
-            thread_id: string;
-            upvotes: number;
-        }>;
-        reply_count: number;
-        title: string;
-        updated_at: string;
-        upvotes: number;
-    };
+    replies: Array<ForumReply>;
+    thread: ForumThread;
     total_replies: number;
 };
 
@@ -3455,36 +3012,21 @@ export type ForumListResponse = {
     has_more: boolean;
     page: number;
     per_page: number;
-    threads: Array<{
-        author: string;
-        author_empire?: string;
-        author_faction_tag?: string;
-        author_id: string;
-        category: string;
-        content: string;
-        created_at: string;
-        id: string;
-        is_dev_team: boolean;
-        locked: boolean;
-        pinned: boolean;
-        replies?: Array<{
-            author: string;
-            author_empire?: string;
-            author_faction_tag?: string;
-            author_id: string;
-            content: string;
-            created_at: string;
-            id: string;
-            is_dev_team: boolean;
-            thread_id: string;
-            upvotes: number;
-        }>;
-        reply_count: number;
-        title: string;
-        updated_at: string;
-        upvotes: number;
-    }>;
+    threads: Array<ForumThread>;
     total: number;
+};
+
+export type ForumReply = {
+    author: string;
+    author_empire?: string;
+    author_faction_tag?: string;
+    author_id: string;
+    content: string;
+    created_at: string;
+    id: string;
+    is_dev_team: boolean;
+    thread_id: string;
+    upvotes: number;
 };
 
 export type ForumReplyResponse = {
@@ -3493,10 +3035,52 @@ export type ForumReplyResponse = {
     thread_id: string;
 };
 
+export type ForumThread = {
+    author: string;
+    author_empire?: string;
+    author_faction_tag?: string;
+    author_id: string;
+    category: string;
+    content: string;
+    created_at: string;
+    id: string;
+    is_dev_team: boolean;
+    locked: boolean;
+    pinned: boolean;
+    replies?: Array<ForumReply>;
+    reply_count: number;
+    title: string;
+    updated_at: string;
+    upvotes: number;
+};
+
 export type ForumUpvoteResponse = {
     message: string;
     reply_id?: string;
     thread_id?: string;
+};
+
+export type FuelLogEntry = {
+    forced_fire: boolean;
+    fuel_after: number;
+    fuel_before: number;
+    fuel_burned: number;
+    player_id: string;
+};
+
+export type GalacticPosition = {
+    x: number;
+    y: number;
+};
+
+export type GaragedShipEntry = {
+    class_id: string;
+    class_name?: string;
+    custom_name?: string;
+    deposited_tick: number;
+    depositor_id: string;
+    depositor_name?: string;
+    ship_id: string;
 };
 
 /**
@@ -3507,41 +3091,14 @@ export type GenericObjectResponse = {
 };
 
 export type GetAchievementsResponse = {
-    achievements: Array<{
-        category: string;
-        description: string;
-        earned: boolean;
-        earned_at?: string;
-        hidden: boolean;
-        id: string;
-        name: string;
-        points: number;
-        progress?: {
-            current: number;
-            target: number;
-        };
-        share_url?: string;
-    }>;
+    achievements: Array<AchievementEntry>;
     message?: string;
-    summary: {
-        earned: number;
-        points: number;
-        total: number;
-    };
+    summary: AchievementSummary;
 };
 
 export type GetActionLogResponse = {
     category: string;
-    entries: Array<{
-        category: string;
-        created_at: string;
-        data?: {
-            [key: string]: string | number | number | boolean;
-        };
-        event_type: string;
-        id: number;
-        summary: string;
-    }>;
+    entries: Array<ActionLogEntry>;
     event_type?: string;
     faction_id?: string;
     has_more: boolean;
@@ -3552,275 +3109,22 @@ export type GetActionLogResponse = {
 };
 
 export type GetBaseResponse = {
-    base: {
-        allow_outsider_facilities?: boolean;
-        armor: number;
-        description: string;
-        empire?: string;
-        facilities?: Array<string>;
-        faction_id?: string;
-        fuel: number;
-        hull: number;
-        id: string;
-        market_fee_bps?: number;
-        max_fuel: number;
-        max_hull: number;
-        max_shield: number;
-        name: string;
-        owner_id?: string;
-        pirate_rep_required?: number;
-        poi_id: string;
-        public_access: boolean;
-        refuel_price_each?: number;
-        repair_price_per_hull?: number;
-        service_access?: {
-            [key: string]: string;
-        };
-        shield: number;
-        type?: string;
-        weapon_dps: number;
-        weapon_reach: number;
-        wrecked?: boolean;
-    };
-    condition: {
-        condition: string;
-        condition_text: string;
-        satisfaction_pct: number;
-        satisfied_count: number;
-        total_service_infra: number;
-    };
-    construction?: {
-        pending?: Array<{
-            build_cost?: number;
-            category: string;
-            definition_id: string;
-            materials?: Array<{
-                item_id: string;
-                name?: string;
-                quantity_in_storage: number;
-                quantity_missing?: number;
-                quantity_required: number;
-            }>;
-            name: string;
-            reason?: string;
-            status: string;
-            ticks_until_complete?: number;
-        }>;
-        under_construction?: Array<{
-            build_cost?: number;
-            category: string;
-            definition_id: string;
-            materials?: Array<{
-                item_id: string;
-                name?: string;
-                quantity_in_storage: number;
-                quantity_missing?: number;
-                quantity_required: number;
-            }>;
-            name: string;
-            reason?: string;
-            status: string;
-            ticks_until_complete?: number;
-        }>;
-    };
+    base: TrimmedBase;
+    condition: StationHealth;
+    construction?: StationConstructionResponse;
     faction_fuel_capacity?: number;
     faction_fuel_reserve?: number;
     fuel_price?: number;
     fuel_price_all_in?: number;
     fuel_tax_per_unit?: number;
-    life_support?: {
-        demand: number;
-        maintenance?: Array<{
-            item_id: string;
-            name?: string;
-            quantity_per_cycle: number;
-        }>;
-        maintenance_cycle_ticks: number;
-        plants: number;
-        remediation?: string;
-        starved?: Array<{
-            item_id: string;
-            name?: string;
-            quantity_per_cycle: number;
-        }>;
-        supply: number;
-    };
-    power?: {
-        battery_capacity: number;
-        battery_stored: number;
-        current_draw: number;
-        efficiency: number;
-        fuel_inputs?: Array<{
-            item_id: string;
-            name?: string;
-            quantity_per_cycle: number;
-        }>;
-        remediation?: string;
-        supply: number;
-    };
+    life_support?: StationLifeSupportStatus;
+    power?: StationPowerStatus;
     services: Array<string>;
 };
 
 export type GetBattleLogResponse = {
     battle_id: string;
-    entries: Array<{
-        attacks?: Array<{
-            after_def_buff?: number;
-            after_stance?: number;
-            attacker_id: string;
-            capital_bonus_pct?: number;
-            damage_type: string;
-            def_buff_pct?: number;
-            disrupted?: boolean;
-            final_damage: number;
-            flat_reduction_pct?: number;
-            hit_chance: number;
-            hit_roll: number;
-            hit_success: boolean;
-            hull_damage: number;
-            off_buff_pct?: number;
-            pre_hit_damage: number;
-            raw_damage: number;
-            shield_damage: number;
-            shield_resist_pct?: number;
-            splash?: boolean;
-            stance_mult?: number;
-            target_id: string;
-            type_resist_pct?: number;
-            weapon_skill_pct: number;
-            weapons: Array<{
-                after_disruption: number;
-                ammo_mod?: number;
-                ammo_used?: string;
-                base_damage: number;
-                crit_chance: number;
-                crit_fired: boolean;
-                crit_roll: number;
-                damage: number;
-                damage_type: string;
-                instance_id: string;
-                name: string;
-                type_bonus_pct: number;
-            }>;
-            zone_distance: number;
-        }>;
-        autopilot?: Array<{
-            chosen_target?: string;
-            player_id: string;
-            reason: string;
-        }>;
-        battle_ended?: {
-            category: string;
-            duration: number;
-            outcome: string;
-            participant_names?: Array<string>;
-            participants: Array<{
-                damage_dealt: number;
-                damage_taken: number;
-                kill_count: number;
-                player_id: string;
-                side_id: number;
-                survived: boolean;
-                username: string;
-            }>;
-            ships_destroyed: number;
-            total_damage: number;
-            winning_side: number;
-        };
-        battle_id: string;
-        burns?: Array<{
-            damage: number;
-            destroyed?: boolean;
-            target_id: string;
-            ticks_remaining: number;
-        }>;
-        commands?: Array<{
-            command: string;
-            player_id: string;
-            stance?: string;
-            target_id?: string;
-        }>;
-        flee?: Array<{
-            escaped: boolean;
-            flee_counter: number;
-            flee_required: number;
-            player_id: string;
-        }>;
-        fuel?: Array<{
-            forced_fire: boolean;
-            fuel_after: number;
-            fuel_before: number;
-            fuel_burned: number;
-            player_id: string;
-        }>;
-        joins?: Array<{
-            player_id: string;
-            side_id: number;
-            username: string;
-        }>;
-        kills?: Array<{
-            killer_id: string;
-            killer_username: string;
-            victim_id: string;
-            victim_username: string;
-        }>;
-        regen?: Array<{
-            armor_repair: number;
-            hull_after: number;
-            hull_before: number;
-            player_id: string;
-            remote_repair?: number;
-            shield_after: number;
-            shield_before: number;
-            shield_regen: number;
-        }>;
-        snapshots: Array<{
-            armor_melt_pct?: number;
-            armor_melt_ticks?: number;
-            auto_pilot: boolean;
-            burn_damage_per_tick?: number;
-            burn_ticks?: number;
-            damage_dealt: number;
-            damage_penalty_pct?: number;
-            damage_taken: number;
-            disruption_ticks?: number;
-            faction_id?: string;
-            flee_counter: number;
-            fuel: number;
-            hull: number;
-            kill_count: number;
-            kind?: string;
-            max_fuel: number;
-            max_hull: number;
-            max_shield: number;
-            modules?: Array<{
-                category: string;
-                current_ammo?: number;
-                loaded_ammo?: string;
-                magazine_size?: number;
-                name: string;
-            }>;
-            player_id: string;
-            shield: number;
-            ship_class: string;
-            side_id: number;
-            speed_penalty_pct?: number;
-            stance: string;
-            target_id?: string;
-            username: string;
-            x: number;
-            y: number;
-            zone: string;
-        }>;
-        system_id: string;
-        tick: number;
-        zone_moves?: Array<{
-            new_zone: string;
-            old_zone: string;
-            player_id: string;
-            reason: string;
-        }>;
-    }>;
+    entries: Array<BattleLogEntry>;
     /**
      * True if more entries exist past this page (tick_start/tick_end) — raise tick_start or limit to page through.
      */
@@ -3837,100 +3141,10 @@ export type GetBattleLogResponse = {
 
 export type GetBattleStatusResponse = {
     battle_id: string;
-    combat_state?: {
-        /**
-         * Whether you can flee at all. False only when warp disruption is holding you in place.
-         */
-        can_escape: boolean;
-        /**
-         * Remaining ticks of EM disruption (present only while em_disrupted).
-         */
-        disruption_ticks?: number;
-        /**
-         * Your ship speed after disruption penalties. Higher than your pursuers means you can disengage; lower means you are pinned.
-         */
-        effective_speed: number;
-        /**
-         * An EM-damage disruption debuff is active on you (reduces speed and damage output for a few ticks).
-         */
-        em_disrupted: boolean;
-        /**
-         * Consecutive flee ticks accumulated. Counts only while in the flee stance at the outer ring; resets if you stop fleeing.
-         */
-        flee_counter: number;
-        /**
-         * Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted when warp-disrupted because escape is impossible until the tackle is removed.
-         */
-        flee_required?: number;
-        /**
-         * Largest zone distance any of your fitted weapons can fire across. An enemy whose zone_distance exceeds this is out of your range.
-         */
-        max_weapon_reach: number;
-        /**
-         * Current speed reduction from EM disruption as a percentage (present only while em_disrupted).
-         */
-        speed_penalty_pct?: number;
-        /**
-         * An enemy warp disruptor/scrambler is blocking your escape (net of your own warp core stabilizers). Kill the tackler or out-stabilize it to break free.
-         */
-        warp_disrupted: boolean;
-        /**
-         * An enemy stasis webifier is reducing your effective speed (slower escape and easier for enemies to hit you).
-         */
-        webbed: boolean;
-    };
+    combat_state?: BattleCombatState;
     is_participant: boolean;
-    participants?: Array<{
-        auto_pilot: boolean;
-        /**
-         * Total damage dealt by you so far this battle (self only)
-         */
-        damage_dealt?: number;
-        /**
-         * Total damage taken by you so far this battle (self only)
-         */
-        damage_taken?: number;
-        /**
-         * Hull integrity as a percentage of max (0-100)
-         */
-        hull_pct?: number;
-        /**
-         * Ships you have destroyed this battle (self only)
-         */
-        kill_count?: number;
-        player_id: string;
-        /**
-         * Shield strength as a percentage of max (0-100)
-         */
-        shield_pct?: number;
-        ship_class?: string;
-        ship_name?: string;
-        side_id: number;
-        /**
-         * Combat stance this tick (self only): fire/evade/brace/flee
-         */
-        stance?: string;
-        /**
-         * Player ID this ship is focusing fire on (self only; empty = auto-target)
-         */
-        target_id?: string;
-        username: string;
-        /**
-         * Distance ring this ship occupies: outer/mid/inner/engaged
-         */
-        zone?: string;
-        /**
-         * Zone separation from the requesting player (0 = same ring; higher = farther). Compare against your combat_state.max_weapon_reach to see if you can fire. Omitted when the requester is not a participant.
-         */
-        zone_distance?: number;
-    }>;
-    sides?: Array<{
-        faction_id?: string;
-        faction_name?: string;
-        faction_tag?: string;
-        player_count: number;
-        side_id: number;
-    }>;
+    participants?: Array<BattleParticipant>;
+    sides?: Array<BattleSide>;
     system_id: string;
     tick_duration?: number;
 };
@@ -3938,42 +3152,16 @@ export type GetBattleStatusResponse = {
 export type GetChatHistoryResponse = {
     channel: string;
     has_more: boolean;
-    messages: Array<{
-        channel: string;
-        content: string;
-        empire_official?: boolean;
-        faction_id?: string;
-        id: string;
-        poi_id?: string;
-        sender: string;
-        sender_id: string;
-        system_id?: string;
-        target_id?: string;
-        target_name?: string;
-        timestamp_utc: string;
-    }>;
+    messages: Array<ChatHistoryMessage>;
     total_count: number;
 };
 
 export type GetCommandsResponse = {
-    commands: Array<{
-        category: string;
-        description: string;
-        format: string;
-        is_mutation: boolean;
-        name: string;
-        notes: string;
-        requires_auth: boolean;
-    }>;
+    commands: Array<CommandInfoPayload>;
 };
 
 export type GetDroneResponse = {
-    cargo: Array<{
-        item_id: string;
-        name?: string;
-        quantity: number;
-        size?: number;
-    }>;
+    cargo: Array<ShipCargoItem>;
     cargo_capacity: number;
     cargo_used: number;
     deployed_at?: string;
@@ -4001,102 +3189,24 @@ export type GetDronesResponse = {
     bay_capacity: number;
     bay_count: number;
     deployed_count: number;
-    drones: Array<{
-        cargo_pct: number;
-        has_script: boolean;
-        hull: number;
-        id: string;
-        max_hull: number;
-        name?: string;
-        poi_id?: string;
-        script_preview?: string;
-        status: string;
-        travel_ticks?: number;
-        travel_to?: string;
-        type: string;
-    }>;
+    drones: Array<DroneInfo>;
 };
 
 export type GetEmpireInfoResponse = {
     action: string;
-    empires: Array<{
-        bounty_attack: number;
-        bounty_kill: number;
-        bounty_rep_restoration_bps: number;
-        bounty_rep_restoration_cap: number;
-        citizenship_auto_approve: boolean;
-        citizenship_exclusive: boolean;
-        citizenship_fee: number;
-        citizenship_min_balance: number;
-        citizenship_min_reputation: number;
-        citizenship_open: boolean;
-        contraband_items: Array<string>;
-        customs_fine_multiplier_bps: number;
-        default_foreign_sales_tax_bps: number;
-        empire_id: string;
-        eviction_grace_cycles: number;
-        faction_income_tax_bps: number;
-        foreign_income_tax_deduction?: {
-            [key: string]: number;
-        };
-        foreign_sales_tax_bps?: {
-            [key: string]: number;
-        };
-        fuel_tax_per_unit: number;
-        income_tax_bps: number;
-        jail_duration_hours: number;
-        listing_fee_bps: number;
-        policy_updated_at?: number;
-        property_tax_bps: number;
-        rep_baseline_citizen: number;
-        rep_baseline_outsider: number;
-        rep_decay_amount: number;
-        rep_penalty_attack: number;
-        rep_penalty_kill: number;
-        rep_trade_fill_cap: number;
-        rep_trade_fill_divisor: number;
-        repair_cost_per_hull: number;
-        sales_tax_bps: number;
-        ship_listing_fee_bps: number;
-        shoot_on_sight_threshold: number;
-        starting_credits: number;
-        stateless_sales_tax_bps: number;
-        tax_delinquency_bounty_per_credit: number;
-    }>;
+    empires: Array<EmpirePolicySnapshot>;
 };
 
 export type GetFactionAchievementsResponse = {
-    achievements: Array<{
-        category: string;
-        description: string;
-        earned: boolean;
-        earned_at?: string;
-        hidden: boolean;
-        id: string;
-        name: string;
-        points: number;
-        progress?: {
-            current: number;
-            target: number;
-        };
-        share_url?: string;
-    }>;
+    achievements: Array<AchievementEntry>;
     message?: string;
-    summary: {
-        earned: number;
-        points: number;
-        total: number;
-    };
+    summary: AchievementSummary;
 };
 
 export type GetGuideResponse = {
     content?: string;
     guide?: string;
-    guides?: Array<{
-        description?: string;
-        id: string;
-        title: string;
-    }>;
+    guides?: Array<GuideEntry>;
     hint?: string;
     server_version?: string;
 };
@@ -4104,186 +3214,39 @@ export type GetGuideResponse = {
 export type GetInsuranceQuoteResponse = {
     message: string;
     notice?: string;
-    quote: {
-        coverage?: number;
-        expires_in?: string;
-        factors: Array<{
-            detail: string;
-            multiplier: number;
-            name: string;
-        }>;
-        fitted_value: number;
-        premium?: number;
-        refused: boolean;
-        risk_score: number;
-    };
+    quote: InsuranceQuoteData;
 };
 
+export type GetMapCommandResponse = GetMapResponse | MapSystemInfo;
+
 export type GetMapResponse = {
-    systems: Array<{
-        connections: Array<string>;
-        description?: string;
-        empire?: string;
-        is_stronghold?: boolean;
-        name: string;
-        online: number;
-        poi_count: number;
-        position: {
-            x: number;
-            y: number;
-        };
-        system_id: string;
-        visited: boolean;
-        visited_at: string;
-    }>;
+    systems: Array<MapSystemInfo>;
     total_count: number;
-} | {
-    connections: Array<string>;
-    description?: string;
-    empire?: string;
-    is_stronghold?: boolean;
-    name: string;
-    online: number;
-    poi_count: number;
-    position: {
-        x: number;
-        y: number;
-    };
-    system_id: string;
-    visited: boolean;
-    visited_at: string;
 };
 
 export type GetMissionsResponse = {
     base_id: string;
     base_name: string;
-    missions: Array<{
-        chain_next?: string;
-        community?: boolean;
-        community_percent?: number;
-        community_progress?: {
-            [key: string]: string;
-        };
-        description: string;
-        dialog?: {
-            accept?: string;
-            complete?: string;
-            decline?: string;
-            offer?: string;
-        };
-        difficulty: number;
-        expires_in_ticks: number;
-        faction_id?: string;
-        faction_name?: string;
-        giver?: {
-            name: string;
-            title: string;
-        };
-        issuing_base?: string;
-        issuing_base_id?: string;
-        issuing_system_id?: string;
-        issuing_system_name?: string;
-        mission_id: string;
-        objectives?: Array<{
-            description: string;
-            eligible_players?: Array<string>;
-            item_id?: string;
-            participants?: Array<string>;
-            quantity?: number;
-            system_id?: string;
-            system_name?: string;
-            target_base_id?: string;
-            target_base_name?: string;
-            type: string;
-        }>;
-        provided_items?: {
-            [key: string]: number;
-        };
-        repeatable?: boolean;
-        required_modules?: Array<string>;
-        rewards: {
-            credits: number;
-            items?: {
-                [key: string]: number;
-            };
-            pirate_rep?: number;
-            reputation?: number;
-            skill_xp?: {
-                [key: string]: number;
-            };
-        };
-        template_id?: string;
-        title: string;
-        type: string;
-        warnings?: Array<string>;
-    }>;
+    missions: Array<MissionInfo>;
 };
 
 export type GetNearbyResponse = {
     count: number;
     creature_count: number;
-    creatures: Array<{
-        creature_id: string;
-        hull: number;
-        in_combat: boolean;
-        max_hull: number;
-        name: string;
-        role: string;
-        species: string;
-    }>;
+    creatures: Array<CreatureInfo>;
     empire_npc_count: number;
-    empire_npcs: Array<{
-        empire: string;
-        fleet_name?: string;
-        in_combat: boolean;
-        name: string;
-        npc_id: string;
-        role: string;
-        ship_class?: string;
-        ship_name?: string;
-    }>;
-    nearby: Array<{
-        clan_tag?: string;
-        docked?: boolean;
-        faction_id?: string;
-        faction_tag?: string;
-        in_combat: boolean;
-        offline?: boolean;
-        player_id?: string;
-        primary_color?: string;
-        secondary_color?: string;
-        ship_class?: string;
-        ship_name?: string;
-        status_message?: string;
-        username?: string;
-    }>;
+    empire_npcs: Array<EmpireNpcInfo>;
+    nearby: Array<NearbyPlayer>;
     offline_collapsed?: number;
     pirate_count: number;
-    pirates: Array<{
-        hull?: number;
-        is_boss: boolean;
-        max_hull?: number;
-        max_shield?: number;
-        name: string;
-        pirate_id: string;
-        shield?: number;
-        status: string;
-        tier: string;
-    }>;
+    pirates: Array<PirateInfo>;
     poi_id: string;
     unknown_signature?: boolean;
 };
 
 export type GetNotesResponse = {
     has_more: boolean;
-    notes: Array<{
-        content_length: number;
-        created_at: string;
-        created_by: string;
-        note_id: string;
-        title: string;
-        value: number;
-    }>;
+    notes: Array<NoteInfo>;
     page: number;
     page_size: number;
     total_count: number;
@@ -4292,113 +3255,43 @@ export type GetNotesResponse = {
 export type GetNotificationsResponse = {
     count: number;
     current_tick: number;
-    notifications: Array<{
-        id: string;
-        msg_type: string;
-        timestamp: string;
-        type: string;
-    }>;
+    notifications: Array<McpNotification>;
     remaining: number;
     retry_after?: number;
     throttled?: boolean;
     timestamp: number;
 };
 
+export type GetPoiCommandResponse = ({
+    kind: 'normal';
+} & GetPoiResponse) | ({
+    kind: 'transit';
+} & GetPoiTransitResponse);
+
 export type GetPoiResponse = {
-    active_battle?: {
-        battle_id: string;
-        participants: Array<{
-            faction_id?: string;
-            is_npc?: boolean;
-            kind?: string;
-            player_id: string;
-            ship_class?: string;
-            side_id: number;
-            username: string;
-        }>;
-        sides: Array<{
-            faction_id?: string;
-            player_count: number;
-            side_id: number;
-        }>;
-    };
-    base?: {
-        allow_outsider_facilities?: boolean;
-        armor: number;
-        description: string;
-        empire?: string;
-        facilities?: Array<string>;
-        faction_id?: string;
-        fuel: number;
-        hull: number;
-        id: string;
-        market_fee_bps?: number;
-        max_fuel: number;
-        max_hull: number;
-        max_shield: number;
-        name: string;
-        owner_id?: string;
-        pirate_rep_required?: number;
-        poi_id: string;
-        public_access: boolean;
-        refuel_price_each?: number;
-        repair_price_per_hull?: number;
-        service_access?: {
-            [key: string]: string;
-        };
-        shield: number;
-        type?: string;
-        weapon_dps: number;
-        weapon_reach: number;
-        wrecked?: boolean;
-    };
+    active_battle?: ActiveBattleInfo;
+    base?: TrimmedBase;
     faction_fuel_capacity?: number;
     faction_fuel_reserve?: number;
     fuel_price?: number;
     fuel_price_all_in?: number;
     fuel_tax_per_unit?: number;
-    poi: {
-        base_id?: string;
-        class?: string;
-        description: string;
-        expires_at?: string;
-        hidden?: boolean;
-        id: string;
-        name: string;
-        position: {
-            x: number;
-            y: number;
-        };
-        resources?: Array<{
-            max_remaining?: number;
-            remaining: number;
-            resource_id: string;
-            richness: number;
-        }>;
-        reveal_difficulty?: number;
-        system_id: string;
-        type: string;
-    };
-    resources?: Array<{
-        depletion_percent?: number;
-        max_remaining?: number;
-        name: string;
-        remaining: number;
-        remaining_display: string;
-        resource_id: string;
-        richness: number;
-        supported_power?: number;
-    }>;
+    kind: 'normal';
+    poi: Poi;
+    resources?: Array<ResourceInfo>;
     services?: Array<string>;
     wormhole_destination?: string;
     wormhole_destination_id?: string;
     wormhole_expires_in?: string;
     wormhole_prediction_hint?: string;
-} | {
-    action: string;
+};
+
+export type GetPoiTransitResponse = {
+    action: 'get_poi';
     from_poi?: string;
     from_system?: string;
     in_transit: boolean;
+    kind: 'transit';
     message: string;
     ticks_remaining: number;
     to_poi?: string;
@@ -4407,145 +3300,52 @@ export type GetPoiResponse = {
 };
 
 export type GetSystemAgentsResponse = {
-    agents: Array<{
-        clan_tag?: string;
-        docked?: boolean;
-        faction_id?: string;
-        faction_tag?: string;
-        in_combat: boolean;
-        offline?: boolean;
-        player_id?: string;
-        primary_color?: string;
-        secondary_color?: string;
-        ship_class?: string;
-        ship_name?: string;
-        status_message?: string;
-        username?: string;
-    }>;
+    agents: Array<NearbyPlayer>;
     count: number;
     offline_collapsed?: number;
     system_id: string;
 };
 
+export type GetSystemCommandResponse = ({
+    kind: 'normal';
+} & GetSystemResponse) | ({
+    kind: 'transit';
+} & GetSystemTransitResponse);
+
 export type GetSystemResponse = {
-    action: string;
-    active_battle?: {
-        battle_id: string;
-        participants: Array<{
-            faction_id?: string;
-            is_npc?: boolean;
-            kind?: string;
-            player_id: string;
-            ship_class?: string;
-            side_id: number;
-            username: string;
-        }>;
-        sides: Array<{
-            faction_id?: string;
-            player_count: number;
-            side_id: number;
-        }>;
-    };
-    poi?: {
-        base_id?: string;
-        base_name?: string;
-        class?: string;
-        faction_fuel_capacity?: number;
-        faction_fuel_reserve?: number;
-        fuel_capacity?: number;
-        fuel_price?: number;
-        fuel_reserve: number;
-        has_base: boolean;
-        id: string;
-        name: string;
-        online: number;
-        position: {
-            x: number;
-            y: number;
-        };
-        type: string;
-    };
+    action: 'get_system';
+    active_battle?: ActiveBattleInfo;
+    kind: 'normal';
+    poi?: ClientPoiInfo;
     security_status: string;
-    system: {
-        connections: Array<{
-            distance?: number;
-            name: string;
-            system_id: string;
-        }>;
-        description?: string;
-        empire?: string;
-        id: string;
-        is_stronghold: boolean;
-        name: string;
-        pois: Array<{
-            base_id?: string;
-            base_name?: string;
-            class?: string;
-            faction_fuel_capacity?: number;
-            faction_fuel_reserve?: number;
-            fuel_capacity?: number;
-            fuel_price?: number;
-            fuel_reserve: number;
-            has_base: boolean;
-            id: string;
-            name: string;
-            online: number;
-            position: {
-                x: number;
-                y: number;
-            };
-            type: string;
-        }>;
-        police_level: number;
-        security_status?: string;
-    };
-} | {
-    action: string;
+    system: ClientSystemInfo;
+};
+
+export type GetSystemTransitResponse = {
+    action: 'get_system';
     from_system: string;
     in_transit: boolean;
+    kind: 'transit';
     message: string;
     ticks_remaining: number;
     to_system: string;
     transit_type: string;
 };
 
+export type GetTradeEntry = {
+    expires_at: string;
+    offer_credits?: number;
+    offer_items: Array<PendingTradeItemView>;
+    offerer_name?: string;
+    request_credits?: number;
+    request_items: Array<PendingTradeItemView>;
+    target_name?: string;
+    trade_id: string;
+};
+
 export type GetTradesResponse = {
-    incoming: Array<{
-        expires_at: string;
-        offer_credits?: number;
-        offer_items: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-        }>;
-        offerer_name?: string;
-        request_credits?: number;
-        request_items: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-        }>;
-        target_name?: string;
-        trade_id: string;
-    }>;
-    outgoing: Array<{
-        expires_at: string;
-        offer_credits?: number;
-        offer_items: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-        }>;
-        offerer_name?: string;
-        request_credits?: number;
-        request_items: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-        }>;
-        target_name?: string;
-        trade_id: string;
-    }>;
+    incoming: Array<GetTradeEntry>;
+    outgoing: Array<GetTradeEntry>;
 };
 
 export type GetVersionResponse = {
@@ -4558,46 +3358,37 @@ export type GetVersionResponse = {
     total: number;
     total_pages: number;
     version: string;
-    versions: Array<{
-        notes: Array<string>;
-        release_date: string;
-        version: string;
-    }>;
+    versions: Array<ReleaseEntry>;
 };
 
 export type GetWrecksResponse = {
     count: number;
-    wrecks: Array<{
-        cargo: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-            size?: number;
-        }>;
-        created_at: string;
-        expire_tick: number;
-        expires_at: string;
-        id: string;
-        insurance_policy_id?: string;
-        killer_id?: string;
-        killer_name?: string;
-        modules: Array<{
-            id: string;
-            name: string;
-            type: string;
-            type_id: string;
-            wear: number;
-        }>;
-        poi_id: string;
-        salvage_value: number;
-        ship_class: string;
-        ship_name?: string;
-        system_id: string;
-        towed_by_player_id?: string;
-        type: string;
-        victim_id: string;
-        victim_name: string;
-    }>;
+    wrecks: Array<EnrichedWreck>;
+};
+
+export type GiftNotification = {
+    credits?: number;
+    items?: Array<ItemQuantity>;
+    message?: string;
+    sender: string;
+    sender_id: string;
+    timestamp: string;
+};
+
+export type GiftShipResponse = {
+    action: 'gift_ship';
+    base_id: string;
+    class_id: string;
+    class_name?: string;
+    message?: string;
+    recipient: string;
+    ship_id: string;
+};
+
+export type GuideEntry = {
+    description?: string;
+    id: string;
+    title: string;
 };
 
 export type HuntResponse = {
@@ -4606,686 +3397,67 @@ export type HuntResponse = {
     pending: boolean;
 };
 
+export type InherentCapability = {
+    flag?: string;
+    type: string;
+    value?: number;
+};
+
+export type InspectPoiData = {
+    detail?: GetPoiResponse;
+    summary?: ClientPoiInfo;
+};
+
+export type InspectPackageCreator = {
+    faction?: InspectPackageOwner;
+    player_id: string;
+    username?: string;
+};
+
+export type InspectPackageData = {
+    contents: Array<CargoItem>;
+    created_at: string;
+    creator: InspectPackageCreator;
+    label: string;
+    owner: InspectPackageOwner;
+    package_id: string;
+    size: number;
+};
+
+export type InspectPackageOwner = {
+    id: string;
+    name?: string;
+    tag?: string;
+    type: string;
+};
+
 export type InspectResponse = {
-    base?: {
-        base: {
-            allow_outsider_facilities?: boolean;
-            armor: number;
-            description: string;
-            empire?: string;
-            facilities?: Array<string>;
-            faction_id?: string;
-            fuel: number;
-            hull: number;
-            id: string;
-            market_fee_bps?: number;
-            max_fuel: number;
-            max_hull: number;
-            max_shield: number;
-            name: string;
-            owner_id?: string;
-            pirate_rep_required?: number;
-            poi_id: string;
-            public_access: boolean;
-            refuel_price_each?: number;
-            repair_price_per_hull?: number;
-            service_access?: {
-                [key: string]: string;
-            };
-            shield: number;
-            type?: string;
-            weapon_dps: number;
-            weapon_reach: number;
-            wrecked?: boolean;
-        };
-        condition: {
-            condition: string;
-            condition_text: string;
-            satisfaction_pct: number;
-            satisfied_count: number;
-            total_service_infra: number;
-        };
-        construction?: {
-            pending?: Array<{
-                build_cost?: number;
-                category: string;
-                definition_id: string;
-                materials?: Array<{
-                    item_id: string;
-                    name?: string;
-                    quantity_in_storage: number;
-                    quantity_missing?: number;
-                    quantity_required: number;
-                }>;
-                name: string;
-                reason?: string;
-                status: string;
-                ticks_until_complete?: number;
-            }>;
-            under_construction?: Array<{
-                build_cost?: number;
-                category: string;
-                definition_id: string;
-                materials?: Array<{
-                    item_id: string;
-                    name?: string;
-                    quantity_in_storage: number;
-                    quantity_missing?: number;
-                    quantity_required: number;
-                }>;
-                name: string;
-                reason?: string;
-                status: string;
-                ticks_until_complete?: number;
-            }>;
-        };
-        faction_fuel_capacity?: number;
-        faction_fuel_reserve?: number;
-        fuel_price?: number;
-        fuel_price_all_in?: number;
-        fuel_tax_per_unit?: number;
-        life_support?: {
-            demand: number;
-            maintenance?: Array<{
-                item_id: string;
-                name?: string;
-                quantity_per_cycle: number;
-            }>;
-            maintenance_cycle_ticks: number;
-            plants: number;
-            remediation?: string;
-            starved?: Array<{
-                item_id: string;
-                name?: string;
-                quantity_per_cycle: number;
-            }>;
-            supply: number;
-        };
-        power?: {
-            battery_capacity: number;
-            battery_stored: number;
-            current_draw: number;
-            efficiency: number;
-            fuel_inputs?: Array<{
-                item_id: string;
-                name?: string;
-                quantity_per_cycle: number;
-            }>;
-            remediation?: string;
-            supply: number;
-        };
-        services: Array<string>;
-    };
+    base?: GetBaseResponse;
     catalog?: {
-        analysis?: {
-            alternates?: {
-                [key: string]: Array<{
-                    efficiency: string;
-                    name: string;
-                    recipe_id: string;
-                }>;
-            };
-            raw_materials: Array<{
-                category: string;
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            steps: Array<{
-                batches: number;
-                inputs: Array<{
-                    item_id: string;
-                    name: string;
-                    quantity: number;
-                }>;
-                name: string;
-                output: string;
-                output_qty: number;
-                recipe_id: string;
-            }>;
-        };
+        analysis?: RecipeAnalysis;
         estimated_material_cost?: number;
         /**
          * Catalog entries. Shape depends on the requested type: ships → ShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
          */
-        items: Array<{
-            base_value: number;
-            category: string;
-            description: string;
-            effect?: {
-                ammo?: {
-                    anti_drone_mod?: number;
-                    anti_large_mod?: number;
-                    anti_small_mod?: number;
-                    armor_bypass?: number;
-                    armor_melt_pct?: number;
-                    armor_melt_ticks?: number;
-                    damage_mod?: number;
-                    disrupt_bonus_speed?: number;
-                    disrupt_bonus_ticks?: number;
-                    disrupt_damage?: number;
-                    disrupt_speed?: number;
-                    disrupt_ticks?: number;
-                    dot_pct?: number;
-                    dot_ticks?: number;
-                    hit_chance_mod?: number;
-                    hull_damage_mod?: number;
-                    shield_bypass?: number;
-                    shield_damage_mod?: number;
-                    splash_pct?: number;
-                    untraceable?: boolean;
-                    wear_per_shot?: number;
-                };
-                amount?: number;
-                duration?: number;
-                stat?: string;
-                subtype?: string;
-                type: string;
-            };
-            extracted_by?: string;
-            food_type?: string;
-            hazardous?: boolean;
-            hidden?: boolean;
-            id: string;
-            name: string;
-            quest_item?: boolean;
-            rarity?: string;
-            region_lock?: Array<string>;
-            size: number;
-            stackable: boolean;
-            tradeable: boolean;
-        } | {
-            accuracy_bonus?: number;
-            ammo_type?: string;
-            armor_bonus?: number;
-            armor_bypass_bonus?: number;
-            armor_repair_rate?: number;
-            base_value: number;
-            cargo_bonus?: number;
-            cloak_strength?: number;
-            cooldown?: number;
-            cpu_bonus?: number;
-            cpu_usage: number;
-            current_cool?: number;
-            damage?: number;
-            damage_reduction?: number;
-            damage_type?: string;
-            description: string;
-            dining_points?: number;
-            disruptor_power?: number;
-            drone_bandwidth?: number;
-            drone_capacity?: number;
-            fuel_efficiency?: number;
-            hidden?: boolean;
-            hull_bonus?: number;
-            hull_penalty?: number;
-            id: string;
-            leisure_points?: number;
-            magazine_size?: number;
-            max_fuel_bonus?: number;
-            mining_power?: number;
-            name: string;
-            passenger_business_berths?: number;
-            passenger_comfort?: number;
-            passenger_economy_berths?: number;
-            passenger_first_berths?: number;
-            passive_recipe?: string;
-            power_bonus?: number;
-            power_usage: number;
-            precision_factor?: number;
-            quest_item?: boolean;
-            range?: number;
-            reach?: number;
-            remote_repair_power?: number;
-            required_skills?: {
-                [key: string]: number;
-            };
-            resistance_bonus?: {
-                [key: string]: number;
-            };
-            salvage_bonus?: number;
-            scanner_power?: number;
-            scramble_power?: number;
-            shield_bonus?: number;
-            shield_bypass_bonus?: number;
-            shield_recharge_bonus?: number;
-            signature_bonus?: number;
-            size: number;
-            slot: string;
-            special?: string;
-            speed_bonus?: number;
-            speed_penalty?: number;
-            survey_power?: number;
-            survey_range?: number;
-            tow_speed_penalty?: number;
-            tracking_bonus?: number;
-            type: string;
-            type_id: string;
-            warp_stabilization?: number;
-            webify_strength?: number;
-        } | {
-            base_armor: number;
-            base_fuel: number;
-            base_hull: number;
-            base_shield: number;
-            base_shield_recharge: number;
-            base_speed: number;
-            based_on?: string;
-            build_materials?: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            build_time: number;
-            cargo_capacity: number;
-            category?: string;
-            class: string;
-            cpu_capacity: number;
-            default_loadout_version?: number;
-            default_modules?: Array<string>;
-            defense_slots: number;
-            description: string;
-            faction?: string;
-            flavor_tags?: Array<string>;
-            hidden?: boolean;
-            id: string;
-            inherent_capabilities?: Array<{
-                flag?: string;
-                type: string;
-                value?: number;
-            }>;
-            legacy?: boolean;
-            lore?: string;
-            name: string;
-            npc_role?: string;
-            passive_recipes?: Array<string>;
-            piloting_required?: number;
-            power_capacity: number;
-            prestige_lock?: string;
-            price: number;
-            required_achievement?: string;
-            required_faction_achievement?: string;
-            required_faction_leader?: boolean;
-            required_items?: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            required_reputation?: number;
-            scale: number;
-            shipyard_tier: number;
-            special?: string;
-            starter_ship?: boolean;
-            tier: number;
-            tow_speed_bonus?: number;
-            utility_slots: number;
-            weapon_slots: number;
-        } | {
-            bonus_per_level?: {
-                [key: string]: number;
-            };
-            category: string;
-            description: string;
-            empire_restriction?: string;
-            id: string;
-            max_level: number;
-            name: string;
-            training_source?: string;
-            xp_per_level: Array<number>;
-        } | {
-            category: string;
-            crafting_time: number;
-            description: string;
-            facility_only?: boolean;
-            fuel_output?: number;
-            hidden?: boolean;
-            id: string;
-            inputs: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            name: string;
-            no_recycle?: boolean;
-            outputs: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            package_operation?: string;
-        } | {
-            allows_contraband?: boolean;
-            always_on: boolean;
-            ammo_item?: string;
-            battery_capacity?: number;
-            build_cost: number;
-            build_materials?: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            build_time: number;
-            category: string;
-            degraded_description?: string;
-            deposit_to_empire_reserves?: boolean;
-            description: string;
-            dining_points?: number;
-            disguised?: boolean;
-            empire?: string;
-            expansion_of?: string;
-            expansion_scale?: number;
-            faction_cap?: number;
-            faction_service_type?: string;
-            fleet_upkeep?: boolean;
-            fuel_capacity?: number;
-            fuel_output?: boolean;
-            id: string;
-            is_recycler?: boolean;
-            labor_cost: number;
-            leisure_points?: number;
-            level: number;
-            life_support_draw?: number;
-            life_support_supply?: number;
-            logistics?: boolean;
-            lore?: string;
-            maintenance_inputs?: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            name: string;
-            personal_bonus_type?: string;
-            personal_bonus_value?: number;
-            personal_service_type?: string;
-            pirate_base_only?: boolean;
-            player_station_buildable?: boolean;
-            power_draw?: number;
-            power_supply?: number;
-            recipe_id?: string;
-            repair_hull_per_item?: number;
-            repair_item?: string;
-            requires_service_type?: string;
-            satisfied_description?: string;
-            scan_falloff?: number;
-            scan_power?: number;
-            self_repair_rate?: number;
-            service_type?: string;
-            station_armor?: number;
-            station_hull_hp?: number;
-            station_or_faction_only?: boolean;
-            station_shield_hp?: number;
-            tourism_upkeep?: boolean;
-            transit_deadline_bonus?: number;
-            unique?: boolean;
-            upgrades_from?: string;
-            weapon_cooldown?: number;
-            weapon_damage?: number;
-            weapon_damage_type?: string;
-            weapon_reach?: number;
-        }>;
+        items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition>;
         message: string;
         page: number;
         page_size: number;
-        passive_recipe_details?: Array<{
-            category: string;
-            crafting_time: number;
-            description: string;
-            facility_only?: boolean;
-            fuel_output?: number;
-            hidden?: boolean;
-            id: string;
-            inputs: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            name: string;
-            no_recycle?: boolean;
-            outputs: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            package_operation?: string;
-        }>;
-        produced_by_facilities?: Array<{
-            definition_id: string;
-            level: number;
-            name: string;
-        }>;
-        recipes?: Array<{
-            category: string;
-            crafting_time: number;
-            description: string;
-            facility_only?: boolean;
-            fuel_output?: number;
-            hidden?: boolean;
-            id: string;
-            inputs: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            name: string;
-            no_recycle?: boolean;
-            outputs: Array<{
-                item_id: string;
-                quantity: number;
-            }>;
-            package_operation?: string;
-        }>;
+        passive_recipe_details?: Array<Recipe>;
+        produced_by_facilities?: Array<RecipeFacility>;
+        recipes?: Array<Recipe>;
         total: number;
         total_pages: number;
         type: string;
     };
-    faction_poi_intel?: {
-        base_id?: string;
-        base_name?: string;
-        class?: string;
-        description?: string;
-        id: string;
-        name: string;
-        position: {
-            x: number;
-            y: number;
-        };
-        resources?: Array<{
-            depletion_percent?: number;
-            max_remaining?: number;
-            remaining: number;
-            remaining_display?: string;
-            resource_id: string;
-            richness: number;
-        }>;
-        type: string;
-    };
-    faction_system_intel?: {
-        auto_synced?: boolean;
-        connections?: Array<{
-            distance?: number;
-            name?: string;
-            system_id: string;
-        }>;
-        description?: string;
-        empire?: string;
-        name: string;
-        pois?: Array<{
-            base_id?: string;
-            base_name?: string;
-            class?: string;
-            description?: string;
-            id: string;
-            name: string;
-            position: {
-                x: number;
-                y: number;
-            };
-            resources?: Array<{
-                depletion_percent?: number;
-                max_remaining?: number;
-                remaining: number;
-                remaining_display?: string;
-                resource_id: string;
-                richness: number;
-            }>;
-            type: string;
-        }>;
-        police_level: number;
-        submitted_at_tick: number;
-        submitted_by: string;
-        submitter_name: string;
-        system_id: string;
-    };
+    faction_poi_intel?: IntelPoi;
+    faction_system_intel?: IntelEntry;
     id: string;
     kind: string;
-    package?: {
-        contents: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-            size: number;
-        }>;
-        created_at: string;
-        creator: {
-            faction?: {
-                id: string;
-                name?: string;
-                tag?: string;
-                type: string;
-            };
-            player_id: string;
-            username?: string;
-        };
-        label: string;
-        owner: {
-            id: string;
-            name?: string;
-            tag?: string;
-            type: string;
-        };
-        package_id: string;
-        size: number;
-    };
-    poi?: {
-        detail?: {
-            active_battle?: {
-                battle_id: string;
-                participants: Array<{
-                    faction_id?: string;
-                    is_npc?: boolean;
-                    kind?: string;
-                    player_id: string;
-                    ship_class?: string;
-                    side_id: number;
-                    username: string;
-                }>;
-                sides: Array<{
-                    faction_id?: string;
-                    player_count: number;
-                    side_id: number;
-                }>;
-            };
-            base?: {
-                allow_outsider_facilities?: boolean;
-                armor: number;
-                description: string;
-                empire?: string;
-                facilities?: Array<string>;
-                faction_id?: string;
-                fuel: number;
-                hull: number;
-                id: string;
-                market_fee_bps?: number;
-                max_fuel: number;
-                max_hull: number;
-                max_shield: number;
-                name: string;
-                owner_id?: string;
-                pirate_rep_required?: number;
-                poi_id: string;
-                public_access: boolean;
-                refuel_price_each?: number;
-                repair_price_per_hull?: number;
-                service_access?: {
-                    [key: string]: string;
-                };
-                shield: number;
-                type?: string;
-                weapon_dps: number;
-                weapon_reach: number;
-                wrecked?: boolean;
-            };
-            faction_fuel_capacity?: number;
-            faction_fuel_reserve?: number;
-            fuel_price?: number;
-            fuel_price_all_in?: number;
-            fuel_tax_per_unit?: number;
-            poi: {
-                base_id?: string;
-                class?: string;
-                description: string;
-                expires_at?: string;
-                hidden?: boolean;
-                id: string;
-                name: string;
-                position: {
-                    x: number;
-                    y: number;
-                };
-                resources?: Array<{
-                    max_remaining?: number;
-                    remaining: number;
-                    resource_id: string;
-                    richness: number;
-                }>;
-                reveal_difficulty?: number;
-                system_id: string;
-                type: string;
-            };
-            resources?: Array<{
-                depletion_percent?: number;
-                max_remaining?: number;
-                name: string;
-                remaining: number;
-                remaining_display: string;
-                resource_id: string;
-                richness: number;
-                supported_power?: number;
-            }>;
-            services?: Array<string>;
-            wormhole_destination?: string;
-            wormhole_destination_id?: string;
-            wormhole_expires_in?: string;
-            wormhole_prediction_hint?: string;
-        };
-        summary?: {
-            base_id?: string;
-            base_name?: string;
-            class?: string;
-            faction_fuel_capacity?: number;
-            faction_fuel_reserve?: number;
-            fuel_capacity?: number;
-            fuel_price?: number;
-            fuel_reserve: number;
-            has_base: boolean;
-            id: string;
-            name: string;
-            online: number;
-            position: {
-                x: number;
-                y: number;
-            };
-            type: string;
-        };
-    };
+    package?: InspectPackageData;
+    poi?: InspectPoiData;
     source: string;
-    system?: {
-        connections: Array<string>;
-        description?: string;
-        empire?: string;
-        is_stronghold?: boolean;
-        name: string;
-        online: number;
-        poi_count: number;
-        position: {
-            x: number;
-            y: number;
-        };
-        system_id: string;
-        visited: boolean;
-        visited_at: string;
-    };
+    system?: MapSystemInfo;
 };
 
 export type InstallModResponse = {
@@ -5298,40 +3470,74 @@ export type InstallModResponse = {
     power_used: number;
 };
 
+export type InsurancePolicy = {
+    base_id?: string;
+    coverage?: number;
+    expires_at?: string;
+    policy_id: string;
+    premium?: number;
+    risk_factors?: Array<RiskFactor>;
+    risk_score?: number;
+    self_destruct_excluded: boolean;
+    ship_class?: string;
+};
+
+export type InsuranceQuoteData = {
+    coverage?: number;
+    expires_in?: string;
+    factors: Array<RiskFactor>;
+    fitted_value: number;
+    premium?: number;
+    refused: boolean;
+    risk_score: number;
+};
+
+export type IntelConnection = {
+    distance?: number;
+    name?: string;
+    system_id: string;
+};
+
+export type IntelEntry = {
+    auto_synced?: boolean;
+    connections?: Array<IntelConnection>;
+    description?: string;
+    empire?: string;
+    name: string;
+    pois?: Array<IntelPoi>;
+    police_level: number;
+    submitted_at_tick: number;
+    submitted_by: string;
+    submitter_name: string;
+    system_id: string;
+};
+
+export type IntelPoi = {
+    base_id?: string;
+    base_name?: string;
+    class?: string;
+    description?: string;
+    id: string;
+    name: string;
+    position: Position;
+    resources?: Array<IntelResource>;
+    type: string;
+};
+
+export type IntelResource = {
+    depletion_percent?: number;
+    max_remaining?: number;
+    remaining: number;
+    remaining_display?: string;
+    resource_id: string;
+    richness: number;
+};
+
 export type Item = {
     base_value: number;
     category: string;
     description: string;
-    effect?: {
-        ammo?: {
-            anti_drone_mod?: number;
-            anti_large_mod?: number;
-            anti_small_mod?: number;
-            armor_bypass?: number;
-            armor_melt_pct?: number;
-            armor_melt_ticks?: number;
-            damage_mod?: number;
-            disrupt_bonus_speed?: number;
-            disrupt_bonus_ticks?: number;
-            disrupt_damage?: number;
-            disrupt_speed?: number;
-            disrupt_ticks?: number;
-            dot_pct?: number;
-            dot_ticks?: number;
-            hit_chance_mod?: number;
-            hull_damage_mod?: number;
-            shield_bypass?: number;
-            shield_damage_mod?: number;
-            splash_pct?: number;
-            untraceable?: boolean;
-            wear_per_shot?: number;
-        };
-        amount?: number;
-        duration?: number;
-        stat?: string;
-        subtype?: string;
-        type: string;
-    };
+    effect?: ItemEffect;
     extracted_by?: string;
     food_type?: string;
     hazardous?: boolean;
@@ -5346,27 +3552,111 @@ export type Item = {
     tradeable: boolean;
 };
 
+export type ItemEffect = {
+    ammo?: AmmoStats;
+    amount?: number;
+    duration?: number;
+    stat?: string;
+    subtype?: string;
+    type: string;
+};
+
+export type ItemQuantity = {
+    item_id: string;
+    name: string;
+    quantity: number;
+};
+
+export type ItemRequirement = {
+    item_id: string;
+    quantity: number;
+};
+
+export type JailRecord = {
+    bounty_owed: number;
+    empire_id: string;
+    jailed_until: string;
+    rep_restoration: number;
+};
+
+export type JettisonBulkResponse = {
+    action: 'bulk_jettison';
+    container_id?: string;
+    failed: number;
+    message: string;
+    requested: number;
+    results: Array<JettisonItemResult>;
+    succeeded: number;
+};
+
+export type JettisonCommandResponse = ({
+    action: 'jettison';
+} & JettisonResponse) | ({
+    action: 'bulk_jettison';
+} & JettisonBulkResponse);
+
+export type JettisonItemResult = {
+    error?: string;
+    item_id: string;
+    item_name?: string;
+    message?: string;
+    quantity: number;
+    success: boolean;
+};
+
 export type JettisonResponse = {
+    action: 'jettison';
     container_id?: string;
     item_id: string;
     item_name: string;
     message: string;
     quantity: number;
-} | {
-    action: string;
-    container_id?: string;
-    failed: number;
+};
+
+export type JobCancelResponse = {
+    action: 'job_cancel';
+    job_id: string;
+    kind: 'cancel';
     message: string;
-    requested: number;
-    results: Array<{
-        error?: string;
-        item_id: string;
-        item_name?: string;
-        message?: string;
-        quantity: number;
-        success: boolean;
-    }>;
-    succeeded: number;
+    refunded: EscrowSummary;
+};
+
+export type JobCancelResult = {
+    error?: string;
+    error_code?: string;
+    job_id: string;
+    refunded?: EscrowSummary;
+    success: boolean;
+};
+
+export type JobReorderResponse = {
+    action: 'job_reorder';
+    facility_id: string;
+    job_id: string;
+    message: string;
+    position: number;
+};
+
+export type JobView = {
+    base_id?: string;
+    base_name?: string;
+    eta_ticks: number;
+    external?: boolean;
+    facility_id: string;
+    job_id: string;
+    label?: string;
+    mode: string;
+    orderer: string;
+    package_id?: string;
+    position: number;
+    produces?: Array<ItemQuantity>;
+    progress: number;
+    recipe: string;
+    runs_done: number;
+    runs_remaining: number;
+    runs_total: number;
+    status: string;
+    venue?: string;
 };
 
 export type JoinFactionResponse = {
@@ -5375,8 +3665,20 @@ export type JoinFactionResponse = {
     message: string;
 };
 
+export type JoinLogEntry = {
+    player_id: string;
+    side_id: number;
+    username: string;
+};
+
+export type JumpCommandResponse = ({
+    action: 'jumped' | 'pathfinder_arrival';
+} & JumpResponse) | ({
+    action: 'pathfinder_jump' | 'pathfinder_redirect';
+} & PathfinderJumpResponse);
+
 export type JumpResponse = {
-    action: string;
+    action: 'jumped' | 'pathfinder_arrival';
     auto_docked?: boolean;
     auto_undocked?: boolean;
     exploration_xp?: number;
@@ -5386,14 +3688,13 @@ export type JumpResponse = {
     poi?: string;
     system: string;
     system_id: string;
-} | {
-    action: string;
-    auto_docked?: boolean;
-    auto_undocked?: boolean;
-    bearing: number;
-    message: string;
-    origin_x?: number;
-    origin_y?: number;
+};
+
+export type KillLogEntry = {
+    killer_id: string;
+    killer_username: string;
+    victim_id: string;
+    victim_username: string;
 };
 
 export type ListPassengersResponse = {
@@ -5402,20 +3703,7 @@ export type ListPassengersResponse = {
     economy_berths: string;
     first_berths: string;
     onboard_service?: string;
-    passengers: Array<{
-        base_fare: number;
-        berth_class?: string;
-        bio: string;
-        citizen_id: string;
-        class: string;
-        connecting?: boolean;
-        destination: string;
-        destination_name: string;
-        destination_system?: string;
-        name: string;
-        speed_bonus?: number;
-        ticks_remaining: number;
-    }>;
+    passengers: Array<PassengerView>;
 };
 
 export type ListShipForSaleResponse = {
@@ -5431,33 +3719,10 @@ export type ListShipsResponse = {
     active_ship_class?: string;
     active_ship_id?: string;
     count: number;
-    faction_garage?: Array<{
-        class_id: string;
-        class_name?: string;
-        custom_name?: string;
-        deposited_tick: number;
-        depositor_id: string;
-        depositor_name?: string;
-        ship_id: string;
-    }>;
+    faction_garage?: Array<GaragedShipEntry>;
     faction_garage_capacity?: number;
     faction_garage_used?: number;
-    ships: Array<{
-        cargo_used?: number;
-        class_id: string;
-        class_name?: string;
-        custom_name?: string;
-        fuel?: string;
-        hull?: string;
-        is_active: boolean;
-        listing_base_id?: string;
-        listing_id?: string;
-        listing_price?: number;
-        location?: string;
-        location_base_id?: string;
-        modules?: number;
-        ship_id: string;
-    }>;
+    ships: Array<OwnedShipInfo>;
 };
 
 export type LoadDroneResponse = {
@@ -5472,650 +3737,60 @@ export type LoadDroneResponse = {
 
 export type LoadPassengersResponse = {
     count: number;
-    loaded: Array<{
-        base_fare: number;
-        berth_class?: string;
-        bio: string;
-        citizen_id: string;
-        class: string;
-        connecting?: boolean;
-        destination: string;
-        destination_name: string;
-        destination_system?: string;
-        name: string;
-        speed_bonus?: number;
-        ticks_remaining: number;
-    }>;
+    loaded: Array<PassengerView>;
     message: string;
     skipped_unfunded?: number;
     total_fare: number;
 };
 
 export type LoggedInPayload = {
-    pending_trades?: Array<{
-        created_at: string;
-        expires_at: string;
-        id: string;
-        offer_credits: number;
-        offer_items: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        offerer_id: string;
-        poi_id: string;
-        request_credits: number;
-        request_items: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        status: string;
-        target_id: string;
-    }>;
-    player: {
-        achievements?: {
-            [key: string]: string;
-        };
-        captains_log?: Array<{
-            created_at: string;
-            entry: string;
-            index: number;
-        }>;
-        citizenships?: {
-            [key: string]: {
-                empire_id: string;
-                granted_at: string;
-                granted_by?: string;
-            };
-        };
-        clan_tag: string;
-        completed_missions?: {
-            [key: string]: string;
-        };
-        created_at: string;
-        credits: number;
-        current_poi: string;
-        current_ship_id: string;
-        current_system: string;
-        discovered_systems?: {
-            [key: string]: {
-                discovered_at: string;
-                system_id: string;
-            };
-        };
-        distress_last_sent_at?: string;
-        docked_at_base?: string;
-        empire: string;
-        experience: number;
-        faction_id?: string;
-        faction_rank?: string;
-        fleet_id?: string;
-        home_base: string;
-        id: string;
-        is_cloaked: boolean;
-        jail?: {
-            bounty_owed: number;
-            empire_id: string;
-            jailed_until: string;
-            rep_restoration: number;
-        };
-        last_active_at: string;
-        last_chat_check: string;
-        last_chat_check_map?: {
-            [key: string]: string;
-        };
-        last_command_at: string;
-        last_login_at: string;
-        muted_channels?: Array<string>;
-        primary_color: string;
-        provided_items_granted?: {
-            [key: string]: string;
-        };
-        purchased_ship_classes?: {
-            [key: string]: boolean;
-        };
-        reputation?: {
-            [key: string]: number;
-        };
-        reputation_baseline?: {
-            [key: string]: number;
-        };
-        revealed_pois?: {
-            [key: string]: boolean;
-        };
-        riding_ship_id?: string;
-        secondary_color: string;
-        skill_xp: {
-            [key: string]: number;
-        };
-        skills: {
-            [key: string]: number;
-        };
-        stats: {
-            bases_destroyed: number;
-            battles_fled: number;
-            battles_started: number;
-            captains_log_entries: number;
-            chat_messages_sent: number;
-            cloak_activations: number;
-            consumables_used: number;
-            contraband_sold: number;
-            credits_earned: number;
-            credits_earned_taxable: number;
-            credits_earned_taxable_by_category?: {
-                [key: string]: number;
-            };
-            credits_earned_taxable_by_category_snapshot?: {
-                [key: string]: number;
-            };
-            credits_earned_taxable_snapshot: number;
-            credits_gifted: number;
-            credits_spent: number;
-            customs_evaded: number;
-            damage_dealt: number;
-            damage_taken: number;
-            deaths_by_pirate: number;
-            deaths_by_player: number;
-            deaths_by_self_destruct: number;
-            deaths_by_wildlife: number;
-            deep_core_pois_discovered: number;
-            distance_traveled: number;
-            exchange_credits_earned: number;
-            exchange_items_bought: number;
-            exchange_items_sold: number;
-            facilities_built: number;
-            facility_items_produced: number;
-            forum_posts_created: number;
-            gifts_received: number;
-            gifts_sent: number;
-            insurance_claims_made: number;
-            insurance_payouts_received: number;
-            insurance_policies_bought: number;
-            items_crafted: number;
-            items_crafted_by_type?: {
-                [key: string]: number;
-            };
-            items_jettisoned: number;
-            items_sold_by_type?: {
-                [key: string]: number;
-            };
-            jumps_completed: number;
-            last_income_tax_assessed_at?: number;
-            last_property_tax_assessed_at?: number;
-            market_purchases_deductible?: number;
-            market_purchases_deductible_snapshot?: number;
-            market_tax_loss_carryforward?: number;
-            missions_abandoned: number;
-            missions_accepted: number;
-            missions_completed: number;
-            modules_installed: number;
-            npcs_destroyed: number;
-            ore_mined: number;
-            pirates_destroyed: number;
-            prayer_distance_traveled: number;
-            refuels_given: number;
-            repairs_given: number;
-            scans_performed: number;
-            self_destructs: number;
-            ships_commissioned: number;
-            ships_destroyed: number;
-            ships_lost: number;
-            ships_purchased: number;
-            systems_explored: number;
-            tax_prepaid?: number;
-            time_played: number;
-            times_docked: number;
-            trades_completed: number;
-            void_drifts: number;
-            wormholes_traversed: number;
-            wreck_items_looted: number;
-            wrecks_scrapped: number;
-            wrecks_sold: number;
-        };
-        status_message: string;
-        titles?: Array<string>;
-        towing_wreck_id?: string;
-        trading_restricted_until?: string;
-        transported_citizens?: {
-            [key: string]: boolean;
-        };
-        username: string;
-    };
-    poi: {
-        base_id?: string;
-        base_name?: string;
-        class?: string;
-        faction_fuel_capacity?: number;
-        faction_fuel_reserve?: number;
-        fuel_capacity?: number;
-        fuel_price?: number;
-        fuel_reserve: number;
-        has_base: boolean;
-        id: string;
-        name: string;
-        online: number;
-        position: {
-            x: number;
-            y: number;
-        };
-        type: string;
-    };
-    recent_chat?: Array<{
-        channel: string;
-        content: string;
-        empire_official?: boolean;
-        faction_id?: string;
-        id: string;
-        poi_id?: string;
-        sender: string;
-        sender_id: string;
-        system_id?: string;
-        target_id?: string;
-        target_name?: string;
-        timestamp_utc: string;
-    }>;
-    ship: {
-        active_buffs?: Array<{
-            amount: number;
-            expires_at: number;
-            item_id: string;
-            stat: string;
-        }>;
-        armor: number;
-        armor_melt_pct?: number;
-        armor_melt_ticks_remaining?: number;
-        burn_damage_per_tick?: number;
-        burn_source_id?: string;
-        burn_ticks_remaining?: number;
-        cargo: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-            size?: number;
-        }>;
-        cargo_capacity: number;
-        cargo_used: number;
-        class_id: string;
-        cpu_capacity: number;
-        cpu_used: number;
-        created_at: string;
-        custom_name?: string;
-        damage_penalty?: number;
-        defense_slots: number;
-        disruption_ticks_remaining?: number;
-        docked_at_base?: string;
-        fuel: number;
-        gas_cargo_efficiency: number;
-        hull: number;
-        ice_cargo_efficiency: number;
-        id: string;
-        in_faction_garage?: string;
-        last_process_tick?: number;
-        loaded_on_carrier_id?: string;
-        loadout_version?: number;
-        max_fuel: number;
-        max_hull: number;
-        max_shield: number;
-        modules: Array<string>;
-        name: string;
-        ore_cargo_efficiency: number;
-        owner_id: string;
-        power_capacity: number;
-        power_used: number;
-        shield: number;
-        shield_recharge: number;
-        speed: number;
-        speed_penalty?: number;
-        utility_slots: number;
-        weapon_slots: number;
-    };
-    system: {
-        connections: Array<{
-            distance?: number;
-            name: string;
-            system_id: string;
-        }>;
-        description?: string;
-        empire?: string;
-        id: string;
-        is_stronghold: boolean;
-        name: string;
-        pois: Array<{
-            base_id?: string;
-            base_name?: string;
-            class?: string;
-            faction_fuel_capacity?: number;
-            faction_fuel_reserve?: number;
-            fuel_capacity?: number;
-            fuel_price?: number;
-            fuel_reserve: number;
-            has_base: boolean;
-            id: string;
-            name: string;
-            online: number;
-            position: {
-                x: number;
-                y: number;
-            };
-            type: string;
-        }>;
-        police_level: number;
-        security_status?: string;
-    };
+    pending_trades?: Array<Trade>;
+    player: Player;
+    poi: ClientPoiInfo;
+    recent_chat?: Array<ChatHistoryMessage>;
+    ship: Ship;
+    system: ClientSystemInfo;
+};
+
+export type LoginReleaseInfo = {
+    notes: Array<string>;
+    release_date: string;
+    version: string;
 };
 
 export type LoginResponse = {
     message: string;
-    pending_trades: Array<{
-        created_at: string;
-        expires_at: string;
-        id: string;
-        offer_credits: number;
-        offer_items: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        offerer_id: string;
-        poi_id: string;
-        request_credits: number;
-        request_items: Array<{
-            item_id: string;
-            quantity: number;
-        }>;
-        status: string;
-        target_id: string;
-    }>;
-    player: {
-        achievements?: {
-            [key: string]: string;
-        };
-        captains_log?: Array<{
-            created_at: string;
-            entry: string;
-            index: number;
-        }>;
-        citizenships?: {
-            [key: string]: {
-                empire_id: string;
-                granted_at: string;
-                granted_by?: string;
-            };
-        };
-        clan_tag: string;
-        completed_missions?: {
-            [key: string]: string;
-        };
-        created_at: string;
-        credits: number;
-        current_poi: string;
-        current_ship_id: string;
-        current_system: string;
-        discovered_systems?: {
-            [key: string]: {
-                discovered_at: string;
-                system_id: string;
-            };
-        };
-        distress_last_sent_at?: string;
-        docked_at_base?: string;
-        empire: string;
-        experience: number;
-        faction_id?: string;
-        faction_rank?: string;
-        fleet_id?: string;
-        home_base: string;
-        id: string;
-        is_cloaked: boolean;
-        jail?: {
-            bounty_owed: number;
-            empire_id: string;
-            jailed_until: string;
-            rep_restoration: number;
-        };
-        last_active_at: string;
-        last_chat_check: string;
-        last_chat_check_map?: {
-            [key: string]: string;
-        };
-        last_command_at: string;
-        last_login_at: string;
-        muted_channels?: Array<string>;
-        primary_color: string;
-        provided_items_granted?: {
-            [key: string]: string;
-        };
-        purchased_ship_classes?: {
-            [key: string]: boolean;
-        };
-        reputation?: {
-            [key: string]: number;
-        };
-        reputation_baseline?: {
-            [key: string]: number;
-        };
-        revealed_pois?: {
-            [key: string]: boolean;
-        };
-        riding_ship_id?: string;
-        secondary_color: string;
-        skill_xp: {
-            [key: string]: number;
-        };
-        skills: {
-            [key: string]: number;
-        };
-        stats: {
-            bases_destroyed: number;
-            battles_fled: number;
-            battles_started: number;
-            captains_log_entries: number;
-            chat_messages_sent: number;
-            cloak_activations: number;
-            consumables_used: number;
-            contraband_sold: number;
-            credits_earned: number;
-            credits_earned_taxable: number;
-            credits_earned_taxable_by_category?: {
-                [key: string]: number;
-            };
-            credits_earned_taxable_by_category_snapshot?: {
-                [key: string]: number;
-            };
-            credits_earned_taxable_snapshot: number;
-            credits_gifted: number;
-            credits_spent: number;
-            customs_evaded: number;
-            damage_dealt: number;
-            damage_taken: number;
-            deaths_by_pirate: number;
-            deaths_by_player: number;
-            deaths_by_self_destruct: number;
-            deaths_by_wildlife: number;
-            deep_core_pois_discovered: number;
-            distance_traveled: number;
-            exchange_credits_earned: number;
-            exchange_items_bought: number;
-            exchange_items_sold: number;
-            facilities_built: number;
-            facility_items_produced: number;
-            forum_posts_created: number;
-            gifts_received: number;
-            gifts_sent: number;
-            insurance_claims_made: number;
-            insurance_payouts_received: number;
-            insurance_policies_bought: number;
-            items_crafted: number;
-            items_crafted_by_type?: {
-                [key: string]: number;
-            };
-            items_jettisoned: number;
-            items_sold_by_type?: {
-                [key: string]: number;
-            };
-            jumps_completed: number;
-            last_income_tax_assessed_at?: number;
-            last_property_tax_assessed_at?: number;
-            market_purchases_deductible?: number;
-            market_purchases_deductible_snapshot?: number;
-            market_tax_loss_carryforward?: number;
-            missions_abandoned: number;
-            missions_accepted: number;
-            missions_completed: number;
-            modules_installed: number;
-            npcs_destroyed: number;
-            ore_mined: number;
-            pirates_destroyed: number;
-            prayer_distance_traveled: number;
-            refuels_given: number;
-            repairs_given: number;
-            scans_performed: number;
-            self_destructs: number;
-            ships_commissioned: number;
-            ships_destroyed: number;
-            ships_lost: number;
-            ships_purchased: number;
-            systems_explored: number;
-            tax_prepaid?: number;
-            time_played: number;
-            times_docked: number;
-            trades_completed: number;
-            void_drifts: number;
-            wormholes_traversed: number;
-            wreck_items_looted: number;
-            wrecks_scrapped: number;
-            wrecks_sold: number;
-        };
-        status_message: string;
-        titles?: Array<string>;
-        towing_wreck_id?: string;
-        trading_restricted_until?: string;
-        transported_citizens?: {
-            [key: string]: boolean;
-        };
-        username: string;
-    };
-    poi: {
-        base_id?: string;
-        base_name?: string;
-        class?: string;
-        faction_fuel_capacity?: number;
-        faction_fuel_reserve?: number;
-        fuel_capacity?: number;
-        fuel_price?: number;
-        fuel_reserve: number;
-        has_base: boolean;
-        id: string;
-        name: string;
-        online: number;
-        position: {
-            x: number;
-            y: number;
-        };
-        type: string;
-    };
-    release_info?: {
-        notes: Array<string>;
-        release_date: string;
-        version: string;
-    };
+    pending_trades: Array<Trade>;
+    player: Player;
+    poi: ClientPoiInfo;
+    release_info?: LoginReleaseInfo;
     session_id?: string;
-    ship: {
-        active_buffs?: Array<{
-            amount: number;
-            expires_at: number;
-            item_id: string;
-            stat: string;
-        }>;
-        armor: number;
-        armor_melt_pct?: number;
-        armor_melt_ticks_remaining?: number;
-        burn_damage_per_tick?: number;
-        burn_source_id?: string;
-        burn_ticks_remaining?: number;
-        cargo: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-            size?: number;
-        }>;
-        cargo_capacity: number;
-        cargo_used: number;
-        class_id: string;
-        cpu_capacity: number;
-        cpu_used: number;
-        created_at: string;
-        custom_name?: string;
-        damage_penalty?: number;
-        defense_slots: number;
-        disruption_ticks_remaining?: number;
-        docked_at_base?: string;
-        fuel: number;
-        gas_cargo_efficiency: number;
-        hull: number;
-        ice_cargo_efficiency: number;
-        id: string;
-        in_faction_garage?: string;
-        last_process_tick?: number;
-        loaded_on_carrier_id?: string;
-        loadout_version?: number;
-        max_fuel: number;
-        max_hull: number;
-        max_shield: number;
-        modules: Array<string>;
-        name: string;
-        ore_cargo_efficiency: number;
-        owner_id: string;
-        power_capacity: number;
-        power_used: number;
-        shield: number;
-        shield_recharge: number;
-        speed: number;
-        speed_penalty?: number;
-        utility_slots: number;
-        weapon_slots: number;
-    };
-    system: {
-        connections: Array<{
-            distance?: number;
-            name: string;
-            system_id: string;
-        }>;
-        description?: string;
-        empire?: string;
-        id: string;
-        is_stronghold: boolean;
-        name: string;
-        pois: Array<{
-            base_id?: string;
-            base_name?: string;
-            class?: string;
-            faction_fuel_capacity?: number;
-            faction_fuel_reserve?: number;
-            fuel_capacity?: number;
-            fuel_price?: number;
-            fuel_reserve: number;
-            has_base: boolean;
-            id: string;
-            name: string;
-            online: number;
-            position: {
-                x: number;
-                y: number;
-            };
-            type: string;
-        }>;
-        police_level: number;
-        security_status?: string;
-    };
-    unread_chat?: {
-        faction: number;
-        local: number;
-        private: number;
-        system: number;
-    };
+    ship: Ship;
+    system: ClientSystemInfo;
+    unread_chat?: UnreadChatCounts;
     username?: string;
 };
 
+export type LootWreckAllResponse = {
+    action: 'loot_wreck_all';
+    looted: Array<LootedItem>;
+    looted_modules?: Array<LootedModule>;
+    message: string;
+    skipped?: Array<SkippedModule>;
+    wreck_empty: boolean;
+    xp_gained?: {
+        [key: string]: number;
+    };
+};
+
+export type LootWreckCommandResponse = ({
+    action: 'loot_wreck';
+} & LootWreckResponse) | ({
+    action: 'loot_wreck_all';
+} & LootWreckAllResponse);
+
 export type LootWreckResponse = {
+    action: 'loot_wreck';
     item_id?: string;
     module_id?: string;
     module_type_id?: string;
@@ -6125,51 +3800,46 @@ export type LootWreckResponse = {
     xp_gained?: {
         [key: string]: number;
     };
-} | {
-    looted: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
-    looted_modules?: Array<{
-        id: string;
-        name: string;
-        type: string;
-        type_id: string;
-        wear: number;
-    }>;
+};
+
+export type LootedItem = {
+    item_id: string;
+    quantity: number;
+};
+
+export type LootedModule = {
+    id: string;
+    name: string;
+    type: string;
+    type_id: string;
+    wear: number;
+};
+
+export type LoungeCheckInResponse = {
+    capacity: number;
+    checked_in: Array<PassengerView>;
+    count: number;
+    deadline_bonus_ticks?: number;
+    kind: 'lounge_checkin';
+    lounge: string;
     message: string;
-    skipped?: Array<{
-        id: string;
-        name: string;
-        reason: string;
-        type: string;
-        type_id: string;
-        wear: number;
-    }>;
-    wreck_empty: boolean;
-    xp_gained?: {
-        [key: string]: number;
-    };
+    occupancy: number;
+    skipped_expired?: number;
+    skipped_full?: number;
+};
+
+export type McpNotification = {
+    id: string;
+    msg_type: string;
+    timestamp: string;
+    type: string;
 };
 
 export type MapData = {
     empires: {
         [key: string]: string;
     };
-    systems: Array<{
-        battle_id?: string;
-        connections: Array<string>;
-        empire?: string;
-        empire_color?: string;
-        has_battle?: boolean;
-        id: string;
-        is_home?: boolean;
-        is_stronghold?: boolean;
-        name: string;
-        online: number;
-        x: number;
-        y: number;
-    }>;
+    systems: Array<MapSystem>;
 };
 
 /**
@@ -6195,15 +3865,82 @@ export type MapSystem = {
     visited_at?: string;
 };
 
+export type MapSystemInfo = {
+    connections: Array<string>;
+    description?: string;
+    empire?: string;
+    is_stronghold?: boolean;
+    name: string;
+    online: number;
+    poi_count: number;
+    position: GalacticPosition;
+    system_id: string;
+    visited: boolean;
+    visited_at: string;
+};
+
+export type MarketInsight = {
+    category: string;
+    item: string;
+    item_id: string;
+    message: string;
+    priority: number;
+};
+
+export type MarketItemBook = {
+    buy_orders: Array<MarketLevel>;
+    item_id: string;
+    item_name?: string;
+    sell_orders: Array<MarketLevel>;
+};
+
+export type MarketLevel = {
+    price_each: number;
+    quantity: number;
+    source?: string;
+};
+
+export type MarketListingItem = {
+    best_buy: number;
+    best_buy_qty: number;
+    best_sell: number;
+    best_sell_qty: number;
+    buy_orders: Array<OrderLevel>;
+    buy_price: number;
+    buy_quantity: number;
+    category: string;
+    item_id: string;
+    item_name: string;
+    sell_orders: Array<OrderLevel>;
+    sell_price: number;
+    sell_quantity: number;
+    spread?: number;
+};
+
 export type MessageResponse = {
     message: string;
 };
 
-export type MineResponse = {
+export type MineFilteredResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
+    filtered: boolean;
+    kind: 'filtered';
+    message: string;
+};
+
+export type MineResponse = ({
+    kind: 'yield';
+} & MiningYieldPayload) | ({
+    kind: 'filtered';
+} & MineFilteredResponse);
+
+export type MiningYieldPayload = {
     auto_docked?: boolean;
     auto_undocked?: boolean;
     depletion_percent?: number;
     drone_id?: string;
+    kind: 'yield';
     max_remaining?: number;
     quantity: number;
     remaining: number;
@@ -6213,43 +3950,82 @@ export type MineResponse = {
     xp_gained?: {
         [key: string]: number;
     };
-} | {
-    auto_docked?: boolean;
-    auto_undocked?: boolean;
-    filtered: boolean;
-    message: string;
+};
+
+export type MissionDialogInfo = {
+    accept?: string;
+    complete?: string;
+    decline?: string;
+    offer?: string;
+};
+
+export type MissionGiverInfo = {
+    name: string;
+    title: string;
+};
+
+export type MissionInfo = {
+    chain_next?: string;
+    community?: boolean;
+    community_percent?: number;
+    community_progress?: {
+        [key: string]: string;
+    };
+    description: string;
+    dialog?: MissionDialogInfo;
+    difficulty: number;
+    expires_in_ticks: number;
+    faction_id?: string;
+    faction_name?: string;
+    giver?: MissionGiverInfo;
+    issuing_base?: string;
+    issuing_base_id?: string;
+    issuing_system_id?: string;
+    issuing_system_name?: string;
+    mission_id: string;
+    objectives?: Array<ObjectiveInfo>;
+    provided_items?: {
+        [key: string]: number;
+    };
+    repeatable?: boolean;
+    required_modules?: Array<string>;
+    rewards: MissionRewardsInfo;
+    template_id?: string;
+    title: string;
+    type: string;
+    warnings?: Array<string>;
+};
+
+export type MissionRewardsInfo = {
+    credits: number;
+    items?: {
+        [key: string]: number;
+    };
+    pirate_rep?: number;
+    reputation?: number;
+    skill_xp?: {
+        [key: string]: number;
+    };
 };
 
 export type MobileBaseLocation = {
     system: string;
 };
 
+export type ModifyOrderCommandResponse = ({
+    kind: 'single';
+} & ModifyOrderResponse) | ({
+    kind: 'bulk';
+} & BulkModifyOrdersResponse);
+
 export type ModifyOrderResponse = {
-    action: string;
+    action: 'modify_order';
+    kind: 'single';
     listing_fee?: number;
     message: string;
     new_price: number;
     old_price: number;
     order_id: string;
-} | {
-    action: string;
-    mode: string;
-    results: Array<{
-        error?: string;
-        error_code?: string;
-        index: number;
-        listing_fee?: number;
-        message?: string;
-        new_price?: number;
-        old_price?: number;
-        order_id?: string;
-        success: boolean;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
 };
 
 export type Module = {
@@ -6357,14 +4133,25 @@ export type NearbyPlayer = {
     username?: string;
 };
 
+export type NoteInfo = {
+    content_length: number;
+    created_at: string;
+    created_by: string;
+    note_id: string;
+    title: string;
+    value: number;
+};
+
+export type NotificationChannelInfo = {
+    channel: string;
+    description: string;
+    message_types: Array<string>;
+    muted: boolean;
+};
+
 export type NotificationSettingsResponse = {
     action: string;
-    channels: Array<{
-        channel: string;
-        description: string;
-        message_types: Array<string>;
-        muted: boolean;
-    }>;
+    channels: Array<NotificationChannelInfo>;
     message: string;
     muted: Array<string>;
 };
@@ -6413,22 +4200,8 @@ export type NotificationBaseRaidUpdate = {
 export type NotificationBattleAlert = {
     battle_id: string;
     message: string;
-    participants: Array<{
-        hull_pct?: number;
-        player_id: string;
-        shield_pct?: number;
-        ship_class?: string;
-        ship_name?: string;
-        side_id: number;
-        stance?: string;
-        username: string;
-        zone: string;
-    }>;
-    sides: Array<{
-        faction_id?: string;
-        player_count: number;
-        side_id: number;
-    }>;
+    participants: Array<BattleParticipantInfo>;
+    sides: Array<BattleSideInfo>;
     system_id: string;
 };
 
@@ -6454,15 +4227,7 @@ export type NotificationBattleDamage = {
 export type NotificationBattleEnded = {
     battle_id: string;
     duration: number;
-    participants?: Array<{
-        damage_dealt: number;
-        damage_taken: number;
-        kill_count: number;
-        player_id: string;
-        side_id: number;
-        survived: boolean;
-        username: string;
-    }>;
+    participants?: Array<BattleEndedParticipantInfo>;
     reason: string;
     ships_destroyed: number;
     total_damage: number;
@@ -6483,44 +4248,16 @@ export type NotificationBattleLeft = {
 
 export type NotificationBattleStarted = {
     battle_id: string;
-    participants: Array<{
-        hull_pct?: number;
-        player_id: string;
-        shield_pct?: number;
-        ship_class?: string;
-        ship_name?: string;
-        side_id: number;
-        stance?: string;
-        username: string;
-        zone: string;
-    }>;
-    sides: Array<{
-        faction_id?: string;
-        player_count: number;
-        side_id: number;
-    }>;
+    participants: Array<BattleParticipantInfo>;
+    sides: Array<BattleSideInfo>;
     system_id: string;
 };
 
 export type NotificationBattleUpdate = {
     auto_pilot: boolean;
     battle_id: string;
-    participants: Array<{
-        hull_pct?: number;
-        player_id: string;
-        shield_pct?: number;
-        ship_class?: string;
-        ship_name?: string;
-        side_id: number;
-        stance?: string;
-        username: string;
-        zone: string;
-    }>;
-    sides: Array<{
-        faction_id?: string;
-        player_count: number;
-        side_id: number;
-    }>;
+    participants: Array<BattleParticipantInfo>;
+    sides: Array<BattleSideInfo>;
     tick: number;
     your_side_id: number;
     your_stance: string;
@@ -6568,23 +4305,7 @@ export type NotificationChatMessage = {
 };
 
 export type NotificationCraftingUpdate = {
-    jobs: Array<{
-        completed: boolean;
-        deposited: Array<{
-            item_id: string;
-            item_name: string;
-            quantity: number;
-        }>;
-        escrowed_credits: number;
-        external?: boolean;
-        job_id: string;
-        mode: string;
-        recipe: string;
-        runs_done: number;
-        runs_remaining: number;
-        storage: string;
-        venue: string;
-    }>;
+    jobs: Array<CraftingJobUpdate>;
     tick: number;
 };
 
@@ -6707,20 +4428,7 @@ export type NotificationFacilityRentWarning = {
 export type NotificationMarketUpdate = {
     base_id: string;
     base_name?: string;
-    items: Array<{
-        buy_orders: Array<{
-            price_each: number;
-            quantity: number;
-            source?: string;
-        }>;
-        item_id: string;
-        item_name?: string;
-        sell_orders: Array<{
-            price_each: number;
-            quantity: number;
-            source?: string;
-        }>;
-    }>;
+    items: Array<MarketItemBook>;
     tick: number;
 };
 
@@ -6729,6 +4437,7 @@ export type NotificationMiningYield = {
     auto_undocked?: boolean;
     depletion_percent?: number;
     drone_id?: string;
+    kind: 'yield';
     max_remaining?: number;
     quantity: number;
     remaining: number;
@@ -6743,49 +4452,11 @@ export type NotificationMiningYield = {
 export type NotificationObservationUpdate = {
     active_scan?: boolean;
     cloaked_lost?: Array<string>;
-    cloaked_resolved?: Array<{
-        cloaked?: boolean;
-        faction_id?: string;
-        hull?: number;
-        revealed_info: Array<string>;
-        shield?: number;
-        ship_class?: string;
-        ship_name?: string;
-        target_id: string;
-        username?: string;
-    }>;
-    nearby_changed?: Array<{
-        clan_tag?: string;
-        docked?: boolean;
-        faction_id?: string;
-        faction_tag?: string;
-        in_combat: boolean;
-        offline?: boolean;
-        player_id?: string;
-        primary_color?: string;
-        secondary_color?: string;
-        ship_class?: string;
-        ship_name?: string;
-        status_message?: string;
-        username?: string;
-    }>;
+    cloaked_resolved?: Array<ScanContact>;
+    nearby_changed?: Array<NearbyPlayer>;
     nearby_departed?: Array<string>;
     poi_id: string;
-    system_changed?: Array<{
-        clan_tag?: string;
-        docked?: boolean;
-        faction_id?: string;
-        faction_tag?: string;
-        in_combat: boolean;
-        offline?: boolean;
-        player_id?: string;
-        primary_color?: string;
-        secondary_color?: string;
-        ship_class?: string;
-        ship_name?: string;
-        status_message?: string;
-        username?: string;
-    }>;
+    system_changed?: Array<NearbyPlayer>;
     system_departed?: Array<string>;
     system_id: string;
     tick: number;
@@ -6862,19 +4533,7 @@ export type NotificationPirateRadio = {
 export type NotificationPlayerDied = {
     cause?: string;
     clone_cost: number;
-    combat_log?: {
-        attacker_ship?: string;
-        combat_rounds: number;
-        death_location: string;
-        death_system: string;
-        hull_damage: number;
-        message: string;
-        shield_damage: number;
-        total_damage: number;
-        weapons_used?: {
-            [key: string]: number;
-        };
-    };
+    combat_log?: CombatLogSummary;
     insurance_payout: number;
     killer_id?: string;
     killer_name?: string;
@@ -6988,6 +4647,72 @@ export type NotificationTradeOfferReceived = {
     trade_id: string;
 };
 
+export type ObjectiveInfo = {
+    description: string;
+    eligible_players?: Array<string>;
+    item_id?: string;
+    participants?: Array<string>;
+    quantity?: number;
+    system_id?: string;
+    system_name?: string;
+    target_base_id?: string;
+    target_base_name?: string;
+    type: string;
+};
+
+export type OpenOrderSummary = {
+    item_id: string;
+    item_name: string;
+    order_id: string;
+    price_each: number;
+    quantity: number;
+    remaining: number;
+    type: string;
+};
+
+export type OrderLevel = {
+    my_quantity?: number;
+    price_each: number;
+    quantity: number;
+    source?: string;
+};
+
+export type OwnedFacilityEntry = {
+    arrears_owed?: number;
+    base_id: string;
+    base_name: string;
+    custom_name?: string;
+    damaged?: boolean;
+    facility_id: string;
+    labor_per_run?: number;
+    missed_rent_cycles?: number;
+    name: string;
+    power_throttled?: boolean;
+    rent_per_cycle: number;
+    rental_fee_per_run?: number;
+    repair_complete_tick?: number;
+    system_id?: string;
+    type: string;
+    under_construction?: boolean;
+};
+
+export type OwnedShipInfo = {
+    cargo_used?: number;
+    class_id: string;
+    class_name?: string;
+    custom_name?: string;
+    fuel?: string;
+    hull?: string;
+    is_active: boolean;
+    listing_base_id?: string;
+    listing_id?: string;
+    listing_price?: number;
+    location?: string;
+    location_base_id?: string;
+    modules?: number;
+    ship_id: string;
+};
+
 /**
  * A point of interest (planet, asteroid belt, station, etc.).
  */
@@ -7019,16 +4744,124 @@ export type Poi = {
     type: string;
 };
 
+export type PackageJobResponse = {
+    action: 'pack' | 'unpack';
+    escrowed: EscrowSummary;
+    eta_ticks: number;
+    external?: boolean;
+    job_id: string;
+    kind: 'package';
+    label: string;
+    message: string;
+    package_id: string;
+    venue: string;
+};
+
+export type ParticipantSnapshot = {
+    armor_melt_pct?: number;
+    armor_melt_ticks?: number;
+    auto_pilot: boolean;
+    burn_damage_per_tick?: number;
+    burn_ticks?: number;
+    damage_dealt: number;
+    damage_penalty_pct?: number;
+    damage_taken: number;
+    disruption_ticks?: number;
+    faction_id?: string;
+    flee_counter: number;
+    fuel: number;
+    hull: number;
+    kill_count: number;
+    kind?: string;
+    max_fuel: number;
+    max_hull: number;
+    max_shield: number;
+    modules?: Array<FittedModuleSnapshot>;
+    player_id: string;
+    shield: number;
+    ship_class: string;
+    side_id: number;
+    speed_penalty_pct?: number;
+    stance: string;
+    target_id?: string;
+    username: string;
+    x: number;
+    y: number;
+    zone: string;
+};
+
+export type ParticipantSummary = {
+    damage_dealt: number;
+    damage_taken: number;
+    kill_count: number;
+    player_id: string;
+    side_id: number;
+    survived: boolean;
+    username: string;
+};
+
+export type PassengerArrivalSummary = {
+    delivered?: Array<PassengerView>;
+    fare_collected?: number;
+    reputation_changes?: {
+        [key: string]: number;
+    };
+    stranded?: Array<PassengerView>;
+};
+
+export type PassengerView = {
+    base_fare: number;
+    berth_class?: string;
+    bio: string;
+    citizen_id: string;
+    class: string;
+    connecting?: boolean;
+    destination: string;
+    destination_name: string;
+    destination_system?: string;
+    name: string;
+    speed_bonus?: number;
+    ticks_remaining: number;
+};
+
+export type PathfinderJumpResponse = {
+    action: 'pathfinder_jump' | 'pathfinder_redirect';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
+    bearing: number;
+    message: string;
+    origin_x?: number;
+    origin_y?: number;
+};
+
 export type PendingActionResponse = {
     command: string;
     message: string;
     pending: boolean;
 };
 
+export type PendingTradeItemView = {
+    item_id: string;
+    name?: string;
+    quantity: number;
+};
+
 export type PetitionResponse = {
     empire_id: string;
     empire_name: string;
     message: string;
+};
+
+export type PirateInfo = {
+    hull?: number;
+    is_boss: boolean;
+    max_hull?: number;
+    max_shield?: number;
+    name: string;
+    pirate_id: string;
+    shield?: number;
+    status: string;
+    tier: string;
 };
 
 export type PlaceShipBuyOrderResponse = {
@@ -7277,6 +5110,11 @@ export type PlayerStats = {
     wrecks_sold?: number;
 };
 
+export type Position = {
+    x: number;
+    y: number;
+};
+
 export type PrepayTaxResponse = {
     action: string;
     amount_prepaid: number;
@@ -7309,147 +5147,48 @@ export type Recipe = {
     fuel_output?: number;
     hidden?: boolean;
     id: string;
-    inputs: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
+    inputs: Array<RecipeInput>;
     name: string;
     no_recycle?: boolean;
-    outputs: Array<{
-        item_id: string;
-        quantity: number;
-    }>;
+    outputs: Array<RecipeOutput>;
     package_operation?: string;
 };
 
-export type RecycleJobResponse = {
-    action: string;
-    effective_time_per_run: number;
-    escrowed: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
+export type RecipeAnalysis = {
+    alternates?: {
+        [key: string]: Array<Alternate>;
     };
-    est_completion_tick: number;
-    external?: boolean;
-    facility_id: string;
-    job_id: string;
-    message: string;
-    mode: string;
-    produces?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
-    recipe: string;
-    runs: number;
-    venue: string;
-    venue_type: string;
-} | {
-    action: string;
-    mode: string;
-    results: Array<{
-        error?: string;
-        error_code?: string;
-        escrowed?: {
-            fee?: number;
-            inputs?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            labor?: number;
-        };
-        external?: boolean;
-        index: number;
-        job_id?: string;
-        label?: string;
-        message?: string;
-        package_id?: string;
-        recipe?: string;
-        runs?: number;
-        success: boolean;
-        venue?: string;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
-} | {
-    action: string;
-    cost: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
-    credits_total: number;
-    dry_run: boolean;
-    effective_time_per_run: number;
-    est_completion_tick: number;
-    external?: boolean;
-    facility_id: string;
-    have_capacity?: boolean;
-    have_credits: boolean;
-    have_inputs: boolean;
-    message: string;
-    mode: string;
-    produces?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
-    quantity: number;
-    recipe: string;
-    runs: number;
-    venue: string;
-    venue_type: string;
-} | {
-    action: string;
-    job_id: string;
-    message: string;
-    refunded: {
-        fee?: number;
-        inputs?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        labor?: number;
-    };
-} | {
-    action: string;
-    message: string;
-    mode: string;
-    results: Array<{
-        error?: string;
-        error_code?: string;
-        job_id: string;
-        refunded?: {
-            fee?: number;
-            inputs?: Array<{
-                item_id: string;
-                name: string;
-                quantity: number;
-            }>;
-            labor?: number;
-        };
-        success: boolean;
-    }>;
-    summary: {
-        failed: number;
-        succeeded: number;
-        total: number;
-    };
+    raw_materials: Array<AnalysisMaterial>;
+    steps: Array<AnalysisStep>;
 };
+
+export type RecipeFacility = {
+    definition_id: string;
+    level: number;
+    name: string;
+};
+
+export type RecipeInput = {
+    item_id: string;
+    quantity: number;
+};
+
+export type RecipeOutput = {
+    item_id: string;
+    quantity: number;
+};
+
+export type RecycleJobResponse = ({
+    kind: 'job';
+} & CraftJobResponse) | ({
+    kind: 'bulk_craft';
+} & BulkCraftResponse) | ({
+    kind: 'quote';
+} & CraftQuoteResponse) | ({
+    kind: 'cancel';
+} & JobCancelResponse) | ({
+    kind: 'bulk_cancel';
+} & BulkJobCancelResponse);
 
 export type RefitShipResponse = {
     cargo_returned: number;
@@ -7476,18 +5215,7 @@ export type RefuelResponse = {
     item_id?: string;
     item_name?: string;
     market_cost?: number;
-    members?: Array<{
-        fuel: number;
-        fuel_pct: number;
-        fuel_per_jump: number;
-        is_leader: boolean;
-        is_you: boolean;
-        max_fuel: number;
-        player_id: string;
-        ship_class: string;
-        ship_id: string;
-        username: string;
-    }>;
+    members?: Array<FleetShipFuel>;
     message?: string;
     rescue_completed?: boolean;
     rescue_reward?: number;
@@ -7499,294 +5227,39 @@ export type RefuelResponse = {
     tax_amount?: number;
 };
 
+export type RegenLogEntry = {
+    armor_repair: number;
+    hull_after: number;
+    hull_before: number;
+    player_id: string;
+    remote_repair?: number;
+    shield_after: number;
+    shield_before: number;
+    shield_regen: number;
+};
+
 export type RegisterResponse = {
     empire?: string;
     message: string;
     password: string;
-    player: {
-        achievements?: {
-            [key: string]: string;
-        };
-        captains_log?: Array<{
-            created_at: string;
-            entry: string;
-            index: number;
-        }>;
-        citizenships?: {
-            [key: string]: {
-                empire_id: string;
-                granted_at: string;
-                granted_by?: string;
-            };
-        };
-        clan_tag: string;
-        completed_missions?: {
-            [key: string]: string;
-        };
-        created_at: string;
-        credits: number;
-        current_poi: string;
-        current_ship_id: string;
-        current_system: string;
-        discovered_systems?: {
-            [key: string]: {
-                discovered_at: string;
-                system_id: string;
-            };
-        };
-        distress_last_sent_at?: string;
-        docked_at_base?: string;
-        empire: string;
-        experience: number;
-        faction_id?: string;
-        faction_rank?: string;
-        fleet_id?: string;
-        home_base: string;
-        id: string;
-        is_cloaked: boolean;
-        jail?: {
-            bounty_owed: number;
-            empire_id: string;
-            jailed_until: string;
-            rep_restoration: number;
-        };
-        last_active_at: string;
-        last_chat_check: string;
-        last_chat_check_map?: {
-            [key: string]: string;
-        };
-        last_command_at: string;
-        last_login_at: string;
-        muted_channels?: Array<string>;
-        primary_color: string;
-        provided_items_granted?: {
-            [key: string]: string;
-        };
-        purchased_ship_classes?: {
-            [key: string]: boolean;
-        };
-        reputation?: {
-            [key: string]: number;
-        };
-        reputation_baseline?: {
-            [key: string]: number;
-        };
-        revealed_pois?: {
-            [key: string]: boolean;
-        };
-        riding_ship_id?: string;
-        secondary_color: string;
-        skill_xp: {
-            [key: string]: number;
-        };
-        skills: {
-            [key: string]: number;
-        };
-        stats: {
-            bases_destroyed: number;
-            battles_fled: number;
-            battles_started: number;
-            captains_log_entries: number;
-            chat_messages_sent: number;
-            cloak_activations: number;
-            consumables_used: number;
-            contraband_sold: number;
-            credits_earned: number;
-            credits_earned_taxable: number;
-            credits_earned_taxable_by_category?: {
-                [key: string]: number;
-            };
-            credits_earned_taxable_by_category_snapshot?: {
-                [key: string]: number;
-            };
-            credits_earned_taxable_snapshot: number;
-            credits_gifted: number;
-            credits_spent: number;
-            customs_evaded: number;
-            damage_dealt: number;
-            damage_taken: number;
-            deaths_by_pirate: number;
-            deaths_by_player: number;
-            deaths_by_self_destruct: number;
-            deaths_by_wildlife: number;
-            deep_core_pois_discovered: number;
-            distance_traveled: number;
-            exchange_credits_earned: number;
-            exchange_items_bought: number;
-            exchange_items_sold: number;
-            facilities_built: number;
-            facility_items_produced: number;
-            forum_posts_created: number;
-            gifts_received: number;
-            gifts_sent: number;
-            insurance_claims_made: number;
-            insurance_payouts_received: number;
-            insurance_policies_bought: number;
-            items_crafted: number;
-            items_crafted_by_type?: {
-                [key: string]: number;
-            };
-            items_jettisoned: number;
-            items_sold_by_type?: {
-                [key: string]: number;
-            };
-            jumps_completed: number;
-            last_income_tax_assessed_at?: number;
-            last_property_tax_assessed_at?: number;
-            market_purchases_deductible?: number;
-            market_purchases_deductible_snapshot?: number;
-            market_tax_loss_carryforward?: number;
-            missions_abandoned: number;
-            missions_accepted: number;
-            missions_completed: number;
-            modules_installed: number;
-            npcs_destroyed: number;
-            ore_mined: number;
-            pirates_destroyed: number;
-            prayer_distance_traveled: number;
-            refuels_given: number;
-            repairs_given: number;
-            scans_performed: number;
-            self_destructs: number;
-            ships_commissioned: number;
-            ships_destroyed: number;
-            ships_lost: number;
-            ships_purchased: number;
-            systems_explored: number;
-            tax_prepaid?: number;
-            time_played: number;
-            times_docked: number;
-            trades_completed: number;
-            void_drifts: number;
-            wormholes_traversed: number;
-            wreck_items_looted: number;
-            wrecks_scrapped: number;
-            wrecks_sold: number;
-        };
-        status_message: string;
-        titles?: Array<string>;
-        towing_wreck_id?: string;
-        trading_restricted_until?: string;
-        transported_citizens?: {
-            [key: string]: boolean;
-        };
-        username: string;
-    };
+    player: Player;
     player_id: string;
-    poi: {
-        base_id?: string;
-        base_name?: string;
-        class?: string;
-        faction_fuel_capacity?: number;
-        faction_fuel_reserve?: number;
-        fuel_capacity?: number;
-        fuel_price?: number;
-        fuel_reserve: number;
-        has_base: boolean;
-        id: string;
-        name: string;
-        online: number;
-        position: {
-            x: number;
-            y: number;
-        };
-        type: string;
-    };
+    poi: ClientPoiInfo;
     session_id?: string;
-    ship: {
-        active_buffs?: Array<{
-            amount: number;
-            expires_at: number;
-            item_id: string;
-            stat: string;
-        }>;
-        armor: number;
-        armor_melt_pct?: number;
-        armor_melt_ticks_remaining?: number;
-        burn_damage_per_tick?: number;
-        burn_source_id?: string;
-        burn_ticks_remaining?: number;
-        cargo: Array<{
-            item_id: string;
-            name?: string;
-            quantity: number;
-            size?: number;
-        }>;
-        cargo_capacity: number;
-        cargo_used: number;
-        class_id: string;
-        cpu_capacity: number;
-        cpu_used: number;
-        created_at: string;
-        custom_name?: string;
-        damage_penalty?: number;
-        defense_slots: number;
-        disruption_ticks_remaining?: number;
-        docked_at_base?: string;
-        fuel: number;
-        gas_cargo_efficiency: number;
-        hull: number;
-        ice_cargo_efficiency: number;
-        id: string;
-        in_faction_garage?: string;
-        last_process_tick?: number;
-        loaded_on_carrier_id?: string;
-        loadout_version?: number;
-        max_fuel: number;
-        max_hull: number;
-        max_shield: number;
-        modules: Array<string>;
-        name: string;
-        ore_cargo_efficiency: number;
-        owner_id: string;
-        power_capacity: number;
-        power_used: number;
-        shield: number;
-        shield_recharge: number;
-        speed: number;
-        speed_penalty?: number;
-        utility_slots: number;
-        weapon_slots: number;
-    };
-    system: {
-        connections: Array<{
-            distance?: number;
-            name: string;
-            system_id: string;
-        }>;
-        description?: string;
-        empire?: string;
-        id: string;
-        is_stronghold: boolean;
-        name: string;
-        pois: Array<{
-            base_id?: string;
-            base_name?: string;
-            class?: string;
-            faction_fuel_capacity?: number;
-            faction_fuel_reserve?: number;
-            fuel_capacity?: number;
-            fuel_price?: number;
-            fuel_reserve: number;
-            has_base: boolean;
-            id: string;
-            name: string;
-            online: number;
-            position: {
-                x: number;
-                y: number;
-            };
-            type: string;
-        }>;
-        police_level: number;
-        security_status?: string;
-    };
+    ship: Ship;
+    system: ClientSystemInfo;
     username?: string;
 };
 
 export type RegisteredPayload = {
     password: string;
     player_id: string;
+};
+
+export type ReleaseEntry = {
+    notes: Array<string>;
+    release_date: string;
+    version: string;
 };
 
 export type ReleaseTowResponse = {
@@ -7829,18 +5302,7 @@ export type RepairResponse = {
     item_name?: string;
     kits_used?: number;
     max_hull?: number;
-    members?: Array<{
-        hull: number;
-        hull_pct: number;
-        is_leader: boolean;
-        is_you: boolean;
-        max_hull: number;
-        max_shield: number;
-        player_id: string;
-        shield: number;
-        ship_class: string;
-        username: string;
-    }>;
+    members?: Array<FleetShipHull>;
     message?: string;
     repaired?: number;
     source: string;
@@ -7850,20 +5312,65 @@ export type RepairResponse = {
     target_player_name?: string;
 };
 
+export type ResourceInfo = {
+    depletion_percent?: number;
+    max_remaining?: number;
+    name: string;
+    remaining: number;
+    remaining_display: string;
+    resource_id: string;
+    richness: number;
+    supported_power?: number;
+};
+
+export type ResourceNode = {
+    max_remaining?: number;
+    remaining: number;
+    resource_id: string;
+    richness: number;
+};
+
+export type ReturnedItems = {
+    item_id: string;
+    quantity: number;
+};
+
+export type RiskFactor = {
+    detail: string;
+    multiplier: number;
+    name: string;
+};
+
+export type RouteStep = {
+    entrance_poi?: string;
+    jumps: number;
+    name: string;
+    system_id: string;
+    via_wormhole?: boolean;
+};
+
+export type SalvageMaterial = {
+    item: string;
+    name: string;
+    quantity: number;
+};
+
+export type ScanContact = {
+    cloaked?: boolean;
+    faction_id?: string;
+    hull?: number;
+    revealed_info: Array<string>;
+    shield?: number;
+    ship_class?: string;
+    ship_name?: string;
+    target_id: string;
+    username?: string;
+};
+
 export type ScanResponse = {
     cargo_types?: Array<string>;
     cloaked?: boolean;
-    contacts?: Array<{
-        cloaked?: boolean;
-        faction_id?: string;
-        hull?: number;
-        revealed_info: Array<string>;
-        shield?: number;
-        ship_class?: string;
-        ship_name?: string;
-        target_id: string;
-        username?: string;
-    }>;
+    contacts?: Array<ScanContact>;
     faction_id?: string;
     hull?: number;
     message?: string;
@@ -7880,28 +5387,17 @@ export type ScanResponse = {
 
 export type ScrapShipResponse = {
     cargo_note?: string;
-    cargo_to_storage?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
+    cargo_to_storage?: Array<SoldCargoItem>;
     message: string;
     modules_note?: string;
-    modules_to_storage?: Array<{
-        module_type: string;
-        name: string;
-    }>;
+    modules_to_storage?: Array<SoldModuleItem>;
     scrapped_class: string;
     scrapped_ship_id: string;
 };
 
 export type ScrapWreckResponse = {
     action: string;
-    materials: Array<{
-        item: string;
-        name: string;
-        quantity: number;
-    }>;
+    materials: Array<SalvageMaterial>;
     message: string;
     ship_class?: string;
     stored_at?: string;
@@ -7912,22 +5408,7 @@ export type ScrapWreckResponse = {
 export type SearchSystemsResponse = {
     message: string;
     query: string;
-    systems: Array<{
-        connections: Array<string>;
-        description?: string;
-        empire?: string;
-        is_stronghold?: boolean;
-        name: string;
-        online: number;
-        poi_count: number;
-        position: {
-            x: number;
-            y: number;
-        };
-        system_id: string;
-        visited: boolean;
-        visited_at: string;
-    }>;
+    systems: Array<MapSystemInfo>;
     total_found: number;
 };
 
@@ -7943,20 +5424,8 @@ export type SelfDestructResponse = {
 
 export type SellResponse = {
     action: string;
-    auto_listed?: {
-        escrow?: number;
-        listing_fee?: number;
-        order_id: string;
-        price_each: number;
-        quantity: number;
-    };
-    fills: Array<{
-        counterparty?: string;
-        price_each: number;
-        quantity: number;
-        source?: string;
-        subtotal: number;
-    }>;
+    auto_listed?: AutoListedOrder;
+    fills: Array<Fill>;
     item: string;
     item_id: string;
     level_up: boolean;
@@ -7989,6 +5458,27 @@ export type SellWreckResponse = {
     wreck_id: string;
 };
 
+export type SendGiftResponse = {
+    action: 'send_gift';
+    base_id: string;
+    cargo_remaining?: number;
+    credits_sent?: number;
+    item_id?: string;
+    message?: string;
+    quantity?: number;
+    recipient: string;
+    source?: string;
+    storage_remaining?: number;
+    wallet_remaining?: number;
+};
+
+export type SetAccessResponse = {
+    access: string;
+    action: 'set_access';
+    facility_id: string;
+    message: string;
+};
+
 export type SetColorsResponse = {
     action: string;
 };
@@ -7999,10 +5489,31 @@ export type SetDroneNameResponse = {
     name: string;
 };
 
+export type SetFacilityDescriptionResponse = {
+    action: 'set_description';
+    description?: string;
+    facility_id: string;
+    message: string;
+};
+
+export type SetFacilityNameResponse = {
+    action: 'set_name';
+    custom_name?: string;
+    facility_id: string;
+    message: string;
+};
+
 export type SetHomeBaseResponse = {
     home_base: string;
     message: string;
     old_home_base?: string;
+};
+
+export type SetOutputPriceResponse = {
+    action: 'set_output_price';
+    facility_id: string;
+    message: string;
+    price: number;
 };
 
 export type SetStatusResponse = {
@@ -8103,6 +5614,33 @@ export type Ship = {
     speed_penalty?: number;
     utility_slots?: number;
     weapon_slots?: number;
+};
+
+export type ShipActiveBuff = {
+    amount: number;
+    expires_at: number;
+    item_id: string;
+    stat: string;
+};
+
+export type ShipBuyOrderInfo = {
+    base_id?: string;
+    base_name?: string;
+    being_built?: boolean;
+    buyer?: string;
+    class_id: string;
+    class_name?: string;
+    created_at?: string;
+    order_id: string;
+    price: number;
+    tax_escrow?: number;
+};
+
+export type ShipCargoItem = {
+    item_id: string;
+    name?: string;
+    quantity: number;
+    size?: number;
 };
 
 /**
@@ -8258,6 +5796,38 @@ export type ShipLicenseResponse = {
     ship_name: string;
 };
 
+export type ShipListing = {
+    category?: string;
+    class_id: string;
+    custom_name?: string;
+    hull?: number;
+    listed_at: string;
+    listing_id: string;
+    max_hull?: number;
+    modules_count?: number;
+    price: number;
+    scale?: number;
+    seller?: string;
+    shield?: number;
+    ship_id: string;
+    ship_name?: string;
+    tier?: number;
+};
+
+export type Skill = {
+    bonus_per_level?: {
+        [key: string]: number;
+    };
+    category: string;
+    description: string;
+    empire_restriction?: string;
+    id: string;
+    max_level: number;
+    name: string;
+    training_source?: string;
+    xp_per_level: Array<number>;
+};
+
 export type SkillDefinition = {
     bonus_per_level?: {
         [key: string]: number;
@@ -8270,6 +5840,26 @@ export type SkillDefinition = {
     name: string;
     training_source?: string;
     xp_per_level: Array<number>;
+};
+
+export type SkippedModule = {
+    id: string;
+    name: string;
+    reason: string;
+    type: string;
+    type_id: string;
+    wear: number;
+};
+
+export type SoldCargoItem = {
+    item_id: string;
+    name: string;
+    quantity: number;
+};
+
+export type SoldModuleItem = {
+    module_type: string;
+    name: string;
 };
 
 export type StationConfigResponse = {
@@ -8290,6 +5880,30 @@ export type StationConfigResponse = {
     service_access?: {
         [key: string]: string;
     };
+};
+
+export type StationConstructionEntry = {
+    build_cost?: number;
+    category: string;
+    definition_id: string;
+    materials?: Array<StationConstructionMaterial>;
+    name: string;
+    reason?: string;
+    status: string;
+    ticks_until_complete?: number;
+};
+
+export type StationConstructionMaterial = {
+    item_id: string;
+    name?: string;
+    quantity_in_storage: number;
+    quantity_missing?: number;
+    quantity_required: number;
+};
+
+export type StationConstructionResponse = {
+    pending?: Array<StationConstructionEntry>;
+    under_construction?: Array<StationConstructionEntry>;
 };
 
 /**
@@ -8318,344 +5932,110 @@ export type StationHealth = {
     total_service_infra: number;
 };
 
+export type StationLifeSupportInput = {
+    item_id: string;
+    name?: string;
+    quantity_per_cycle: number;
+};
+
+export type StationLifeSupportStatus = {
+    demand: number;
+    maintenance?: Array<StationLifeSupportInput>;
+    maintenance_cycle_ticks: number;
+    plants: number;
+    remediation?: string;
+    starved?: Array<StationLifeSupportInput>;
+    supply: number;
+};
+
 export type StationPassengersResponse = {
     count: number;
     demand_level: string;
     fare_surge: number;
     market_conditions: string;
     station: string;
-    transit_lounge?: {
-        capacity: number;
-        lounge: string;
-        occupancy: number;
-        passengers: Array<{
-            base_fare: number;
-            berth_class?: string;
-            bio: string;
-            citizen_id: string;
-            class: string;
-            connecting?: boolean;
-            destination: string;
-            destination_name: string;
-            destination_system?: string;
-            name: string;
-            speed_bonus?: number;
-            ticks_remaining: number;
-        }>;
-    };
-    waiting: Array<{
-        bio: string;
-        citizen_id: string;
-        citizenship: string;
-        class: string;
-        destination: string;
-        destination_name: string;
-        destination_system?: string;
-        estimated_fare?: number;
-        name: string;
-    }>;
+    transit_lounge?: TransitLoungeView;
+    waiting: Array<WaitingPassengerView>;
 };
 
-export type StorageResponse = {
-    base_id: string;
-    gifts?: Array<{
-        credits?: number;
-        items?: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-        }>;
-        message?: string;
-        sender: string;
-        sender_id: string;
-        ships?: Array<{
-            class_id: string;
-            class_name: string;
-            custom_name?: string;
-            ship_id: string;
-        }>;
-        timestamp: string;
-    }>;
-    hint: string;
-    items: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-        size: number;
-    }>;
-    messages?: Array<{
-        body: string;
-        from: string;
-        timestamp: string;
-    }>;
-    ships: Array<{
-        cargo_used: number;
-        class_id: string;
-        class_name?: string;
-        custom_name?: string;
-        modules: number;
-        ship_id: string;
-    }>;
-} | {
-    base_id: string;
-    buckets?: Array<{
-        cap_per_item: number;
-        id: string;
-        items: Array<{
-            item_id: string;
-            name: string;
-            quantity: number;
-            size: number;
-        }>;
-        name: string;
-        package_cap: number;
-    }>;
-    credits: number;
-    faction_fuel_capacity?: number;
-    faction_fuel_reserve?: number;
-    faction_id: string;
-    faction_name: string;
-    faction_tag: string;
-    hint: string;
-    items: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-        size: number;
-    }>;
-    recent_activity: Array<{
-        action: string;
-        credits?: number;
-        item?: string;
-        player: string;
-        quantity?: number;
-        timestamp: string;
-    }>;
-} | {
-    actions: Array<{
-        action: string;
-        description: string;
-        example?: {
-            [key: string]: string;
-        };
-        examples?: Array<{
-            [key: string]: string;
-        }>;
-        params?: Array<string>;
-    }>;
-    command: string;
-    description: string;
-    notes?: Array<string>;
-    sources?: {
-        [key: string]: string;
-    };
-    targets?: {
-        [key: string]: string;
-    };
-} | {
-    action: string;
-    cargo_remaining: number;
-    cargo_space: number;
+export type StationPowerInput = {
     item_id: string;
-    quantity: number;
-    storage_total: number;
-} | {
-    action: string;
-    cargo_space: number;
-    cargo_total: number;
-    item_id: string;
-    quantity: number;
-    storage_remaining: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    dest_bucket?: string;
-    dest_bucket_id?: string;
-    dest_total: number;
-    destination: string;
-    item_id: string;
-    quantity: number;
-    source: string;
-    source_remaining: number;
-} | {
-    action: string;
-    amount: number;
-    dest_credits: number;
-    destination: string;
-    source: string;
-    source_credits: number;
-} | {
-    action: string;
-    base_id: string;
-    cargo_remaining?: number;
-    credits_sent?: number;
-    item_id?: string;
+    name?: string;
+    quantity_per_cycle: number;
+};
+
+export type StationPowerStatus = {
+    battery_capacity: number;
+    battery_stored: number;
+    current_draw: number;
+    efficiency: number;
+    fuel_inputs?: Array<StationPowerInput>;
+    remediation?: string;
+    supply: number;
+};
+
+export type StorageGift = {
+    credits?: number;
+    items?: Array<StorageGiftItem>;
     message?: string;
-    quantity?: number;
-    recipient: string;
-    source?: string;
-    storage_remaining?: number;
-    wallet_remaining?: number;
-} | {
-    action: string;
-    base_id: string;
+    sender: string;
+    sender_id: string;
+    ships?: Array<StorageGiftShip>;
+    timestamp: string;
+};
+
+export type StorageGiftItem = {
+    item_id: string;
+    name: string;
+    quantity: number;
+};
+
+export type StorageGiftShip = {
+    class_id: string;
+    class_name: string;
+    custom_name?: string;
+    ship_id: string;
+};
+
+export type StorageMessage = {
+    body: string;
+    from: string;
+    timestamp: string;
+};
+
+export type StorageResponse = ViewStorageResponse | ViewFactionStorageResponse | CommandHelpResponse | DepositItemsResponse | WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse;
+
+export type StoredShip = {
+    cargo_used: number;
     class_id: string;
     class_name?: string;
-    message?: string;
-    recipient: string;
+    custom_name?: string;
+    modules: number;
     ship_id: string;
-} | {
-    action: string;
-    credits_sent: number;
-    faction_id: string;
-    faction_name: string;
-    items_sent: number;
-    message: string;
-} | {
-    action: string;
-    base_id: string;
-    base_name: string;
-    cargo_remaining?: number;
-    class_id?: string;
+};
+
+export type StoredShipInfo = {
+    class_id: string;
     class_name?: string;
-    credits_sent?: number;
-    empire_id: string;
-    empire_name: string;
-    fleet_id?: string;
-    fleet_name?: string;
-    hull_designator?: string;
-    item_id?: string;
-    message?: string;
-    npc_id?: string;
-    petition_id?: string;
-    petition_notice?: string;
-    quantity?: number;
-    ship_id?: string;
-    wallet_remaining?: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    cargo_remaining: number;
-    cargo_space: number;
-    item_id: string;
-    quantity: number;
-    storage_total: number;
-} | {
-    action: string;
-    amount: number;
-    faction_credits: number;
-    player_credits: number;
-} | {
-    action: string;
-    fuel: number;
-    fuel_capacity: number;
-    ship_fuel: number;
-    storage_fuel: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    cargo_space: number;
-    cargo_total: number;
-    item_id: string;
-    quantity: number;
-    storage_remaining: number;
-} | {
-    action: string;
-    amount: number;
-    faction_credits: number;
-    player_credits: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    dest_bucket?: string;
-    dest_bucket_id?: string;
-    failed: number;
-    requested: number;
-    results: Array<{
-        error?: string;
-        item_id: string;
-        message?: string;
-        quantity: number;
-        result?: {
-            [key: string]: unknown;
-        };
-        success: boolean;
-    }>;
-    succeeded: number;
-    target?: string;
+    ship_id: string;
 };
 
 export type SubscribeMarketResponse = {
     action: string;
     base_id: string;
     base_name: string;
-    items: Array<{
-        buy_orders: Array<{
-            price_each: number;
-            quantity: number;
-            source?: string;
-        }>;
-        item_id: string;
-        item_name?: string;
-        sell_orders: Array<{
-            price_each: number;
-            quantity: number;
-            source?: string;
-        }>;
-    }>;
+    items: Array<MarketItemBook>;
     message?: string;
 };
 
 export type SubscribeObservationResponse = {
     action: string;
     active_scan: boolean;
-    cloaked_contacts?: Array<{
-        cloaked?: boolean;
-        faction_id?: string;
-        hull?: number;
-        revealed_info: Array<string>;
-        shield?: number;
-        ship_class?: string;
-        ship_name?: string;
-        target_id: string;
-        username?: string;
-    }>;
+    cloaked_contacts?: Array<ScanContact>;
     message?: string;
-    nearby: Array<{
-        clan_tag?: string;
-        docked?: boolean;
-        faction_id?: string;
-        faction_tag?: string;
-        in_combat: boolean;
-        offline?: boolean;
-        player_id?: string;
-        primary_color?: string;
-        secondary_color?: string;
-        ship_class?: string;
-        ship_name?: string;
-        status_message?: string;
-        username?: string;
-    }>;
+    nearby: Array<NearbyPlayer>;
     poi_id: string;
-    system_agents: Array<{
-        clan_tag?: string;
-        docked?: boolean;
-        faction_id?: string;
-        faction_tag?: string;
-        in_combat: boolean;
-        offline?: boolean;
-        player_id?: string;
-        primary_color?: string;
-        secondary_color?: string;
-        ship_class?: string;
-        ship_name?: string;
-        status_message?: string;
-        username?: string;
-    }>;
+    system_agents: Array<NearbyPlayer>;
     system_id: string;
     unknown_signature: boolean;
 };
@@ -8667,85 +6047,42 @@ export type SupplyCommissionResponse = {
     credits?: number;
     item_id: string;
     item_name: string;
-    materials: Array<{
-        complete: boolean;
-        gathered: number;
-        item_id: string;
-        name: string;
-        needed: number;
-    }>;
+    materials: Array<CommissionMaterialStatus>;
     message: string;
     supplied: number;
 };
 
 export type SurveySystemResponse = {
-    already_revealed: Array<{
-        class?: string;
-        description?: string;
-        id: string;
-        name: string;
-        resources?: Array<{
-            depletion_percent?: number;
-            max_remaining?: number;
-            name: string;
-            remaining: number;
-            remaining_display: string;
-            resource_id: string;
-            richness: number;
-            supported_power?: number;
-        }>;
-        type: string;
-    }>;
+    already_revealed: Array<SurveyedPoi>;
     anomaly_hint?: string;
     bloom_intensity: number;
     bloom_status: string;
-    faint_signatures: Array<{
-        difficulty?: string;
-        hint: string;
-        type: string;
-    }>;
+    faint_signatures: Array<FaintSignature>;
     message: string;
-    newly_revealed: Array<{
-        class?: string;
-        description?: string;
-        id: string;
-        name: string;
-        resources?: Array<{
-            depletion_percent?: number;
-            max_remaining?: number;
-            name: string;
-            remaining: number;
-            remaining_display: string;
-            resource_id: string;
-            richness: number;
-            supported_power?: number;
-        }>;
-        type: string;
-    }>;
+    newly_revealed: Array<SurveyedPoi>;
     survey_power: number;
     system_id: string;
     system_name: string;
-    wildlife: Array<{
-        abundance: string;
-        estimate: number;
-        name: string;
-        role: string;
-        species: string;
-    }>;
+    wildlife: Array<WildlifeSurvey>;
     xp_gained: {
         [key: string]: number;
     };
+};
+
+export type SurveyedPoi = {
+    class?: string;
+    description?: string;
+    id: string;
+    name: string;
+    resources?: Array<ResourceInfo>;
+    type: string;
 };
 
 export type SwitchShipResponse = {
     active_ship_class: string;
     active_ship_id: string;
     cargo_note?: string;
-    cargo_to_storage?: Array<{
-        item_id: string;
-        name: string;
-        quantity: number;
-    }>;
+    cargo_to_storage?: Array<SoldCargoItem>;
     claimed_from_faction_garage?: boolean;
     message: string;
     stored_ship_class: string;
@@ -8826,27 +6163,46 @@ export type SystemPoi = {
     type: string;
 };
 
+export type SystemVisit = {
+    discovered_at: string;
+    system_id: string;
+};
+
+export type TaxEstimateBracketRow = {
+    income_in_bracket: number;
+    lower_bound: number;
+    rate_bps: number;
+    tax_from_bracket: number;
+    upper_bound?: number;
+};
+
+export type TaxEstimateIncomeRow = {
+    brackets?: Array<TaxEstimateBracketRow>;
+    credit: number;
+    empire: string;
+    gross: number;
+    owed: number;
+    rate_bps: number;
+};
+
+export type TaxEstimatePropertyRow = {
+    assessed_value: number;
+    brackets?: Array<TaxEstimateBracketRow>;
+    empire: string;
+    owed: number;
+    rate_bps: number;
+};
+
+export type TaxEstimatePropertyShipRow = {
+    ship_id: string;
+    value: number;
+};
+
 export type TaxEstimateResponse = {
     action: string;
-    assessed_property_by_ship: Array<{
-        ship_id: string;
-        value: number;
-    }>;
+    assessed_property_by_ship: Array<TaxEstimatePropertyShipRow>;
     assessed_property_value: number;
-    income_tax: Array<{
-        brackets?: Array<{
-            income_in_bracket: number;
-            lower_bound: number;
-            rate_bps: number;
-            tax_from_bracket: number;
-            upper_bound?: number;
-        }>;
-        credit: number;
-        empire: string;
-        gross: number;
-        owed: number;
-        rate_bps: number;
-    }>;
+    income_tax: Array<TaxEstimateIncomeRow>;
     income_tax_total: number;
     last_assessed_at?: number;
     last_property_assessed_at?: number;
@@ -8855,33 +6211,25 @@ export type TaxEstimateResponse = {
     market_sales_to_date: number;
     next_assessment_approx_seconds: number;
     note?: string;
-    property_tax: Array<{
-        assessed_value: number;
-        brackets?: Array<{
-            income_in_bracket: number;
-            lower_bound: number;
-            rate_bps: number;
-            tax_from_bracket: number;
-            upper_bound?: number;
-        }>;
-        empire: string;
-        owed: number;
-        rate_bps: number;
-    }>;
+    property_tax: Array<TaxEstimatePropertyRow>;
     property_tax_total: number;
-    sales_tax_rates: Array<{
-        empire: string;
-        rate_bps: number;
-        reason: string;
-    }>;
+    sales_tax_rates: Array<TaxEstimateSalesRow>;
     tax_collection_active: boolean;
     tax_prepaid: number;
-    taxable_income_by_source: Array<{
-        amount: number;
-        category: string;
-    }>;
+    taxable_income_by_source: Array<TaxableIncomeByCategoryEntry>;
     taxable_income_to_date: number;
     taxable_market_income: number;
+};
+
+export type TaxEstimateSalesRow = {
+    empire: string;
+    rate_bps: number;
+    reason: string;
+};
+
+export type TaxableIncomeByCategoryEntry = {
+    amount: number;
+    category: string;
 };
 
 export type TowWreckResponse = {
@@ -8896,15 +6244,114 @@ export type TowWreckResponse = {
     wreck_id: string;
 };
 
+export type Trade = {
+    created_at: string;
+    expires_at: string;
+    id: string;
+    offer_credits: number;
+    offer_items: Array<TradeItem>;
+    offerer_id: string;
+    poi_id: string;
+    request_credits: number;
+    request_items: Array<TradeItem>;
+    status: string;
+    target_id: string;
+};
+
 export type TradeAcceptResponse = {
     message: string;
     trade_id: string;
     your_credits?: number;
 };
 
+export type TradeFillNotification = {
+    item_id: string;
+    item_name: string;
+    price_each: number;
+    quantity: number;
+    timestamp: string;
+    total: number;
+    type: string;
+};
+
+export type TradeIntelEntry = {
+    auto_synced?: boolean;
+    base_id: string;
+    items: Array<TradeIntelItem>;
+    station_name: string;
+    submitted_at_tick: number;
+    submitted_by: string;
+    submitter_name: string;
+    system_id: string;
+};
+
+export type TradeIntelItem = {
+    best_buy: number;
+    best_sell: number;
+    buy_volume: number;
+    item_id: string;
+    item_name: string;
+    sell_volume: number;
+};
+
+export type TradeItem = {
+    item_id: string;
+    quantity: number;
+};
+
 export type TradeOfferResponse = {
     message: string;
     trade_id: string;
+};
+
+export type TransferCreditsResponse = {
+    action: 'transfer';
+    amount: number;
+    dest_credits: number;
+    destination: string;
+    source: string;
+    source_credits: number;
+};
+
+export type TransferItemsResponse = {
+    action: 'transfer';
+    bucket?: string;
+    bucket_id?: string;
+    dest_bucket?: string;
+    dest_bucket_id?: string;
+    dest_total: number;
+    destination: string;
+    item_id: string;
+    quantity: number;
+    source: string;
+    source_remaining: number;
+};
+
+export type TransferPassengersResponse = {
+    count: number;
+    kind: 'transfer';
+    message: string;
+    skipped_expired?: number;
+    skipped_no_berth?: number;
+    target_ship: string;
+    target_ship_name: string;
+    transferred: Array<PassengerView>;
+};
+
+export type TransitLoungeView = {
+    capacity: number;
+    lounge: string;
+    occupancy: number;
+    passengers: Array<PassengerView>;
+};
+
+export type TravelNearbyPlayer = {
+    clan_tag?: string;
+    offline?: boolean;
+    primary_color?: string;
+    secondary_color?: string;
+    status_message?: string;
+    username: string;
 };
 
 export type TravelResponse = {
@@ -8913,14 +6360,7 @@ export type TravelResponse = {
     auto_undocked?: boolean;
     message?: string;
     offline_collapsed: number;
-    online_players: Array<{
-        clan_tag?: string;
-        offline?: boolean;
-        primary_color?: string;
-        secondary_color?: string;
-        status_message?: string;
-        username: string;
-    }>;
+    online_players: Array<TravelNearbyPlayer>;
     online_players_count: number;
     online_players_truncated: boolean;
     poi: string;
@@ -8928,6 +6368,37 @@ export type TravelResponse = {
     xp_gained?: {
         [key: string]: number;
     };
+};
+
+export type TrimmedBase = {
+    allow_outsider_facilities?: boolean;
+    armor: number;
+    description: string;
+    empire?: string;
+    facilities?: Array<string>;
+    faction_id?: string;
+    fuel: number;
+    hull: number;
+    id: string;
+    market_fee_bps?: number;
+    max_fuel: number;
+    max_hull: number;
+    max_shield: number;
+    name: string;
+    owner_id?: string;
+    pirate_rep_required?: number;
+    poi_id: string;
+    public_access: boolean;
+    refuel_price_each?: number;
+    repair_price_per_hull?: number;
+    service_access?: {
+        [key: string]: string;
+    };
+    shield: number;
+    type?: string;
+    weapon_dps: number;
+    weapon_reach: number;
+    wrecked?: boolean;
 };
 
 export type UndockResponse = {
@@ -8946,97 +6417,48 @@ export type UninstallModResponse = {
     wear_status?: string;
 };
 
+export type UnloadAllPassengersResponse = {
+    delivered: Array<PassengerView>;
+    fare_collected: number;
+    kind: 'all';
+    message: string;
+    reputation_changes?: {
+        [key: string]: number;
+    };
+    stranded: Array<PassengerView>;
+};
+
 export type UnloadDroneResponse = {
     drone_id: string;
     item_id: string;
     message: string;
 };
 
+export type UnloadPassengerCommandResponse = ({
+    kind: 'single';
+} & UnloadPassengerResponse) | ({
+    kind: 'all';
+} & UnloadAllPassengersResponse) | ({
+    kind: 'transfer';
+} & TransferPassengersResponse) | ({
+    kind: 'lounge_checkin';
+} & LoungeCheckInResponse);
+
 export type UnloadPassengerResponse = {
     base_fare?: number;
     delivered: boolean;
     fare_collected: number;
+    kind: 'single';
     message: string;
     name: string;
     speed_bonus?: number;
-} | {
-    delivered: Array<{
-        base_fare: number;
-        berth_class?: string;
-        bio: string;
-        citizen_id: string;
-        class: string;
-        connecting?: boolean;
-        destination: string;
-        destination_name: string;
-        destination_system?: string;
-        name: string;
-        speed_bonus?: number;
-        ticks_remaining: number;
-    }>;
-    fare_collected: number;
-    message: string;
-    reputation_changes?: {
-        [key: string]: number;
-    };
-    stranded: Array<{
-        base_fare: number;
-        berth_class?: string;
-        bio: string;
-        citizen_id: string;
-        class: string;
-        connecting?: boolean;
-        destination: string;
-        destination_name: string;
-        destination_system?: string;
-        name: string;
-        speed_bonus?: number;
-        ticks_remaining: number;
-    }>;
-} | {
-    count: number;
-    message: string;
-    skipped_expired?: number;
-    skipped_no_berth?: number;
-    target_ship: string;
-    target_ship_name: string;
-    transferred: Array<{
-        base_fare: number;
-        berth_class?: string;
-        bio: string;
-        citizen_id: string;
-        class: string;
-        connecting?: boolean;
-        destination: string;
-        destination_name: string;
-        destination_system?: string;
-        name: string;
-        speed_bonus?: number;
-        ticks_remaining: number;
-    }>;
-} | {
-    capacity: number;
-    checked_in: Array<{
-        base_fare: number;
-        berth_class?: string;
-        bio: string;
-        citizen_id: string;
-        class: string;
-        connecting?: boolean;
-        destination: string;
-        destination_name: string;
-        destination_system?: string;
-        name: string;
-        speed_bonus?: number;
-        ticks_remaining: number;
-    }>;
-    count: number;
-    deadline_bonus_ticks?: number;
-    lounge: string;
-    message: string;
-    occupancy: number;
-    skipped_expired?: number;
-    skipped_full?: number;
+};
+
+export type UnreadChatCounts = {
+    faction: number;
+    local: number;
+    private: number;
+    system: number;
 };
 
 export type UnsubscribeMarketResponse = {
@@ -9057,13 +6479,7 @@ export type UploadDroneScriptResponse = {
 
 export type UseItemResponse = {
     action: string;
-    active_buffs?: Array<{
-        amount: number;
-        expires_at: number;
-        item_id: string;
-        stat: string;
-        ticks_left: number;
-    }>;
+    active_buffs?: Array<ActiveBuff>;
     amount?: number;
     destination_poi?: string;
     destination_system?: string;
@@ -9089,6 +6505,13 @@ export type UseItemResponse = {
     shield?: number;
     shield_restored?: number;
     stat?: string;
+};
+
+export type V2CommandActionEntry = {
+    action: string;
+    description?: string;
+    endpoint: string;
+    tool: string;
 };
 
 /**
@@ -9650,12 +7073,7 @@ export type V2GameState = {
 };
 
 export type V2GetCommandsResponse = {
-    actions: Array<{
-        action: string;
-        description?: string;
-        endpoint: string;
-        tool: string;
-    }>;
+    actions: Array<V2CommandActionEntry>;
 };
 
 /**
@@ -9727,44 +7145,30 @@ export type ViewCompletedMissionResponse = {
     chain_next?: string;
     completion_time: string;
     description: string;
-    dialog?: {
-        accept?: string;
-        complete?: string;
-        decline?: string;
-        offer?: string;
-    };
+    dialog?: MissionDialogInfo;
     difficulty: number;
-    giver?: {
-        name: string;
-        title: string;
-    };
-    objectives?: Array<{
-        description: string;
-        eligible_players?: Array<string>;
-        item_id?: string;
-        participants?: Array<string>;
-        quantity?: number;
-        system_id?: string;
-        system_name?: string;
-        target_base_id?: string;
-        target_base_name?: string;
-        type: string;
-    }>;
+    giver?: MissionGiverInfo;
+    objectives?: Array<ObjectiveInfo>;
     repeatable?: boolean;
-    rewards: {
-        credits: number;
-        items?: {
-            [key: string]: number;
-        };
-        pirate_rep?: number;
-        reputation?: number;
-        skill_xp?: {
-            [key: string]: number;
-        };
-    };
+    rewards: MissionRewardsInfo;
     template_id: string;
     title: string;
     type: string;
+};
+
+export type ViewFactionStorageResponse = {
+    action: 'view_faction_storage';
+    base_id: string;
+    buckets?: Array<FactionStorageBucket>;
+    credits: number;
+    faction_fuel_capacity?: number;
+    faction_fuel_reserve?: number;
+    faction_id: string;
+    faction_name: string;
+    faction_tag: string;
+    hint: string;
+    items: Array<CargoItem>;
+    recent_activity: Array<FactionActivityEntry>;
 };
 
 export type ViewMarketResponse = {
@@ -9774,32 +7178,7 @@ export type ViewMarketResponse = {
     categories?: Array<string>;
     current_tick: number;
     incremental?: boolean;
-    items: Array<{
-        best_buy: number;
-        best_buy_qty: number;
-        best_sell: number;
-        best_sell_qty: number;
-        buy_orders: Array<{
-            my_quantity?: number;
-            price_each: number;
-            quantity: number;
-            source?: string;
-        }>;
-        buy_price: number;
-        buy_quantity: number;
-        category: string;
-        item_id: string;
-        item_name: string;
-        sell_orders: Array<{
-            my_quantity?: number;
-            price_each: number;
-            quantity: number;
-            source?: string;
-        }>;
-        sell_price: number;
-        sell_quantity: number;
-        spread?: number;
-    }>;
+    items: Array<MarketListingItem>;
     message?: string;
 };
 
@@ -9810,21 +7189,7 @@ export type ViewOrdersResponse = {
     hint: string;
     item_filter?: string;
     order_type?: string;
-    orders: Array<{
-        created_at: string;
-        created_by?: string;
-        faction_order?: boolean;
-        filled_quantity: number;
-        item_id: string;
-        item_name?: string;
-        listing_fee: number;
-        order_id: string;
-        order_type: string;
-        price_each: number;
-        quantity: number;
-        remaining: number;
-        side: string;
-    }>;
+    orders: Array<ExchangeOrder>;
     page: number;
     page_size: number;
     scope: string;
@@ -9836,18 +7201,44 @@ export type ViewOrdersResponse = {
 
 export type ViewShipBuyOrdersResponse = {
     count: number;
-    orders: Array<{
-        base_id?: string;
-        base_name?: string;
-        being_built?: boolean;
-        buyer?: string;
-        class_id: string;
-        class_name?: string;
-        created_at?: string;
-        order_id: string;
-        price: number;
-        tax_escrow?: number;
-    }>;
+    orders: Array<ShipBuyOrderInfo>;
+};
+
+export type ViewStorageResponse = {
+    action: 'view_storage';
+    base_id: string;
+    gifts?: Array<StorageGift>;
+    hint: string;
+    items: Array<CargoItem>;
+    messages?: Array<StorageMessage>;
+    ships: Array<StoredShip>;
+};
+
+export type WaitingPassengerView = {
+    bio: string;
+    citizen_id: string;
+    citizenship: string;
+    class: string;
+    destination: string;
+    destination_name: string;
+    destination_system?: string;
+    estimated_fare?: number;
+    name: string;
+};
+
+export type WeaponFireDetail = {
+    after_disruption: number;
+    ammo_mod?: number;
+    ammo_used?: string;
+    base_damage: number;
+    crit_chance: number;
+    crit_fired: boolean;
+    crit_roll: number;
+    damage: number;
+    damage_type: string;
+    instance_id: string;
+    name: string;
+    type_bonus_pct: number;
 };
 
 export type WelcomePayload = {
@@ -9864,72 +7255,34 @@ export type WelcomePayload = {
     website: string;
 };
 
+export type WildlifeSurvey = {
+    abundance: string;
+    estimate: number;
+    name: string;
+    role: string;
+    species: string;
+};
+
 export type WithdrawItemsResponse = {
-    action: string;
+    action: 'withdraw_items';
     cargo_space: number;
     cargo_total: number;
     item_id: string;
     quantity: number;
     storage_remaining: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    dest_bucket?: string;
-    dest_bucket_id?: string;
-    dest_total: number;
-    destination: string;
-    item_id: string;
-    quantity: number;
-    source: string;
-    source_remaining: number;
-} | {
-    action: string;
-    amount: number;
-    dest_credits: number;
-    destination: string;
-    source: string;
-    source_credits: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    cargo_space: number;
-    cargo_total: number;
-    item_id: string;
-    quantity: number;
-    storage_remaining: number;
-} | {
-    action: string;
-    amount: number;
-    faction_credits: number;
-    player_credits: number;
-} | {
-    action: string;
-    bucket?: string;
-    bucket_id?: string;
-    dest_bucket?: string;
-    dest_bucket_id?: string;
-    failed: number;
-    requested: number;
-    results: Array<{
-        error?: string;
-        item_id: string;
-        message?: string;
-        quantity: number;
-        result?: {
-            [key: string]: unknown;
-        };
-        success: boolean;
-    }>;
-    succeeded: number;
-    target?: string;
 };
 
 export type WriteNoteResponse = {
     content_length: number;
     message: string;
     note_id: string;
+};
+
+export type ZoneMoveLogEntry = {
+    new_zone: string;
+    old_zone: string;
+    player_id: string;
+    reason: string;
 };
 
 export type AgentLogsV2Data = {
@@ -10431,11 +7784,11 @@ export type SpacemoltCraftErrors = {
 
 export type SpacemoltCraftResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CraftJobResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CraftCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: CraftJobResponse;
+            details?: CraftCommandResponse;
         };
     };
 };
@@ -10949,10 +8302,10 @@ export type SpacemoltGetMapErrors = {
 
 export type SpacemoltGetMapResponses = {
     /**
-     * Result. structuredContent type: GetMapResponse
+     * Result. structuredContent type: GetMapCommandResponse
      */
     200: V2Response & {
-        structuredContent?: GetMapResponse;
+        structuredContent?: GetMapCommandResponse;
     };
 };
 
@@ -11135,10 +8488,10 @@ export type SpacemoltGetPoiErrors = {
 
 export type SpacemoltGetPoiResponses = {
     /**
-     * Result. structuredContent type: GetPOIResponse
+     * Result. structuredContent type: GetPOICommandResponse
      */
     200: V2Response & {
-        structuredContent?: GetPoiResponse;
+        structuredContent?: GetPoiCommandResponse;
     };
 };
 
@@ -11345,10 +8698,10 @@ export type SpacemoltGetSystemErrors = {
 
 export type SpacemoltGetSystemResponses = {
     /**
-     * Result. structuredContent type: GetSystemResponse
+     * Result. structuredContent type: GetSystemCommandResponse
      */
     200: V2Response & {
-        structuredContent?: GetSystemResponse;
+        structuredContent?: GetSystemCommandResponse;
     };
 };
 
@@ -11674,11 +9027,11 @@ export type SpacemoltJettisonErrors = {
 
 export type SpacemoltJettisonResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JettisonResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JettisonCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: JettisonResponse;
+            details?: JettisonCommandResponse;
         };
     };
 };
@@ -11714,11 +9067,11 @@ export type SpacemoltJumpErrors = {
 
 export type SpacemoltJumpResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JumpResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JumpCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: JumpResponse;
+            details?: JumpCommandResponse;
         };
     };
 };
@@ -12514,11 +9867,11 @@ export type SpacemoltUnloadPassengerErrors = {
 
 export type SpacemoltUnloadPassengerResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (UnloadPassengerResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (UnloadPassengerCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: UnloadPassengerResponse;
+            details?: UnloadPassengerCommandResponse;
         };
     };
 };
@@ -13622,11 +10975,11 @@ export type SpacemoltDroneDeployErrors = {
 
 export type SpacemoltDroneDeployResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DeployDroneResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DeployDroneCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: DeployDroneResponse;
+            details?: DeployDroneCommandResponse;
         };
     };
 };
@@ -14146,10 +11499,10 @@ export type SpacemoltFacilityBrowseForSaleErrors = {
 
 export type SpacemoltFacilityBrowseForSaleResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityBrowseForSaleResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityBrowseForSaleResponse;
     };
 };
 
@@ -14157,10 +11510,6 @@ export type SpacemoltFacilityBrowseForSaleResponse = SpacemoltFacilityBrowseForS
 
 export type SpacemoltFacilityBuildData = {
     body?: {
-        /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
         /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
@@ -14188,11 +11537,15 @@ export type SpacemoltFacilityBuildErrors = {
 
 export type SpacemoltFacilityBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityBuildResponse | FacilityFactionBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: ({
+                action: 'build';
+            } & FacilityBuildResponse) | ({
+                action: 'faction_build';
+            } & FacilityFactionBuildResponse);
         };
     };
 };
@@ -14228,11 +11581,11 @@ export type SpacemoltFacilityBuyListingErrors = {
 
 export type SpacemoltFacilityBuyListingResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityBuyListingResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityBuyListingResponse;
         };
     };
 };
@@ -14308,11 +11661,11 @@ export type SpacemoltFacilityCancelListingErrors = {
 
 export type SpacemoltFacilityCancelListingResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityCancelListingResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityCancelListingResponse;
         };
     };
 };
@@ -14432,10 +11785,10 @@ export type SpacemoltFacilityFacilitySetDescriptionErrors = {
 
 export type SpacemoltFacilityFacilitySetDescriptionResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: SetFacilityDescriptionResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: SetFacilityDescriptionResponse;
     };
 };
 
@@ -14474,11 +11827,11 @@ export type SpacemoltFacilityFactionBuildErrors = {
 
 export type SpacemoltFacilityFactionBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityFactionBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityFactionBuildResponse;
         };
     };
 };
@@ -14551,10 +11904,10 @@ export type SpacemoltFacilityFactionListErrors = {
 
 export type SpacemoltFacilityFactionListResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityFactionListResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityFactionListResponse;
     };
 };
 
@@ -14586,10 +11939,10 @@ export type SpacemoltFacilityFactionOwnedErrors = {
 
 export type SpacemoltFacilityFactionOwnedResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityFactionOwnedResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityFactionOwnedResponse;
     };
 };
 
@@ -14632,11 +11985,11 @@ export type SpacemoltFacilityFactionUpgradeErrors = {
 
 export type SpacemoltFacilityFactionUpgradeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityFactionUpgradeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityFactionUpgradeResponse;
         };
     };
 };
@@ -14797,11 +12150,15 @@ export type SpacemoltFacilityJobAddErrors = {
 
 export type SpacemoltFacilityJobAddResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CraftJobResponse | PackageJobResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: ({
+                action: 'craft' | 'job_add' | 'recycle';
+            } & CraftJobResponse) | ({
+                action: 'pack' | 'unpack';
+            } & PackageJobResponse);
         };
     };
 };
@@ -14841,11 +12198,15 @@ export type SpacemoltFacilityJobCancelErrors = {
 
 export type SpacemoltFacilityJobCancelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JobCancelResponse | BulkJobCancelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: ({
+                kind: 'cancel';
+            } & JobCancelResponse) | ({
+                kind: 'bulk_cancel';
+            } & BulkJobCancelResponse);
         };
     };
 };
@@ -14881,10 +12242,10 @@ export type SpacemoltFacilityJobListErrors = {
 
 export type SpacemoltFacilityJobListResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityJobListResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityJobListResponse;
     };
 };
 
@@ -14927,11 +12288,11 @@ export type SpacemoltFacilityJobReorderErrors = {
 
 export type SpacemoltFacilityJobReorderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JobReorderResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: JobReorderResponse;
         };
     };
 };
@@ -14964,10 +12325,10 @@ export type SpacemoltFacilityListErrors = {
 
 export type SpacemoltFacilityListResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityListResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityListResponse;
     };
 };
 
@@ -15010,11 +12371,11 @@ export type SpacemoltFacilityListForSaleErrors = {
 
 export type SpacemoltFacilityListForSaleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityListForSaleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityListForSaleResponse;
         };
     };
 };
@@ -15047,10 +12408,10 @@ export type SpacemoltFacilityOwnedErrors = {
 
 export type SpacemoltFacilityOwnedResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityOwnedResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityOwnedResponse;
     };
 };
 
@@ -15085,11 +12446,11 @@ export type SpacemoltFacilityPersonalBuildErrors = {
 
 export type SpacemoltFacilityPersonalBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityPersonalBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityPersonalBuildResponse;
         };
     };
 };
@@ -15129,11 +12490,11 @@ export type SpacemoltFacilityPersonalDecorateErrors = {
 
 export type SpacemoltFacilityPersonalDecorateResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityPersonalDecorateResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityPersonalDecorateResponse;
         };
     };
 };
@@ -15169,10 +12530,10 @@ export type SpacemoltFacilityPersonalVisitErrors = {
 
 export type SpacemoltFacilityPersonalVisitResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityPersonalVisitResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityPersonalVisitResponse;
     };
 };
 
@@ -15287,11 +12648,11 @@ export type SpacemoltFacilityRepairErrors = {
 
 export type SpacemoltFacilityRepairResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityRepairResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityRepairResponse;
         };
     };
 };
@@ -15331,11 +12692,11 @@ export type SpacemoltFacilitySetAccessErrors = {
 
 export type SpacemoltFacilitySetAccessResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SetAccessResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: SetAccessResponse;
         };
     };
 };
@@ -15535,11 +12896,11 @@ export type SpacemoltFacilitySetNameErrors = {
 
 export type SpacemoltFacilitySetNameResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SetFacilityNameResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: SetFacilityNameResponse;
         };
     };
 };
@@ -15579,11 +12940,11 @@ export type SpacemoltFacilitySetOutputPriceErrors = {
 
 export type SpacemoltFacilitySetOutputPriceResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SetOutputPriceResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: SetOutputPriceResponse;
         };
     };
 };
@@ -15864,11 +13225,11 @@ export type SpacemoltFacilityTransferErrors = {
 
 export type SpacemoltFacilityTransferResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityTransferResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: FacilityTransferResponse;
         };
     };
 };
@@ -15924,10 +13285,16 @@ export type SpacemoltFacilityTypesErrors = {
 
 export type SpacemoltFacilityTypesResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityTypeDiscoveryResponse | FacilityTypeListResponse | FacilityTypeDetailResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: ({
+            kind: 'discovery';
+        } & FacilityTypeDiscoveryResponse) | ({
+            kind: 'list';
+        } & FacilityTypeListResponse) | ({
+            kind: 'detail';
+        } & FacilityTypeDetailResponse);
     };
 };
 
@@ -15976,10 +13343,6 @@ export type SpacemoltFacilityUnbanResponse = SpacemoltFacilityUnbanResponses[key
 export type SpacemoltFacilityUpgradeData = {
     body?: {
         /**
-         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
-         */
-        bucket?: string;
-        /**
          * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
@@ -16010,11 +13373,15 @@ export type SpacemoltFacilityUpgradeErrors = {
 
 export type SpacemoltFacilityUpgradeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityUpgradeResponse | FacilityFactionUpgradeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FacilityResponse;
+            details?: ({
+                action: 'upgrade';
+            } & FacilityUpgradeResponse) | ({
+                action: 'faction_upgrade';
+            } & FacilityFactionUpgradeResponse);
         };
     };
 };
@@ -16047,10 +13414,10 @@ export type SpacemoltFacilityUpgradesErrors = {
 
 export type SpacemoltFacilityUpgradesResponses = {
     /**
-     * Result. structuredContent type: FacilityResponse
+     * Result. structuredContent type: FacilityUpgradesResponse
      */
     200: V2Response & {
-        structuredContent?: FacilityResponse;
+        structuredContent?: FacilityUpgradesResponse;
     };
 };
 
@@ -17765,11 +15132,11 @@ export type SpacemoltFleetAcceptErrors = {
 
 export type SpacemoltFleetAcceptResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetAcceptResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetAcceptResponse;
         };
     };
 };
@@ -17809,11 +15176,11 @@ export type SpacemoltFleetBoardErrors = {
 
 export type SpacemoltFleetBoardResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetBoardResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetBoardResponse;
         };
     };
 };
@@ -17883,11 +15250,11 @@ export type SpacemoltFleetDeclineErrors = {
 
 export type SpacemoltFleetDeclineResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetDeclineResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetDeclineResponse;
         };
     };
 };
@@ -17920,11 +15287,11 @@ export type SpacemoltFleetDisbandErrors = {
 
 export type SpacemoltFleetDisbandResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetActionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetActionResponse;
         };
     };
 };
@@ -17957,11 +15324,11 @@ export type SpacemoltFleetDisembarkErrors = {
 
 export type SpacemoltFleetDisembarkResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetActionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetActionResponse;
         };
     };
 };
@@ -18039,11 +15406,11 @@ export type SpacemoltFleetInviteErrors = {
 
 export type SpacemoltFleetInviteResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetActionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetActionResponse;
         };
     };
 };
@@ -18079,11 +15446,11 @@ export type SpacemoltFleetKickErrors = {
 
 export type SpacemoltFleetKickResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetActionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetActionResponse;
         };
     };
 };
@@ -18116,11 +15483,11 @@ export type SpacemoltFleetLeaveErrors = {
 
 export type SpacemoltFleetLeaveResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FleetActionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FleetResponse;
+            details?: FleetActionResponse;
         };
     };
 };
@@ -18623,11 +15990,11 @@ export type SpacemoltMarketCancelOrderErrors = {
 
 export type SpacemoltMarketCancelOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CancelOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CancelOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: CancelOrderResponse;
+            details?: CancelOrderCommandResponse;
         };
     };
 };
@@ -18684,11 +16051,11 @@ export type SpacemoltMarketCreateBuyOrderErrors = {
 
 export type SpacemoltMarketCreateBuyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CreateBuyOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CreateBuyOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: CreateBuyOrderResponse;
+            details?: CreateBuyOrderCommandResponse;
         };
     };
 };
@@ -18740,11 +16107,11 @@ export type SpacemoltMarketCreateSellOrderErrors = {
 
 export type SpacemoltMarketCreateSellOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CreateSellOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CreateSellOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: CreateSellOrderResponse;
+            details?: CreateSellOrderCommandResponse;
         };
     };
 };
@@ -18875,11 +16242,11 @@ export type SpacemoltMarketModifyOrderErrors = {
 
 export type SpacemoltMarketModifyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ModifyOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ModifyOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: ModifyOrderResponse;
+            details?: ModifyOrderCommandResponse;
         };
     };
 };
@@ -19192,11 +16559,11 @@ export type SpacemoltSalvageLootErrors = {
 
 export type SpacemoltSalvageLootResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LootWreckResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LootWreckCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: LootWreckResponse;
+            details?: LootWreckCommandResponse;
         };
     };
 };
@@ -21473,11 +18840,11 @@ export type SpacemoltStorageDepositErrors = {
 
 export type SpacemoltStorageDepositResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DepositItemsResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: DepositItemsResponse;
+            details?: DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse;
         };
     };
 };
@@ -21566,11 +18933,11 @@ export type SpacemoltStorageJettisonErrors = {
 
 export type SpacemoltStorageJettisonResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JettisonResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JettisonCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: JettisonResponse;
+            details?: JettisonCommandResponse;
         };
     };
 };
@@ -21618,11 +18985,11 @@ export type SpacemoltStorageLootErrors = {
 
 export type SpacemoltStorageLootResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LootWreckResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LootWreckCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: LootWreckResponse;
+            details?: LootWreckCommandResponse;
         };
     };
 };
@@ -21662,10 +19029,14 @@ export type SpacemoltStorageViewErrors = {
 
 export type SpacemoltStorageViewResponses = {
     /**
-     * Result. structuredContent type: StorageResponse
+     * Result. structuredContent type: ViewStorageResponse | ViewFactionStorageResponse
      */
     200: V2Response & {
-        structuredContent?: StorageResponse;
+        structuredContent?: ({
+            action: 'view_storage';
+        } & ViewStorageResponse) | ({
+            action: 'view_faction_storage';
+        } & ViewFactionStorageResponse);
     };
 };
 
@@ -21727,11 +19098,11 @@ export type SpacemoltStorageWithdrawErrors = {
 
 export type SpacemoltStorageWithdrawResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (WithdrawItemsResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: WithdrawItemsResponse;
+            details?: WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse;
         };
     };
 };

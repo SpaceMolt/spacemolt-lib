@@ -34,7 +34,9 @@ test('mutations carry their delta.details type on detailsType, not responseType'
   // A representative mutation exposes its action-specific details response —
   // the one part of a mutation's delta that isn't the generic state-delta
   // shape shared by every mutation.
-  expect(ACTIONS['spacemolt/jump']?.detailsType).toBe('JumpResponse');
+  // JumpCommandResponse is the polymorphic jump union (direct jump |
+  // pathfinder variants); the member struct kept the JumpResponse name.
+  expect(ACTIONS['spacemolt/jump']?.detailsType).toBe('JumpCommandResponse');
   expect(ACTIONS['spacemolt/jump']?.responseType).toBeUndefined();
   expect(ACTIONS['spacemolt/dock']?.detailsType).toBe('DockResponse');
   expect(ACTIONS['spacemolt/buy']?.detailsType).toBe('BuyResponse');
