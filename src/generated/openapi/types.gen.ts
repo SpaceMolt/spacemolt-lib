@@ -498,6 +498,17 @@ export type BattleTopDamage = {
     username: string;
 };
 
+export type BerthCount = {
+    free: number;
+    total: number;
+};
+
+export type BerthsView = {
+    business: BerthCount;
+    economy: BerthCount;
+    first: BerthCount;
+};
+
 export type BrowseShipsResponse = {
     base_id: string;
     base_name: string;
@@ -829,6 +840,47 @@ export type CargoItem = {
      * Item size per unit from catalog
      */
     size?: number;
+};
+
+export type CarrierCapacity = {
+    active_contract_limit?: number;
+    active_contracts: number;
+    active_contracts_unlimited: boolean;
+    active_liability: number;
+    aggregate_liability_limit?: number;
+    liability_unlimited: boolean;
+    remaining_aggregate_liability?: number;
+    single_package_liability_limit?: number;
+};
+
+export type CarrierProfile = {
+    active_contracts: number;
+    active_liability: number;
+    actor: ShipmentActor;
+    breaches: number;
+    defaults: number;
+    delivered_value: number;
+    house_deliveries: number;
+    last_consequence_at?: string;
+    last_recovery_at?: string;
+    outstanding_debt: number;
+    priority_deliveries: number;
+    returns: number;
+    successful_deliveries: number;
+    tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
+    updated_at: string;
+};
+
+export type CarrierTierProgress = {
+    at_maximum_tier: boolean;
+    current_tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
+    delivered_value: number;
+    house_deliveries: number;
+    next_tier?: 'licensed' | 'trusted' | 'prime';
+    remaining_delivered_value: number;
+    remaining_house_deliveries: number;
+    required_delivered_value: number;
+    required_house_deliveries: number;
 };
 
 export type CatalogAchievement = {
@@ -3060,6 +3112,33 @@ export type ForumUpvoteResponse = {
     thread_id?: string;
 };
 
+export type FreightAppraisalLine = {
+    basis?: string;
+    confidence?: string;
+    fill_count?: number;
+    insurable: boolean;
+    item_id: string;
+    latest_fill_at?: string;
+    lookback?: string;
+    quantity: number;
+    total_value: number;
+    traded_notional?: number;
+    traded_units?: number;
+    uninsurable_reason?: string;
+    unit_value: number;
+};
+
+export type FreightDebt = {
+    created_at: string;
+    creditor: ShipmentActor;
+    debtor: ShipmentActor;
+    id: string;
+    original: number;
+    outstanding: number;
+    paid_at?: string;
+    shipment_id: string;
+};
+
 export type FuelLogEntry = {
     forced_fire: boolean;
     fuel_after: number;
@@ -3428,7 +3507,7 @@ export type InspectPackageOwner = {
     id: string;
     name?: string;
     tag?: string;
-    type: string;
+    type: 'player' | 'faction';
 };
 
 export type InspectResponse = {
@@ -3453,7 +3532,7 @@ export type InspectResponse = {
     faction_poi_intel?: IntelPoi;
     faction_system_intel?: IntelEntry;
     id: string;
-    kind: string;
+    kind: 'package' | 'item' | 'module' | 'ship_class' | 'system' | 'poi' | 'base';
     package?: InspectPackageData;
     poi?: InspectPoiData;
     source: string;
@@ -3698,10 +3777,8 @@ export type KillLogEntry = {
 };
 
 export type ListPassengersResponse = {
-    business_berths: string;
+    berths?: BerthsView;
     count: number;
-    economy_berths: string;
-    first_berths: string;
     onboard_service?: string;
     passengers: Array<PassengerView>;
 };
@@ -5814,6 +5891,179 @@ export type ShipListing = {
     tier?: number;
 };
 
+export type ShipmentActor = {
+    id: string;
+    kind: 'player' | 'faction' | 'station';
+};
+
+export type ShipmentContract = {
+    accepted_at?: string;
+    accepted_tick?: number;
+    appraised_value?: number;
+    base_reward: number;
+    breached_at?: string;
+    carrier_payout?: number;
+    claim_paid?: number;
+    contractor?: ShipmentActor;
+    covered_value?: number;
+    created_by_npc?: boolean;
+    deadline_tick?: number;
+    default_fine: number;
+    delivered_at?: string;
+    destination_base_id: string;
+    id: string;
+    insurable: boolean;
+    insurer?: ShipmentActor;
+    invited_carrier?: ShipmentActor;
+    latest_beacon_at?: string;
+    latest_beacon_fingerprint?: string;
+    listing_expires_at: string;
+    max_speed_bonus: number;
+    origin_base_id: string;
+    package_id: string;
+    policy_status: 'none' | 'pending' | 'active' | 'expired' | 'claimed' | 'released';
+    posted_at: string;
+    premium?: number;
+    recipient: ShipmentActor;
+    reserved_exposure: number;
+    reward_escrow: number;
+    risk_band: 'probationary' | 'licensed' | 'trusted' | 'prime' | 'unpriced';
+    salvage_owner?: ShipmentActor;
+    service_fee: number;
+    service_level: 'standard' | 'priority';
+    settled_at?: string;
+    shipper: ShipmentActor;
+    shipping_house_id: string;
+    speed_bonus_escrow: number;
+    status: 'posted' | 'in_transit' | 'delivered' | 'returned' | 'breached' | 'defaulted' | 'canceled';
+    target_tick?: number;
+    terminal_reason?: string;
+    uninsurable_reason?: string;
+    visibility: 'public' | 'faction' | 'allies' | 'invited';
+};
+
+export type ShipmentTrackingEvent = {
+    base_id?: string;
+    class: 'shipping_house_escrow' | 'ship' | 'player_storage' | 'faction_storage' | 'faction_bucket' | 'wreck' | 'unpack_job_escrow' | 'destroyed' | 'unknown';
+    custodian?: ShipmentActor;
+    fingerprint: string;
+    id: string;
+    observed_at: string;
+    observed_tick: number;
+    package_id: string;
+    poi_id?: string;
+    reference_id?: string;
+    shipment_id: string;
+    system_id?: string;
+};
+
+export type ShippingContractResponse = {
+    action: 'post' | 'get' | 'accept';
+    contract: ShipmentContract;
+};
+
+export type ShippingDebtPaymentResponse = {
+    action: 'pay_debt';
+    amount_paid: number;
+    capacity: CarrierCapacity;
+    debt_block_reason?: string;
+    debt_blocks_acceptance: boolean;
+    outstanding_debts: Array<FreightDebt>;
+    profile: CarrierProfile;
+    progression: CarrierTierProgress;
+    updated_debts: Array<FreightDebt>;
+};
+
+export type ShippingListResponse = {
+    action: 'list';
+    page: number;
+    per_page: number;
+    shipments: Array<ShippingListing>;
+    total: number;
+};
+
+export type ShippingListing = {
+    contract: ShipmentContract;
+    eligible: boolean;
+    reason?: string;
+};
+
+export type ShippingProfileResponse = {
+    action: 'profile';
+    capacity: CarrierCapacity;
+    debt_block_reason?: string;
+    debt_blocks_acceptance: boolean;
+    debts: Array<FreightDebt>;
+    profile: CarrierProfile;
+    progression: CarrierTierProgress;
+};
+
+export type ShippingQuote = {
+    appraisal_lines: Array<FreightAppraisalLine>;
+    appraised_value: number;
+    base_reward: number;
+    consequences: string;
+    covered_value: number;
+    deadline_ticks: number;
+    default_fine: number;
+    destination_base_id: string;
+    insurable: boolean;
+    insurance_selected: boolean;
+    invited_carrier?: ShipmentActor;
+    max_speed_bonus: number;
+    origin_base_id: string;
+    package_id: string;
+    premium: number;
+    recipient: ShipmentActor;
+    required_carrier_tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
+    reserved_exposure: number;
+    risk_band: 'probationary' | 'licensed' | 'trusted' | 'prime' | 'unpriced';
+    route_hops: number;
+    service_fee: number;
+    service_level: 'standard' | 'priority';
+    shipper: ShipmentActor;
+    target_ticks: number;
+    total_cost: number;
+    uninsurable_reason?: string;
+    visibility: 'public' | 'faction' | 'allies' | 'invited';
+};
+
+export type ShippingQuoteResponse = {
+    action: 'quote';
+    quote: ShippingQuote;
+};
+
+export type ShippingResponse = ({
+    action: 'quote';
+} & ShippingQuoteResponse) | ({
+    action: 'accept' | 'get' | 'post';
+} & ShippingContractResponse) | ({
+    action: 'list';
+} & ShippingListResponse) | ({
+    action: 'track';
+} & ShippingTrackResponse) | ({
+    action: 'profile';
+} & ShippingProfileResponse) | ({
+    action: 'pay_debt';
+} & ShippingDebtPaymentResponse) | ({
+    action: 'cancel' | 'deliver' | 'return';
+} & ShippingSettlementResponse);
+
+export type ShippingSettlementResponse = {
+    action: 'deliver' | 'return' | 'cancel';
+    carrier_payout?: number;
+    claim_paid?: number;
+    contract: ShipmentContract;
+    debt_created?: number;
+    shipper_refund?: number;
+};
+
+export type ShippingTrackResponse = {
+    action: 'track';
+    contract: ShipmentContract;
+    events: Array<ShipmentTrackingEvent>;
+};
+
 export type Skill = {
     bonus_per_level?: {
         [key: string]: number;
@@ -6903,6 +7153,10 @@ export type V2GameState = {
          * ID of the wreck this player is currently towing (omitted when not towing)
          */
         towing_wreck_id?: string;
+        /**
+         * Trading, gifting, and exchange access restricted until this time (self-destruct penalty); omitted when no restriction is active
+         */
+        trading_restricted_until?: string;
         username?: string;
     };
     /**
@@ -6958,6 +7212,50 @@ export type V2GameState = {
          * Remaining ticks of plasma/corrosive armor melt (omitted when not affected)
          */
         armor_melt_ticks_remaining?: number;
+        /**
+         * Passenger accommodation by class (omitted when the ship has no berths)
+         */
+        berths?: {
+            /**
+             * Total and free business berths
+             */
+            business: {
+                /**
+                 * Berths of this class still free once citizens aboard are seated
+                 */
+                free: number;
+                /**
+                 * Berths of this class on the hull plus fitted cabins
+                 */
+                total: number;
+            };
+            /**
+             * Total and free economy berths
+             */
+            economy: {
+                /**
+                 * Berths of this class still free once citizens aboard are seated
+                 */
+                free: number;
+                /**
+                 * Berths of this class on the hull plus fitted cabins
+                 */
+                total: number;
+            };
+            /**
+             * Total and free first berths
+             */
+            first: {
+                /**
+                 * Berths of this class still free once citizens aboard are seated
+                 */
+                free: number;
+                /**
+                 * Berths of this class on the hull plus fitted cabins
+                 */
+                total: number;
+            };
+        };
         /**
          * Damage dealt per tick while burning (omitted when not burning)
          */
@@ -13078,7 +13376,7 @@ export type SpacemoltFacilitySetServiceAccessData = {
          */
         access: 'public' | 'allies' | 'faction';
         /**
-         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)
+         * Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard, missions)
          */
         service: string;
     };
@@ -17644,6 +17942,590 @@ export type SpacemoltShipViewShipBuyOrdersResponses = {
 };
 
 export type SpacemoltShipViewShipBuyOrdersResponse = SpacemoltShipViewShipBuyOrdersResponses[keyof SpacemoltShipViewShipBuyOrdersResponses];
+
+export type SpacemoltShippingAcceptData = {
+    body?: {
+        /**
+         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.
+         */
+        carrier?: 'player' | 'faction';
+        /**
+         * Freight contract ID for get, track, accept, deliver, return, or cancel.
+         */
+        shipment_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/accept';
+};
+
+export type SpacemoltShippingAcceptErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingAcceptResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingContractResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingContractResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingAcceptResponse = SpacemoltShippingAcceptResponses[keyof SpacemoltShippingAcceptResponses];
+
+export type SpacemoltShippingCancelData = {
+    body?: {
+        /**
+         * Freight contract ID for get, track, accept, deliver, return, or cancel.
+         */
+        shipment_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/cancel';
+};
+
+export type SpacemoltShippingCancelErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingCancelResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingSettlementResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingSettlementResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingCancelResponse = SpacemoltShippingCancelResponses[keyof SpacemoltShippingCancelResponses];
+
+export type SpacemoltShippingDeliverData = {
+    body?: {
+        /**
+         * Freight contract ID for get, track, accept, deliver, return, or cancel.
+         */
+        shipment_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/deliver';
+};
+
+export type SpacemoltShippingDeliverErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingDeliverResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingSettlementResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingSettlementResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingDeliverResponse = SpacemoltShippingDeliverResponses[keyof SpacemoltShippingDeliverResponses];
+
+export type SpacemoltShippingGetData = {
+    body?: {
+        /**
+         * Freight contract ID for get, track, accept, deliver, return, or cancel.
+         */
+        shipment_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/get';
+};
+
+export type SpacemoltShippingGetErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingGetResponses = {
+    /**
+     * Result. structuredContent type: ShippingContractResponse
+     */
+    200: V2Response & {
+        structuredContent?: ShippingContractResponse;
+    };
+};
+
+export type SpacemoltShippingGetResponse = SpacemoltShippingGetResponses[keyof SpacemoltShippingGetResponses];
+
+export type SpacemoltShippingHelpData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional: focus help on an action name, category, or search keyword. Searches across all tools.
+         */
+        topic?: string;
+    };
+    url: '/api/v2/spacemolt_shipping/help';
+};
+
+export type SpacemoltShippingHelpResponses = {
+    /**
+     * Help text
+     */
+    200: V2Response;
+};
+
+export type SpacemoltShippingHelpResponse = SpacemoltShippingHelpResponses[keyof SpacemoltShippingHelpResponses];
+
+export type SpacemoltShippingHelpPostData = {
+    body?: {
+        /**
+         * Optional: focus help on an action name, category, or search keyword. Searches across all tools.
+         */
+        topic?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/help';
+};
+
+export type SpacemoltShippingHelpPostResponses = {
+    /**
+     * Help text
+     */
+    200: V2Response;
+};
+
+export type SpacemoltShippingHelpPostResponse = SpacemoltShippingHelpPostResponses[keyof SpacemoltShippingHelpPostResponses];
+
+export type SpacemoltShippingListData = {
+    body?: {
+        /**
+         * For list, show contracts you may accept personally (player, default) or for your current faction.
+         */
+        eligible_as?: 'player' | 'faction';
+        /**
+         * List page (default 1).
+         */
+        page?: number;
+        /**
+         * Contracts per page (default 20, max 50).
+         */
+        per_page?: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/list';
+};
+
+export type SpacemoltShippingListErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingListResponses = {
+    /**
+     * Result. structuredContent type: ShippingListResponse
+     */
+    200: V2Response & {
+        structuredContent?: ShippingListResponse;
+    };
+};
+
+export type SpacemoltShippingListResponse = SpacemoltShippingListResponses[keyof SpacemoltShippingListResponses];
+
+export type SpacemoltShippingPayDebtData = {
+    body?: {
+        /**
+         * Debt payment amount for pay_debt. Omit to pay the full outstanding balance.
+         */
+        amount?: number;
+        /**
+         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.
+         */
+        carrier?: 'player' | 'faction';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/pay_debt';
+};
+
+export type SpacemoltShippingPayDebtErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingPayDebtResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingDebtPaymentResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingDebtPaymentResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingPayDebtResponse = SpacemoltShippingPayDebtResponses[keyof SpacemoltShippingPayDebtResponses];
+
+export type SpacemoltShippingPostData = {
+    body?: {
+        /**
+         * Destination station/base ID for quote or post.
+         */
+        destination_base_id: string;
+        /**
+         * Request cargo insurance. Unpriceable packages may still be shipped uninsured.
+         */
+        insured?: boolean;
+        /**
+         * Invited player or faction ID when visibility=invited.
+         */
+        invited_carrier_id?: string;
+        /**
+         * Invited prime carrier kind when visibility=invited.
+         */
+        invited_carrier_type?: 'player' | 'faction';
+        /**
+         * Optional post guard. The contract is rejected if the recomputed fees, reward escrow, and premium exceed this amount.
+         */
+        max_total_cost?: number;
+        /**
+         * Sealed package to quote or post. The package must be owned by the selected shipper at this station.
+         */
+        package_id: string;
+        /**
+         * Player, faction, or station ID matching recipient_type.
+         */
+        recipient_id?: string;
+        /**
+         * Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper.
+         */
+        recipient_type?: 'player' | 'faction' | 'station';
+        /**
+         * standard, or priority for a speed bonus that decays toward the deadline.
+         */
+        service_level?: 'standard' | 'priority';
+        /**
+         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury.
+         */
+        shipper?: 'player' | 'faction';
+        /**
+         * Where the sealed package currently sits at the origin station (cargo by default).
+         */
+        source?: 'cargo' | 'storage' | 'faction';
+        /**
+         * Faction Storage Extension bucket ID when source=faction; omit for the faction main store.
+         */
+        source_bucket_id?: string;
+        /**
+         * Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id.
+         */
+        visibility?: 'public' | 'faction' | 'allies' | 'invited';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/post';
+};
+
+export type SpacemoltShippingPostErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingPostResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingContractResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingContractResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingPostResponse = SpacemoltShippingPostResponses[keyof SpacemoltShippingPostResponses];
+
+export type SpacemoltShippingProfileData = {
+    body?: {
+        /**
+         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.
+         */
+        carrier?: 'player' | 'faction';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/profile';
+};
+
+export type SpacemoltShippingProfileErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingProfileResponses = {
+    /**
+     * Result. structuredContent type: ShippingProfileResponse
+     */
+    200: V2Response & {
+        structuredContent?: ShippingProfileResponse;
+    };
+};
+
+export type SpacemoltShippingProfileResponse = SpacemoltShippingProfileResponses[keyof SpacemoltShippingProfileResponses];
+
+export type SpacemoltShippingQuoteData = {
+    body?: {
+        /**
+         * Destination station/base ID for quote or post.
+         */
+        destination_base_id: string;
+        /**
+         * Request cargo insurance. Unpriceable packages may still be shipped uninsured.
+         */
+        insured?: boolean;
+        /**
+         * Invited player or faction ID when visibility=invited.
+         */
+        invited_carrier_id?: string;
+        /**
+         * Invited prime carrier kind when visibility=invited.
+         */
+        invited_carrier_type?: 'player' | 'faction';
+        /**
+         * Sealed package to quote or post. The package must be owned by the selected shipper at this station.
+         */
+        package_id: string;
+        /**
+         * Player, faction, or station ID matching recipient_type.
+         */
+        recipient_id?: string;
+        /**
+         * Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper.
+         */
+        recipient_type?: 'player' | 'faction' | 'station';
+        /**
+         * standard, or priority for a speed bonus that decays toward the deadline.
+         */
+        service_level?: 'standard' | 'priority';
+        /**
+         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury.
+         */
+        shipper?: 'player' | 'faction';
+        /**
+         * Where the sealed package currently sits at the origin station (cargo by default).
+         */
+        source?: 'cargo' | 'storage' | 'faction';
+        /**
+         * Faction Storage Extension bucket ID when source=faction; omit for the faction main store.
+         */
+        source_bucket_id?: string;
+        /**
+         * Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id.
+         */
+        visibility?: 'public' | 'faction' | 'allies' | 'invited';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/quote';
+};
+
+export type SpacemoltShippingQuoteErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingQuoteResponses = {
+    /**
+     * Result. structuredContent type: ShippingQuoteResponse
+     */
+    200: V2Response & {
+        structuredContent?: ShippingQuoteResponse;
+    };
+};
+
+export type SpacemoltShippingQuoteResponse = SpacemoltShippingQuoteResponses[keyof SpacemoltShippingQuoteResponses];
+
+export type SpacemoltShippingReturnData = {
+    body?: {
+        /**
+         * Freight contract ID for get, track, accept, deliver, return, or cancel.
+         */
+        shipment_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/return';
+};
+
+export type SpacemoltShippingReturnErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingReturnResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingSettlementResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingSettlementResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingReturnResponse = SpacemoltShippingReturnResponses[keyof SpacemoltShippingReturnResponses];
+
+export type SpacemoltShippingTrackData = {
+    body?: {
+        /**
+         * Maximum recent beacon events returned by track.
+         */
+        limit?: number;
+        /**
+         * Freight contract ID for get, track, accept, deliver, return, or cancel.
+         */
+        shipment_id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/track';
+};
+
+export type SpacemoltShippingTrackErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingTrackResponses = {
+    /**
+     * Result. structuredContent type: ShippingTrackResponse
+     */
+    200: V2Response & {
+        structuredContent?: ShippingTrackResponse;
+    };
+};
+
+export type SpacemoltShippingTrackResponse = SpacemoltShippingTrackResponses[keyof SpacemoltShippingTrackResponses];
 
 export type SpacemoltSocialCaptainsLogAddData = {
     body?: {

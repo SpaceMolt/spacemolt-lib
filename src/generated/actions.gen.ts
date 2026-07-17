@@ -19,6 +19,7 @@ export type ToolName =
   | "spacemolt_market"
   | "spacemolt_salvage"
   | "spacemolt_ship"
+  | "spacemolt_shipping"
   | "spacemolt_social"
   | "spacemolt_storage"
   | "spacemolt_transfer";
@@ -46,6 +47,7 @@ export type ActionName =
   | "buy_listed_ship"
   | "buy_listing"
   | "buy_ship_license"
+  | "cancel"
   | "cancel_commission"
   | "cancel_listing"
   | "cancel_mission"
@@ -77,6 +79,7 @@ export type ActionName =
   | "delete_note"
   | "delete_role"
   | "delete_room"
+  | "deliver"
   | "deploy"
   | "deploy_outpost"
   | "deposit"
@@ -172,14 +175,17 @@ export type ActionName =
   | "mute_notifications"
   | "name"
   | "owned"
+  | "pay_debt"
   | "personal_build"
   | "personal_decorate"
   | "personal_visit"
   | "petition"
   | "place_ship_buy_order"
   | "policies"
+  | "post"
   | "post_mission"
   | "prepay_tax"
+  | "profile"
   | "promote"
   | "propose_ally"
   | "propose_peace"
@@ -203,6 +209,7 @@ export type ActionName =
   | "repair"
   | "repair_module"
   | "retreat"
+  | "return"
   | "rooms"
   | "scan"
   | "scan_poi"
@@ -242,6 +249,7 @@ export type ActionName =
   | "target"
   | "tax_estimate"
   | "tow"
+  | "track"
   | "trade_accept"
   | "trade_cancel"
   | "trade_decline"
@@ -852,7 +860,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     detailsType: "StationConfigResponse",
     params: [
       { name: "access", type: "\"public\" | \"allies\" | \"faction\"", required: true, description: "Access level for set_service_access", enumValues: ["public","allies","faction"] },
-      { name: "service", type: "string", required: true, description: "Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard)" },
+      { name: "service", type: "string", required: true, description: "Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard, missions)" },
     ],
   },
   "spacemolt_facility/station_info": {
@@ -1609,6 +1617,122 @@ export const ACTIONS: Record<string, ActionDef> = {
     summary: "List all ships you own and their locations",
     responseType: "ListShipsResponse",
     params: [],
+  },
+  "spacemolt_shipping/accept": {
+    tool: "spacemolt_shipping", action: "accept", kind: "mutation",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    detailsType: "ShippingContractResponse",
+    params: [
+      { name: "carrier", type: "\"player\" | \"faction\"", required: false, description: "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.", enumValues: ["player","faction"] },
+      { name: "shipment_id", type: "string", required: true, description: "Freight contract ID for get, track, accept, deliver, return, or cancel." },
+    ],
+  },
+  "spacemolt_shipping/cancel": {
+    tool: "spacemolt_shipping", action: "cancel", kind: "mutation",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    detailsType: "ShippingSettlementResponse",
+    params: [
+      { name: "shipment_id", type: "string", required: true, description: "Freight contract ID for get, track, accept, deliver, return, or cancel." },
+    ],
+  },
+  "spacemolt_shipping/deliver": {
+    tool: "spacemolt_shipping", action: "deliver", kind: "mutation",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    detailsType: "ShippingSettlementResponse",
+    params: [
+      { name: "shipment_id", type: "string", required: true, description: "Freight contract ID for get, track, accept, deliver, return, or cancel." },
+    ],
+  },
+  "spacemolt_shipping/get": {
+    tool: "spacemolt_shipping", action: "get", kind: "query",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    responseType: "ShippingContractResponse",
+    params: [
+      { name: "shipment_id", type: "string", required: true, description: "Freight contract ID for get, track, accept, deliver, return, or cancel." },
+    ],
+  },
+  "spacemolt_shipping/list": {
+    tool: "spacemolt_shipping", action: "list", kind: "query",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    responseType: "ShippingListResponse",
+    params: [
+      { name: "eligible_as", type: "\"player\" | \"faction\"", required: false, description: "For list, show contracts you may accept personally (player, default) or for your current faction.", enumValues: ["player","faction"] },
+      { name: "page", type: "number", required: false, description: "List page (default 1)." },
+      { name: "per_page", type: "number", required: false, description: "Contracts per page (default 20, max 50)." },
+    ],
+  },
+  "spacemolt_shipping/pay_debt": {
+    tool: "spacemolt_shipping", action: "pay_debt", kind: "mutation",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    detailsType: "ShippingDebtPaymentResponse",
+    params: [
+      { name: "amount", type: "number", required: false, description: "Debt payment amount for pay_debt. Omit to pay the full outstanding balance." },
+      { name: "carrier", type: "\"player\" | \"faction\"", required: false, description: "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.", enumValues: ["player","faction"] },
+    ],
+  },
+  "spacemolt_shipping/post": {
+    tool: "spacemolt_shipping", action: "post", kind: "mutation",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    detailsType: "ShippingContractResponse",
+    params: [
+      { name: "destination_base_id", type: "string", required: true, description: "Destination station/base ID for quote or post." },
+      { name: "insured", type: "boolean", required: false, description: "Request cargo insurance. Unpriceable packages may still be shipped uninsured." },
+      { name: "invited_carrier_id", type: "string", required: false, description: "Invited player or faction ID when visibility=invited." },
+      { name: "invited_carrier_type", type: "\"player\" | \"faction\"", required: false, description: "Invited prime carrier kind when visibility=invited.", enumValues: ["player","faction"] },
+      { name: "max_total_cost", type: "number", required: false, description: "Optional post guard. The contract is rejected if the recomputed fees, reward escrow, and premium exceed this amount." },
+      { name: "package_id", type: "string", required: true, description: "Sealed package to quote or post. The package must be owned by the selected shipper at this station." },
+      { name: "recipient_id", type: "string", required: false, description: "Player, faction, or station ID matching recipient_type." },
+      { name: "recipient_type", type: "\"player\" | \"faction\" | \"station\"", required: false, description: "Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper.", enumValues: ["player","faction","station"] },
+      { name: "service_level", type: "\"standard\" | \"priority\"", required: false, description: "standard, or priority for a speed bonus that decays toward the deadline.", enumValues: ["standard","priority"] },
+      { name: "shipper", type: "\"player\" | \"faction\"", required: false, description: "Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury.", enumValues: ["player","faction"] },
+      { name: "source", type: "\"cargo\" | \"storage\" | \"faction\"", required: false, description: "Where the sealed package currently sits at the origin station (cargo by default).", enumValues: ["cargo","storage","faction"] },
+      { name: "source_bucket_id", type: "string", required: false, description: "Faction Storage Extension bucket ID when source=faction; omit for the faction main store." },
+      { name: "visibility", type: "\"public\" | \"faction\" | \"allies\" | \"invited\"", required: false, description: "Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id.", enumValues: ["public","faction","allies","invited"] },
+    ],
+  },
+  "spacemolt_shipping/profile": {
+    tool: "spacemolt_shipping", action: "profile", kind: "query",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    responseType: "ShippingProfileResponse",
+    params: [
+      { name: "carrier", type: "\"player\" | \"faction\"", required: false, description: "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.", enumValues: ["player","faction"] },
+    ],
+  },
+  "spacemolt_shipping/quote": {
+    tool: "spacemolt_shipping", action: "quote", kind: "query",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    responseType: "ShippingQuoteResponse",
+    params: [
+      { name: "destination_base_id", type: "string", required: true, description: "Destination station/base ID for quote or post." },
+      { name: "insured", type: "boolean", required: false, description: "Request cargo insurance. Unpriceable packages may still be shipped uninsured." },
+      { name: "invited_carrier_id", type: "string", required: false, description: "Invited player or faction ID when visibility=invited." },
+      { name: "invited_carrier_type", type: "\"player\" | \"faction\"", required: false, description: "Invited prime carrier kind when visibility=invited.", enumValues: ["player","faction"] },
+      { name: "package_id", type: "string", required: true, description: "Sealed package to quote or post. The package must be owned by the selected shipper at this station." },
+      { name: "recipient_id", type: "string", required: false, description: "Player, faction, or station ID matching recipient_type." },
+      { name: "recipient_type", type: "\"player\" | \"faction\" | \"station\"", required: false, description: "Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper.", enumValues: ["player","faction","station"] },
+      { name: "service_level", type: "\"standard\" | \"priority\"", required: false, description: "standard, or priority for a speed bonus that decays toward the deadline.", enumValues: ["standard","priority"] },
+      { name: "shipper", type: "\"player\" | \"faction\"", required: false, description: "Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury.", enumValues: ["player","faction"] },
+      { name: "source", type: "\"cargo\" | \"storage\" | \"faction\"", required: false, description: "Where the sealed package currently sits at the origin station (cargo by default).", enumValues: ["cargo","storage","faction"] },
+      { name: "source_bucket_id", type: "string", required: false, description: "Faction Storage Extension bucket ID when source=faction; omit for the faction main store." },
+      { name: "visibility", type: "\"public\" | \"faction\" | \"allies\" | \"invited\"", required: false, description: "Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id.", enumValues: ["public","faction","allies","invited"] },
+    ],
+  },
+  "spacemolt_shipping/return": {
+    tool: "spacemolt_shipping", action: "return", kind: "mutation",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    detailsType: "ShippingSettlementResponse",
+    params: [
+      { name: "shipment_id", type: "string", required: true, description: "Freight contract ID for get, track, accept, deliver, return, or cancel." },
+    ],
+  },
+  "spacemolt_shipping/track": {
+    tool: "spacemolt_shipping", action: "track", kind: "query",
+    summary: "Quote, post, haul, track, and settle sealed-package freight contracts through station mission services",
+    responseType: "ShippingTrackResponse",
+    params: [
+      { name: "limit", type: "number", required: false, description: "Maximum recent beacon events returned by track." },
+      { name: "shipment_id", type: "string", required: true, description: "Freight contract ID for get, track, accept, deliver, return, or cancel." },
+    ],
   },
   "spacemolt_ship/place_ship_buy_order": {
     tool: "spacemolt_ship", action: "place_ship_buy_order", kind: "mutation",
