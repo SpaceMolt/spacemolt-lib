@@ -860,7 +860,6 @@ export type CarrierProfile = {
     breaches: number;
     defaults: number;
     delivered_value: number;
-    house_deliveries: number;
     last_consequence_at?: string;
     last_recovery_at?: string;
     outstanding_debt: number;
@@ -875,12 +874,12 @@ export type CarrierTierProgress = {
     at_maximum_tier: boolean;
     current_tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
     delivered_value: number;
-    house_deliveries: number;
     next_tier?: 'licensed' | 'trusted' | 'prime';
     remaining_delivered_value: number;
-    remaining_house_deliveries: number;
+    remaining_successful_deliveries: number;
     required_delivered_value: number;
-    required_house_deliveries: number;
+    required_successful_deliveries: number;
+    successful_deliveries: number;
 };
 
 export type CatalogAchievement = {
@@ -5906,11 +5905,10 @@ export type ShipmentContract = {
     claim_paid?: number;
     contractor?: ShipmentActor;
     covered_value?: number;
-    created_by_npc?: boolean;
     deadline_tick?: number;
-    default_fine: number;
     delivered_at?: string;
     destination_base_id: string;
+    failure_debt: number;
     id: string;
     insurable: boolean;
     insurer?: ShipmentActor;
@@ -5925,6 +5923,7 @@ export type ShipmentContract = {
     posted_at: string;
     premium?: number;
     recipient: ShipmentActor;
+    reputation_eligible?: boolean;
     reserved_exposure: number;
     reward_escrow: number;
     risk_band: 'probationary' | 'licensed' | 'trusted' | 'prime' | 'unpriced';
@@ -6005,8 +6004,8 @@ export type ShippingQuote = {
     consequences: string;
     covered_value: number;
     deadline_ticks: number;
-    default_fine: number;
     destination_base_id: string;
+    failure_debt: number;
     insurable: boolean;
     insurance_selected: boolean;
     invited_carrier?: ShipmentActor;
@@ -11809,6 +11808,10 @@ export type SpacemoltFacilityBrowseForSaleResponse = SpacemoltFacilityBrowseForS
 export type SpacemoltFacilityBuildData = {
     body?: {
         /**
+         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
+         */
+        bucket?: string;
+        /**
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
         facility_type: string;
@@ -13640,6 +13643,10 @@ export type SpacemoltFacilityUnbanResponse = SpacemoltFacilityUnbanResponses[key
 
 export type SpacemoltFacilityUpgradeData = {
     body?: {
+        /**
+         * For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.
+         */
+        bucket?: string;
         /**
          * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
@@ -17946,7 +17953,7 @@ export type SpacemoltShipViewShipBuyOrdersResponse = SpacemoltShipViewShipBuyOrd
 export type SpacemoltShippingAcceptData = {
     body?: {
         /**
-         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.
+         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance.
          */
         carrier?: 'player' | 'faction';
         /**
@@ -18200,7 +18207,7 @@ export type SpacemoltShippingPayDebtData = {
          */
         amount?: number;
         /**
-         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.
+         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance.
          */
         carrier?: 'player' | 'faction';
     };
@@ -18240,7 +18247,7 @@ export type SpacemoltShippingPayDebtResponse = SpacemoltShippingPayDebtResponses
 export type SpacemoltShippingPostData = {
     body?: {
         /**
-         * Destination station/base ID for quote or post.
+         * Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid.
          */
         destination_base_id: string;
         /**
@@ -18328,7 +18335,7 @@ export type SpacemoltShippingPostResponse = SpacemoltShippingPostResponses[keyof
 export type SpacemoltShippingProfileData = {
     body?: {
         /**
-         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.
+         * Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance.
          */
         carrier?: 'player' | 'faction';
     };
@@ -18366,7 +18373,7 @@ export type SpacemoltShippingProfileResponse = SpacemoltShippingProfileResponses
 export type SpacemoltShippingQuoteData = {
     body?: {
         /**
-         * Destination station/base ID for quote or post.
+         * Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid.
          */
         destination_base_id: string;
         /**

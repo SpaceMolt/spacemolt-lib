@@ -392,6 +392,8 @@ export interface SpacemoltFacilityBrowseForSaleParams {
 }
 
 export interface SpacemoltFacilityBuildParams {
+  /** For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way. */
+  bucket?: string;
   /** Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to. */
   facility_type: string;
 }
@@ -639,6 +641,8 @@ export interface SpacemoltFacilityUnbanParams {
 }
 
 export interface SpacemoltFacilityUpgradeParams {
+  /** For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way. */
+  bucket?: string;
   /** Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
   facility_id: string;
   /** Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to. */
@@ -1085,7 +1089,7 @@ export interface SpacemoltShipListShipForSaleParams {
 }
 
 export interface SpacemoltShippingAcceptParams {
-  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. */
+  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance. */
   carrier?: "player" | "faction";
   /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
   shipment_id: string;
@@ -1118,12 +1122,12 @@ export interface SpacemoltShippingListParams {
 export interface SpacemoltShippingPayDebtParams {
   /** Debt payment amount for pay_debt. Omit to pay the full outstanding balance. */
   amount?: number;
-  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. */
+  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance. */
   carrier?: "player" | "faction";
 }
 
 export interface SpacemoltShippingPostParams {
-  /** Destination station/base ID for quote or post. */
+  /** Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid. */
   destination_base_id: string;
   /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
   insured?: boolean;
@@ -1152,12 +1156,12 @@ export interface SpacemoltShippingPostParams {
 }
 
 export interface SpacemoltShippingProfileParams {
-  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. */
+  /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance. */
   carrier?: "player" | "faction";
 }
 
 export interface SpacemoltShippingQuoteParams {
-  /** Destination station/base ID for quote or post. */
+  /** Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid. */
   destination_base_id: string;
   /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
   insured?: boolean;

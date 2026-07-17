@@ -817,7 +817,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Per-service access policy on a player station (service type -\u003e public|allies|faction)",
+            "description": "Per-service access policy on a player station (service type -> public|allies|faction)",
             "type": "object"
           },
           "type": {
@@ -2667,9 +2667,6 @@
           "delivered_value": {
             "type": "integer"
           },
-          "house_deliveries": {
-            "type": "integer"
-          },
           "last_consequence_at": {
             "format": "date-time",
             "type": "string"
@@ -2708,7 +2705,6 @@
           "actor",
           "tier",
           "successful_deliveries",
-          "house_deliveries",
           "delivered_value",
           "priority_deliveries",
           "returns",
@@ -2739,9 +2735,6 @@
           "delivered_value": {
             "type": "integer"
           },
-          "house_deliveries": {
-            "type": "integer"
-          },
           "next_tier": {
             "enum": [
               "licensed",
@@ -2753,22 +2746,25 @@
           "remaining_delivered_value": {
             "type": "integer"
           },
-          "remaining_house_deliveries": {
+          "remaining_successful_deliveries": {
             "type": "integer"
           },
           "required_delivered_value": {
             "type": "integer"
           },
-          "required_house_deliveries": {
+          "required_successful_deliveries": {
+            "type": "integer"
+          },
+          "successful_deliveries": {
             "type": "integer"
           }
         },
         "required": [
           "current_tier",
           "at_maximum_tier",
-          "house_deliveries",
-          "required_house_deliveries",
-          "remaining_house_deliveries",
+          "successful_deliveries",
+          "required_successful_deliveries",
+          "remaining_successful_deliveries",
           "delivered_value",
           "required_delivered_value",
           "remaining_delivered_value"
@@ -16627,7 +16623,7 @@
                   "type": "string"
                 },
                 "granted_by": {
-                  "description": "Source: 'origin', 'auto', 'petition:\u003cid\u003e', or admin/empire-decider name",
+                  "description": "Source: 'origin', 'auto', 'petition:<id>', or admin/empire-decider name",
                   "type": "string"
                 }
               },
@@ -19059,13 +19055,7 @@
           "covered_value": {
             "type": "integer"
           },
-          "created_by_npc": {
-            "type": "boolean"
-          },
           "deadline_tick": {
-            "type": "integer"
-          },
-          "default_fine": {
             "type": "integer"
           },
           "delivered_at": {
@@ -19074,6 +19064,9 @@
           },
           "destination_base_id": {
             "type": "string"
+          },
+          "failure_debt": {
+            "type": "integer"
           },
           "id": {
             "type": "string"
@@ -19127,6 +19120,9 @@
           },
           "recipient": {
             "$ref": "#/components/schemas/ShipmentActor"
+          },
+          "reputation_eligible": {
+            "type": "boolean"
           },
           "reserved_exposure": {
             "type": "integer"
@@ -19219,7 +19215,7 @@
           "service_fee",
           "reward_escrow",
           "speed_bonus_escrow",
-          "default_fine",
+          "failure_debt",
           "reserved_exposure",
           "policy_status",
           "insurable",
@@ -19481,11 +19477,11 @@
           "deadline_ticks": {
             "type": "integer"
           },
-          "default_fine": {
-            "type": "integer"
-          },
           "destination_base_id": {
             "type": "string"
+          },
+          "failure_debt": {
+            "type": "integer"
           },
           "insurable": {
             "type": "boolean"
@@ -19592,7 +19588,7 @@
           "risk_band",
           "required_carrier_tier",
           "reserved_exposure",
-          "default_fine",
+          "failure_debt",
           "consequences"
         ],
         "type": "object"
@@ -23778,10 +23774,10 @@
       "name": "SpaceMolt",
       "url": "https://www.spacemolt.com"
     },
-    "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=\u003caction|category|keyword\u003e` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
+    "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "unknown"
+    "x-gameserver-version": "v0.522.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -26659,7 +26655,7 @@
     },
     "/api/v2/spacemolt/craft": {
       "post": {
-        "description": "Must be docked. Ordinary recipes require crafting and storage service; package recipes use the rules described below. Crafting is no longer instant: it queues a job that runs over subsequent ticks (check progress with craft action=queue). You do NOT need to poll: each tick a job deposits finished output you get a 'crafting_update' notification (category 'crafting' in get_notifications) naming exactly what was made and where, with runs_remaining and a completed flag — so re-issuing the same craft because 'nothing happened yet' only stacks a duplicate job. 'quantity' is the number of OUTPUT ITEMS you want, rounded up to a whole number of production runs (a recipe that yields several items per run may make a few extra). Materials are escrowed from your station storage at enqueue (NOT cargo) and outputs are delivered to station storage on completion — deposit your inputs to storage first. Auto-routing prefers your OWN facility, then your FACTION's, then a public rental, and only hand-crafts at the Station Workshop (speed scales with crafting/refining skill) when none is available — pass preset \"workshop\" to force hand-crafting, or facility_id to target one, plus optional preset \"fast\"/\"cheap\" (both pick the best facility globally, so a busy own facility may route to an idle public rental) or \"prefer_own\" (keep the job on your own/faction facility, renting a public one only when you have none that can run it). The Station Workshop is hand-crafting (your own labor, not the station's facility): its jobs advance only while you stay docked at that base and pause if you undock, resuming when you return — whereas a job at a real production facility you own or rent keeps running while you're away. deliver_to=faction crafts from/to faction storage (needs manage treasury permission), and deliver_to=faction:\u003cbucket name or id\u003e pulls inputs from and deposits outputs into a specific faction Storage Extension bucket; and if you leave deliver_to off and your own storage/credits can't cover the job, it automatically draws from your faction's storage/treasury when you're allowed to spend them. Renting another player's public facility prepays a per-run fee. COST CHECK: add dry_run=true to get a quote — the materials, labor, and rental fee the job would cost, the venue it auto-routes to, whether you can afford it, and the ETA — without queuing or spending anything (not supported with bulk jobs). Use 'recycle' to reverse a recipe at a recycler. BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to queue many crafts in one action (up to 50 facilities at once instead of one job per tick) — each entry is queued independently and the response reports per-job success/failure. QUEUE \u0026 CANCEL: call craft with no recipe (action=queue) to list your queued jobs and their IDs; pass job_id=\u003cid\u003e to cancel a queued job and refund its unconsumed inputs, labor, and fees (the same operation as facility action=job_cancel). Pass job_ids=[id1,id2,...] to cancel several at once (per-job success/failure). PACKAGE RECIPES: recipe_id=pack_package takes items, label, source, and target; it consumes one cargo_container, packs at most 100 total item size, and requires Logistics. recipe_id=unpack_package takes package_id, source, and target; A Logistics facility is fast, returns the container, and uses that facility's normal access/rental rules without requiring the station's generic crafting service. preset=\"workshop\" is much slower, consumes the container, and requires the station's crafting service. source/target accept storage, cargo, faction, or faction:\u003cbucket\u003e; target defaults to source (deliver_to is an alias). Package jobs use this same queue and job_id cancellation.\n\n**Example:** `POST /api/v2/spacemolt/craft` with body `{\"id\":\"iron_plates\",\"quantity\":10,\"deliver_to\":\"storage\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked. Ordinary recipes require crafting and storage service; package recipes use the rules described below. Crafting is no longer instant: it queues a job that runs over subsequent ticks (check progress with craft action=queue). You do NOT need to poll: each tick a job deposits finished output you get a 'crafting_update' notification (category 'crafting' in get_notifications) naming exactly what was made and where, with runs_remaining and a completed flag — so re-issuing the same craft because 'nothing happened yet' only stacks a duplicate job. 'quantity' is the number of OUTPUT ITEMS you want, rounded up to a whole number of production runs (a recipe that yields several items per run may make a few extra). Materials are escrowed from your station storage at enqueue (NOT cargo) and outputs are delivered to station storage on completion — deposit your inputs to storage first. Auto-routing prefers your OWN facility, then your FACTION's, then a public rental, and only hand-crafts at the Station Workshop (speed scales with crafting/refining skill) when none is available — pass preset \"workshop\" to force hand-crafting, or facility_id to target one, plus optional preset \"fast\"/\"cheap\" (both pick the best facility globally, so a busy own facility may route to an idle public rental) or \"prefer_own\" (keep the job on your own/faction facility, renting a public one only when you have none that can run it). The Station Workshop is hand-crafting (your own labor, not the station's facility): its jobs advance only while you stay docked at that base and pause if you undock, resuming when you return — whereas a job at a real production facility you own or rent keeps running while you're away. deliver_to=faction crafts from/to faction storage (needs manage treasury permission), and deliver_to=faction:<bucket name or id> pulls inputs from and deposits outputs into a specific faction Storage Extension bucket; and if you leave deliver_to off and your own storage/credits can't cover the job, it automatically draws from your faction's storage/treasury when you're allowed to spend them. Renting another player's public facility prepays a per-run fee. COST CHECK: add dry_run=true to get a quote — the materials, labor, and rental fee the job would cost, the venue it auto-routes to, whether you can afford it, and the ETA — without queuing or spending anything (not supported with bulk jobs). Use 'recycle' to reverse a recipe at a recycler. BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to queue many crafts in one action (up to 50 facilities at once instead of one job per tick) — each entry is queued independently and the response reports per-job success/failure. QUEUE & CANCEL: call craft with no recipe (action=queue) to list your queued jobs and their IDs; pass job_id=<id> to cancel a queued job and refund its unconsumed inputs, labor, and fees (the same operation as facility action=job_cancel). Pass job_ids=[id1,id2,...] to cancel several at once (per-job success/failure). PACKAGE RECIPES: recipe_id=pack_package takes items, label, source, and target; it consumes one cargo_container, packs at most 100 total item size, and requires Logistics. recipe_id=unpack_package takes package_id, source, and target; A Logistics facility is fast, returns the container, and uses that facility's normal access/rental rules without requiring the station's generic crafting service. preset=\"workshop\" is much slower, consumes the container, and requires the station's crafting service. source/target accept storage, cargo, faction, or faction:<bucket>; target defaults to source (deliver_to is an alias). Package jobs use this same queue and job_id cancellation.\n\n**Example:** `POST /api/v2/spacemolt/craft` with body `{\"id\":\"iron_plates\",\"quantity\":10,\"deliver_to\":\"storage\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_craft",
         "requestBody": {
           "content": {
@@ -26676,7 +26672,7 @@
                     "type": "integer"
                   },
                   "deliver_to": {
-                    "description": "Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:\u003cbucket name or id\u003e' for a specific faction Storage Extension bucket.",
+                    "description": "Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket.",
                     "type": "string"
                   },
                   "dry_run": {
@@ -26808,11 +26804,11 @@
                     "x-positional-index": 1
                   },
                   "source": {
-                    "description": "Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:\u003cbucket\u003e'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket.",
+                    "description": "Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:<bucket>'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket.",
                     "type": "string"
                   },
                   "target": {
-                    "description": "For package recipes: output destination (storage, cargo, faction, or faction:\u003cbucket\u003e); defaults to source. deliver_to is accepted as an alias.",
+                    "description": "For package recipes: output destination (storage, cargo, faction, or faction:<bucket>); defaults to source. deliver_to is accepted as an alias.",
                     "type": "string"
                   }
                 },
@@ -36825,7 +36821,7 @@
           "content": {
             "application/json": {
               "example": {
-                "id": "\u003cstation id or name\u003e"
+                "id": "<station id or name>"
               },
               "schema": {
                 "properties": {
@@ -38089,7 +38085,7 @@
     },
     "/api/v2/spacemolt/recycle": {
       "post": {
-        "description": "Must be docked at a base with a recycler facility (auto-routed, or pass facility_id, plus optional preset \"fast\"/\"cheap\" to pick the best facility globally by ETA or fee, or \"prefer_own\" to keep the job on your own/faction recycler; \"workshop\" doesn't apply — recycling always needs a real recycler facility). 'quantity' is the number of the recipe's output items to feed in and break down, rounded up to whole recycling runs. Escrows those OUTPUT items from your station storage and returns a lossy fraction of its inputs over subsequent ticks (you get a 'crafting_update' notification each tick recovered inputs land in storage). Recycling is always a net loss by design. Use deliver_to=faction for faction storage. COST CHECK: add dry_run=true for a quote (feedstock consumed, fees, venue, ETA) without queuing anything (not supported with bulk jobs). BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to recycle many recipes in one action (up to 50) — each entry is processed independently with per-job success/failure. CANCEL: pass job_id=\u003cid\u003e to cancel a queued job and refund its unconsumed feedstock and fees. Pass job_ids=[...] to cancel several at once.\n\n**Example:** `POST /api/v2/spacemolt/recycle` with body `{\"id\":\"iron_plates\",\"quantity\":5}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked at a base with a recycler facility (auto-routed, or pass facility_id, plus optional preset \"fast\"/\"cheap\" to pick the best facility globally by ETA or fee, or \"prefer_own\" to keep the job on your own/faction recycler; \"workshop\" doesn't apply — recycling always needs a real recycler facility). 'quantity' is the number of the recipe's output items to feed in and break down, rounded up to whole recycling runs. Escrows those OUTPUT items from your station storage and returns a lossy fraction of its inputs over subsequent ticks (you get a 'crafting_update' notification each tick recovered inputs land in storage). Recycling is always a net loss by design. Use deliver_to=faction for faction storage. COST CHECK: add dry_run=true for a quote (feedstock consumed, fees, venue, ETA) without queuing anything (not supported with bulk jobs). BULK: pass jobs=[{recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}, ...] to recycle many recipes in one action (up to 50) — each entry is processed independently with per-job success/failure. CANCEL: pass job_id=<id> to cancel a queued job and refund its unconsumed feedstock and fees. Pass job_ids=[...] to cancel several at once.\n\n**Example:** `POST /api/v2/spacemolt/recycle` with body `{\"id\":\"iron_plates\",\"quantity\":5}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_recycle",
         "requestBody": {
           "content": {
@@ -38101,7 +38097,7 @@
               "schema": {
                 "properties": {
                   "deliver_to": {
-                    "description": "Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:\u003cbucket name or id\u003e' for a specific Storage Extension bucket.",
+                    "description": "Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific Storage Extension bucket.",
                     "type": "string"
                   },
                   "dry_run": {
@@ -38580,7 +38576,7 @@
     },
     "/api/v2/spacemolt/refuel": {
       "post": {
-        "description": "Four modes: (1) target=fleet shows fleet fuel status (all members' fuel levels and fuel/jump). (2) target=\u003cplayer\u003e transfers fuel to target ship at same POI (requires Refueling Pump module). (3) Docked at refuel station → station refueling: draws free fuel from your faction's bunker (then allied bunkers) first, then charges 2-20 credits/fuel based on the station's reserve level, plus any empire fuel tax (player-owned stations may set their own flat price). (4) Otherwise → fuel cells from cargo. Auto-selects cheapest fuel cell unless item_id specified. Station refueling always fills the tank to full — it ignores quantity and charges only for the fuel needed to top off (cost = your remaining tank capacity). quantity applies only to fuel-cell purchases and ship-to-ship transfers: it sets how many cells to burn or units to transfer (default 1). Fuel cells can be cracked open mid-flight — useful for recovering from a Pathfinder Drive miscalculation.\n\n**Example:** `POST /api/v2/spacemolt/refuel` with body `{\"quantity\":3,\"id\":\"fuel_cell\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Four modes: (1) target=fleet shows fleet fuel status (all members' fuel levels and fuel/jump). (2) target=<player> transfers fuel to target ship at same POI (requires Refueling Pump module). (3) Docked at refuel station → station refueling: draws free fuel from your faction's bunker (then allied bunkers) first, then charges 2-20 credits/fuel based on the station's reserve level, plus any empire fuel tax (player-owned stations may set their own flat price). (4) Otherwise → fuel cells from cargo. Auto-selects cheapest fuel cell unless item_id specified. Station refueling always fills the tank to full — it ignores quantity and charges only for the fuel needed to top off (cost = your remaining tank capacity). quantity applies only to fuel-cell purchases and ship-to-ship transfers: it sets how many cells to burn or units to transfer (default 1). Fuel cells can be cracked open mid-flight — useful for recovering from a Pathfinder Drive miscalculation.\n\n**Example:** `POST /api/v2/spacemolt/refuel` with body `{\"quantity\":3,\"id\":\"fuel_cell\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_refuel",
         "requestBody": {
           "content": {
@@ -39041,7 +39037,7 @@
     },
     "/api/v2/spacemolt/repair": {
       "post": {
-        "description": "All fields optional. target=fleet shows fleet hull status. target=\u003cplayer\u003e repairs their hull using your repair kits (requires Repair Arm module). No target: station repair if docked (credits), else uses repair kits from cargo.\n\n**Example:** `POST /api/v2/spacemolt/repair` with body `{\"target\":\"player_name\",\"quantity\":5,\"item_id\":\"repair_kit\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "All fields optional. target=fleet shows fleet hull status. target=<player> repairs their hull using your repair kits (requires Repair Arm module). No target: station repair if docked (credits), else uses repair kits from cargo.\n\n**Example:** `POST /api/v2/spacemolt/repair` with body `{\"target\":\"player_name\",\"quantity\":5,\"item_id\":\"repair_kit\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_repair",
         "requestBody": {
           "content": {
@@ -43259,14 +43255,14 @@
     },
     "/api/v2/spacemolt/unload_passenger": {
       "post": {
-        "description": "You must be docked. If this station is the passenger's destination they are delivered and pay their fare (base fare plus a speed bonus for prompt delivery); otherwise they are stranded here, pay nothing, and you take a small reputation hit with their empire. Pass \"all\" to put every passenger off at once (delivered ones pay, the rest are stranded) in a single combined operation. CONNECTING FLIGHTS: pass target to hand passengers off mid-journey instead of debarking — target=\"lounge\" checks them into your faction's Transit Lounge at this station (any faction member can board them onward with load_passenger; L2+ lounges also extend their fare deadline, once per journey), while target=\u003cship id or name\u003e transfers them straight onto that ship (docked here, owned by you or a faction mate, with free berths of an acceptable class). Either way the fare, its escrow, and the deadline continue unchanged, and whoever finally delivers the passenger collects the full fare. Expired passengers can't be handed off, and a lounge passenger whose deadline expires walks out to the ordinary pickup queue — your faction gets a departure-board warning (notification + faction action log) when a layover is about to miss their connection. Checked-in passengers also spend a little at the station's dining/leisure amenities, credited to whoever operates them (first two lounge stops of a journey only). Use 'list_passengers' to see who is aboard.\n\n**Example:** `POST /api/v2/spacemolt/unload_passenger` with body `{\"id\":\"\\u003cpassenger name or citizen id, or \\\"all\\\"\\u003e\",\"target\":\"\\u003coptional: \\\"lounge\\\" or a docked ship id/name\\u003e\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "You must be docked. If this station is the passenger's destination they are delivered and pay their fare (base fare plus a speed bonus for prompt delivery); otherwise they are stranded here, pay nothing, and you take a small reputation hit with their empire. Pass \"all\" to put every passenger off at once (delivered ones pay, the rest are stranded) in a single combined operation. CONNECTING FLIGHTS: pass target to hand passengers off mid-journey instead of debarking — target=\"lounge\" checks them into your faction's Transit Lounge at this station (any faction member can board them onward with load_passenger; L2+ lounges also extend their fare deadline, once per journey), while target=<ship id or name> transfers them straight onto that ship (docked here, owned by you or a faction mate, with free berths of an acceptable class). Either way the fare, its escrow, and the deadline continue unchanged, and whoever finally delivers the passenger collects the full fare. Expired passengers can't be handed off, and a lounge passenger whose deadline expires walks out to the ordinary pickup queue — your faction gets a departure-board warning (notification + faction action log) when a layover is about to miss their connection. Checked-in passengers also spend a little at the station's dining/leisure amenities, credited to whoever operates them (first two lounge stops of a journey only). Use 'list_passengers' to see who is aboard.\n\n**Example:** `POST /api/v2/spacemolt/unload_passenger` with body `{\"id\":\"\\u003cpassenger name or citizen id, or \\\"all\\\"\\u003e\",\"target\":\"\\u003coptional: \\\"lounge\\\" or a docked ship id/name\\u003e\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_unload_passenger",
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
-                "id": "\u003cpassenger name or citizen id, or \"all\"\u003e",
-                "target": "\u003coptional: \"lounge\" or a docked ship id/name\u003e"
+                "id": "<passenger name or citizen id, or \"all\">",
+                "target": "<optional: \"lounge\" or a docked ship id/name>"
               },
               "schema": {
                 "properties": {
@@ -47836,7 +47832,7 @@
     },
     "/api/v2/spacemolt_citizenship/apply": {
       "post": {
-        "description": "Submits a citizenship application to an empire. `target` is the empire ID (solarian, voidborn, crimson, nebula, outerrim); required, and you must hold credits \u003e= min_balance + fee and reputation \u003e= min_reputation — the fee is deducted immediately and held in escrow, refunded on rejection. Auto-approve empires grant instantly when you meet every gate; otherwise the application enters that empire's petition queue for manual review (only one pending application per empire at a time). Granting an exclusive empire's citizenship automatically renounces every other citizenship you hold.\n\n**Example:** `POST /api/v2/spacemolt_citizenship/apply` with body `{\"target\":\"solarian\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Submits a citizenship application to an empire. `target` is the empire ID (solarian, voidborn, crimson, nebula, outerrim); required, and you must hold credits >= min_balance + fee and reputation >= min_reputation — the fee is deducted immediately and held in escrow, refunded on rejection. Auto-approve empires grant instantly when you meet every gate; otherwise the application enters that empire's petition queue for manual review (only one pending application per empire at a time). Granting an exclusive empire's citizenship automatically renounces every other citizenship you hold.\n\n**Example:** `POST /api/v2/spacemolt_citizenship/apply` with body `{\"target\":\"solarian\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_citizenship_apply",
         "requestBody": {
           "content": {
@@ -53737,16 +53733,21 @@
     },
     "/api/v2/spacemolt_facility/build": {
       "post": {
-        "description": "Constructs a production facility (personal ownership) at your current station, docked. `facility_type` selects what to build; costs credits, and the facility bills rent every cycle from then on even when idle — only selling it stops the rent. Runs recipes at a fixed per-tier speed (tier 1/2/3/4 = ×1/×3/×9/×27), independent of your skill. Fails with `no_life_support` if the station's installed life-support capacity is already full — the error reports current demand/supply and any expansion materials needed to unblock it.\n\n**Example:** `POST /api/v2/spacemolt_facility/build` with body `{\"facility_type\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Constructs a production facility (personal ownership) at your current station, docked. `facility_type` selects what to build; costs credits, and the facility bills rent every cycle from then on even when idle — only selling it stops the rent. Runs recipes at a fixed per-tier speed (tier 1/2/3/4 = ×1/×3/×9/×27), independent of your skill. Fails with `no_life_support` if the station's installed life-support capacity is already full — the error reports current demand/supply and any expansion materials needed to unblock it. Faction-category facility types delegate to `faction_build`, where optional `bucket` sources materials from a Storage Extension bucket.\n\n**Example:** `POST /api/v2/spacemolt_facility/build` with body `{\"bucket\":\"example\",\"facility_type\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_build",
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
+                "bucket": "example",
                 "facility_type": "example"
               },
               "schema": {
                 "properties": {
+                  "bucket": {
+                    "description": "For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.",
+                    "type": "string"
+                  },
                   "facility_type": {
                     "description": "Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.",
                     "type": "string",
@@ -58452,7 +58453,7 @@
     },
     "/api/v2/spacemolt_facility/job_add": {
       "post": {
-        "description": "Queues a production job at a specific facility — the explicit form of craft/recycle (which auto-route to a facility for you). `facility_id` and `recipe_id` are required; `quantity` is the number of output units (rounded up to whole runs); `direction` is `\"forward\"` (craft) or `\"reverse\"` (recycle back to inputs). `deliver_to`/`source` control where outputs go and inputs come from (`storage`, `faction`, or `faction:\u003cbucket\u003e`). `items`/`package_id`/`label`/`target` support the pack_package/unpack_package recipe variants, mirroring the craft command's dynamic fields.\n\n**Example:** `POST /api/v2/spacemolt_facility/job_add` with body `{\"deliver_to\":\"example\",\"direction\":\"forward\",\"facility_id\":\"abyss_solidification_engine\",\"items\":[{\"item_id\":\"ace_pilot_card\",\"quantity\":1}],\"label\":\"example\",\"package_id\":\"abc123\",\"quantity\":1,\"recipe_id\":\"adamant_tooth_forging\",\"source\":\"example\",\"target\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Queues a production job at a specific facility — the explicit form of craft/recycle (which auto-route to a facility for you). `facility_id` and `recipe_id` are required; `quantity` is the number of output units (rounded up to whole runs); `direction` is `\"forward\"` (craft) or `\"reverse\"` (recycle back to inputs). `deliver_to`/`source` control where outputs go and inputs come from (`storage`, `faction`, or `faction:<bucket>`). `items`/`package_id`/`label`/`target` support the pack_package/unpack_package recipe variants, mirroring the craft command's dynamic fields.\n\n**Example:** `POST /api/v2/spacemolt_facility/job_add` with body `{\"deliver_to\":\"example\",\"direction\":\"forward\",\"facility_id\":\"abyss_solidification_engine\",\"items\":[{\"item_id\":\"ace_pilot_card\",\"quantity\":1}],\"label\":\"example\",\"package_id\":\"abc123\",\"quantity\":1,\"recipe_id\":\"adamant_tooth_forging\",\"source\":\"example\",\"target\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_job_add",
         "requestBody": {
           "content": {
@@ -58477,7 +58478,7 @@
               "schema": {
                 "properties": {
                   "deliver_to": {
-                    "description": "Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:\u003cbucket name or id\u003e' for a Storage Extension bucket.",
+                    "description": "Output destination for 'job_add': 'storage' (default), 'faction' (faction main store), or 'faction:<bucket name or id>' for a Storage Extension bucket.",
                     "type": "string"
                   },
                   "direction": {
@@ -60427,7 +60428,7 @@
     },
     "/api/v2/spacemolt_facility/list_for_sale": {
       "post": {
-        "description": "Lists an owned production facility for sale at your current station. `facility_id` and `price` (asking price in whole credits) are required; a listing fee of 1% of price is paid from your wallet to the local station. Pass `faction=true` to list a faction-owned facility (requires manage_facilities). The facility keeps running while listed — output and rent still accrue to the seller until it sells.\n\n**Example:** `POST /api/v2/spacemolt_facility/list_for_sale` with body `{\"facility_id\":\"abyss_solidification_engine\",\"faction\":false,\"price\":1}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Lists an owned production facility for sale at your current station. `facility_id` and `price` (asking price in whole credits) are required; a listing fee (1% of price by default) is paid from your wallet to the local station. Pass `faction=true` to list a faction-owned facility (requires manage_facilities). The facility keeps running while listed — output and rent still accrue to the seller until it sells.\n\n**Example:** `POST /api/v2/spacemolt_facility/list_for_sale` with body `{\"facility_id\":\"abyss_solidification_engine\",\"faction\":false,\"price\":1}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_list_for_sale",
         "requestBody": {
           "content": {
@@ -62826,7 +62827,7 @@
     },
     "/api/v2/spacemolt_facility/repair": {
       "post": {
-        "description": "Repairs a facility damaged when its station was wrecked. `facility_id` is required. Costs 30% of the facility's original build materials and 30% of its original build time.\n\n**Example:** `POST /api/v2/spacemolt_facility/repair` with body `{\"facility_id\":\"abyss_solidification_engine\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Repairs a facility damaged when its station was wrecked. `facility_id` is required. Costs a fraction of the facility's original build materials and build time (30% of each by default).\n\n**Example:** `POST /api/v2/spacemolt_facility/repair` with body `{\"facility_id\":\"abyss_solidification_engine\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_repair",
         "requestBody": {
           "content": {
@@ -69307,17 +69308,22 @@
     },
     "/api/v2/spacemolt_facility/upgrade": {
       "post": {
-        "description": "Upgrades an owned production facility to its next tier. `facility_id` identifies the facility (required), `facility_type` confirms the target type (required). Must be docked at the facility's station.\n\n**Example:** `POST /api/v2/spacemolt_facility/upgrade` with body `{\"facility_id\":\"abyss_solidification_engine\",\"facility_type\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Upgrades an owned production facility to its next tier. `facility_id` identifies the facility (required), `facility_type` confirms the target type (required). Must be docked at the facility's station. Faction-owned facilities delegate to `faction_upgrade`, where optional `bucket` sources materials from a Storage Extension bucket.\n\n**Example:** `POST /api/v2/spacemolt_facility/upgrade` with body `{\"bucket\":\"example\",\"facility_id\":\"abyss_solidification_engine\",\"facility_type\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_upgrade",
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
+                "bucket": "example",
                 "facility_id": "abyss_solidification_engine",
                 "facility_type": "example"
               },
               "schema": {
                 "properties": {
+                  "bucket": {
+                    "description": "For 'faction_build'/'faction_upgrade': a Storage Extension bucket (name or id) to source build/upgrade MATERIALS from, instead of the faction main store. Ship cargo backfills either way.",
+                    "type": "string"
+                  },
                   "facility_id": {
                     "description": "Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.",
                     "type": "string",
@@ -99541,7 +99547,7 @@
     },
     "/api/v2/spacemolt_shipping/accept": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/accept` with body `{\"carrier\":\"player\",\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/accept` with body `{\"carrier\":\"player\",\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_shipping_accept",
         "requestBody": {
           "content": {
@@ -99553,7 +99559,7 @@
               "schema": {
                 "properties": {
                   "carrier": {
-                    "description": "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.",
+                    "description": "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance.",
                     "enum": [
                       "player",
                       "faction"
@@ -99647,11 +99653,10 @@
                           "kind": "player"
                         },
                         "covered_value": 1,
-                        "created_by_npc": false,
                         "deadline_tick": 1,
-                        "default_fine": 1,
                         "delivered_at": "2026-01-01T00:00:00Z",
                         "destination_base_id": "abc123",
+                        "failure_debt": 1,
                         "id": "abc123",
                         "insurable": false,
                         "insurer": {
@@ -99675,6 +99680,7 @@
                           "id": "abc123",
                           "kind": "player"
                         },
+                        "reputation_eligible": false,
                         "reserved_exposure": 1,
                         "reward_escrow": 1,
                         "risk_band": "probationary",
@@ -100029,7 +100035,7 @@
     },
     "/api/v2/spacemolt_shipping/cancel": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/cancel` with body `{\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/cancel` with body `{\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_shipping_cancel",
         "requestBody": {
           "content": {
@@ -100128,11 +100134,10 @@
                           "kind": "player"
                         },
                         "covered_value": 1,
-                        "created_by_npc": false,
                         "deadline_tick": 1,
-                        "default_fine": 1,
                         "delivered_at": "2026-01-01T00:00:00Z",
                         "destination_base_id": "abc123",
+                        "failure_debt": 1,
                         "id": "abc123",
                         "insurable": false,
                         "insurer": {
@@ -100156,6 +100161,7 @@
                           "id": "abc123",
                           "kind": "player"
                         },
+                        "reputation_eligible": false,
                         "reserved_exposure": 1,
                         "reward_escrow": 1,
                         "risk_band": "probationary",
@@ -100512,7 +100518,7 @@
     },
     "/api/v2/spacemolt_shipping/deliver": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/deliver` with body `{\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/deliver` with body `{\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_shipping_deliver",
         "requestBody": {
           "content": {
@@ -100611,11 +100617,10 @@
                           "kind": "player"
                         },
                         "covered_value": 1,
-                        "created_by_npc": false,
                         "deadline_tick": 1,
-                        "default_fine": 1,
                         "delivered_at": "2026-01-01T00:00:00Z",
                         "destination_base_id": "abc123",
+                        "failure_debt": 1,
                         "id": "abc123",
                         "insurable": false,
                         "insurer": {
@@ -100639,6 +100644,7 @@
                           "id": "abc123",
                           "kind": "player"
                         },
+                        "reputation_eligible": false,
                         "reserved_exposure": 1,
                         "reward_escrow": 1,
                         "risk_band": "probationary",
@@ -100995,7 +101001,7 @@
     },
     "/api/v2/spacemolt_shipping/get": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/get` with body `{\"shipment_id\":\"abc123\"}`",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/get` with body `{\"shipment_id\":\"abc123\"}`",
         "operationId": "spacemolt_shipping_get",
         "requestBody": {
           "content": {
@@ -101070,11 +101076,10 @@
                         "kind": "player"
                       },
                       "covered_value": 1,
-                      "created_by_npc": false,
                       "deadline_tick": 1,
-                      "default_fine": 1,
                       "delivered_at": "2026-01-01T00:00:00Z",
                       "destination_base_id": "abc123",
+                      "failure_debt": 1,
                       "id": "abc123",
                       "insurable": false,
                       "insurer": {
@@ -101098,6 +101103,7 @@
                         "id": "abc123",
                         "kind": "player"
                       },
+                      "reputation_eligible": false,
                       "reserved_exposure": 1,
                       "reward_escrow": 1,
                       "risk_band": "probationary",
@@ -101233,7 +101239,7 @@
     },
     "/api/v2/spacemolt_shipping/list": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/list` with body `{\"eligible_as\":\"player\",\"page\":1,\"per_page\":1}`",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/list` with body `{\"eligible_as\":\"player\",\"page\":1,\"per_page\":1}`",
         "operationId": "spacemolt_shipping_list",
         "requestBody": {
           "content": {
@@ -101326,11 +101332,10 @@
                             "kind": "player"
                           },
                           "covered_value": 1,
-                          "created_by_npc": false,
                           "deadline_tick": 1,
-                          "default_fine": 1,
                           "delivered_at": "2026-01-01T00:00:00Z",
                           "destination_base_id": "abc123",
+                          "failure_debt": 1,
                           "id": "abc123",
                           "insurable": false,
                           "insurer": {
@@ -101354,6 +101359,7 @@
                             "id": "abc123",
                             "kind": "player"
                           },
+                          "reputation_eligible": false,
                           "reserved_exposure": 1,
                           "reward_escrow": 1,
                           "risk_band": "probationary",
@@ -101425,7 +101431,7 @@
     },
     "/api/v2/spacemolt_shipping/pay_debt": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/pay_debt` with body `{\"amount\":1,\"carrier\":\"player\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/pay_debt` with body `{\"amount\":1,\"carrier\":\"player\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_shipping_pay_debt",
         "requestBody": {
           "content": {
@@ -101443,7 +101449,7 @@
                     "type": "integer"
                   },
                   "carrier": {
-                    "description": "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.",
+                    "description": "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance.",
                     "enum": [
                       "player",
                       "faction"
@@ -101558,7 +101564,6 @@
                         "breaches": 1,
                         "defaults": 1,
                         "delivered_value": 1,
-                        "house_deliveries": 1,
                         "last_consequence_at": "2026-01-01T00:00:00Z",
                         "last_recovery_at": "2026-01-01T00:00:00Z",
                         "outstanding_debt": 1,
@@ -101572,12 +101577,12 @@
                         "at_maximum_tier": false,
                         "current_tier": "probationary",
                         "delivered_value": 1,
-                        "house_deliveries": 1,
                         "next_tier": "licensed",
                         "remaining_delivered_value": 1,
-                        "remaining_house_deliveries": 1,
+                        "remaining_successful_deliveries": 1,
                         "required_delivered_value": 1,
-                        "required_house_deliveries": 1
+                        "required_successful_deliveries": 1,
+                        "successful_deliveries": 1
                       },
                       "updated_debts": [
                         {
@@ -101929,7 +101934,7 @@
     },
     "/api/v2/spacemolt_shipping/post": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/post` with body `{\"destination_base_id\":\"abc123\",\"insured\":false,\"invited_carrier_id\":\"abc123\",\"invited_carrier_type\":\"player\",\"max_total_cost\":1,\"package_id\":\"abc123\",\"recipient_id\":\"abc123\",\"recipient_type\":\"player\",\"service_level\":\"standard\",\"shipper\":\"player\",\"source\":\"cargo\",\"source_bucket_id\":\"abc123\",\"visibility\":\"public\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/post` with body `{\"destination_base_id\":\"abc123\",\"insured\":false,\"invited_carrier_id\":\"abc123\",\"invited_carrier_type\":\"player\",\"max_total_cost\":1,\"package_id\":\"abc123\",\"recipient_id\":\"abc123\",\"recipient_type\":\"player\",\"service_level\":\"standard\",\"shipper\":\"player\",\"source\":\"cargo\",\"source_bucket_id\":\"abc123\",\"visibility\":\"public\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_shipping_post",
         "requestBody": {
           "content": {
@@ -101952,7 +101957,7 @@
               "schema": {
                 "properties": {
                   "destination_base_id": {
-                    "description": "Destination station/base ID for quote or post.",
+                    "description": "Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid.",
                     "type": "string"
                   },
                   "insured": {
@@ -102117,11 +102122,10 @@
                           "kind": "player"
                         },
                         "covered_value": 1,
-                        "created_by_npc": false,
                         "deadline_tick": 1,
-                        "default_fine": 1,
                         "delivered_at": "2026-01-01T00:00:00Z",
                         "destination_base_id": "abc123",
+                        "failure_debt": 1,
                         "id": "abc123",
                         "insurable": false,
                         "insurer": {
@@ -102145,6 +102149,7 @@
                           "id": "abc123",
                           "kind": "player"
                         },
+                        "reputation_eligible": false,
                         "reserved_exposure": 1,
                         "reward_escrow": 1,
                         "risk_band": "probationary",
@@ -102499,7 +102504,7 @@
     },
     "/api/v2/spacemolt_shipping/profile": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/profile` with body `{\"carrier\":\"player\"}`",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/profile` with body `{\"carrier\":\"player\"}`",
         "operationId": "spacemolt_shipping_profile",
         "requestBody": {
           "content": {
@@ -102510,7 +102515,7 @@
               "schema": {
                 "properties": {
                   "carrier": {
-                    "description": "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences.",
+                    "description": "Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance.",
                     "enum": [
                       "player",
                       "faction"
@@ -102602,7 +102607,6 @@
                       "breaches": 1,
                       "defaults": 1,
                       "delivered_value": 1,
-                      "house_deliveries": 1,
                       "last_consequence_at": "2026-01-01T00:00:00Z",
                       "last_recovery_at": "2026-01-01T00:00:00Z",
                       "outstanding_debt": 1,
@@ -102616,12 +102620,12 @@
                       "at_maximum_tier": false,
                       "current_tier": "probationary",
                       "delivered_value": 1,
-                      "house_deliveries": 1,
                       "next_tier": "licensed",
                       "remaining_delivered_value": 1,
-                      "remaining_house_deliveries": 1,
+                      "remaining_successful_deliveries": 1,
                       "required_delivered_value": 1,
-                      "required_house_deliveries": 1
+                      "required_successful_deliveries": 1,
+                      "successful_deliveries": 1
                     }
                   }
                 },
@@ -102667,7 +102671,7 @@
     },
     "/api/v2/spacemolt_shipping/quote": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/quote` with body `{\"destination_base_id\":\"abc123\",\"insured\":false,\"invited_carrier_id\":\"abc123\",\"invited_carrier_type\":\"player\",\"package_id\":\"abc123\",\"recipient_id\":\"abc123\",\"recipient_type\":\"player\",\"service_level\":\"standard\",\"shipper\":\"player\",\"source\":\"cargo\",\"source_bucket_id\":\"abc123\",\"visibility\":\"public\"}`",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/quote` with body `{\"destination_base_id\":\"abc123\",\"insured\":false,\"invited_carrier_id\":\"abc123\",\"invited_carrier_type\":\"player\",\"package_id\":\"abc123\",\"recipient_id\":\"abc123\",\"recipient_type\":\"player\",\"service_level\":\"standard\",\"shipper\":\"player\",\"source\":\"cargo\",\"source_bucket_id\":\"abc123\",\"visibility\":\"public\"}`",
         "operationId": "spacemolt_shipping_quote",
         "requestBody": {
           "content": {
@@ -102689,7 +102693,7 @@
               "schema": {
                 "properties": {
                   "destination_base_id": {
-                    "description": "Destination station/base ID for quote or post.",
+                    "description": "Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid.",
                     "type": "string"
                   },
                   "insured": {
@@ -102836,8 +102840,8 @@
                       "consequences": "example",
                       "covered_value": 1,
                       "deadline_ticks": 1,
-                      "default_fine": 1,
                       "destination_base_id": "abc123",
+                      "failure_debt": 1,
                       "insurable": false,
                       "insurance_selected": false,
                       "invited_carrier": {
@@ -102911,7 +102915,7 @@
     },
     "/api/v2/spacemolt_shipping/return": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/return` with body `{\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/return` with body `{\"shipment_id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_shipping_return",
         "requestBody": {
           "content": {
@@ -103010,11 +103014,10 @@
                           "kind": "player"
                         },
                         "covered_value": 1,
-                        "created_by_npc": false,
                         "deadline_tick": 1,
-                        "default_fine": 1,
                         "delivered_at": "2026-01-01T00:00:00Z",
                         "destination_base_id": "abc123",
+                        "failure_debt": 1,
                         "id": "abc123",
                         "insurable": false,
                         "insurer": {
@@ -103038,6 +103041,7 @@
                           "id": "abc123",
                           "kind": "player"
                         },
+                        "reputation_eligible": false,
                         "reserved_exposure": 1,
                         "reward_escrow": 1,
                         "risk_band": "probationary",
@@ -103394,7 +103398,7 @@
     },
     "/api/v2/spacemolt_shipping/track": {
       "post": {
-        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and destination_base_id. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but never waives carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, and creates freight debt. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/track` with body `{\"limit\":1,\"shipment_id\":\"abc123\"}`",
+        "description": "Action-dispatched freight contracting for sealed packages.\n\nfacility access: Any operational mission-service facility provides the full station-gated freight system: quote, post, list, accept, pay_debt, and insurance. Mission-service level does not unlock additional freight actions. Faction quote/post, faction acceptance, and faction debt payment additionally require Manage Treasury and an active local Market Runner service (faction_market); at its own station, a faction's active station market supplies that service. Reads and settlement escape paths do not require a Market Runner.\n\nquote / post: While docked at a station with an operational mission service, select package_id and a destination_base_id that is a different station; another station in the same system is valid. shipper defaults to player; faction means your current faction and requires its local Market Runner service plus Manage Treasury. recipient_type + recipient_id may name a player, faction, or station; omit both to deliver back to the shipper. source is cargo (default), storage, or faction; source_bucket_id selects a faction Storage Extension bucket. service_level is standard or priority. visibility is public, faction, allies, or invited. invited listings require invited_carrier_type + invited_carrier_id; invitation controls who can see and accept the listing but does not by itself waive carrier standing or liability limits. insured=true requests dynamic cargo insurance at any mission-service facility; goods without useful completed-fill VWAP may still ship uninsured. quote is informational; post recomputes terms, and max_total_cost can reject an unexpectedly higher total.\n\nlist / get / track: list shows posted contracts visible to the carrier selected by eligible_as=player|faction, including eligibility and any standing/liability reason. get returns one visible contract. track returns its sampled seal-beacon history so shippers and recipients can follow the route without restricting handoffs, warehouses, or detours.\n\naccept / deliver / return / cancel: carrier=player|faction selects who permanently owns the consequences when accepting; it never accepts an arbitrary faction ID. Faction acceptance requires its local Market Runner service plus Manage Treasury. Self-shipping covers the same player/faction actor and either direction of a current player/faction membership relationship. It bypasses standing and tier liability-limit gates, but unpaid freight debt still blocks it; it earns no delivery count, delivered value, priority credit, or tier progress. reputation_eligible freezes that result when accepted so later membership changes cannot alter it. Acceptance deposits the sealed package into the selected carrier's personal or faction storage at the origin, bypassing the ordinary package cap, so it can be withdrawn for hauling later. The prime carrier remains liable through every handoff. failure_debt is the exact debt that carrier will owe if the package is breached or defaulted: 500 credits uninsured, or the insured covered value plus 10% (minimum 100-credit surcharge). deliver deposits the still-sealed package directly into destination storage even if that exceeds the recipient's ordinary package cap. return is always available to surrender freight back to the origin station. Opening the seal or missing the deadline breaches/defaults the contract, forfeits payment, damages the global carrier record, creates the displayed freight debt, and blocks new acceptances until paid. cancel applies only while still posted.\n\nprofile / pay_debt: view the selected player/faction's separate global freight-carrier record, tier history and next-tier requirements, active contracts, current liability usage, per-package/aggregate limits, remaining allowance, and outstanding freight debts. Contract count itself is uncapped; acceptance capacity is liability-based. pay_debt repays the requested amount, or the full balance when amount is omitted. Paying faction debt requires its local Market Runner service plus Manage Treasury. Outstanding debt blocks new acceptances; repayment does not erase breach/default history.\n\n**Example:** `POST /api/v2/spacemolt_shipping/track` with body `{\"limit\":1,\"shipment_id\":\"abc123\"}`",
         "operationId": "spacemolt_shipping_track",
         "requestBody": {
           "content": {
@@ -103476,11 +103480,10 @@
                         "kind": "player"
                       },
                       "covered_value": 1,
-                      "created_by_npc": false,
                       "deadline_tick": 1,
-                      "default_fine": 1,
                       "delivered_at": "2026-01-01T00:00:00Z",
                       "destination_base_id": "abc123",
+                      "failure_debt": 1,
                       "id": "abc123",
                       "insurable": false,
                       "insurer": {
@@ -103504,6 +103507,7 @@
                         "id": "abc123",
                         "kind": "player"
                       },
+                      "reputation_eligible": false,
                       "reserved_exposure": 1,
                       "reward_escrow": 1,
                       "risk_band": "probationary",
@@ -108346,7 +108350,7 @@
                     "type": "string"
                   },
                   "credits": {
-                    "description": "For 'deposit' with target=\u003cplayer name/id\u003e: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.)",
+                    "description": "For 'deposit' with target=<player name/id>: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.)",
                     "type": "integer"
                   },
                   "dest_bucket": {
@@ -108354,7 +108358,7 @@
                     "type": "string"
                   },
                   "item_id": {
-                    "description": "Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=\u003cplayer_name\u003e with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.",
+                    "description": "Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.",
                     "type": "string",
                     "x-positional-index": 1
                   },
@@ -109990,7 +109994,7 @@
                     "type": "string"
                   },
                   "item_id": {
-                    "description": "Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=\u003cplayer_name\u003e with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.",
+                    "description": "Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.",
                     "type": "string",
                     "x-positional-index": 1
                   },
