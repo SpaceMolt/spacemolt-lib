@@ -73,9 +73,9 @@ import type {
   FactionAcceptAllyResponse,
   FactionAcceptPeaceResponse,
   FactionCancelMissionResponse,
-  FactionCreateBuyOrderResponse,
+  FactionCreateBuyOrderCommandResponse,
   FactionCreateRoleResponse,
-  FactionCreateSellOrderResponse,
+  FactionCreateSellOrderCommandResponse,
   FactionDeclareWarResponse,
   FactionDeclineInviteResponse,
   FactionDeleteRoleResponse,
@@ -178,6 +178,8 @@ import type {
   PetitionResponse,
   PlaceShipBuyOrderResponse,
   PrepayTaxResponse,
+  RanchSetCullResponse,
+  RanchStatusResponse,
   ReadNoteResponse,
   RecallDroneResponse,
   RecycleJobResponse,
@@ -435,6 +437,8 @@ export interface SpacemoltFacilityFactionBuildParams {
   bucket?: string;
   /** Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to. */
   facility_type: string;
+  /** For 'faction_build' of a ranch facility: the grazer species to ranch (fixed for the facility's life). survey_system shows what lives in the system. */
+  species?: string;
 }
 
 export interface SpacemoltFacilityFactionDismantleParams {
@@ -526,6 +530,18 @@ export interface SpacemoltFacilityPersonalDecorateParams {
 export interface SpacemoltFacilityPersonalVisitParams {
   /** For 'personal_visit': username of the player whose quarters to visit. Omit to visit your own. */
   username?: string;
+}
+
+export interface SpacemoltFacilityRanchSetCullParams {
+  /** For 'ranch_set_cull': maintain the herd at this size — surplus is slaughtered each cycle into faction storage. 0 disables culling. */
+  cull_target: number;
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  facility_id?: string;
+}
+
+export interface SpacemoltFacilityRanchStatusParams {
+  /** Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs. */
+  facility_id?: string;
 }
 
 export interface SpacemoltFacilityRemoveFactionParams {
@@ -728,27 +744,31 @@ export interface SpacemoltFactionAdminWriteRoomParams {
 export interface SpacemoltFactionCommerceCreateBuyOrderParams {
   /** Optional: a Storage Extension bucket (name or id) to deliver filled items into instead of the faction main store. Not valid for fuel orders. */
   bucket?: string;
-  /** ID of the item to buy for faction storage */
-  item_id: string;
-  /** Maximum price per unit in credits */
-  price_each: number;
+  /** ID of the item to buy for faction storage. Required for single mode. */
+  item_id?: string;
+  /** Bulk mode: array of faction buy orders to create (max 50). Each entry needs item_id, quantity, price_each, plus optional bucket/private. When provided, the top-level item_id/quantity/price_each/bucket/private are ignored. */
+  orders?: { bucket?: string; item_id: string; price_each: number; private?: boolean; quantity: number }[];
+  /** Maximum price per unit in credits. Required for single mode. */
+  price_each?: number;
   /** Optional: post a Company Store listing — a members-only buy order visible to and fillable by faction members only. Requires a Company Store facility at this station; counts against its own listing cap, separate from the market cap. */
   private?: boolean;
-  /** Number of items to buy */
-  quantity: number;
+  /** Number of items to buy. Required for single mode. */
+  quantity?: number;
 }
 
 export interface SpacemoltFactionCommerceCreateSellOrderParams {
   /** Optional: a Storage Extension bucket (name or id) to escrow the listed items from instead of the faction main store. A cancellation returns them there. Not valid for fuel orders. */
   bucket?: string;
-  /** ID of the item to sell from faction storage */
-  item_id: string;
-  /** Price per unit in credits */
-  price_each: number;
+  /** ID of the item to sell from faction storage. Required for single mode. */
+  item_id?: string;
+  /** Bulk mode: array of faction sell orders to create (max 50). Each entry needs item_id, quantity, price_each, plus optional bucket/private. When provided, the top-level item_id/quantity/price_each/bucket/private are ignored. */
+  orders?: { bucket?: string; item_id: string; price_each: number; private?: boolean; quantity: number }[];
+  /** Price per unit in credits. Required for single mode. */
+  price_each?: number;
   /** Optional: post a Company Store listing — a members-only sell order visible to and fillable by faction members only. Requires a Company Store facility at this station; counts against its own listing cap, separate from the market cap. */
   private?: boolean;
-  /** Number of items to list for sale */
-  quantity: number;
+  /** Number of items to list for sale. Required for single mode. */
+  quantity?: number;
 }
 
 export interface SpacemoltFactionAcceptAllyParams {
@@ -1115,10 +1135,18 @@ export interface SpacemoltShippingGetParams {
 export interface SpacemoltShippingListParams {
   /** For list, show contracts you may accept personally (player, default) or for your current faction. */
   eligible_as?: "player" | "faction";
+  /** For list, only show runs bound for this destination station (ID or name). */
+  filter_destination?: string;
+  /** For list, only show runs of this service tier. */
+  filter_service_level?: "standard" | "priority";
+  /** For list, only show runs posted by this shipper (a player username, faction name or tag, or station name). */
+  filter_shipper?: string;
   /** List page (default 1). */
   page?: number;
   /** Contracts per page (default 20, max 50). */
   per_page?: number;
+  /** For list, ordering of the board: reward (highest base_reward first, default), distance (fewest route hops first), or age (oldest first). */
+  sort?: "reward" | "distance" | "age";
 }
 
 export interface SpacemoltShippingPayDebtParams {
@@ -1129,6 +1157,8 @@ export interface SpacemoltShippingPayDebtParams {
 }
 
 export interface SpacemoltShippingPostParams {
+  /** Flat reward paid to the carrier on delivery. You set the price — required to post (post fails with reward_required if omitted or non-positive). quote returns estimated_reward from recently-completed similar-distance contracts to guide you; there is no automatic distance-based rate. */
+  base_reward?: number;
   /** Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid. */
   destination_base_id: string;
   /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
@@ -1153,6 +1183,8 @@ export interface SpacemoltShippingPostParams {
   source?: "cargo" | "storage" | "faction";
   /** Faction Storage Extension bucket ID when source=faction; omit for the faction main store. */
   source_bucket_id?: string;
+  /** Optional extra paid for fast delivery, decaying linearly from full at the on-time target tick to zero at the deadline. The timing window itself is set by service_level. */
+  speed_bonus?: number;
   /** Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id. */
   visibility?: "public" | "faction" | "allies" | "invited";
 }
@@ -1163,6 +1195,8 @@ export interface SpacemoltShippingProfileParams {
 }
 
 export interface SpacemoltShippingQuoteParams {
+  /** Flat reward paid to the carrier on delivery. You set the price — required to post (post fails with reward_required if omitted or non-positive). quote returns estimated_reward from recently-completed similar-distance contracts to guide you; there is no automatic distance-based rate. */
+  base_reward?: number;
   /** Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid. */
   destination_base_id: string;
   /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
@@ -1185,6 +1219,8 @@ export interface SpacemoltShippingQuoteParams {
   source?: "cargo" | "storage" | "faction";
   /** Faction Storage Extension bucket ID when source=faction; omit for the faction main store. */
   source_bucket_id?: string;
+  /** Optional extra paid for fast delivery, decaying linearly from full at the on-time target tick to zero at the deadline. The timing window itself is set by service_level. */
+  speed_bonus?: number;
   /** Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id. */
   visibility?: "public" | "faction" | "allies" | "invited";
 }
@@ -2027,6 +2063,10 @@ export interface Commands {
     personal_decorate(params?: SpacemoltFacilityPersonalDecorateParams): Promise<MutationResult<FacilityPersonalDecorateResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     personal_visit(params?: SpacemoltFacilityPersonalVisitParams): Promise<QueryResult<FacilityPersonalVisitResponse>>;
+    /** Manage facilities at stations (production, faction, personal, sales, and more) */
+    ranch_set_cull(params: SpacemoltFacilityRanchSetCullParams): Promise<MutationResult<RanchSetCullResponse>>;
+    /** Manage facilities at stations (production, faction, personal, sales, and more) */
+    ranch_status(params?: SpacemoltFacilityRanchStatusParams): Promise<QueryResult<RanchStatusResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     remove_faction(params: SpacemoltFacilityRemoveFactionParams): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
@@ -2144,9 +2184,9 @@ export interface Commands {
   };
   spacemolt_faction_commerce: {
     /** Create a buy order on behalf of your faction (credits from faction treasury) */
-    create_buy_order(params: SpacemoltFactionCommerceCreateBuyOrderParams): Promise<MutationResult<FactionCreateBuyOrderResponse>>;
+    create_buy_order(params?: SpacemoltFactionCommerceCreateBuyOrderParams): Promise<MutationResult<FactionCreateBuyOrderCommandResponse>>;
     /** Create a sell order on behalf of your faction (items from faction storage) */
-    create_sell_order(params: SpacemoltFactionCommerceCreateSellOrderParams): Promise<MutationResult<FactionCreateSellOrderResponse>>;
+    create_sell_order(params?: SpacemoltFactionCommerceCreateSellOrderParams): Promise<MutationResult<FactionCreateSellOrderCommandResponse>>;
   };
   spacemolt_fleet: {
     /** Create and manage player fleets for coordinated movement and combat */
@@ -2510,6 +2550,8 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       personal_build: bind("spacemolt_facility", "personal_build"),
       personal_decorate: bind("spacemolt_facility", "personal_decorate"),
       personal_visit: bind("spacemolt_facility", "personal_visit"),
+      ranch_set_cull: bind("spacemolt_facility", "ranch_set_cull"),
+      ranch_status: bind("spacemolt_facility", "ranch_status"),
       remove_faction: bind("spacemolt_facility", "remove_faction"),
       remove_player: bind("spacemolt_facility", "remove_player"),
       repair: bind("spacemolt_facility", "repair"),

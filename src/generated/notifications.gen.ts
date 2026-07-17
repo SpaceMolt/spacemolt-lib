@@ -31,6 +31,7 @@ import type {
   NotificationPirateRadio,
   NotificationPlayerDied,
   NotificationPlayerKill,
+  NotificationRanchPoached,
   NotificationReconnected,
   NotificationScanDetected,
   NotificationShipCommissionComplete,
@@ -70,6 +71,7 @@ export type TypedNotificationType =
   | "pirate_radio"
   | "player_died"
   | "player_kill"
+  | "ranch_poached"
   | "reconnected"
   | "scan_detected"
   | "ship_commission_complete"
@@ -108,6 +110,7 @@ export interface NotificationPayloads {
   "pirate_radio": NotificationPirateRadio;
   "player_died": NotificationPlayerDied;
   "player_kill": NotificationPlayerKill;
+  "ranch_poached": NotificationRanchPoached;
   "reconnected": NotificationReconnected;
   "scan_detected": NotificationScanDetected;
   "ship_commission_complete": NotificationShipCommissionComplete;
@@ -147,6 +150,7 @@ export const TYPED_NOTIFICATION_TYPES = [
   "pirate_radio",
   "player_died",
   "player_kill",
+  "ranch_poached",
   "reconnected",
   "scan_detected",
   "ship_commission_complete",

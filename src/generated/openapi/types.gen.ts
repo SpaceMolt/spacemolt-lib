@@ -172,6 +172,7 @@ export type AttackNpcResponse = {
     target: string;
     target_name: string;
     target_type: string;
+    warning?: string;
 };
 
 export type AttackPlayerResponse = {
@@ -215,6 +216,10 @@ export type Base = {
      * Whether non-owning-faction pilots may build facilities at this player station
      */
     allow_outsider_facilities?: boolean;
+    /**
+     * The landmark POI a player-built base was founded beside (the base occupies its own station POI); ranches bind their herd to this habitat POI
+     */
+    anchor_poi_id?: string;
     /**
      * Whether the station automatically buys fuel from docked pilots at live scarcity-based prices (player station); off by default
      */
@@ -616,6 +621,62 @@ export type BulkCreateSellOrdersResponse = {
     mode: 'bulk';
     results: Array<BulkSellOrderResult>;
     summary: BulkSummary;
+};
+
+export type BulkFactionBuyOrderResult = {
+    bucket?: string;
+    consolidated?: boolean;
+    error?: string;
+    error_code?: string;
+    escrow_refunded?: number;
+    index: number;
+    item?: string;
+    item_id?: string;
+    listing_fee?: number;
+    message?: string;
+    order_id?: string;
+    price_each?: number;
+    quantity?: number;
+    quantity_filled?: number;
+    quantity_listed?: number;
+    success: boolean;
+    total_escrowed?: number;
+    total_spent?: number;
+};
+
+export type BulkFactionCreateBuyOrdersResponse = {
+    action: 'faction_create_buy_order';
+    kind: 'bulk';
+    mode: 'bulk';
+    results: Array<BulkFactionBuyOrderResult>;
+    summary: BulkSummary;
+};
+
+export type BulkFactionCreateSellOrdersResponse = {
+    action: 'faction_create_sell_order';
+    kind: 'bulk';
+    mode: 'bulk';
+    results: Array<BulkFactionSellOrderResult>;
+    summary: BulkSummary;
+};
+
+export type BulkFactionSellOrderResult = {
+    bucket?: string;
+    consolidated?: boolean;
+    error?: string;
+    error_code?: string;
+    index: number;
+    item?: string;
+    item_id?: string;
+    listing_fee?: number;
+    message?: string;
+    order_id?: string;
+    price_each?: number;
+    quantity?: number;
+    quantity_filled?: number;
+    quantity_listed?: number;
+    success: boolean;
+    total_earned?: number;
 };
 
 export type BulkJobCancelResponse = {
@@ -1440,6 +1501,9 @@ export type CreateSellOrderResponse = {
 };
 
 export type CreatureInfo = {
+    brand_faction?: string;
+    brand_ranch?: string;
+    branded?: boolean;
     creature_id: string;
     hull: number;
     in_combat: boolean;
@@ -1801,6 +1865,8 @@ export type FacilityDefinition = {
     logistics?: boolean;
     lore?: string;
     maintenance_inputs?: Array<RecipeInput>;
+    max_cull_per_cycle?: number;
+    max_species_tier?: number;
     name: string;
     personal_bonus_type?: string;
     personal_bonus_value?: number;
@@ -1809,9 +1875,11 @@ export type FacilityDefinition = {
     player_station_buildable?: boolean;
     power_draw?: number;
     power_supply?: number;
+    ranch_capacity?: number;
     recipe_id?: string;
     repair_hull_per_item?: number;
     repair_item?: string;
+    required_xenobiology?: number;
     requires_service_type?: string;
     satisfied_description?: string;
     scan_falloff?: number;
@@ -2114,7 +2182,7 @@ export type FacilityRepairResponse = {
     ticks_to_complete: number;
 };
 
-export type FacilityResponse = FacilityListResponse | FacilityOwnedResponse | FacilityFactionOwnedResponse | FacilityHelpResponse | FacilityBuildResponse | FacilityUpgradesResponse | FacilityUpgradeResponse | FacilityDismantleResponse | FacilityRepairResponse | FacilityFactionBuildResponse | FacilityFactionUpgradeResponse | FacilityFactionListResponse | FacilityTransferResponse | FacilityPersonalBuildResponse | FacilityPersonalDecorateResponse | FacilityPersonalVisitResponse | FacilityTypeDiscoveryResponse | FacilityTypeListResponse | FacilityTypeDetailResponse | FacilityListForSaleResponse | FacilityBrowseForSaleResponse | FacilityBuyListingResponse | FacilityCancelListingResponse | CraftJobResponse | PackageJobResponse | FacilityJobListResponse | JobCancelResponse | BulkJobCancelResponse | JobReorderResponse | SetOutputPriceResponse | SetAccessResponse | SetFacilityNameResponse | SetFacilityDescriptionResponse;
+export type FacilityResponse = FacilityListResponse | FacilityOwnedResponse | FacilityFactionOwnedResponse | FacilityHelpResponse | FacilityBuildResponse | FacilityUpgradesResponse | FacilityUpgradeResponse | FacilityDismantleResponse | FacilityRepairResponse | FacilityFactionBuildResponse | FacilityFactionUpgradeResponse | FacilityFactionListResponse | FacilityTransferResponse | FacilityPersonalBuildResponse | FacilityPersonalDecorateResponse | FacilityPersonalVisitResponse | FacilityTypeDiscoveryResponse | FacilityTypeListResponse | FacilityTypeDetailResponse | FacilityListForSaleResponse | FacilityBrowseForSaleResponse | FacilityBuyListingResponse | FacilityCancelListingResponse | CraftJobResponse | PackageJobResponse | FacilityJobListResponse | JobCancelResponse | BulkJobCancelResponse | JobReorderResponse | SetOutputPriceResponse | SetAccessResponse | SetFacilityNameResponse | SetFacilityDescriptionResponse | RanchStatusResponse | RanchSetCullResponse;
 
 export type FacilitySummary = {
     facility_id: string;
@@ -2286,6 +2354,12 @@ export type FactionCancelMissionResponse = {
     status: string;
 };
 
+export type FactionCreateBuyOrderCommandResponse = ({
+    kind: 'single';
+} & FactionCreateBuyOrderResponse) | ({
+    kind: 'bulk';
+} & BulkFactionCreateBuyOrdersResponse);
+
 export type FactionCreateBuyOrderResponse = {
     action: string;
     bucket?: string;
@@ -2295,6 +2369,7 @@ export type FactionCreateBuyOrderResponse = {
     faction_tag: string;
     item: string;
     item_id: string;
+    kind: 'single';
     listing_fee: number;
     message: string;
     order_id: string;
@@ -2326,6 +2401,12 @@ export type FactionCreateRoleResponse = {
     role_id: string;
 };
 
+export type FactionCreateSellOrderCommandResponse = ({
+    kind: 'single';
+} & FactionCreateSellOrderResponse) | ({
+    kind: 'bulk';
+} & BulkFactionCreateSellOrdersResponse);
+
 export type FactionCreateSellOrderResponse = {
     action: string;
     bucket?: string;
@@ -2334,6 +2415,7 @@ export type FactionCreateSellOrderResponse = {
     faction_tag: string;
     item: string;
     item_id: string;
+    kind: 'single';
     listing_fee: number;
     message: string;
     order_id: string;
@@ -4641,6 +4723,20 @@ export type NotificationPlayerKill = {
     wreck_id?: string;
 };
 
+export type NotificationRanchPoached = {
+    herd_left: number;
+    killer_id: string;
+    killer_name: string;
+    message: string;
+    poi_id: string;
+    poi_name: string;
+    ranch_id: string;
+    ranch_name: string;
+    species_id: string;
+    species_name: string;
+    system_id: string;
+};
+
 export type NotificationReconnected = {
     message: string;
     ticks_remaining: number;
@@ -5208,6 +5304,53 @@ export type PrepayTaxResponse = {
     tax_prepaid_balance: number;
 };
 
+export type RanchFeedInfo = {
+    cycles_left: number;
+    per_cycle: number;
+    resource: string;
+    stocked: number;
+};
+
+export type RanchSetCullResponse = {
+    action: string;
+    cull_target: number;
+    facility_id: string;
+    herd: number;
+    message: string;
+};
+
+export type RanchStatusResponse = {
+    action: string;
+    anchor_name: string;
+    anchor_poi: string;
+    base_id: string;
+    base_name: string;
+    capacity: number;
+    cull_target: number;
+    domestication_active: boolean;
+    domestication_reserve: number;
+    facility_id: string;
+    facility_name: string;
+    fed_fraction: number;
+    feed: Array<RanchFeedInfo>;
+    growth_per_cycle: number;
+    herd: number;
+    level: number;
+    max_cull_per_cycle: number;
+    message: string;
+    produces?: Array<RanchYieldInfo>;
+    range_health: number;
+    species: string;
+    species_name: string;
+    supplies_ok: boolean;
+    wild_population: number;
+};
+
+export type RanchYieldInfo = {
+    item: string;
+    per_cycle: number;
+};
+
 export type ReadNoteResponse = {
     content: string;
     created_at: string;
@@ -5743,11 +5886,12 @@ export type ShipClass = {
      */
     based_on?: string;
     /**
-     * Materials required to build, keyed by item ID
+     * Materials required to build
      */
-    build_materials?: {
-        [key: string]: number;
-    };
+    build_materials?: Array<{
+        item_id?: string;
+        quantity?: number;
+    }>;
     /**
      * Ticks required to build this ship
      */
@@ -5936,6 +6080,7 @@ export type ShipmentContract = {
     reserved_exposure: number;
     reward_escrow: number;
     risk_band: 'probationary' | 'licensed' | 'trusted' | 'prime' | 'unpriced';
+    route_hops?: number;
     salvage_owner?: ShipmentActor;
     service_fee: number;
     service_level: 'standard' | 'priority';
@@ -5984,6 +6129,8 @@ export type ShippingDebtPaymentResponse = {
 
 export type ShippingListResponse = {
     action: 'list';
+    empty_reason?: string;
+    empty_reason_code?: string;
     page: number;
     per_page: number;
     shipments: Array<ShippingListing>;
@@ -6014,6 +6161,8 @@ export type ShippingQuote = {
     covered_value: number;
     deadline_ticks: number;
     destination_base_id: string;
+    estimate_samples: number;
+    estimated_reward: number;
     failure_debt: number;
     insurable: boolean;
     insurance_selected: boolean;
@@ -7414,7 +7563,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationStationRepaired | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, combat_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
@@ -7565,6 +7714,7 @@ export type WildlifeSurvey = {
     abundance: string;
     estimate: number;
     name: string;
+    ranched?: number;
     role: string;
     species: string;
 };
@@ -7590,6 +7740,29 @@ export type ZoneMoveLogEntry = {
     player_id: string;
     reason: string;
 };
+
+export type GetCatalogDumpData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/catalog.json';
+};
+
+export type GetCatalogDumpErrors = {
+    /**
+     * Rate limited — 1 request per minute per IP
+     */
+    429: unknown;
+};
+
+export type GetCatalogDumpResponses = {
+    /**
+     * The full catalog dump
+     */
+    200: CatalogDump;
+};
+
+export type GetCatalogDumpResponse = GetCatalogDumpResponses[keyof GetCatalogDumpResponses];
 
 export type AgentLogsV2Data = {
     body: {
@@ -12114,6 +12287,10 @@ export type SpacemoltFacilityFactionBuildData = {
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
         facility_type: string;
+        /**
+         * For 'faction_build' of a ranch facility: the grazer species to ranch (fixed for the facility's life). survey_system shows what lives in the system.
+         */
+        species?: string;
     };
     path?: never;
     query?: never;
@@ -12848,6 +13025,88 @@ export type SpacemoltFacilityPersonalVisitResponses = {
 };
 
 export type SpacemoltFacilityPersonalVisitResponse = SpacemoltFacilityPersonalVisitResponses[keyof SpacemoltFacilityPersonalVisitResponses];
+
+export type SpacemoltFacilityRanchSetCullData = {
+    body?: {
+        /**
+         * For 'ranch_set_cull': maintain the herd at this size — surplus is slaughtered each cycle into faction storage. 0 disables culling.
+         */
+        cull_target: number;
+        /**
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         */
+        facility_id?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/ranch_set_cull';
+};
+
+export type SpacemoltFacilityRanchSetCullErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityRanchSetCullResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (RanchSetCullResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: RanchSetCullResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilityRanchSetCullResponse = SpacemoltFacilityRanchSetCullResponses[keyof SpacemoltFacilityRanchSetCullResponses];
+
+export type SpacemoltFacilityRanchStatusData = {
+    body?: {
+        /**
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         */
+        facility_id?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/ranch_status';
+};
+
+export type SpacemoltFacilityRanchStatusErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityRanchStatusResponses = {
+    /**
+     * Result. structuredContent type: RanchStatusResponse
+     */
+    200: V2Response & {
+        structuredContent?: RanchStatusResponse;
+    };
+};
+
+export type SpacemoltFacilityRanchStatusResponse = SpacemoltFacilityRanchStatusResponses[keyof SpacemoltFacilityRanchStatusResponses];
 
 export type SpacemoltFacilityRemoveFactionData = {
     body?: {
@@ -15277,21 +15536,31 @@ export type SpacemoltFactionCommerceCreateBuyOrderData = {
          */
         bucket?: string;
         /**
-         * ID of the item to buy for faction storage
+         * ID of the item to buy for faction storage. Required for single mode.
          */
-        item_id: string;
+        item_id?: string;
         /**
-         * Maximum price per unit in credits
+         * Bulk mode: array of faction buy orders to create (max 50). Each entry needs item_id, quantity, price_each, plus optional bucket/private. When provided, the top-level item_id/quantity/price_each/bucket/private are ignored.
          */
-        price_each: number;
+        orders?: Array<{
+            bucket?: string;
+            item_id: string;
+            price_each: number;
+            private?: boolean;
+            quantity: number;
+        }>;
+        /**
+         * Maximum price per unit in credits. Required for single mode.
+         */
+        price_each?: number;
         /**
          * Optional: post a Company Store listing — a members-only buy order visible to and fillable by faction members only. Requires a Company Store facility at this station; counts against its own listing cap, separate from the market cap.
          */
         private?: boolean;
         /**
-         * Number of items to buy
+         * Number of items to buy. Required for single mode.
          */
-        quantity: number;
+        quantity?: number;
     };
     path?: never;
     query?: never;
@@ -15315,11 +15584,11 @@ export type SpacemoltFactionCommerceCreateBuyOrderErrors = {
 
 export type SpacemoltFactionCommerceCreateBuyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionCreateBuyOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionCreateBuyOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FactionCreateBuyOrderResponse;
+            details?: FactionCreateBuyOrderCommandResponse;
         };
     };
 };
@@ -15333,21 +15602,31 @@ export type SpacemoltFactionCommerceCreateSellOrderData = {
          */
         bucket?: string;
         /**
-         * ID of the item to sell from faction storage
+         * ID of the item to sell from faction storage. Required for single mode.
          */
-        item_id: string;
+        item_id?: string;
         /**
-         * Price per unit in credits
+         * Bulk mode: array of faction sell orders to create (max 50). Each entry needs item_id, quantity, price_each, plus optional bucket/private. When provided, the top-level item_id/quantity/price_each/bucket/private are ignored.
          */
-        price_each: number;
+        orders?: Array<{
+            bucket?: string;
+            item_id: string;
+            price_each: number;
+            private?: boolean;
+            quantity: number;
+        }>;
+        /**
+         * Price per unit in credits. Required for single mode.
+         */
+        price_each?: number;
         /**
          * Optional: post a Company Store listing — a members-only sell order visible to and fillable by faction members only. Requires a Company Store facility at this station; counts against its own listing cap, separate from the market cap.
          */
         private?: boolean;
         /**
-         * Number of items to list for sale
+         * Number of items to list for sale. Required for single mode.
          */
-        quantity: number;
+        quantity?: number;
     };
     path?: never;
     query?: never;
@@ -15371,11 +15650,11 @@ export type SpacemoltFactionCommerceCreateSellOrderErrors = {
 
 export type SpacemoltFactionCommerceCreateSellOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionCreateSellOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionCreateSellOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: FactionCreateSellOrderResponse;
+            details?: FactionCreateSellOrderCommandResponse;
         };
     };
 };
@@ -18174,6 +18453,18 @@ export type SpacemoltShippingListData = {
          */
         eligible_as?: 'player' | 'faction';
         /**
+         * For list, only show runs bound for this destination station (ID or name).
+         */
+        filter_destination?: string;
+        /**
+         * For list, only show runs of this service tier.
+         */
+        filter_service_level?: 'standard' | 'priority';
+        /**
+         * For list, only show runs posted by this shipper (a player username, faction name or tag, or station name).
+         */
+        filter_shipper?: string;
+        /**
          * List page (default 1).
          */
         page?: number;
@@ -18181,6 +18472,10 @@ export type SpacemoltShippingListData = {
          * Contracts per page (default 20, max 50).
          */
         per_page?: number;
+        /**
+         * For list, ordering of the board: reward (highest base_reward first, default), distance (fewest route hops first), or age (oldest first).
+         */
+        sort?: 'reward' | 'distance' | 'age';
     };
     path?: never;
     query?: never;
@@ -18260,6 +18555,10 @@ export type SpacemoltShippingPayDebtResponse = SpacemoltShippingPayDebtResponses
 export type SpacemoltShippingPostData = {
     body?: {
         /**
+         * Flat reward paid to the carrier on delivery. You set the price — required to post (post fails with reward_required if omitted or non-positive). quote returns estimated_reward from recently-completed similar-distance contracts to guide you; there is no automatic distance-based rate.
+         */
+        base_reward?: number;
+        /**
          * Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid.
          */
         destination_base_id: string;
@@ -18307,6 +18606,10 @@ export type SpacemoltShippingPostData = {
          * Faction Storage Extension bucket ID when source=faction; omit for the faction main store.
          */
         source_bucket_id?: string;
+        /**
+         * Optional extra paid for fast delivery, decaying linearly from full at the on-time target tick to zero at the deadline. The timing window itself is set by service_level.
+         */
+        speed_bonus?: number;
         /**
          * Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id.
          */
@@ -18386,6 +18689,10 @@ export type SpacemoltShippingProfileResponse = SpacemoltShippingProfileResponses
 export type SpacemoltShippingQuoteData = {
     body?: {
         /**
+         * Flat reward paid to the carrier on delivery. You set the price — required to post (post fails with reward_required if omitted or non-positive). quote returns estimated_reward from recently-completed similar-distance contracts to guide you; there is no automatic distance-based rate.
+         */
+        base_reward?: number;
+        /**
          * Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid.
          */
         destination_base_id: string;
@@ -18429,6 +18736,10 @@ export type SpacemoltShippingQuoteData = {
          * Faction Storage Extension bucket ID when source=faction; omit for the faction main store.
          */
         source_bucket_id?: string;
+        /**
+         * Optional extra paid for fast delivery, decaying linearly from full at the on-time target tick to zero at the deadline. The timing window itself is set by service_level.
+         */
+        speed_bonus?: number;
         /**
          * Who may accept the listing. invited also requires invited_carrier_type and invited_carrier_id.
          */
