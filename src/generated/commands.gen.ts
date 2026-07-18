@@ -567,7 +567,7 @@ export interface SpacemoltFacilitySetAccessParams {
 }
 
 export interface SpacemoltFacilitySetAutoBuyFuelParams {
-  /** Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, funded by the station economy (set_auto_buy_fuel; off by default) */
+  /** Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, paid from your faction's treasury capped to affordability (set_auto_buy_fuel; off by default) */
   auto_buy_fuel?: boolean;
 }
 
@@ -1175,7 +1175,7 @@ export interface SpacemoltShippingPostParams {
   recipient_id?: string;
   /** Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper. */
   recipient_type?: "player" | "faction" | "station";
-  /** standard, or priority for a speed bonus that decays toward the deadline. */
+  /** Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus. */
   service_level?: "standard" | "priority";
   /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. */
   shipper?: "player" | "faction";
@@ -1211,7 +1211,7 @@ export interface SpacemoltShippingQuoteParams {
   recipient_id?: string;
   /** Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper. */
   recipient_type?: "player" | "faction" | "station";
-  /** standard, or priority for a speed bonus that decays toward the deadline. */
+  /** Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus. */
   service_level?: "standard" | "priority";
   /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. */
   shipper?: "player" | "faction";
@@ -1384,14 +1384,16 @@ export interface SpacemoltSocialForumUpvoteParams {
 export interface SpacemoltSocialGetActionLogParams {
   /** Filter by category (combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other) */
   category?: "combat" | "trading" | "ship" | "crafting" | "faction" | "mission" | "skill" | "salvage" | "storage" | "achievement" | "mining" | "navigation" | "exploration" | "reputation" | "drone" | "session" | "other";
-  /** Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history) */
+  /** Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history), or an array of event_types to match any of them */
   event_type?: string;
   /** View a faction's action log instead of your own (must be a member) */
   faction_id?: string;
-  /** Page number (default 1) */
+  /** Page number (default 1). Ignored when since_id is set. */
   page?: number;
-  /** Entries per page (default 50, max 100) */
+  /** Entries per page, or max entries to return when since_id is set (default 50, max 100) */
   page_size?: number;
+  /** Cursor for gap-free incremental polling: return only entries with id greater than this, oldest-first, up to page_size. Pass 0 or omit for normal newest-first paging. Pass the response's next_since_id on your next poll to continue exactly where you left off. */
+  since_id?: number;
 }
 
 export interface SpacemoltSocialGetChatHistoryParams {

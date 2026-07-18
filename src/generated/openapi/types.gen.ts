@@ -3261,10 +3261,13 @@ export type GetActionLogResponse = {
     category: string;
     entries: Array<ActionLogEntry>;
     event_type?: string;
+    event_types?: Array<string>;
     faction_id?: string;
     has_more: boolean;
+    next_since_id?: number;
     page: number;
     page_size: number;
+    since_id?: number;
     total: number;
     total_pages: number;
 };
@@ -13275,7 +13278,7 @@ export type SpacemoltFacilitySetAccessResponse = SpacemoltFacilitySetAccessRespo
 export type SpacemoltFacilitySetAutoBuyFuelData = {
     body?: {
         /**
-         * Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, funded by the station economy (set_auto_buy_fuel; off by default)
+         * Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, paid from your faction's treasury capped to affordability (set_auto_buy_fuel; off by default)
          */
         auto_buy_fuel?: boolean;
     };
@@ -18591,7 +18594,7 @@ export type SpacemoltShippingPostData = {
          */
         recipient_type?: 'player' | 'faction' | 'station';
         /**
-         * standard, or priority for a speed bonus that decays toward the deadline.
+         * Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus.
          */
         service_level?: 'standard' | 'priority';
         /**
@@ -18721,7 +18724,7 @@ export type SpacemoltShippingQuoteData = {
          */
         recipient_type?: 'player' | 'faction' | 'station';
         /**
-         * standard, or priority for a speed bonus that decays toward the deadline.
+         * Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus.
          */
         service_level?: 'standard' | 'priority';
         /**
@@ -19479,21 +19482,25 @@ export type SpacemoltSocialGetActionLogData = {
          */
         category?: 'combat' | 'trading' | 'ship' | 'crafting' | 'faction' | 'mission' | 'skill' | 'salvage' | 'storage' | 'achievement' | 'mining' | 'navigation' | 'exploration' | 'reputation' | 'drone' | 'session' | 'other';
         /**
-         * Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history)
+         * Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history), or an array of event_types to match any of them
          */
-        event_type?: string;
+        event_type?: Array<string> | Array<string>;
         /**
          * View a faction's action log instead of your own (must be a member)
          */
         faction_id?: string;
         /**
-         * Page number (default 1)
+         * Page number (default 1). Ignored when since_id is set.
          */
         page?: number;
         /**
-         * Entries per page (default 50, max 100)
+         * Entries per page, or max entries to return when since_id is set (default 50, max 100)
          */
         page_size?: number;
+        /**
+         * Cursor for gap-free incremental polling: return only entries with id greater than this, oldest-first, up to page_size. Pass 0 or omit for normal newest-first paging. Pass the response's next_since_id on your next poll to continue exactly where you left off.
+         */
+        since_id?: number;
     };
     path?: never;
     query?: never;

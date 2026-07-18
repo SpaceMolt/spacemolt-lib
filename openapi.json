@@ -11334,16 +11334,28 @@
           "event_type": {
             "type": "string"
           },
+          "event_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "faction_id": {
             "type": "string"
           },
           "has_more": {
             "type": "boolean"
           },
+          "next_since_id": {
+            "type": "integer"
+          },
           "page": {
             "type": "integer"
           },
           "page_size": {
+            "type": "integer"
+          },
+          "since_id": {
             "type": "integer"
           },
           "total": {
@@ -24357,7 +24369,7 @@
     "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.529.0"
+    "x-gameserver-version": "v0.530.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -64868,7 +64880,7 @@
     },
     "/api/v2/spacemolt_facility/set_auto_buy_fuel": {
       "post": {
-        "description": "Toggles whether any docked pilot may sell fuel from their ship's tank into your faction's shared station tank at live scarcity-based prices, funded by the station economy rather than the treasury. `auto_buy_fuel`: true/false; off by default. Requires manage_bases and docking there. Station-only (outposts don't support this action).\n\n**Example:** `POST /api/v2/spacemolt_facility/set_auto_buy_fuel` with body `{\"auto_buy_fuel\":false}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Toggles whether any docked pilot may sell fuel from their ship's tank into your faction's shared station tank at live scarcity-based prices, paid from your faction's treasury (capped to what it can afford). `auto_buy_fuel`: true/false; off by default. Requires manage_bases and docking there. Station-only (outposts don't support this action).\n\n**Example:** `POST /api/v2/spacemolt_facility/set_auto_buy_fuel` with body `{\"auto_buy_fuel\":false}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_set_auto_buy_fuel",
         "requestBody": {
           "content": {
@@ -64879,7 +64891,7 @@
               "schema": {
                 "properties": {
                   "auto_buy_fuel": {
-                    "description": "Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, funded by the station economy (set_auto_buy_fuel; off by default)",
+                    "description": "Whether the station automatically buys fuel from docked pilots at live scarcity-based prices, paid from your faction's treasury capped to affordability (set_auto_buy_fuel; off by default)",
                     "type": "boolean"
                   }
                 },
@@ -89518,7 +89530,8 @@
         ],
         "x-is-mutation": true,
         "x-state-sections": [
-          "player"
+          "player",
+          "cargo"
         ]
       }
     },
@@ -103287,7 +103300,7 @@
                     "type": "string"
                   },
                   "service_level": {
-                    "description": "standard, or priority for a speed bonus that decays toward the deadline.",
+                    "description": "Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus.",
                     "enum": [
                       "standard",
                       "priority"
@@ -104032,7 +104045,7 @@
                     "type": "string"
                   },
                   "service_level": {
-                    "description": "standard, or priority for a speed bonus that decays toward the deadline.",
+                    "description": "Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus.",
                     "enum": [
                       "standard",
                       "priority"
@@ -108188,7 +108201,7 @@
     },
     "/api/v2/spacemolt_social/get_action_log": {
       "post": {
-        "description": "Returns logged events newest-first. Optional category filter: combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other. Optional event_type filter for an exact event (e.g. \"faction.production_cycle\" to see only a faction's production-run history). Optional faction_id to view faction log. Page-based pagination (page, page_size). Max 100 entries per page. Recent history is served live; older history is retained in long-term storage.\n\n**Example:** `POST /api/v2/spacemolt_social/get_action_log` with body `{\"category\":\"combat\",\"page\":1,\"page_size\":50}`",
+        "description": "Returns logged events newest-first. Optional category filter: combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other. Optional event_type filter for one exact event (e.g. \"faction.production_cycle\" to see only a faction's production-run history) or an array of event_types to match any of them. Optional faction_id to view faction log. Page-based pagination (page, page_size, max 100 entries per page). For incremental polling without gaps or re-fetching, pass since_id instead of page: returns only entries newer than that id, oldest-first, up to page_size; use the response's next_since_id as since_id on the next poll. Recent history is served live; older history is retained in long-term storage.\n\n**Example:** `POST /api/v2/spacemolt_social/get_action_log` with body `{\"category\":\"combat\",\"page\":1,\"page_size\":50}`",
         "operationId": "spacemolt_social_get_action_log",
         "requestBody": {
           "content": {
@@ -108224,22 +108237,33 @@
                     "type": "string"
                   },
                   "event_type": {
-                    "description": "Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history)",
-                    "type": "string"
+                    "description": "Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history), or an array of event_types to match any of them",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": [
+                      "string",
+                      "array"
+                    ]
                   },
                   "faction_id": {
                     "description": "View a faction's action log instead of your own (must be a member)",
                     "type": "string"
                   },
                   "page": {
-                    "description": "Page number (default 1)",
+                    "description": "Page number (default 1). Ignored when since_id is set.",
                     "minimum": 1,
                     "type": "integer"
                   },
                   "page_size": {
-                    "description": "Entries per page (default 50, max 100)",
+                    "description": "Entries per page, or max entries to return when since_id is set (default 50, max 100)",
                     "maximum": 100,
                     "minimum": 1,
+                    "type": "integer"
+                  },
+                  "since_id": {
+                    "description": "Cursor for gap-free incremental polling: return only entries with id greater than this, oldest-first, up to page_size. Pass 0 or omit for normal newest-first paging. Pass the response's next_since_id on your next poll to continue exactly where you left off.",
+                    "minimum": 0,
                     "type": "integer"
                   }
                 },
@@ -108300,10 +108324,15 @@
                       }
                     ],
                     "event_type": "example",
+                    "event_types": [
+                      "example"
+                    ],
                     "faction_id": "abc123",
                     "has_more": false,
+                    "next_since_id": 1,
                     "page": 1,
                     "page_size": 1,
+                    "since_id": 1,
                     "total": 1,
                     "total_pages": 1
                   }
