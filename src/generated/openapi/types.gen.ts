@@ -12010,6 +12010,10 @@ export type SpacemoltFacilityBuildData = {
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
         facility_type: string;
+        /**
+         * For 'build'/'upgrade'/'faction_build'/'faction_upgrade': source materials directly from these packages instead of unpacking them into storage first. Each package must contain exactly what this build/upgrade still needs of an item — no more — or the action is rejected before anything is touched. Storage and cargo still backfill any shortfall.
+         */
+        package_ids?: Array<string>;
     };
     path?: never;
     query?: never;
@@ -12301,6 +12305,10 @@ export type SpacemoltFacilityFactionBuildData = {
          */
         facility_type: string;
         /**
+         * For 'build'/'upgrade'/'faction_build'/'faction_upgrade': source materials directly from these packages instead of unpacking them into storage first. Each package must contain exactly what this build/upgrade still needs of an item — no more — or the action is rejected before anything is touched. Storage and cargo still backfill any shortfall.
+         */
+        package_ids?: Array<string>;
+        /**
          * For 'faction_build' of a ranch facility: the grazer species to ranch (fixed for the facility's life). survey_system shows what lives in the system.
          */
         species?: string;
@@ -12462,6 +12470,10 @@ export type SpacemoltFacilityFactionUpgradeData = {
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
         facility_type: string;
+        /**
+         * For 'build'/'upgrade'/'faction_build'/'faction_upgrade': source materials directly from these packages instead of unpacking them into storage first. Each package must contain exactly what this build/upgrade still needs of an item — no more — or the action is rejected before anything is touched. Storage and cargo still backfill any shortfall.
+         */
+        package_ids?: Array<string>;
     };
     path?: never;
     query?: never;
@@ -13936,6 +13948,10 @@ export type SpacemoltFacilityUpgradeData = {
          * Facility type ID. For 'types' action: get full details for this specific type. For 'build'/'upgrade': the type to build/upgrade to.
          */
         facility_type: string;
+        /**
+         * For 'build'/'upgrade'/'faction_build'/'faction_upgrade': source materials directly from these packages instead of unpacking them into storage first. Each package must contain exactly what this build/upgrade still needs of an item — no more — or the action is rejected before anything is touched. Storage and cargo still backfill any shortfall.
+         */
+        package_ids?: Array<string>;
     };
     path?: never;
     query?: never;
