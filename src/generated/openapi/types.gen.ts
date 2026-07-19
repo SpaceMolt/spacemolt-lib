@@ -1558,6 +1558,7 @@ export type DepositItemsResponse = {
     cargo_remaining: number;
     cargo_space: number;
     item_id: string;
+    message?: string;
     quantity: number;
     storage_total: number;
 };
@@ -5163,6 +5164,10 @@ export type Player = {
     stats?: PlayerStats;
     status_message?: string;
     /**
+     * ID of own ship currently being towed via a tow rig, empty if not towing a ship
+     */
+    towing_ship_id?: string;
+    /**
      * ID of wreck currently being towed, empty if not towing
      */
     towing_wreck_id?: string;
@@ -7310,6 +7315,10 @@ export type V2GameState = {
         };
         status_message?: string;
         /**
+         * ID of this player's own ship currently under tow via a tow rig (omitted when not towing a ship)
+         */
+        towing_ship_id?: string;
+        /**
          * ID of the wreck this player is currently towing (omitted when not towing)
          */
         towing_wreck_id?: string;
@@ -7727,6 +7736,7 @@ export type WithdrawItemsResponse = {
     cargo_space: number;
     cargo_total: number;
     item_id: string;
+    message?: string;
     quantity: number;
     storage_remaining: number;
 };
