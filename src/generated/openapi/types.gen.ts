@@ -1865,6 +1865,7 @@ export type FacilityDefinition = {
     life_support_supply?: number;
     logistics?: boolean;
     lore?: string;
+    maintenance_fuel?: number;
     maintenance_inputs?: Array<RecipeInput>;
     max_cull_per_cycle?: number;
     max_species_tier?: number;
