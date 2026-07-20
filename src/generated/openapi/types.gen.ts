@@ -7,6 +7,8 @@ export type AbandonMissionResponse = {
 };
 
 export type AcceptMissionResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     expires_at: string;
     message: string;
     mission_id: string;
@@ -130,6 +132,8 @@ export type AnalysisStep = {
 };
 
 export type AnalyzeMarketResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     insights: Array<MarketInsight>;
     message: string;
     skill_level: number;
@@ -523,6 +527,8 @@ export type BrowseShipsResponse = {
 };
 
 export type BuildBaseResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     base_id: string;
     fee_paid: number;
     hint: string;
@@ -571,6 +577,8 @@ export type BulkCancelOrderResult = {
 
 export type BulkCancelOrdersResponse = {
     action: 'cancel_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
     results: Array<BulkCancelOrderResult>;
@@ -585,6 +593,8 @@ export type BulkCancelReturns = {
 
 export type BulkCraftResponse = {
     action: 'craft' | 'recycle';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk_craft';
     mode: 'bulk';
     results: Array<BulkCraftResult>;
@@ -609,6 +619,8 @@ export type BulkCraftResult = {
 
 export type BulkCreateBuyOrdersResponse = {
     action: 'create_buy_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
     results: Array<BulkBuyOrderResult>;
@@ -617,6 +629,8 @@ export type BulkCreateBuyOrdersResponse = {
 
 export type BulkCreateSellOrdersResponse = {
     action: 'create_sell_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
     results: Array<BulkSellOrderResult>;
@@ -646,6 +660,8 @@ export type BulkFactionBuyOrderResult = {
 
 export type BulkFactionCreateBuyOrdersResponse = {
     action: 'faction_create_buy_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
     results: Array<BulkFactionBuyOrderResult>;
@@ -654,6 +670,8 @@ export type BulkFactionCreateBuyOrdersResponse = {
 
 export type BulkFactionCreateSellOrdersResponse = {
     action: 'faction_create_sell_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
     results: Array<BulkFactionSellOrderResult>;
@@ -681,6 +699,8 @@ export type BulkFactionSellOrderResult = {
 
 export type BulkJobCancelResponse = {
     action: 'job_cancel';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk_cancel';
     message: string;
     mode: 'bulk';
@@ -702,6 +722,8 @@ export type BulkModifyOrderResult = {
 
 export type BulkModifyOrdersResponse = {
     action: 'modify_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
     results: Array<BulkModifyOrderResult>;
@@ -750,6 +772,8 @@ export type BulkStorageItemResult = {
 
 export type BulkStorageResponse = {
     action: 'bulk_deposit' | 'bulk_withdraw' | 'bulk_transfer';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
     dest_bucket?: string;
@@ -775,6 +799,8 @@ export type BurnLogEntry = {
 };
 
 export type BuyInsuranceResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     coverage: number;
     expires_at: string;
     factors?: Array<RiskFactor>;
@@ -786,6 +812,8 @@ export type BuyInsuranceResponse = {
 };
 
 export type BuyListedShipResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     class_id: string;
     credits_left: number;
     message: string;
@@ -796,7 +824,9 @@ export type BuyListedShipResponse = {
 
 export type BuyResponse = {
     action: string;
+    auto_docked?: boolean;
     auto_listed?: AutoListedOrder;
+    auto_undocked?: boolean;
     delivered_to_cargo?: number;
     delivered_to_storage?: number;
     fills: Array<Fill>;
@@ -826,6 +856,8 @@ export type CancelOrderCommandResponse = ({
 
 export type CancelOrderResponse = {
     action: 'cancel_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     delivered_to?: string;
     faction_order?: boolean;
     kind: 'single';
@@ -1162,6 +1194,8 @@ export type ClientSystemInfo = {
 };
 
 export type CloakResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cloak_strength: number;
     enabled: boolean;
     message: string;
@@ -1266,6 +1300,8 @@ export type CommissionMaterialStatus = {
 };
 
 export type CommissionQuoteResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     blockers?: Array<string>;
     build_materials?: Array<CargoItem>;
     build_time?: number;
@@ -1287,6 +1323,8 @@ export type CommissionQuoteResponse = {
 };
 
 export type CommissionShipResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     build_time?: number;
     commission_id: string;
     credits_left: number;
@@ -1306,6 +1344,8 @@ export type CommissionStatusResponse = {
 };
 
 export type CompleteMissionResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     chain_next?: string;
     community_contributed?: {
         [key: string]: number;
@@ -1358,6 +1398,8 @@ export type CraftCommandResponse = ({
 
 export type CraftJobResponse = {
     action: 'craft' | 'recycle' | 'job_add';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     effective_time_per_run: number;
     escrowed: EscrowSummary;
     est_completion_tick: number;
@@ -1376,6 +1418,8 @@ export type CraftJobResponse = {
 
 export type CraftQueueResponse = {
     action: 'queue';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     jobs: Array<JobView>;
     kind: 'queue';
     message?: string;
@@ -1384,6 +1428,8 @@ export type CraftQueueResponse = {
 
 export type CraftQuoteResponse = {
     action: 'craft' | 'recycle';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cost: EscrowSummary;
     credits_total: number;
     dry_run: boolean;
@@ -1433,6 +1479,8 @@ export type CreateBuyOrderCommandResponse = ({
 
 export type CreateBuyOrderResponse = {
     action: 'create_buy_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     consolidated?: boolean;
     delivered_to_cargo?: number;
     delivered_to_storage?: number;
@@ -1478,6 +1526,8 @@ export type CreateSellOrderCommandResponse = ({
 
 export type CreateSellOrderResponse = {
     action: 'create_sell_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     consolidated?: boolean;
     fills?: Array<Fill>;
     from_cargo?: number;
@@ -1514,6 +1564,8 @@ export type CreatureInfo = {
 };
 
 export type DeclineMissionResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     giver?: MissionGiverInfo;
     message: string;
     template_id: string;
@@ -1528,6 +1580,8 @@ export type DeleteNoteResponse = {
 
 export type DeployAllDronesResponse = {
     action: 'deploy_all_drones';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bandwidth_total: number;
     bandwidth_used: number;
     deployed: number;
@@ -1543,6 +1597,8 @@ export type DeployDroneCommandResponse = ({
 
 export type DeployDroneResponse = {
     action: 'deploy_drone';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bandwidth_total: number;
     bandwidth_used: number;
     drone_id: string;
@@ -1555,6 +1611,8 @@ export type DeployDroneResponse = {
 
 export type DepositItemsResponse = {
     action: 'deposit_items';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cargo_remaining: number;
     cargo_space: number;
     item_id: string;
@@ -1565,6 +1623,8 @@ export type DepositItemsResponse = {
 
 export type DistressSignalResponse = {
     action: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     distress_type: string;
     expires_seconds: number;
     message: string;
@@ -1625,6 +1685,8 @@ export type DroneInfo = {
 
 export type EmpireGiftResponse = {
     action: 'empire_gift_credits' | 'empire_gift_items' | 'empire_gift_ship';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     base_id: string;
     base_name: string;
     cargo_remaining?: number;
@@ -1738,6 +1800,8 @@ export type EscrowedRewards = {
 
 export type EspionageResponse = {
     action: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     intel_type?: string;
     outcome: string;
     story: string;
@@ -2364,6 +2428,8 @@ export type FactionCreateBuyOrderCommandResponse = ({
 
 export type FactionCreateBuyOrderResponse = {
     action: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bucket?: string;
     consolidated?: boolean;
     escrow_refunded?: number;
@@ -2411,6 +2477,8 @@ export type FactionCreateSellOrderCommandResponse = ({
 
 export type FactionCreateSellOrderResponse = {
     action: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bucket?: string;
     consolidated?: boolean;
     faction_id: string;
@@ -2455,12 +2523,16 @@ export type FactionDeleteRoomResponse = {
 export type FactionDepositCreditsResponse = {
     action: 'faction_deposit_credits';
     amount: number;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     faction_credits: number;
     player_credits: number;
 };
 
 export type FactionDepositFuelResponse = {
     action: 'faction_deposit_fuel';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     fuel: number;
     fuel_capacity: number;
     ship_fuel: number;
@@ -2469,6 +2541,8 @@ export type FactionDepositFuelResponse = {
 
 export type FactionDepositItemsResponse = {
     action: 'faction_deposit_items';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
     cargo_remaining: number;
@@ -2533,6 +2607,8 @@ export type FactionGarageStationEntry = {
 
 export type FactionGarageStoreResponse = {
     action: 'faction_garage_store';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     base_id: string;
     capacity: number;
     hint: string;
@@ -2553,6 +2629,8 @@ export type FactionGetInvitesResponse = {
 
 export type FactionGiftResponse = {
     action: 'faction_gift';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     credits_sent: number;
     faction_id: string;
     faction_name: string;
@@ -2696,6 +2774,8 @@ export type FactionPeaceProposal = {
 };
 
 export type FactionPostMissionResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     escrowed: EscrowedRewards;
     message: string;
     status: string;
@@ -2918,6 +2998,8 @@ export type FactionWarInfo = {
 export type FactionWithdrawCreditsResponse = {
     action: 'faction_withdraw_credits';
     amount: number;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     faction_credits: number;
     player_credits: number;
 };
@@ -2929,6 +3011,8 @@ export type FactionWithdrawInviteResponse = {
 
 export type FactionWithdrawItemsResponse = {
     action: 'faction_withdraw_items';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
     cargo_space: number;
@@ -3543,6 +3627,8 @@ export type GiftNotification = {
 
 export type GiftShipResponse = {
     action: 'gift_ship';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     base_id: string;
     class_id: string;
     class_name?: string;
@@ -3558,6 +3644,8 @@ export type GuideEntry = {
 };
 
 export type HuntResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     command: string;
     message: string;
     pending: boolean;
@@ -3627,6 +3715,8 @@ export type InspectResponse = {
 };
 
 export type InstallModResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cpu_used: number;
     current_ammo?: number;
     loaded_ammo?: string;
@@ -3747,6 +3837,8 @@ export type JailRecord = {
 
 export type JettisonBulkResponse = {
     action: 'bulk_jettison';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     container_id?: string;
     failed: number;
     message: string;
@@ -3772,6 +3864,8 @@ export type JettisonItemResult = {
 
 export type JettisonResponse = {
     action: 'jettison';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     container_id?: string;
     item_id: string;
     item_name: string;
@@ -3781,6 +3875,8 @@ export type JettisonResponse = {
 
 export type JobCancelResponse = {
     action: 'job_cancel';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     job_id: string;
     kind: 'cancel';
     message: string;
@@ -3871,6 +3967,8 @@ export type ListPassengersResponse = {
 };
 
 export type ListShipForSaleResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     credits_left: number;
     fee: number;
     listing_id: string;
@@ -3900,6 +3998,8 @@ export type LoadDroneResponse = {
 };
 
 export type LoadPassengersResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     count: number;
     loaded: Array<PassengerView>;
     message: string;
@@ -3937,6 +4037,8 @@ export type LoginResponse = {
 
 export type LootWreckAllResponse = {
     action: 'loot_wreck_all';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     looted: Array<LootedItem>;
     looted_modules?: Array<LootedModule>;
     message: string;
@@ -3955,6 +4057,8 @@ export type LootWreckCommandResponse = ({
 
 export type LootWreckResponse = {
     action: 'loot_wreck';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     item_id?: string;
     module_id?: string;
     module_type_id?: string;
@@ -3980,6 +4084,8 @@ export type LootedModule = {
 };
 
 export type LoungeCheckInResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     capacity: number;
     checked_in: Array<PassengerView>;
     count: number;
@@ -4184,6 +4290,8 @@ export type ModifyOrderCommandResponse = ({
 
 export type ModifyOrderResponse = {
     action: 'modify_order';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     kind: 'single';
     listing_fee?: number;
     message: string;
@@ -4932,6 +5040,8 @@ export type Poi = {
 
 export type PackageJobResponse = {
     action: 'pack' | 'unpack';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     escrowed: EscrowSummary;
     eta_ticks: number;
     external?: boolean;
@@ -5021,6 +5131,8 @@ export type PathfinderJumpResponse = {
 };
 
 export type PendingActionResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     command: string;
     message: string;
     pending: boolean;
@@ -5051,6 +5163,8 @@ export type PirateInfo = {
 };
 
 export type PlaceShipBuyOrderResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     class_id: string;
     credits_left: number;
     message: string;
@@ -5428,6 +5542,8 @@ export type RecycleJobResponse = ({
 } & BulkJobCancelResponse);
 
 export type RefitShipResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cargo_returned: number;
     class_id: string;
     default_modules: number;
@@ -5518,6 +5634,8 @@ export type ReloadResponse = {
 };
 
 export type RepairModuleResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     message: string;
     module_id: string;
     repair_amount: number;
@@ -5634,6 +5752,8 @@ export type ScrapShipResponse = {
 
 export type ScrapWreckResponse = {
     action: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     materials: Array<SalvageMaterial>;
     message: string;
     ship_class?: string;
@@ -5661,7 +5781,9 @@ export type SelfDestructResponse = {
 
 export type SellResponse = {
     action: string;
+    auto_docked?: boolean;
     auto_listed?: AutoListedOrder;
+    auto_undocked?: boolean;
     fills: Array<Fill>;
     item: string;
     item_id: string;
@@ -5677,6 +5799,8 @@ export type SellResponse = {
 };
 
 export type SellShipToOrderResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     class_id: string;
     credits_left: number;
     message: string;
@@ -5686,6 +5810,8 @@ export type SellShipToOrderResponse = {
 
 export type SellWreckResponse = {
     action: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cargo_value?: number;
     message: string;
     new_balance: number;
@@ -5697,6 +5823,8 @@ export type SellWreckResponse = {
 
 export type SendGiftResponse = {
     action: 'send_gift';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     base_id: string;
     cargo_remaining?: number;
     credits_sent?: number;
@@ -5741,6 +5869,8 @@ export type SetFacilityNameResponse = {
 };
 
 export type SetHomeBaseResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     home_base: string;
     message: string;
     old_home_base?: string;
@@ -6458,6 +6588,8 @@ export type SubscribeObservationResponse = {
 
 export type SupplyCommissionResponse = {
     all_sourced: boolean;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     commission_id: string;
     commission_status: string;
     credits?: number;
@@ -6497,6 +6629,8 @@ export type SurveyedPoi = {
 export type SwitchShipResponse = {
     active_ship_class: string;
     active_ship_id: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cargo_note?: string;
     cargo_to_storage?: Array<SoldCargoItem>;
     claimed_from_faction_garage?: boolean;
@@ -6650,6 +6784,8 @@ export type TaxableIncomeByCategoryEntry = {
 
 export type TowWreckResponse = {
     action: string;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cargo_count?: number;
     insured: boolean;
     message: string;
@@ -6723,6 +6859,8 @@ export type TradeOfferResponse = {
 export type TransferCreditsResponse = {
     action: 'transfer';
     amount: number;
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     dest_credits: number;
     destination: string;
     source: string;
@@ -6731,6 +6869,8 @@ export type TransferCreditsResponse = {
 
 export type TransferItemsResponse = {
     action: 'transfer';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
     dest_bucket?: string;
@@ -6744,6 +6884,8 @@ export type TransferItemsResponse = {
 };
 
 export type TransferPassengersResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     count: number;
     kind: 'transfer';
     message: string;
@@ -6822,6 +6964,8 @@ export type UndockResponse = {
 };
 
 export type UninstallModResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cpu_used: number;
     damaged: boolean;
     destroyed?: boolean;
@@ -6834,6 +6978,8 @@ export type UninstallModResponse = {
 };
 
 export type UnloadAllPassengersResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     delivered: Array<PassengerView>;
     fare_collected: number;
     kind: 'all';
@@ -6861,6 +7007,8 @@ export type UnloadPassengerCommandResponse = ({
 } & LoungeCheckInResponse);
 
 export type UnloadPassengerResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     base_fare?: number;
     delivered: boolean;
     fare_collected: number;
@@ -7734,6 +7882,8 @@ export type WildlifeSurvey = {
 
 export type WithdrawItemsResponse = {
     action: 'withdraw_items';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
     cargo_space: number;
     cargo_total: number;
     item_id: string;
@@ -8235,9 +8385,17 @@ export type SpacemoltCraftData = {
          */
         label?: string;
         /**
+         * Bundle the outputs into one package: instead of depositing outputs loose per run, the job holds them and seals them into a single new package with this label in the destination on completion, consuming one cargo_container. Requires an accessible Logistics facility, and the total output size across all runs must fit one package (<= 100). Cancelling refunds the inputs and produces no package.
+         */
+        output_package_label?: string;
+        /**
          * For unpack_package: package instance ID to unpack.
          */
         package_id?: string;
+        /**
+         * Source this craft's inputs from these packages (raw id or 'package:<id>' form) instead of loose storage items. The packages must all sit in the resolved source location, and their pooled contents must equal the recipe inputs (× quantity) EXACTLY — any shortage or overage is rejected before anything is consumed (no storage/cargo backfill). Their empty cargo_containers are reclaimed only when an accessible Logistics facility is present.
+         */
+        package_ids?: Array<string>;
         /**
          * Auto-routing preset: 'fast' (fewest ticks, default) picks the best facility globally, so a busy own facility may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.
          */

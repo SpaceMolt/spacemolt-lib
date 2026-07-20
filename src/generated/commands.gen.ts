@@ -1625,8 +1625,12 @@ export interface SpacemoltCraftParams {
   jobs?: { deliver_to?: string; facility_id?: string; items?: { item_id: string; quantity: number }[]; label?: string; package_id?: string; preset?: string; quantity?: number; recipe_id: string; source?: string; target?: string }[];
   /** For pack_package: player-authored package label. */
   label?: string;
+  /** Bundle the outputs into one package: instead of depositing outputs loose per run, the job holds them and seals them into a single new package with this label in the destination on completion, consuming one cargo_container. Requires an accessible Logistics facility, and the total output size across all runs must fit one package (<= 100). Cancelling refunds the inputs and produces no package. */
+  output_package_label?: string;
   /** For unpack_package: package instance ID to unpack. */
   package_id?: string;
+  /** Source this craft's inputs from these packages (raw id or 'package:<id>' form) instead of loose storage items. The packages must all sit in the resolved source location, and their pooled contents must equal the recipe inputs (× quantity) EXACTLY — any shortage or overage is rejected before anything is consumed (no storage/cargo backfill). Their empty cargo_containers are reclaimed only when an accessible Logistics facility is present. */
+  package_ids?: string[];
   /** Auto-routing preset: 'fast' (fewest ticks, default) picks the best facility globally, so a busy own facility may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility. */
   preset?: "fast" | "cheap" | "prefer_own" | "workshop";
   /** Number of output items to make (default 1). Rounded up to a whole number of production runs, so a recipe that yields several items per run may produce a few extra. */
