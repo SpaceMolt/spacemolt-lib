@@ -1389,6 +1389,8 @@ export type CraftCommandResponse = ({
 } & BulkCraftResponse) | ({
     kind: 'quote';
 } & CraftQuoteResponse) | ({
+    kind: 'packaged_quote';
+} & PackagedCraftQuoteResponse) | ({
     kind: 'cancel';
 } & JobCancelResponse) | ({
     kind: 'bulk_cancel';
@@ -1409,6 +1411,8 @@ export type CraftJobResponse = {
     kind: 'job';
     message: string;
     mode: 'craft' | 'recycle';
+    output_package_id?: string;
+    output_package_label?: string;
     produces?: Array<ItemQuantity>;
     recipe: string;
     runs: number;
@@ -1464,6 +1468,8 @@ export type CraftingJobUpdate = {
     external?: boolean;
     job_id: string;
     mode: string;
+    output_package_id?: string;
+    output_package_label?: string;
     recipe: string;
     runs_done: number;
     runs_remaining: number;
@@ -4016,6 +4022,23 @@ export type LoggedInPayload = {
     system: ClientSystemInfo;
 };
 
+export type LoginLinkPollCommandResponse = LoginLinkPollResponse | LoginResponse;
+
+export type LoginLinkPollResponse = {
+    interval?: number;
+    status: string;
+};
+
+export type LoginLinkResponse = {
+    device_code: string;
+    expires_in: number;
+    instructions: string;
+    interval: number;
+    user_code: string;
+    verification_uri: string;
+    verification_uri_complete: string;
+};
+
 export type LoginReleaseInfo = {
     notes: Array<string>;
     release_date: string;
@@ -5053,6 +5076,57 @@ export type PackageJobResponse = {
     venue: string;
 };
 
+export type PackagedCraftGate = {
+    ok: boolean;
+    reason?: string;
+};
+
+export type PackagedCraftGates = {
+    cargo_container?: PackagedCraftGate;
+    credits?: PackagedCraftGate;
+    destination_room?: PackagedCraftGate;
+    inputs?: PackagedCraftGate;
+    logistics?: PackagedCraftGate;
+    output_size?: PackagedCraftGate;
+    package_match?: PackagedCraftGate;
+};
+
+export type PackagedCraftQuoteResponse = {
+    action: 'craft';
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
+    cost: EscrowSummary;
+    credits_total: number;
+    dry_run: boolean;
+    effective_time_per_run: number;
+    est_completion_tick: number;
+    external?: boolean;
+    facility_id: string;
+    gates: PackagedCraftGates;
+    kind: 'packaged_quote';
+    message: string;
+    mode: 'craft';
+    output_package?: PackagedOutputPreview;
+    output_package_label?: string;
+    package_ids?: Array<string>;
+    produces?: Array<ItemQuantity>;
+    quantity: number;
+    ready: boolean;
+    recipe: string;
+    runs: number;
+    venue: string;
+    venue_type: string;
+};
+
+export type PackagedOutputPreview = {
+    container_consumed: number;
+    items: Array<ItemQuantity>;
+    label: string;
+    reclaimed_containers: number;
+    size_max: number;
+    size_used: number;
+};
+
 export type ParticipantSnapshot = {
     armor_melt_pct?: number;
     armor_melt_ticks?: number;
@@ -5090,6 +5164,7 @@ export type ParticipantSummary = {
     damage_dealt: number;
     damage_taken: number;
     kill_count: number;
+    kind?: string;
     player_id: string;
     side_id: number;
     survived: boolean;
@@ -10767,6 +10842,79 @@ export type SpacemoltAuthLoginResponses = {
 };
 
 export type SpacemoltAuthLoginResponse = SpacemoltAuthLoginResponses[keyof SpacemoltAuthLoginResponses];
+
+export type SpacemoltAuthLoginLinkData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_auth/login_link';
+};
+
+export type SpacemoltAuthLoginLinkErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltAuthLoginLinkResponses = {
+    /**
+     * Result. structuredContent type: LoginLinkResponse
+     */
+    200: V2Response & {
+        structuredContent?: LoginLinkResponse;
+    };
+};
+
+export type SpacemoltAuthLoginLinkResponse = SpacemoltAuthLoginLinkResponses[keyof SpacemoltAuthLoginLinkResponses];
+
+export type SpacemoltAuthLoginLinkPollData = {
+    body?: {
+        /**
+         * The device_code returned by login_link
+         */
+        device_code: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_auth/login_link_poll';
+};
+
+export type SpacemoltAuthLoginLinkPollErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltAuthLoginLinkPollResponses = {
+    /**
+     * Result. structuredContent type: LoginLinkPollCommandResponse
+     */
+    200: V2Response & {
+        structuredContent?: LoginLinkPollCommandResponse;
+    };
+};
+
+export type SpacemoltAuthLoginLinkPollResponse = SpacemoltAuthLoginLinkPollResponses[keyof SpacemoltAuthLoginLinkPollResponses];
 
 export type SpacemoltAuthLoginTokenData = {
     body?: {

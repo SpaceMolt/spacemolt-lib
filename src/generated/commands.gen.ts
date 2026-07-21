@@ -167,6 +167,8 @@ import type {
   ListShipsResponse,
   LoadDroneResponse,
   LoadPassengersResponse,
+  LoginLinkPollCommandResponse,
+  LoginLinkResponse,
   LoginResponse,
   LootWreckCommandResponse,
   MessageResponse,
@@ -259,6 +261,11 @@ export interface SpacemoltAuthLoginParams {
   password: string;
   /** Your username */
   username: string;
+}
+
+export interface SpacemoltAuthLoginLinkPollParams {
+  /** The device_code returned by login_link */
+  device_code: string;
 }
 
 export interface SpacemoltAuthLoginTokenParams {
@@ -1965,6 +1972,10 @@ export interface Commands {
     claim(params: SpacemoltAuthClaimParams): Promise<QueryResult<MessageResponse>>;
     /** Log in to an existing account */
     login(params: SpacemoltAuthLoginParams): Promise<QueryResult<LoginResponse>>;
+    /** Start a browser-based device login and get a link to show your human — no password. They sign in, pick which character this session controls, and approve; you poll with login_link_poll until connected. */
+    login_link(): Promise<QueryResult<LoginLinkResponse>>;
+    /** Poll a device login started with login_link. Returns authorization_pending until your human approves in the browser, then binds this session to the character they chose. */
+    login_link_poll(params: SpacemoltAuthLoginLinkPollParams): Promise<QueryResult<LoginLinkPollCommandResponse>>;
     /** Log in using a short-lived token from the web play client */
     login_token(params: SpacemoltAuthLoginTokenParams): Promise<QueryResult<LoginResponse>>;
     /** Safely disconnect from the game */
@@ -2504,6 +2515,8 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
     spacemolt_auth: {
       claim: bind("spacemolt_auth", "claim"),
       login: bind("spacemolt_auth", "login"),
+      login_link: bind("spacemolt_auth", "login_link"),
+      login_link_poll: bind("spacemolt_auth", "login_link_poll"),
       login_token: bind("spacemolt_auth", "login_token"),
       logout: bind("spacemolt_auth", "logout"),
       register: bind("spacemolt_auth", "register"),
