@@ -1628,8 +1628,8 @@ export interface SpacemoltCraftParams {
   job_id?: string;
   /** Bulk cancel: cancel many queued jobs in one action. Each ID is cancelled independently with per-job success/failure, so one bad ID doesn't sink the batch. Refunds the unconsumed escrow of every cancelled job. */
   job_ids?: string[];
-  /** Bulk mode: queue many crafts in one action. Package entries may include items, package_id, label, and target. Each job commits independently with partial success. Max 50. */
-  jobs?: { deliver_to?: string; facility_id?: string; items?: { item_id: string; quantity: number }[]; label?: string; package_id?: string; preset?: string; quantity?: number; recipe_id: string; source?: string; target?: string }[];
+  /** Bulk mode: queue many crafts in one action. Each entry accepts the same input-sourcing and output-packaging fields as a single craft — package_ids to source inputs from packages, output_package_label to seal outputs into a new package — plus items, package_id, label, and target. Each job commits independently with partial success. Max 50. */
+  jobs?: { deliver_to?: string; facility_id?: string; items?: { item_id: string; quantity: number }[]; label?: string; output_package_label?: string; package_id?: string; package_ids?: string[]; preset?: string; quantity?: number; recipe_id: string; source?: string; target?: string }[];
   /** For pack_package: player-authored package label. */
   label?: string;
   /** Bundle the outputs into one package: instead of depositing outputs loose per run, the job holds them and seals them into a single new package with this label in the destination on completion, consuming one cargo_container. Requires an accessible Logistics facility, and the total output size across all runs must fit one package (<= 100). Cancelling refunds the inputs and produces no package. */

@@ -8438,7 +8438,7 @@ export type SpacemoltCraftData = {
          */
         job_ids?: Array<string>;
         /**
-         * Bulk mode: queue many crafts in one action. Package entries may include items, package_id, label, and target. Each job commits independently with partial success. Max 50.
+         * Bulk mode: queue many crafts in one action. Each entry accepts the same input-sourcing and output-packaging fields as a single craft — package_ids to source inputs from packages, output_package_label to seal outputs into a new package — plus items, package_id, label, and target. Each job commits independently with partial success. Max 50.
          */
         jobs?: Array<{
             deliver_to?: string;
@@ -8448,7 +8448,15 @@ export type SpacemoltCraftData = {
                 quantity: number;
             }>;
             label?: string;
+            /**
+             * Seal this entry's outputs into a single new package with this label on completion, consuming one cargo_container. Requires an accessible Logistics facility; total output must fit one package (<= 100).
+             */
+            output_package_label?: string;
             package_id?: string;
+            /**
+             * Source this entry's inputs from these packages (raw id or 'package:<id>' form) instead of loose storage. Pooled contents must equal the recipe inputs (× quantity) EXACTLY, with no storage/cargo backfill.
+             */
+            package_ids?: Array<string>;
             preset?: string;
             quantity?: number;
             recipe_id: string;
