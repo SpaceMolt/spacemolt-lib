@@ -5166,6 +5166,7 @@ export type ParticipantSnapshot = {
 export type ParticipantSummary = {
     damage_dealt: number;
     damage_taken: number;
+    is_boss?: boolean;
     kill_count: number;
     kind?: string;
     player_id: string;
