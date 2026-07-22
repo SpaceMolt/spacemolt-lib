@@ -2647,6 +2647,9 @@ export type FactionGiftResponse = {
 export type FactionInfoResponse = {
     alliance_proposals?: Array<FactionAllianceProposal>;
     allies?: Array<FactionListItem>;
+    ally_facility_access?: boolean;
+    ally_fuel_access?: boolean;
+    ally_intel_opt_out?: boolean;
     at_war: boolean;
     charter: string;
     created_at: string;
@@ -20352,7 +20355,7 @@ export type SpacemoltStorageDepositData = {
          */
         dest_bucket?: string;
         /**
-         * Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.
+         * Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.
          */
         item_id?: string;
         /**
@@ -20614,7 +20617,7 @@ export type SpacemoltStorageWithdrawData = {
          */
         dest_bucket?: string;
         /**
-         * Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay (carrier required), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.
+         * Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.
          */
         item_id?: string;
         /**
