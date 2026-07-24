@@ -42,6 +42,7 @@ import type {
   DeleteNoteResponse,
   DeployDroneCommandResponse,
   DepositItemsResponse,
+  DismantleOutpostResponse,
   DistressSignalResponse,
   DockResponse,
   EmpireGiftResponse,
@@ -2054,6 +2055,8 @@ export interface Commands {
     deploy_outpost(params: SpacemoltFacilityDeployOutpostParams): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     dismantle(params: SpacemoltFacilityDismantleParams): Promise<MutationResult<FacilityDismantleResponse>>;
+    /** Dismantle a faction outpost you're docked at, packing it back into an Outpost Kit */
+    dismantle_outpost(): Promise<MutationResult<DismantleOutpostResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     facility_set_description(params: SpacemoltFacilityFacilitySetDescriptionParams): Promise<QueryResult<SetFacilityDescriptionResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
@@ -2560,6 +2563,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       cancel_listing: bind("spacemolt_facility", "cancel_listing"),
       deploy_outpost: bind("spacemolt_facility", "deploy_outpost"),
       dismantle: bind("spacemolt_facility", "dismantle"),
+      dismantle_outpost: bind("spacemolt_facility", "dismantle_outpost"),
       facility_set_description: bind("spacemolt_facility", "facility_set_description"),
       faction_build: bind("spacemolt_facility", "faction_build"),
       faction_dismantle: bind("spacemolt_facility", "faction_dismantle"),

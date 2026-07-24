@@ -1627,6 +1627,17 @@ export type DepositItemsResponse = {
     storage_total: number;
 };
 
+export type DismantleOutpostResponse = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
+    base_id: string;
+    fee_refunded: number;
+    hint: string;
+    kit_item: string;
+    kit_refunded: boolean;
+    name: string;
+};
+
 export type DistressSignalResponse = {
     action: string;
     auto_docked?: boolean;
@@ -12570,6 +12581,43 @@ export type SpacemoltFacilityDismantleResponses = {
 };
 
 export type SpacemoltFacilityDismantleResponse = SpacemoltFacilityDismantleResponses[keyof SpacemoltFacilityDismantleResponses];
+
+export type SpacemoltFacilityDismantleOutpostData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/dismantle_outpost';
+};
+
+export type SpacemoltFacilityDismantleOutpostErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityDismantleOutpostResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DismantleOutpostResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: DismantleOutpostResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilityDismantleOutpostResponse = SpacemoltFacilityDismantleOutpostResponses[keyof SpacemoltFacilityDismantleOutpostResponses];
 
 export type SpacemoltFacilityFacilitySetDescriptionData = {
     body?: {
