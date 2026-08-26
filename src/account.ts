@@ -344,7 +344,7 @@ export class Account {
    */
   get commands(): Commands {
     if (!this._commands) {
-      this._commands = buildCommands((tool, action, payload) => this.send(tool, action, payload));
+      this._commands = buildCommands((tool, action, payload, requestId) => this.send(tool, action, payload, requestId));
     }
     return this._commands;
   }
@@ -559,11 +559,11 @@ export class Account {
    * to take long, so a response that never arrives (the server silently
    * drops it rather than erroring) fails cleanly instead of hanging forever.
    */
-  query(tool: string, action: string, payload?: Record<string, unknown>): Promise<QueryResult> {
+  query(tool: string, action: string, payload?: Record<string, unknown>, requestId?: string): Promise<QueryResult> {
     return this.withRateLimitRetry(async () => {
-      const requestId = this.nextRequestId();
-      const promise = this.correlator.awaitQuery(requestId);
-      this.sendFrame(tool, action, payload, requestId);
+      const id = this.claimRequestId(requestId);
+      const promise = this.correlator.awaitQuery(id);
+      this.sendFrame(tool, action, payload, id);
       try {
         return await withTimeout(
           promise,
@@ -571,7 +571,7 @@ export class Account {
           `No response to ${tool}/${action} within ${this.queryTimeoutMs}ms`,
         );
       } catch (err) {
-        this.correlator.cancel(requestId);
+        this.correlator.cancel(id);
         throw err;
       }
     });
@@ -598,15 +598,16 @@ export class Account {
     action: string,
     payload?: Record<string, unknown>,
     onAck?: (ack: MutationAck) => void,
+    requestId?: string,
   ): Promise<MutationResult> {
     const mutationTimeoutMs = TRANSIT_ACTIONS.has(`${tool}/${action}`)
       ? this.mutationTimeoutMs
       : this.fastMutationTimeoutMs;
     return this.enqueueMutation(() =>
       this.withRateLimitRetry(() => {
-        const requestId = this.nextRequestId();
-        const promise = this.awaitMutationWithTimeout(requestId, mutationTimeoutMs, onAck);
-        this.sendFrame(tool, action, payload, requestId);
+        const id = this.claimRequestId(requestId);
+        const promise = this.awaitMutationWithTimeout(id, mutationTimeoutMs, onAck);
+        this.sendFrame(tool, action, payload, id);
         return promise;
       }),
     );
@@ -662,9 +663,16 @@ export class Account {
    * Run a command, dispatching to `query`/`mutate` based on the spec's
    * `x-is-mutation` classification. Unknown commands are treated as queries.
    */
-  send(tool: string, action: string, payload?: Record<string, unknown>): Promise<QueryResult | MutationResult> {
+  send(
+    tool: string,
+    action: string,
+    payload?: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<QueryResult | MutationResult> {
     const def = ACTIONS[`${tool}/${action}`];
-    return def?.kind === 'mutation' ? this.mutate(tool, action, payload) : this.query(tool, action, payload);
+    return def?.kind === 'mutation'
+      ? this.mutate(tool, action, payload, undefined, requestId)
+      : this.query(tool, action, payload, requestId);
   }
 
   /**
@@ -924,7 +932,25 @@ export class Account {
   }
 
   private nextRequestId(): string {
-    return `r${++this.requestSeq}`;
+    // Skip anything a caller already has in flight — a caller-supplied id is
+    // free-form, so it can look exactly like one of ours.
+    let id = `r${++this.requestSeq}`;
+    while (this.correlator.has(id)) id = `r${++this.requestSeq}`;
+    return id;
+  }
+
+  /**
+   * Pick the `request_id` for one frame. A caller-supplied id is echoed by the
+   * server unchanged, which is the point — it lets the caller correlate its own
+   * in-flight requests. It must be unique while it is in flight: reusing a live
+   * id would displace the first request in the correlator and hang it.
+   */
+  private claimRequestId(requestId?: string): string {
+    if (requestId === undefined) return this.nextRequestId();
+    if (this.correlator.has(requestId)) {
+      throw new SpacemoltError('duplicate_request_id', `request_id "${requestId}" is already in flight`);
+    }
+    return requestId;
   }
 
   private routeFrame(frame: RawFrame): void {

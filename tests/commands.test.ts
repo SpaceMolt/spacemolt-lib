@@ -94,3 +94,58 @@ test('commands facade is grouped by tool', async () => {
   expect(typeof account.commands.spacemolt_market.view_market).toBe('function');
   expect(typeof account.commands.spacemolt.mine).toBe('function');
 });
+
+test('query sends a caller-supplied request_id unchanged', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    s.serverSend({
+      type: 'result',
+      request_id: frame.request_id,
+      payload: { result: 'ok', structuredContent: { credits: 1 } },
+    });
+  };
+  await account.query('spacemolt', 'get_status', undefined, 'caller-q-1');
+  expect(socket.sent.at(-1)?.request_id).toBe('caller-q-1');
+});
+
+test('mutate sends a caller-supplied request_id unchanged', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'p', structuredContent: {} } });
+    s.serverSend({ type: 'action_result', request_id: frame.request_id, payload: { result: 'ok' } });
+  };
+  await account.mutate('spacemolt', 'jump', { id: 'sol' }, undefined, 'caller-m-1');
+  expect(socket.sent.at(-1)?.request_id).toBe('caller-m-1');
+});
+
+test('send forwards a caller-supplied request_id to the mutation path', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'p', structuredContent: {} } });
+    s.serverSend({ type: 'action_result', request_id: frame.request_id, payload: { result: 'ok' } });
+  };
+  await account.send('spacemolt', 'jump', { id: 'sol' }, 'caller-s-1');
+  expect(socket.sent.at(-1)?.request_id).toBe('caller-s-1');
+});
+
+test('the commands facade forwards a caller-supplied request_id', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    s.serverSend({
+      type: 'result',
+      request_id: frame.request_id,
+      payload: { result: 'ok', structuredContent: { credits: 1 } },
+    });
+  };
+  await account.commands.spacemolt.get_status('caller-f-1');
+  expect(socket.sent.at(-1)?.request_id).toBe('caller-f-1');
+});
+
+test('a request_id already in flight is rejected instead of orphaning the first request', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = () => {};
+  const first = account.query('spacemolt', 'get_status', undefined, 'dup-1');
+  await expect(account.query('spacemolt', 'get_status', undefined, 'dup-1')).rejects.toThrow(/already in flight/);
+  socket.serverSend({ type: 'result', request_id: 'dup-1', payload: { result: 'ok', structuredContent: {} } });
+  await first;
+});
