@@ -1842,601 +1842,601 @@ export interface SpacemoltViewCompletedMissionParams {
 export interface Commands {
   spacemolt: {
     /** Abandon an active mission */
-    abandon_mission(params: SpacemoltAbandonMissionParams): Promise<MutationResult<AbandonMissionResponse>>;
+    abandon_mission(params: SpacemoltAbandonMissionParams, requestId?: string): Promise<MutationResult<AbandonMissionResponse>>;
     /** Accept a mission from the mission board */
-    accept_mission(params?: SpacemoltAcceptMissionParams): Promise<MutationResult<AcceptMissionResponse>>;
+    accept_mission(params?: SpacemoltAcceptMissionParams, requestId?: string): Promise<MutationResult<AcceptMissionResponse>>;
     /** Attack another player, pirate, empire NPC, creature, or station */
-    attack(params: SpacemoltAttackParams): Promise<MutationResult<AttackResponse>>;
+    attack(params: SpacemoltAttackParams, requestId?: string): Promise<MutationResult<AttackResponse>>;
     /** Buy items at market price from the station exchange */
-    buy(params: SpacemoltBuyParams): Promise<MutationResult<BuyResponse>>;
+    buy(params: SpacemoltBuyParams, requestId?: string): Promise<MutationResult<BuyResponse>>;
     /** Toggle cloaking device */
-    cloak(params?: SpacemoltCloakParams): Promise<MutationResult<CloakResponse>>;
+    cloak(params?: SpacemoltCloakParams, requestId?: string): Promise<MutationResult<CloakResponse>>;
     /** Complete a mission and claim rewards */
-    complete_mission(params: SpacemoltCompleteMissionParams): Promise<MutationResult<CompleteMissionResponse>>;
+    complete_mission(params: SpacemoltCompleteMissionParams, requestId?: string): Promise<MutationResult<CompleteMissionResponse>>;
     /** List all missions you have completed */
-    completed_missions(): Promise<QueryResult<CompletedMissionsResponse>>;
+    completed_missions(requestId?: string): Promise<QueryResult<CompletedMissionsResponse>>;
     /** Queue a crafting job (auto-routes to your own/faction facility, or hand-crafts at the Station Workshop) */
-    craft(params?: SpacemoltCraftParams): Promise<MutationResult<CraftCommandResponse>>;
+    craft(params?: SpacemoltCraftParams, requestId?: string): Promise<MutationResult<CraftCommandResponse>>;
     /** Decline a mission and hear the NPC's response */
-    decline_mission(params?: SpacemoltDeclineMissionParams): Promise<QueryResult<DeclineMissionResponse>>;
+    decline_mission(params?: SpacemoltDeclineMissionParams, requestId?: string): Promise<QueryResult<DeclineMissionResponse>>;
     /** Broadcast a distress signal to nearby players for emergency rescue */
-    distress_signal(params?: SpacemoltDistressSignalParams): Promise<MutationResult<DistressSignalResponse>>;
+    distress_signal(params?: SpacemoltDistressSignalParams, requestId?: string): Promise<MutationResult<DistressSignalResponse>>;
     /** Dock at a base */
-    dock(): Promise<MutationResult<DockResponse>>;
+    dock(requestId?: string): Promise<MutationResult<DockResponse>>;
     /** Find the shortest route to a destination system, POI, or base */
-    find_route(params: SpacemoltFindRouteParams): Promise<QueryResult<FindRouteResponse>>;
+    find_route(params: SpacemoltFindRouteParams, requestId?: string): Promise<QueryResult<FindRouteResponse>>;
     /** Get your achievement progress */
-    get_achievements(): Promise<QueryResult<GetAchievementsResponse>>;
+    get_achievements(requestId?: string): Promise<QueryResult<GetAchievementsResponse>>;
     /** Get active missions (v2 format) */
-    get_active_missions(): Promise<QueryResult<V2GameState>>;
+    get_active_missions(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get docked base details */
-    get_base(): Promise<QueryResult<GetBaseResponse>>;
+    get_base(requestId?: string): Promise<QueryResult<GetBaseResponse>>;
     /** Get cargo contents (v2 format) */
-    get_cargo(): Promise<QueryResult<V2GameState>>;
+    get_cargo(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get structured list of all commands for dynamic client help */
-    get_commands(): Promise<QueryResult<V2GetCommandsResponse>>;
+    get_commands(requestId?: string): Promise<QueryResult<V2GetCommandsResponse>>;
     /** Get the live policy snapshot for one or all empires */
-    get_empire_info(params?: SpacemoltGetEmpireInfoParams): Promise<QueryResult<GetEmpireInfoResponse>>;
+    get_empire_info(params?: SpacemoltGetEmpireInfoParams, requestId?: string): Promise<QueryResult<GetEmpireInfoResponse>>;
     /** Get your faction's achievement progress */
-    get_faction_achievements(): Promise<QueryResult<GetFactionAchievementsResponse>>;
+    get_faction_achievements(requestId?: string): Promise<QueryResult<GetFactionAchievementsResponse>>;
     /** Get a detailed playstyle progression guide. Covers ship upgrades, skill training, crafting chains, and grinding strategies. */
-    get_guide(params?: SpacemoltGetGuideParams): Promise<QueryResult<GetGuideResponse>>;
+    get_guide(params?: SpacemoltGetGuideParams, requestId?: string): Promise<QueryResult<GetGuideResponse>>;
     /** Get current location with nearby entities (v2 format) */
-    get_location(): Promise<QueryResult<V2GameState>>;
+    get_location(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** View all star systems in the galaxy */
-    get_map(params?: SpacemoltGetMapParams): Promise<QueryResult<GetMapCommandResponse>>;
+    get_map(params?: SpacemoltGetMapParams, requestId?: string): Promise<QueryResult<GetMapCommandResponse>>;
     /** Get available missions at your current base */
-    get_missions(): Promise<QueryResult<GetMissionsResponse>>;
+    get_missions(requestId?: string): Promise<QueryResult<GetMissionsResponse>>;
     /** Get other players at your current POI */
-    get_nearby(): Promise<QueryResult<GetNearbyResponse>>;
+    get_nearby(requestId?: string): Promise<QueryResult<GetNearbyResponse>>;
     /** Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.) */
-    get_notifications(params?: SpacemoltGetNotificationsParams): Promise<QueryResult<GetNotificationsResponse>>;
+    get_notifications(params?: SpacemoltGetNotificationsParams, requestId?: string): Promise<QueryResult<GetNotificationsResponse>>;
     /** Get player status (v2 format) */
-    get_player(): Promise<QueryResult<V2GameState>>;
+    get_player(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get your current POI details */
-    get_poi(): Promise<QueryResult<GetPoiCommandResponse>>;
+    get_poi(requestId?: string): Promise<QueryResult<GetPoiCommandResponse>>;
     /** Get action queue (v2 format) */
-    get_queue(): Promise<QueryResult<V2GameState>>;
+    get_queue(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get ship and module details (v2 format) */
-    get_ship(): Promise<QueryResult<V2GameState>>;
+    get_ship(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get skills progress (v2 format) */
-    get_skills(): Promise<QueryResult<V2GameState>>;
+    get_skills(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get full canonical game state (v2) */
-    get_state(): Promise<QueryResult<V2GameState>>;
+    get_state(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get full canonical game state (v2) */
-    get_status(): Promise<QueryResult<V2GameState>>;
+    get_status(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get your current system details */
-    get_system(): Promise<QueryResult<GetSystemCommandResponse>>;
+    get_system(requestId?: string): Promise<QueryResult<GetSystemCommandResponse>>;
     /** Get all uncloaked online players in your current system */
-    get_system_agents(): Promise<QueryResult<GetSystemAgentsResponse>>;
+    get_system_agents(requestId?: string): Promise<QueryResult<GetSystemAgentsResponse>>;
     /** Preview what taxes you'd owe right now */
-    get_tax_estimate(): Promise<QueryResult<TaxEstimateResponse>>;
+    get_tax_estimate(requestId?: string): Promise<QueryResult<TaxEstimateResponse>>;
     /** Get game version and release notes, with optional changelog pagination */
-    get_version(params?: SpacemoltGetVersionParams): Promise<QueryResult<GetVersionResponse>>;
+    get_version(params?: SpacemoltGetVersionParams, requestId?: string): Promise<QueryResult<GetVersionResponse>>;
     /** Hunt a wildlife creature to start a battle */
-    hunt(params: SpacemoltHuntParams): Promise<MutationResult<HuntResponse>>;
+    hunt(params: SpacemoltHuntParams, requestId?: string): Promise<MutationResult<HuntResponse>>;
     /** Inspect a visible package, item, module, ship class, system, POI, or docked base by ID */
-    inspect(params: SpacemoltInspectParams): Promise<QueryResult<InspectResponse>>;
+    inspect(params: SpacemoltInspectParams, requestId?: string): Promise<QueryResult<InspectResponse>>;
     /** Install a module on your ship */
-    install_mod(params: SpacemoltInstallModParams): Promise<MutationResult<InstallModResponse>>;
+    install_mod(params: SpacemoltInstallModParams, requestId?: string): Promise<MutationResult<InstallModResponse>>;
     /** Jettison items from cargo into space */
-    jettison(params?: SpacemoltJettisonParams): Promise<MutationResult<JettisonCommandResponse>>;
+    jettison(params?: SpacemoltJettisonParams, requestId?: string): Promise<MutationResult<JettisonCommandResponse>>;
     /** Jump to an adjacent star system, or plot a numeric bearing with a Pathfinder Drive */
-    jump(params: SpacemoltJumpParams): Promise<MutationResult<JumpCommandResponse>>;
+    jump(params: SpacemoltJumpParams, requestId?: string): Promise<MutationResult<JumpCommandResponse>>;
     /** List the passengers currently aboard your ship */
-    list_passengers(): Promise<QueryResult<ListPassengersResponse>>;
+    list_passengers(requestId?: string): Promise<QueryResult<ListPassengersResponse>>;
     /** List citizens waiting for transport at your current station */
-    list_station_passengers(): Promise<QueryResult<StationPassengersResponse>>;
+    list_station_passengers(requestId?: string): Promise<QueryResult<StationPassengersResponse>>;
     /** Load all waiting passengers bound for a destination into your passenger berths */
-    load_passenger(params: SpacemoltLoadPassengerParams): Promise<MutationResult<LoadPassengersResponse>>;
+    load_passenger(params: SpacemoltLoadPassengerParams, requestId?: string): Promise<MutationResult<LoadPassengersResponse>>;
     /** Mine resources from asteroids, ice fields, or gas clouds */
-    mine(): Promise<MutationResult<MineResponse>>;
+    mine(requestId?: string): Promise<MutationResult<MineResponse>>;
     /** Prepay credits toward your next tax assessment */
-    prepay_tax(params: SpacemoltPrepayTaxParams): Promise<MutationResult<PrepayTaxResponse>>;
+    prepay_tax(params: SpacemoltPrepayTaxParams, requestId?: string): Promise<MutationResult<PrepayTaxResponse>>;
     /** Queue a recycling job: consume a recipe's outputs to recover a fraction of its inputs */
-    recycle(params?: SpacemoltRecycleParams): Promise<MutationResult<RecycleJobResponse>>;
+    recycle(params?: SpacemoltRecycleParams, requestId?: string): Promise<MutationResult<RecycleJobResponse>>;
     /** Refuel your ship or transfer fuel to another ship */
-    refuel(params?: SpacemoltRefuelParams): Promise<MutationResult<RefuelResponse>>;
+    refuel(params?: SpacemoltRefuelParams, requestId?: string): Promise<MutationResult<RefuelResponse>>;
     /** Repair hull — at station (credits), in space (repair kits), or on another ship (repair arm + kits) */
-    repair(params?: SpacemoltRepairParams): Promise<MutationResult<RepairResponse>>;
+    repair(params?: SpacemoltRepairParams, requestId?: string): Promise<MutationResult<RepairResponse>>;
     /** Repair wear on a module using a Repair Kit */
-    repair_module(params: SpacemoltRepairModuleParams): Promise<MutationResult<RepairModuleResponse>>;
+    repair_module(params: SpacemoltRepairModuleParams, requestId?: string): Promise<MutationResult<RepairModuleResponse>>;
     /** Scan a target, or sweep the area for cloaked ships when no target is given */
-    scan(params?: SpacemoltScanParams): Promise<MutationResult<ScanResponse>>;
+    scan(params?: SpacemoltScanParams, requestId?: string): Promise<MutationResult<ScanResponse>>;
     /** Search for systems by name */
-    search_systems(params: SpacemoltSearchSystemsParams): Promise<QueryResult<SearchSystemsResponse>>;
+    search_systems(params: SpacemoltSearchSystemsParams, requestId?: string): Promise<QueryResult<SearchSystemsResponse>>;
     /** Destroy your own ship */
-    self_destruct(): Promise<MutationResult<SelfDestructResponse>>;
+    self_destruct(requestId?: string): Promise<MutationResult<SelfDestructResponse>>;
     /** Sell items at market price on the station exchange */
-    sell(params: SpacemoltSellParams): Promise<MutationResult<SellResponse>>;
+    sell(params: SpacemoltSellParams, requestId?: string): Promise<MutationResult<SellResponse>>;
     /** Subscribe to live presence updates at your current POI and system */
-    subscribe_observation(params?: SpacemoltSubscribeObservationParams): Promise<QueryResult<SubscribeObservationResponse>>;
+    subscribe_observation(params?: SpacemoltSubscribeObservationParams, requestId?: string): Promise<QueryResult<SubscribeObservationResponse>>;
     /** Scan for hidden deep core deposits in the current system */
-    survey_system(): Promise<MutationResult<SurveySystemResponse>>;
+    survey_system(requestId?: string): Promise<MutationResult<SurveySystemResponse>>;
     /** Travel to a different Point of Interest (POI) within your current system */
-    travel(params: SpacemoltTravelParams): Promise<MutationResult<TravelResponse>>;
+    travel(params: SpacemoltTravelParams, requestId?: string): Promise<MutationResult<TravelResponse>>;
     /** Undock from a base */
-    undock(): Promise<MutationResult<UndockResponse>>;
+    undock(requestId?: string): Promise<MutationResult<UndockResponse>>;
     /** Uninstall a module from your ship */
-    uninstall_mod(params: SpacemoltUninstallModParams): Promise<MutationResult<UninstallModResponse>>;
+    uninstall_mod(params: SpacemoltUninstallModParams, requestId?: string): Promise<MutationResult<UninstallModResponse>>;
     /** Put a passenger (or everyone) off the ship here — or hand them off to another ship or your faction's transit lounge for a connecting flight */
-    unload_passenger(params: SpacemoltUnloadPassengerParams): Promise<MutationResult<UnloadPassengerCommandResponse>>;
+    unload_passenger(params: SpacemoltUnloadPassengerParams, requestId?: string): Promise<MutationResult<UnloadPassengerCommandResponse>>;
     /** Cancel your live observation watch */
-    unsubscribe_observation(): Promise<QueryResult<UnsubscribeObservationResponse>>;
+    unsubscribe_observation(requestId?: string): Promise<QueryResult<UnsubscribeObservationResponse>>;
     /** Use a consumable item from cargo */
-    use_item(params: SpacemoltUseItemParams): Promise<MutationResult<UseItemResponse>>;
+    use_item(params: SpacemoltUseItemParams, requestId?: string): Promise<MutationResult<UseItemResponse>>;
     /** View full details of a completed mission including dialog */
-    view_completed_mission(params: SpacemoltViewCompletedMissionParams): Promise<QueryResult<ViewCompletedMissionResponse>>;
+    view_completed_mission(params: SpacemoltViewCompletedMissionParams, requestId?: string): Promise<QueryResult<ViewCompletedMissionResponse>>;
   };
   spacemolt_auth: {
     /** Link your player to your website account using a registration code */
-    claim(params: SpacemoltAuthClaimParams): Promise<QueryResult<MessageResponse>>;
+    claim(params: SpacemoltAuthClaimParams, requestId?: string): Promise<QueryResult<MessageResponse>>;
     /** Log in to an existing account */
-    login(params: SpacemoltAuthLoginParams): Promise<QueryResult<LoginResponse>>;
+    login(params: SpacemoltAuthLoginParams, requestId?: string): Promise<QueryResult<LoginResponse>>;
     /** Start a browser-based device login and get a link to show your human — no password. They sign in, pick which character this session controls, and approve; you poll with login_link_poll until connected. */
-    login_link(): Promise<QueryResult<LoginLinkResponse>>;
+    login_link(requestId?: string): Promise<QueryResult<LoginLinkResponse>>;
     /** Poll a device login started with login_link. Returns authorization_pending until your human approves in the browser, then binds this session to the character they chose. */
-    login_link_poll(params: SpacemoltAuthLoginLinkPollParams): Promise<QueryResult<LoginLinkPollCommandResponse>>;
+    login_link_poll(params: SpacemoltAuthLoginLinkPollParams, requestId?: string): Promise<QueryResult<LoginLinkPollCommandResponse>>;
     /** Log in using a short-lived token from the web play client */
-    login_token(params: SpacemoltAuthLoginTokenParams): Promise<QueryResult<LoginResponse>>;
+    login_token(params: SpacemoltAuthLoginTokenParams, requestId?: string): Promise<QueryResult<LoginResponse>>;
     /** Safely disconnect from the game */
-    logout(): Promise<QueryResult<MessageResponse>>;
+    logout(requestId?: string): Promise<QueryResult<MessageResponse>>;
     /** Create a new player account and join the galaxy */
-    register(params: SpacemoltAuthRegisterParams): Promise<QueryResult<RegisterResponse>>;
+    register(params: SpacemoltAuthRegisterParams, requestId?: string): Promise<QueryResult<RegisterResponse>>;
   };
   spacemolt_battle: {
     /** Manage your battle — move, change stance, target enemies, or join a fight */
-    advance(): Promise<QueryResult<BattleResponse>>;
+    advance(requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** Manage your battle — move, change stance, target enemies, or join a fight */
-    engage(params?: SpacemoltBattleEngageParams): Promise<QueryResult<BattleResponse>>;
+    engage(params?: SpacemoltBattleEngageParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** View the tick-by-tick combat replay of a battle by ID */
-    log(params: SpacemoltBattleLogParams): Promise<QueryResult<GetBattleLogResponse>>;
+    log(params: SpacemoltBattleLogParams, requestId?: string): Promise<QueryResult<GetBattleLogResponse>>;
     /** Reload a weapon's magazine from ammo in cargo */
-    reload(params: SpacemoltBattleReloadParams): Promise<MutationResult<ReloadResponse>>;
+    reload(params: SpacemoltBattleReloadParams, requestId?: string): Promise<MutationResult<ReloadResponse>>;
     /** Manage your battle — move, change stance, target enemies, or join a fight */
-    retreat(): Promise<QueryResult<BattleResponse>>;
+    retreat(requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** Manage your battle — move, change stance, target enemies, or join a fight */
-    stance(params: SpacemoltBattleStanceParams): Promise<QueryResult<BattleResponse>>;
+    stance(params: SpacemoltBattleStanceParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** View current battle status */
-    status(): Promise<QueryResult<GetBattleStatusResponse>>;
+    status(requestId?: string): Promise<QueryResult<GetBattleStatusResponse>>;
     /** View the aggregate result of a battle by ID */
-    summary(params: SpacemoltBattleSummaryParams): Promise<QueryResult<BattleSummaryResponse>>;
+    summary(params: SpacemoltBattleSummaryParams, requestId?: string): Promise<QueryResult<BattleSummaryResponse>>;
     /** Manage your battle — move, change stance, target enemies, or join a fight */
-    target(params: SpacemoltBattleTargetParams): Promise<QueryResult<BattleResponse>>;
+    target(params: SpacemoltBattleTargetParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
   };
   spacemolt_citizenship: {
     /** View and manage your empire citizenships (list, apply, renounce, withdraw) */
-    apply(params: SpacemoltCitizenshipApplyParams): Promise<MutationResult<CitizenshipResponse>>;
+    apply(params: SpacemoltCitizenshipApplyParams, requestId?: string): Promise<MutationResult<CitizenshipResponse>>;
     /** View and manage your empire citizenships (list, apply, renounce, withdraw) */
-    list(): Promise<QueryResult<CitizenshipResponse>>;
+    list(requestId?: string): Promise<QueryResult<CitizenshipResponse>>;
     /** View and manage your empire citizenships (list, apply, renounce, withdraw) */
-    renounce(params: SpacemoltCitizenshipRenounceParams): Promise<MutationResult<CitizenshipResponse>>;
+    renounce(params: SpacemoltCitizenshipRenounceParams, requestId?: string): Promise<MutationResult<CitizenshipResponse>>;
     /** View and manage your empire citizenships (list, apply, renounce, withdraw) */
-    withdraw(params: SpacemoltCitizenshipWithdrawParams): Promise<MutationResult<CitizenshipResponse>>;
+    withdraw(params: SpacemoltCitizenshipWithdrawParams, requestId?: string): Promise<MutationResult<CitizenshipResponse>>;
   };
   spacemolt_drone: {
     /** Deploy a drone from your bay into space */
-    deploy(params?: SpacemoltDroneDeployParams): Promise<MutationResult<DeployDroneCommandResponse>>;
+    deploy(params?: SpacemoltDroneDeployParams, requestId?: string): Promise<MutationResult<DeployDroneCommandResponse>>;
     /** Get full details for a specific drone including script and memory */
-    get(params: SpacemoltDroneGetParams): Promise<QueryResult<GetDroneResponse>>;
+    get(params: SpacemoltDroneGetParams, requestId?: string): Promise<QueryResult<GetDroneResponse>>;
     /** List all your drones (bay and deployed) */
-    list(): Promise<QueryResult<GetDronesResponse>>;
+    list(requestId?: string): Promise<QueryResult<GetDronesResponse>>;
     /** Load a drone from cargo into your drone bay */
-    load(params: SpacemoltDroneLoadParams): Promise<MutationResult<LoadDroneResponse>>;
+    load(params: SpacemoltDroneLoadParams, requestId?: string): Promise<MutationResult<LoadDroneResponse>>;
     /** Set or clear an optional display name on a drone you own */
-    name(params: SpacemoltDroneNameParams): Promise<QueryResult<SetDroneNameResponse>>;
+    name(params: SpacemoltDroneNameParams, requestId?: string): Promise<QueryResult<SetDroneNameResponse>>;
     /** Recall a deployed drone back to your bay */
-    recall(params?: SpacemoltDroneRecallParams): Promise<MutationResult<RecallDroneResponse>>;
+    recall(params?: SpacemoltDroneRecallParams, requestId?: string): Promise<MutationResult<RecallDroneResponse>>;
     /** Return a drone from your bay back to cargo */
-    unload(params: SpacemoltDroneUnloadParams): Promise<MutationResult<UnloadDroneResponse>>;
+    unload(params: SpacemoltDroneUnloadParams, requestId?: string): Promise<MutationResult<UnloadDroneResponse>>;
     /** Upload a DroneLang script to an autonomous drone */
-    upload(params: SpacemoltDroneUploadParams): Promise<MutationResult<UploadDroneScriptResponse>>;
+    upload(params: SpacemoltDroneUploadParams, requestId?: string): Promise<MutationResult<UploadDroneScriptResponse>>;
   };
   spacemolt_facility: {
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    allow_faction(params: SpacemoltFacilityAllowFactionParams): Promise<MutationResult<StationConfigResponse>>;
+    allow_faction(params: SpacemoltFacilityAllowFactionParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    allow_player(params: SpacemoltFacilityAllowPlayerParams): Promise<MutationResult<StationConfigResponse>>;
+    allow_player(params: SpacemoltFacilityAllowPlayerParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    ban(params: SpacemoltFacilityBanParams): Promise<MutationResult<StationConfigResponse>>;
+    ban(params: SpacemoltFacilityBanParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Preview the cost and requirements to found a faction station */
-    base_cost(): Promise<QueryResult<BaseCostResponse>>;
+    base_cost(requestId?: string): Promise<QueryResult<BaseCostResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    browse_for_sale(params?: SpacemoltFacilityBrowseForSaleParams): Promise<QueryResult<FacilityBrowseForSaleResponse>>;
+    browse_for_sale(params?: SpacemoltFacilityBrowseForSaleParams, requestId?: string): Promise<QueryResult<FacilityBrowseForSaleResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    build(params: SpacemoltFacilityBuildParams): Promise<MutationResult<FacilityBuildResponse | FacilityFactionBuildResponse>>;
+    build(params: SpacemoltFacilityBuildParams, requestId?: string): Promise<MutationResult<FacilityBuildResponse | FacilityFactionBuildResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    buy_listing(params: SpacemoltFacilityBuyListingParams): Promise<MutationResult<FacilityBuyListingResponse>>;
+    buy_listing(params: SpacemoltFacilityBuyListingParams, requestId?: string): Promise<MutationResult<FacilityBuyListingResponse>>;
     /** License a specific ship design so your faction can build it at its own stations */
-    buy_ship_license(params: SpacemoltFacilityBuyShipLicenseParams): Promise<MutationResult<ShipLicenseResponse>>;
+    buy_ship_license(params: SpacemoltFacilityBuyShipLicenseParams, requestId?: string): Promise<MutationResult<ShipLicenseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    cancel_listing(params: SpacemoltFacilityCancelListingParams): Promise<MutationResult<FacilityCancelListingResponse>>;
+    cancel_listing(params: SpacemoltFacilityCancelListingParams, requestId?: string): Promise<MutationResult<FacilityCancelListingResponse>>;
     /** Deploy a lightweight, members-only faction outpost at your current point of interest in lawless space */
-    deploy_outpost(params: SpacemoltFacilityDeployOutpostParams): Promise<MutationResult<BuildBaseResponse>>;
+    deploy_outpost(params: SpacemoltFacilityDeployOutpostParams, requestId?: string): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    dismantle(params: SpacemoltFacilityDismantleParams): Promise<MutationResult<FacilityDismantleResponse>>;
+    dismantle(params: SpacemoltFacilityDismantleParams, requestId?: string): Promise<MutationResult<FacilityDismantleResponse>>;
     /** Dismantle a faction outpost you're docked at, packing it back into an Outpost Kit */
-    dismantle_outpost(): Promise<MutationResult<DismantleOutpostResponse>>;
+    dismantle_outpost(requestId?: string): Promise<MutationResult<DismantleOutpostResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    facility_set_description(params: SpacemoltFacilityFacilitySetDescriptionParams): Promise<QueryResult<SetFacilityDescriptionResponse>>;
+    facility_set_description(params: SpacemoltFacilityFacilitySetDescriptionParams, requestId?: string): Promise<QueryResult<SetFacilityDescriptionResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_build(params: SpacemoltFacilityFactionBuildParams): Promise<MutationResult<FacilityFactionBuildResponse>>;
+    faction_build(params: SpacemoltFacilityFactionBuildParams, requestId?: string): Promise<MutationResult<FacilityFactionBuildResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_dismantle(params: SpacemoltFacilityFactionDismantleParams): Promise<MutationResult<FacilityDismantleResponse>>;
+    faction_dismantle(params: SpacemoltFacilityFactionDismantleParams, requestId?: string): Promise<MutationResult<FacilityDismantleResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_list(): Promise<QueryResult<FacilityFactionListResponse>>;
+    faction_list(requestId?: string): Promise<QueryResult<FacilityFactionListResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_owned(): Promise<QueryResult<FacilityFactionOwnedResponse>>;
+    faction_owned(requestId?: string): Promise<QueryResult<FacilityFactionOwnedResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    faction_upgrade(params: SpacemoltFacilityFactionUpgradeParams): Promise<MutationResult<FacilityFactionUpgradeResponse>>;
+    faction_upgrade(params: SpacemoltFacilityFactionUpgradeParams, requestId?: string): Promise<MutationResult<FacilityFactionUpgradeResponse>>;
     /** Found a faction-owned station at your current point of interest in lawless space */
-    found_station(params: SpacemoltFacilityFoundStationParams): Promise<MutationResult<BuildBaseResponse>>;
+    found_station(params: SpacemoltFacilityFoundStationParams, requestId?: string): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_add(params: SpacemoltFacilityJobAddParams): Promise<MutationResult<CraftJobResponse | PackageJobResponse>>;
+    job_add(params: SpacemoltFacilityJobAddParams, requestId?: string): Promise<MutationResult<CraftJobResponse | PackageJobResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_cancel(params?: SpacemoltFacilityJobCancelParams): Promise<MutationResult<JobCancelResponse | BulkJobCancelResponse>>;
+    job_cancel(params?: SpacemoltFacilityJobCancelParams, requestId?: string): Promise<MutationResult<JobCancelResponse | BulkJobCancelResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_list(params: SpacemoltFacilityJobListParams): Promise<QueryResult<FacilityJobListResponse>>;
+    job_list(params: SpacemoltFacilityJobListParams, requestId?: string): Promise<QueryResult<FacilityJobListResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    job_reorder(params: SpacemoltFacilityJobReorderParams): Promise<MutationResult<JobReorderResponse>>;
+    job_reorder(params: SpacemoltFacilityJobReorderParams, requestId?: string): Promise<MutationResult<JobReorderResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    list(): Promise<QueryResult<FacilityListResponse>>;
+    list(requestId?: string): Promise<QueryResult<FacilityListResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    list_for_sale(params: SpacemoltFacilityListForSaleParams): Promise<MutationResult<FacilityListForSaleResponse>>;
+    list_for_sale(params: SpacemoltFacilityListForSaleParams, requestId?: string): Promise<MutationResult<FacilityListForSaleResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    owned(): Promise<QueryResult<FacilityOwnedResponse>>;
+    owned(requestId?: string): Promise<QueryResult<FacilityOwnedResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    personal_build(params: SpacemoltFacilityPersonalBuildParams): Promise<MutationResult<FacilityPersonalBuildResponse>>;
+    personal_build(params: SpacemoltFacilityPersonalBuildParams, requestId?: string): Promise<MutationResult<FacilityPersonalBuildResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    personal_decorate(params?: SpacemoltFacilityPersonalDecorateParams): Promise<MutationResult<FacilityPersonalDecorateResponse>>;
+    personal_decorate(params?: SpacemoltFacilityPersonalDecorateParams, requestId?: string): Promise<MutationResult<FacilityPersonalDecorateResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    personal_visit(params?: SpacemoltFacilityPersonalVisitParams): Promise<QueryResult<FacilityPersonalVisitResponse>>;
+    personal_visit(params?: SpacemoltFacilityPersonalVisitParams, requestId?: string): Promise<QueryResult<FacilityPersonalVisitResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    ranch_set_cull(params: SpacemoltFacilityRanchSetCullParams): Promise<MutationResult<RanchSetCullResponse>>;
+    ranch_set_cull(params: SpacemoltFacilityRanchSetCullParams, requestId?: string): Promise<MutationResult<RanchSetCullResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    ranch_status(params?: SpacemoltFacilityRanchStatusParams): Promise<QueryResult<RanchStatusResponse>>;
+    ranch_status(params?: SpacemoltFacilityRanchStatusParams, requestId?: string): Promise<QueryResult<RanchStatusResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    remove_faction(params: SpacemoltFacilityRemoveFactionParams): Promise<MutationResult<StationConfigResponse>>;
+    remove_faction(params: SpacemoltFacilityRemoveFactionParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    remove_player(params: SpacemoltFacilityRemovePlayerParams): Promise<MutationResult<StationConfigResponse>>;
+    remove_player(params: SpacemoltFacilityRemovePlayerParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    repair(params: SpacemoltFacilityRepairParams): Promise<MutationResult<FacilityRepairResponse>>;
+    repair(params: SpacemoltFacilityRepairParams, requestId?: string): Promise<MutationResult<FacilityRepairResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    set_access(params: SpacemoltFacilitySetAccessParams): Promise<MutationResult<SetAccessResponse>>;
+    set_access(params: SpacemoltFacilitySetAccessParams, requestId?: string): Promise<MutationResult<SetAccessResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_auto_buy_fuel(params?: SpacemoltFacilitySetAutoBuyFuelParams): Promise<MutationResult<StationConfigResponse>>;
+    set_auto_buy_fuel(params?: SpacemoltFacilitySetAutoBuyFuelParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_build_policy(params?: SpacemoltFacilitySetBuildPolicyParams): Promise<MutationResult<StationConfigResponse>>;
+    set_build_policy(params?: SpacemoltFacilitySetBuildPolicyParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_description(params?: SpacemoltFacilitySetDescriptionParams): Promise<MutationResult<StationConfigResponse>>;
+    set_description(params?: SpacemoltFacilitySetDescriptionParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_market_fee(params?: SpacemoltFacilitySetMarketFeeParams): Promise<MutationResult<StationConfigResponse>>;
+    set_market_fee(params?: SpacemoltFacilitySetMarketFeeParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    set_name(params: SpacemoltFacilitySetNameParams): Promise<MutationResult<SetFacilityNameResponse>>;
+    set_name(params: SpacemoltFacilitySetNameParams, requestId?: string): Promise<MutationResult<SetFacilityNameResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    set_output_price(params: SpacemoltFacilitySetOutputPriceParams): Promise<MutationResult<SetOutputPriceResponse>>;
+    set_output_price(params: SpacemoltFacilitySetOutputPriceParams, requestId?: string): Promise<MutationResult<SetOutputPriceResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_public(params?: SpacemoltFacilitySetPublicParams): Promise<MutationResult<StationConfigResponse>>;
+    set_public(params?: SpacemoltFacilitySetPublicParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_refuel_price(params?: SpacemoltFacilitySetRefuelPriceParams): Promise<MutationResult<StationConfigResponse>>;
+    set_refuel_price(params?: SpacemoltFacilitySetRefuelPriceParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_repair_price(params?: SpacemoltFacilitySetRepairPriceParams): Promise<MutationResult<StationConfigResponse>>;
+    set_repair_price(params?: SpacemoltFacilitySetRepairPriceParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    set_service_access(params: SpacemoltFacilitySetServiceAccessParams): Promise<MutationResult<StationConfigResponse>>;
+    set_service_access(params: SpacemoltFacilitySetServiceAccessParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    station_info(): Promise<QueryResult<StationConfigResponse>>;
+    station_info(requestId?: string): Promise<QueryResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    station_set_name(params: SpacemoltFacilityStationSetNameParams): Promise<QueryResult<StationConfigResponse>>;
+    station_set_name(params: SpacemoltFacilityStationSetNameParams, requestId?: string): Promise<QueryResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    transfer(params: SpacemoltFacilityTransferParams): Promise<MutationResult<FacilityTransferResponse>>;
+    transfer(params: SpacemoltFacilityTransferParams, requestId?: string): Promise<MutationResult<FacilityTransferResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    types(params?: SpacemoltFacilityTypesParams): Promise<QueryResult<FacilityTypeDiscoveryResponse | FacilityTypeListResponse | FacilityTypeDetailResponse>>;
+    types(params?: SpacemoltFacilityTypesParams, requestId?: string): Promise<QueryResult<FacilityTypeDiscoveryResponse | FacilityTypeListResponse | FacilityTypeDetailResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
-    unban(params: SpacemoltFacilityUnbanParams): Promise<MutationResult<StationConfigResponse>>;
+    unban(params: SpacemoltFacilityUnbanParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    upgrade(params: SpacemoltFacilityUpgradeParams): Promise<MutationResult<FacilityUpgradeResponse | FacilityFactionUpgradeResponse>>;
+    upgrade(params: SpacemoltFacilityUpgradeParams, requestId?: string): Promise<MutationResult<FacilityUpgradeResponse | FacilityFactionUpgradeResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
-    upgrades(): Promise<QueryResult<FacilityUpgradesResponse>>;
+    upgrades(requestId?: string): Promise<QueryResult<FacilityUpgradesResponse>>;
   };
   spacemolt_faction: {
     /** Accept a pending alliance proposal */
-    accept_ally(params: SpacemoltFactionAcceptAllyParams): Promise<MutationResult<FactionAcceptAllyResponse>>;
+    accept_ally(params: SpacemoltFactionAcceptAllyParams, requestId?: string): Promise<MutationResult<FactionAcceptAllyResponse>>;
     /** Accept a faction invitation (alias for join) */
-    accept_invite(params: SpacemoltFactionAcceptInviteParams): Promise<MutationResult<JoinFactionResponse>>;
+    accept_invite(params: SpacemoltFactionAcceptInviteParams, requestId?: string): Promise<MutationResult<JoinFactionResponse>>;
     /** Accept a peace proposal */
-    accept_peace(params: SpacemoltFactionAcceptPeaceParams): Promise<MutationResult<FactionAcceptPeaceResponse>>;
+    accept_peace(params: SpacemoltFactionAcceptPeaceParams, requestId?: string): Promise<MutationResult<FactionAcceptPeaceResponse>>;
     /** Cancel a posted faction mission and refund escrowed rewards */
-    cancel_mission(params: SpacemoltFactionCancelMissionParams): Promise<MutationResult<FactionCancelMissionResponse>>;
+    cancel_mission(params: SpacemoltFactionCancelMissionParams, requestId?: string): Promise<MutationResult<FactionCancelMissionResponse>>;
     /** Create a new faction */
-    create(params: SpacemoltFactionCreateParams): Promise<MutationResult<CreateFactionResponse>>;
+    create(params: SpacemoltFactionCreateParams, requestId?: string): Promise<MutationResult<CreateFactionResponse>>;
     /** Declare war on another faction */
-    declare_war(params: SpacemoltFactionDeclareWarParams): Promise<MutationResult<FactionDeclareWarResponse>>;
+    declare_war(params: SpacemoltFactionDeclareWarParams, requestId?: string): Promise<MutationResult<FactionDeclareWarResponse>>;
     /** Decline a faction invitation */
-    decline_invite(params: SpacemoltFactionDeclineInviteParams): Promise<QueryResult<FactionDeclineInviteResponse>>;
+    decline_invite(params: SpacemoltFactionDeclineInviteParams, requestId?: string): Promise<QueryResult<FactionDeclineInviteResponse>>;
     /** Delete a custom faction role */
-    delete_role(params: SpacemoltFactionDeleteRoleParams): Promise<QueryResult<FactionDeleteRoleResponse>>;
+    delete_role(params: SpacemoltFactionDeleteRoleParams, requestId?: string): Promise<QueryResult<FactionDeleteRoleResponse>>;
     /** Delete a room from your faction's common space */
-    delete_room(params: SpacemoltFactionDeleteRoomParams): Promise<QueryResult<FactionDeleteRoomResponse>>;
+    delete_room(params: SpacemoltFactionDeleteRoomParams, requestId?: string): Promise<QueryResult<FactionDeleteRoomResponse>>;
     /** View your faction's full ship-garage roster across all stations */
-    garages(): Promise<QueryResult<FactionGaragesResponse>>;
+    garages(requestId?: string): Promise<QueryResult<FactionGaragesResponse>>;
     /** View pending faction invitations */
-    get_invites(): Promise<QueryResult<FactionGetInvitesResponse>>;
+    get_invites(requestId?: string): Promise<QueryResult<FactionGetInvitesResponse>>;
     /** View faction details */
-    info(params?: SpacemoltFactionInfoParams): Promise<QueryResult<FactionInfoResponse>>;
+    info(params?: SpacemoltFactionInfoParams, requestId?: string): Promise<QueryResult<FactionInfoResponse>>;
     /** Invite a player to your faction */
-    invite(params: SpacemoltFactionInviteParams): Promise<MutationResult<FactionInviteResponse>>;
+    invite(params: SpacemoltFactionInviteParams, requestId?: string): Promise<MutationResult<FactionInviteResponse>>;
     /** Join a faction via invitation */
-    join(params: SpacemoltFactionJoinParams): Promise<MutationResult<JoinFactionResponse>>;
+    join(params: SpacemoltFactionJoinParams, requestId?: string): Promise<MutationResult<JoinFactionResponse>>;
     /** Kick a player from your faction */
-    kick(params: SpacemoltFactionKickParams): Promise<MutationResult<FactionKickResponse>>;
+    kick(params: SpacemoltFactionKickParams, requestId?: string): Promise<MutationResult<FactionKickResponse>>;
     /** Leave your faction */
-    leave(): Promise<MutationResult<MessageResponse>>;
+    leave(requestId?: string): Promise<MutationResult<MessageResponse>>;
     /** List all factions */
-    list(params?: SpacemoltFactionListParams): Promise<QueryResult<FactionListResponse>>;
+    list(params?: SpacemoltFactionListParams, requestId?: string): Promise<QueryResult<FactionListResponse>>;
     /** List your faction's posted missions at this station */
-    list_missions(): Promise<QueryResult<FactionListMissionsResponse>>;
+    list_missions(requestId?: string): Promise<QueryResult<FactionListMissionsResponse>>;
     /** Prepay credits from the faction treasury toward the next corporate tax assessment */
-    prepay_tax(params: SpacemoltFactionPrepayTaxParams): Promise<MutationResult<FactionPrepayTaxResponse>>;
+    prepay_tax(params: SpacemoltFactionPrepayTaxParams, requestId?: string): Promise<MutationResult<FactionPrepayTaxResponse>>;
     /** Propose a mutual alliance with another faction */
-    propose_ally(params: SpacemoltFactionProposeAllyParams): Promise<MutationResult<FactionProposeAllyResponse>>;
+    propose_ally(params: SpacemoltFactionProposeAllyParams, requestId?: string): Promise<MutationResult<FactionProposeAllyResponse>>;
     /** Propose peace to a faction you're at war with */
-    propose_peace(params: SpacemoltFactionProposePeaceParams): Promise<MutationResult<FactionProposePeaceResponse>>;
+    propose_peace(params: SpacemoltFactionProposePeaceParams, requestId?: string): Promise<MutationResult<FactionProposePeaceResponse>>;
     /** Dissolve an alliance with another faction */
-    remove_ally(params: SpacemoltFactionRemoveAllyParams): Promise<MutationResult<FactionRemoveAllyResponse>>;
+    remove_ally(params: SpacemoltFactionRemoveAllyParams, requestId?: string): Promise<MutationResult<FactionRemoveAllyResponse>>;
     /** Return an enemy faction to neutral standing */
-    remove_enemy(params: SpacemoltFactionRemoveEnemyParams): Promise<MutationResult<FactionRemoveEnemyResponse>>;
+    remove_enemy(params: SpacemoltFactionRemoveEnemyParams, requestId?: string): Promise<MutationResult<FactionRemoveEnemyResponse>>;
     /** List rooms in your faction's common space at the current station */
-    rooms(): Promise<QueryResult<FactionRoomsResponse>>;
+    rooms(requestId?: string): Promise<QueryResult<FactionRoomsResponse>>;
     /** Mark another faction as enemy */
-    set_enemy(params: SpacemoltFactionSetEnemyParams): Promise<MutationResult<FactionSetEnemyResponse>>;
+    set_enemy(params: SpacemoltFactionSetEnemyParams, requestId?: string): Promise<MutationResult<FactionSetEnemyResponse>>;
     /** Preview the corporate income tax your faction would owe right now */
-    tax_estimate(): Promise<QueryResult<FactionTaxEstimateResponse>>;
+    tax_estimate(requestId?: string): Promise<QueryResult<FactionTaxEstimateResponse>>;
     /** Visit a room in your faction's common space and read its description */
-    visit_room(params: SpacemoltFactionVisitRoomParams): Promise<QueryResult<FactionVisitRoomResponse>>;
+    visit_room(params: SpacemoltFactionVisitRoomParams, requestId?: string): Promise<QueryResult<FactionVisitRoomResponse>>;
     /** Withdraw a pending invite you sent */
-    withdraw_invite(params: SpacemoltFactionWithdrawInviteParams): Promise<MutationResult<FactionWithdrawInviteResponse>>;
+    withdraw_invite(params: SpacemoltFactionWithdrawInviteParams, requestId?: string): Promise<MutationResult<FactionWithdrawInviteResponse>>;
   };
   spacemolt_faction_admin: {
     /** Create a custom faction role */
-    create_role(params: SpacemoltFactionAdminCreateRoleParams): Promise<QueryResult<FactionCreateRoleResponse>>;
+    create_role(params: SpacemoltFactionAdminCreateRoleParams, requestId?: string): Promise<QueryResult<FactionCreateRoleResponse>>;
     /** Update faction description, charter, colors, and ally-sharing toggles */
-    edit(params?: SpacemoltFactionAdminEditParams): Promise<QueryResult<FactionEditResponse>>;
+    edit(params?: SpacemoltFactionAdminEditParams, requestId?: string): Promise<QueryResult<FactionEditResponse>>;
     /** Edit a custom faction role */
-    edit_role(params: SpacemoltFactionAdminEditRoleParams): Promise<QueryResult<FactionEditRoleResponse>>;
+    edit_role(params: SpacemoltFactionAdminEditRoleParams, requestId?: string): Promise<QueryResult<FactionEditRoleResponse>>;
     /** Post a mission on your faction's mission board */
-    post_mission(params: SpacemoltFactionAdminPostMissionParams): Promise<MutationResult<FactionPostMissionResponse>>;
+    post_mission(params: SpacemoltFactionAdminPostMissionParams, requestId?: string): Promise<MutationResult<FactionPostMissionResponse>>;
     /** Promote or demote a faction member */
-    promote(params: SpacemoltFactionAdminPromoteParams): Promise<MutationResult<FactionPromoteResponse>>;
+    promote(params: SpacemoltFactionAdminPromoteParams, requestId?: string): Promise<MutationResult<FactionPromoteResponse>>;
     /** Create or update a room in your faction's common space — this is your chance to worldbuild */
-    write_room(params?: SpacemoltFactionAdminWriteRoomParams): Promise<QueryResult<FactionWriteRoomResponse>>;
+    write_room(params?: SpacemoltFactionAdminWriteRoomParams, requestId?: string): Promise<QueryResult<FactionWriteRoomResponse>>;
   };
   spacemolt_faction_commerce: {
     /** Create a buy order on behalf of your faction (credits from faction treasury) */
-    create_buy_order(params?: SpacemoltFactionCommerceCreateBuyOrderParams): Promise<MutationResult<FactionCreateBuyOrderCommandResponse>>;
+    create_buy_order(params?: SpacemoltFactionCommerceCreateBuyOrderParams, requestId?: string): Promise<MutationResult<FactionCreateBuyOrderCommandResponse>>;
     /** Create a sell order on behalf of your faction (items from faction storage) */
-    create_sell_order(params?: SpacemoltFactionCommerceCreateSellOrderParams): Promise<MutationResult<FactionCreateSellOrderCommandResponse>>;
+    create_sell_order(params?: SpacemoltFactionCommerceCreateSellOrderParams, requestId?: string): Promise<MutationResult<FactionCreateSellOrderCommandResponse>>;
   };
   spacemolt_fleet: {
     /** Create and manage player fleets for coordinated movement and combat */
-    accept(): Promise<MutationResult<FleetAcceptResponse>>;
+    accept(requestId?: string): Promise<MutationResult<FleetAcceptResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    board(params: SpacemoltFleetBoardParams): Promise<MutationResult<FleetBoardResponse>>;
+    board(params: SpacemoltFleetBoardParams, requestId?: string): Promise<MutationResult<FleetBoardResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    create(): Promise<MutationResult<FleetCreateResponse>>;
+    create(requestId?: string): Promise<MutationResult<FleetCreateResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    decline(): Promise<MutationResult<FleetDeclineResponse>>;
+    decline(requestId?: string): Promise<MutationResult<FleetDeclineResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    disband(): Promise<MutationResult<FleetActionResponse>>;
+    disband(requestId?: string): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    disembark(): Promise<MutationResult<FleetActionResponse>>;
+    disembark(requestId?: string): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    invite(params: SpacemoltFleetInviteParams): Promise<MutationResult<FleetActionResponse>>;
+    invite(params: SpacemoltFleetInviteParams, requestId?: string): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    kick(params: SpacemoltFleetKickParams): Promise<MutationResult<FleetActionResponse>>;
+    kick(params: SpacemoltFleetKickParams, requestId?: string): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    leave(): Promise<MutationResult<FleetActionResponse>>;
+    leave(requestId?: string): Promise<MutationResult<FleetActionResponse>>;
     /** Create and manage player fleets for coordinated movement and combat */
-    status(): Promise<QueryResult<FleetStatusResponse>>;
+    status(requestId?: string): Promise<QueryResult<FleetStatusResponse>>;
   };
   spacemolt_intel: {
     /** Send a spy to gather intelligence on the station you're docked at, using your faction's Espionage HQ */
-    espionage(): Promise<MutationResult<EspionageResponse>>;
+    espionage(requestId?: string): Promise<MutationResult<EspionageResponse>>;
     /** View faction intel coverage statistics */
-    intel_status(): Promise<QueryResult<FactionIntelStatusResponse>>;
+    intel_status(requestId?: string): Promise<QueryResult<FactionIntelStatusResponse>>;
     /** Query your faction's intel database, or an allied faction's */
-    query_intel(params?: SpacemoltIntelQueryIntelParams): Promise<QueryResult<FactionQueryIntelResponse>>;
+    query_intel(params?: SpacemoltIntelQueryIntelParams, requestId?: string): Promise<QueryResult<FactionQueryIntelResponse>>;
     /** Search your faction's market price database, or an allied faction's */
-    query_trade_intel(params?: SpacemoltIntelQueryTradeIntelParams): Promise<QueryResult<FactionQueryTradeIntelResponse>>;
+    query_trade_intel(params?: SpacemoltIntelQueryTradeIntelParams, requestId?: string): Promise<QueryResult<FactionQueryTradeIntelResponse>>;
     /** Run a long-range sensor scan of a POI from your faction's sensor facility */
-    scan_poi(params: SpacemoltIntelScanPoiParams): Promise<MutationResult<FactionScanPoiResponse>>;
+    scan_poi(params: SpacemoltIntelScanPoiParams, requestId?: string): Promise<MutationResult<FactionScanPoiResponse>>;
     /** Submit system intel to your faction's shared map */
-    submit_intel(params: SpacemoltIntelSubmitIntelParams): Promise<MutationResult<FactionSubmitIntelResponse>>;
+    submit_intel(params: SpacemoltIntelSubmitIntelParams, requestId?: string): Promise<MutationResult<FactionSubmitIntelResponse>>;
     /** Submit market price observations to your faction's trade ledger */
-    submit_trade_intel(params: SpacemoltIntelSubmitTradeIntelParams): Promise<MutationResult<FactionSubmitTradeIntelResponse>>;
+    submit_trade_intel(params: SpacemoltIntelSubmitTradeIntelParams, requestId?: string): Promise<MutationResult<FactionSubmitTradeIntelResponse>>;
     /** View faction trade intelligence coverage statistics */
-    trade_intel_status(): Promise<QueryResult<FactionTradeIntelStatusResponse>>;
+    trade_intel_status(requestId?: string): Promise<QueryResult<FactionTradeIntelStatusResponse>>;
   };
   spacemolt_market: {
     /** Get actionable trading insights at your current station */
-    analyze_market(): Promise<QueryResult<AnalyzeMarketResponse>>;
+    analyze_market(requestId?: string): Promise<QueryResult<AnalyzeMarketResponse>>;
     /** Cancel an active order and return escrow */
-    cancel_order(params?: SpacemoltMarketCancelOrderParams): Promise<MutationResult<CancelOrderCommandResponse>>;
+    cancel_order(params?: SpacemoltMarketCancelOrderParams, requestId?: string): Promise<MutationResult<CancelOrderCommandResponse>>;
     /** Place a buy offer on the station exchange */
-    create_buy_order(params?: SpacemoltMarketCreateBuyOrderParams): Promise<MutationResult<CreateBuyOrderCommandResponse>>;
+    create_buy_order(params?: SpacemoltMarketCreateBuyOrderParams, requestId?: string): Promise<MutationResult<CreateBuyOrderCommandResponse>>;
     /** List items for sale on the station exchange */
-    create_sell_order(params?: SpacemoltMarketCreateSellOrderParams): Promise<MutationResult<CreateSellOrderCommandResponse>>;
+    create_sell_order(params?: SpacemoltMarketCreateSellOrderParams, requestId?: string): Promise<MutationResult<CreateSellOrderCommandResponse>>;
     /** Preview what buying would cost without executing */
-    estimate_purchase(params: SpacemoltMarketEstimatePurchaseParams): Promise<QueryResult<EstimatePurchaseResponse>>;
+    estimate_purchase(params: SpacemoltMarketEstimatePurchaseParams, requestId?: string): Promise<QueryResult<EstimatePurchaseResponse>>;
     /** Change the price on an existing order */
-    modify_order(params?: SpacemoltMarketModifyOrderParams): Promise<MutationResult<ModifyOrderCommandResponse>>;
+    modify_order(params?: SpacemoltMarketModifyOrderParams, requestId?: string): Promise<MutationResult<ModifyOrderCommandResponse>>;
     /** Subscribe to live market updates at the current station */
-    subscribe_market(): Promise<QueryResult<SubscribeMarketResponse>>;
+    subscribe_market(requestId?: string): Promise<QueryResult<SubscribeMarketResponse>>;
     /** Cancel your live market subscription */
-    unsubscribe_market(): Promise<QueryResult<UnsubscribeMarketResponse>>;
+    unsubscribe_market(requestId?: string): Promise<QueryResult<UnsubscribeMarketResponse>>;
     /** View the market at the current station */
-    view_market(params?: SpacemoltMarketViewMarketParams): Promise<QueryResult<ViewMarketResponse>>;
+    view_market(params?: SpacemoltMarketViewMarketParams, requestId?: string): Promise<QueryResult<ViewMarketResponse>>;
     /** View your own orders at a station */
-    view_orders(params?: SpacemoltMarketViewOrdersParams): Promise<QueryResult<ViewOrdersResponse>>;
+    view_orders(params?: SpacemoltMarketViewOrdersParams, requestId?: string): Promise<QueryResult<ViewOrdersResponse>>;
   };
   spacemolt_salvage: {
     /** Purchase ship insurance */
-    insure(): Promise<MutationResult<BuyInsuranceResponse>>;
+    insure(requestId?: string): Promise<MutationResult<BuyInsuranceResponse>>;
     /** Loot items and modules from a wreck */
-    loot(params?: SpacemoltSalvageLootParams): Promise<MutationResult<LootWreckCommandResponse>>;
+    loot(params?: SpacemoltSalvageLootParams, requestId?: string): Promise<MutationResult<LootWreckCommandResponse>>;
     /** View your active insurance policies */
-    policies(): Promise<QueryResult<ClaimInsuranceResponse>>;
+    policies(requestId?: string): Promise<QueryResult<ClaimInsuranceResponse>>;
     /** Get a risk-based insurance quote for your current ship */
-    quote(): Promise<QueryResult<GetInsuranceQuoteResponse>>;
+    quote(requestId?: string): Promise<QueryResult<GetInsuranceQuoteResponse>>;
     /** Release a towed wreck at your current location */
-    release(): Promise<MutationResult<ReleaseTowResponse>>;
+    release(requestId?: string): Promise<MutationResult<ReleaseTowResponse>>;
     /** Scrap a towed wreck for salvage materials */
-    scrap(): Promise<MutationResult<ScrapWreckResponse>>;
+    scrap(requestId?: string): Promise<MutationResult<ScrapWreckResponse>>;
     /** Sell a towed wreck to the salvage yard for credits */
-    sell(): Promise<MutationResult<SellWreckResponse>>;
+    sell(requestId?: string): Promise<MutationResult<SellWreckResponse>>;
     /** Set your home base for respawning */
-    set_home(params: SpacemoltSalvageSetHomeParams): Promise<MutationResult<SetHomeBaseResponse>>;
+    set_home(params: SpacemoltSalvageSetHomeParams, requestId?: string): Promise<MutationResult<SetHomeBaseResponse>>;
     /** Attach a tow line to a wreck for hauling */
-    tow(params: SpacemoltSalvageTowParams): Promise<MutationResult<TowWreckResponse>>;
+    tow(params: SpacemoltSalvageTowParams, requestId?: string): Promise<MutationResult<TowWreckResponse>>;
     /** List all wrecks at your current POI */
-    wrecks(): Promise<QueryResult<GetWrecksResponse>>;
+    wrecks(requestId?: string): Promise<QueryResult<GetWrecksResponse>>;
   };
   spacemolt_ship: {
     /** Browse ships listed for sale at a base */
-    browse_ships(params?: SpacemoltShipBrowseShipsParams): Promise<QueryResult<BrowseShipsResponse>>;
+    browse_ships(params?: SpacemoltShipBrowseShipsParams, requestId?: string): Promise<QueryResult<BrowseShipsResponse>>;
     /** Purchase a ship from the exchange */
-    buy_listed_ship(params: SpacemoltShipBuyListedShipParams): Promise<MutationResult<BuyListedShipResponse>>;
+    buy_listed_ship(params: SpacemoltShipBuyListedShipParams, requestId?: string): Promise<MutationResult<BuyListedShipResponse>>;
     /** Cancel a pending or in-progress ship commission */
-    cancel_commission(params: SpacemoltShipCancelCommissionParams): Promise<MutationResult<CancelCommissionResponse>>;
+    cancel_commission(params: SpacemoltShipCancelCommissionParams, requestId?: string): Promise<MutationResult<CancelCommissionResponse>>;
     /** Cancel one of your ship buy orders and refund the escrow */
-    cancel_ship_buy_order(params: SpacemoltShipCancelShipBuyOrderParams): Promise<MutationResult<CancelShipBuyOrderResponse>>;
+    cancel_ship_buy_order(params: SpacemoltShipCancelShipBuyOrderParams, requestId?: string): Promise<MutationResult<CancelShipBuyOrderResponse>>;
     /** Remove your ship listing from the exchange */
-    cancel_ship_listing(params: SpacemoltShipCancelShipListingParams): Promise<MutationResult<CancelShipListingResponse>>;
+    cancel_ship_listing(params: SpacemoltShipCancelShipListingParams, requestId?: string): Promise<MutationResult<CancelShipListingResponse>>;
     /** Get a cost estimate for commissioning a ship */
-    commission_quote(params: SpacemoltShipCommissionQuoteParams): Promise<QueryResult<CommissionQuoteResponse>>;
+    commission_quote(params: SpacemoltShipCommissionQuoteParams, requestId?: string): Promise<QueryResult<CommissionQuoteResponse>>;
     /** Commission a ship to be built at this shipyard */
-    commission_ship(params: SpacemoltShipCommissionShipParams): Promise<MutationResult<CommissionShipResponse>>;
+    commission_ship(params: SpacemoltShipCommissionShipParams, requestId?: string): Promise<MutationResult<CommissionShipResponse>>;
     /** Check the status of your ship commissions */
-    commission_status(params?: SpacemoltShipCommissionStatusParams): Promise<QueryResult<CommissionStatusResponse>>;
+    commission_status(params?: SpacemoltShipCommissionStatusParams, requestId?: string): Promise<QueryResult<CommissionStatusResponse>>;
     /** List a stored ship for sale on the exchange */
-    list_ship_for_sale(params: SpacemoltShipListShipForSaleParams): Promise<MutationResult<ListShipForSaleResponse>>;
+    list_ship_for_sale(params: SpacemoltShipListShipForSaleParams, requestId?: string): Promise<MutationResult<ListShipForSaleResponse>>;
     /** List all ships you own and their locations */
-    list_ships(): Promise<QueryResult<ListShipsResponse>>;
+    list_ships(requestId?: string): Promise<QueryResult<ListShipsResponse>>;
     /** Place a standing buy order for a ship class at this base */
-    place_ship_buy_order(params: SpacemoltShipPlaceShipBuyOrderParams): Promise<MutationResult<PlaceShipBuyOrderResponse>>;
+    place_ship_buy_order(params: SpacemoltShipPlaceShipBuyOrderParams, requestId?: string): Promise<MutationResult<PlaceShipBuyOrderResponse>>;
     /** Refit your active ship to its latest class specifications */
-    refit_ship(): Promise<MutationResult<RefitShipResponse>>;
+    refit_ship(requestId?: string): Promise<MutationResult<RefitShipResponse>>;
     /** Set or clear a custom name for your active ship */
-    rename_ship(params: SpacemoltShipRenameShipParams): Promise<MutationResult<NameShipResponse>>;
+    rename_ship(params: SpacemoltShipRenameShipParams, requestId?: string): Promise<MutationResult<NameShipResponse>>;
     /** Permanently destroy a ship you no longer want (no credits returned) */
-    scrap_ship(params: SpacemoltShipScrapShipParams): Promise<MutationResult<ScrapShipResponse>>;
+    scrap_ship(params: SpacemoltShipScrapShipParams, requestId?: string): Promise<MutationResult<ScrapShipResponse>>;
     /** Sell a stored ship directly into a buy order at this base */
-    sell_ship_to_order(params: SpacemoltShipSellShipToOrderParams): Promise<MutationResult<SellShipToOrderResponse>>;
+    sell_ship_to_order(params: SpacemoltShipSellShipToOrderParams, requestId?: string): Promise<MutationResult<SellShipToOrderResponse>>;
     /** Donate materials directly to a credits-only commission that is stuck sourcing */
-    supply_commission(params: SpacemoltShipSupplyCommissionParams): Promise<MutationResult<SupplyCommissionResponse>>;
+    supply_commission(params: SpacemoltShipSupplyCommissionParams, requestId?: string): Promise<MutationResult<SupplyCommissionResponse>>;
     /** Switch to a different ship stored at this station */
-    switch_ship(params: SpacemoltShipSwitchShipParams): Promise<MutationResult<SwitchShipResponse>>;
+    switch_ship(params: SpacemoltShipSwitchShipParams, requestId?: string): Promise<MutationResult<SwitchShipResponse>>;
     /** View your open ship buy orders across all bases */
-    view_ship_buy_orders(): Promise<QueryResult<ViewShipBuyOrdersResponse>>;
+    view_ship_buy_orders(requestId?: string): Promise<QueryResult<ViewShipBuyOrdersResponse>>;
   };
   spacemolt_shipping: {
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    accept(params: SpacemoltShippingAcceptParams): Promise<MutationResult<ShippingContractResponse>>;
+    accept(params: SpacemoltShippingAcceptParams, requestId?: string): Promise<MutationResult<ShippingContractResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    cancel(params: SpacemoltShippingCancelParams): Promise<MutationResult<ShippingSettlementResponse>>;
+    cancel(params: SpacemoltShippingCancelParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    deliver(params: SpacemoltShippingDeliverParams): Promise<MutationResult<ShippingSettlementResponse>>;
+    deliver(params: SpacemoltShippingDeliverParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    get(params: SpacemoltShippingGetParams): Promise<QueryResult<ShippingContractResponse>>;
+    get(params: SpacemoltShippingGetParams, requestId?: string): Promise<QueryResult<ShippingContractResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    list(params?: SpacemoltShippingListParams): Promise<QueryResult<ShippingListResponse>>;
+    list(params?: SpacemoltShippingListParams, requestId?: string): Promise<QueryResult<ShippingListResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    pay_debt(params?: SpacemoltShippingPayDebtParams): Promise<MutationResult<ShippingDebtPaymentResponse>>;
+    pay_debt(params?: SpacemoltShippingPayDebtParams, requestId?: string): Promise<MutationResult<ShippingDebtPaymentResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    post(params: SpacemoltShippingPostParams): Promise<MutationResult<ShippingContractResponse>>;
+    post(params: SpacemoltShippingPostParams, requestId?: string): Promise<MutationResult<ShippingContractResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    profile(params?: SpacemoltShippingProfileParams): Promise<QueryResult<ShippingProfileResponse>>;
+    profile(params?: SpacemoltShippingProfileParams, requestId?: string): Promise<QueryResult<ShippingProfileResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    quote(params: SpacemoltShippingQuoteParams): Promise<QueryResult<ShippingQuoteResponse>>;
+    quote(params: SpacemoltShippingQuoteParams, requestId?: string): Promise<QueryResult<ShippingQuoteResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    return(params: SpacemoltShippingReturnParams): Promise<MutationResult<ShippingSettlementResponse>>;
+    return(params: SpacemoltShippingReturnParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    track(params: SpacemoltShippingTrackParams): Promise<QueryResult<ShippingTrackResponse>>;
+    track(params: SpacemoltShippingTrackParams, requestId?: string): Promise<QueryResult<ShippingTrackResponse>>;
   };
   spacemolt_social: {
     /** Add an entry to your captain's log (personal journal) */
-    captains_log_add(params: SpacemoltSocialCaptainsLogAddParams): Promise<QueryResult<CaptainsLogAddResponse>>;
+    captains_log_add(params: SpacemoltSocialCaptainsLogAddParams, requestId?: string): Promise<QueryResult<CaptainsLogAddResponse>>;
     /** Delete a specific entry from your captain's log */
-    captains_log_delete(params: SpacemoltSocialCaptainsLogDeleteParams): Promise<QueryResult<CaptainsLogDeleteResponse>>;
+    captains_log_delete(params: SpacemoltSocialCaptainsLogDeleteParams, requestId?: string): Promise<QueryResult<CaptainsLogDeleteResponse>>;
     /** Get a specific entry from your captain's log */
-    captains_log_get(params: SpacemoltSocialCaptainsLogGetParams): Promise<QueryResult<CaptainsLogGetResponse>>;
+    captains_log_get(params: SpacemoltSocialCaptainsLogGetParams, requestId?: string): Promise<QueryResult<CaptainsLogGetResponse>>;
     /** List all entries in your captain's log */
-    captains_log_list(params?: SpacemoltSocialCaptainsLogListParams): Promise<QueryResult<CaptainsLogListResponse>>;
+    captains_log_list(params?: SpacemoltSocialCaptainsLogListParams, requestId?: string): Promise<QueryResult<CaptainsLogListResponse>>;
     /** Send a chat message */
-    chat(params: SpacemoltSocialChatParams): Promise<QueryResult<ChatResponse>>;
+    chat(params: SpacemoltSocialChatParams, requestId?: string): Promise<QueryResult<ChatResponse>>;
     /** Create a new note document */
-    create_note(params: SpacemoltSocialCreateNoteParams): Promise<QueryResult<CreateNoteResponse>>;
+    create_note(params: SpacemoltSocialCreateNoteParams, requestId?: string): Promise<QueryResult<CreateNoteResponse>>;
     /** Permanently delete a note document you own */
-    delete_note(params: SpacemoltSocialDeleteNoteParams): Promise<QueryResult<DeleteNoteResponse>>;
+    delete_note(params: SpacemoltSocialDeleteNoteParams, requestId?: string): Promise<QueryResult<DeleteNoteResponse>>;
     /** Create a new forum thread */
-    forum_create_thread(params: SpacemoltSocialForumCreateThreadParams): Promise<MutationResult<ForumCreateThreadResponse>>;
+    forum_create_thread(params: SpacemoltSocialForumCreateThreadParams, requestId?: string): Promise<MutationResult<ForumCreateThreadResponse>>;
     /** Delete a forum reply */
-    forum_delete_reply(params: SpacemoltSocialForumDeleteReplyParams): Promise<MutationResult<ForumDeleteReplyResponse>>;
+    forum_delete_reply(params: SpacemoltSocialForumDeleteReplyParams, requestId?: string): Promise<MutationResult<ForumDeleteReplyResponse>>;
     /** Delete a forum thread */
-    forum_delete_thread(params: SpacemoltSocialForumDeleteThreadParams): Promise<MutationResult<ForumDeleteThreadResponse>>;
+    forum_delete_thread(params: SpacemoltSocialForumDeleteThreadParams, requestId?: string): Promise<MutationResult<ForumDeleteThreadResponse>>;
     /** Get a forum thread and its paginated replies */
-    forum_get_thread(params: SpacemoltSocialForumGetThreadParams): Promise<QueryResult<ForumGetThreadResponse>>;
+    forum_get_thread(params: SpacemoltSocialForumGetThreadParams, requestId?: string): Promise<QueryResult<ForumGetThreadResponse>>;
     /** List forum threads */
-    forum_list(params?: SpacemoltSocialForumListParams): Promise<QueryResult<ForumListResponse>>;
+    forum_list(params?: SpacemoltSocialForumListParams, requestId?: string): Promise<QueryResult<ForumListResponse>>;
     /** Reply to a forum thread */
-    forum_reply(params: SpacemoltSocialForumReplyParams): Promise<MutationResult<ForumReplyResponse>>;
+    forum_reply(params: SpacemoltSocialForumReplyParams, requestId?: string): Promise<MutationResult<ForumReplyResponse>>;
     /** Upvote a thread or reply */
-    forum_upvote(params: SpacemoltSocialForumUpvoteParams): Promise<MutationResult<ForumUpvoteResponse>>;
+    forum_upvote(params: SpacemoltSocialForumUpvoteParams, requestId?: string): Promise<MutationResult<ForumUpvoteResponse>>;
     /** Retrieve your or your faction's persistent action history */
-    get_action_log(params?: SpacemoltSocialGetActionLogParams): Promise<QueryResult<GetActionLogResponse>>;
+    get_action_log(params?: SpacemoltSocialGetActionLogParams, requestId?: string): Promise<QueryResult<GetActionLogResponse>>;
     /** Get chat message history */
-    get_chat_history(params: SpacemoltSocialGetChatHistoryParams): Promise<QueryResult<GetChatHistoryResponse>>;
+    get_chat_history(params: SpacemoltSocialGetChatHistoryParams, requestId?: string): Promise<QueryResult<GetChatHistoryResponse>>;
     /** List your note documents (paginated) */
-    get_notes(params?: SpacemoltSocialGetNotesParams): Promise<QueryResult<GetNotesResponse>>;
+    get_notes(params?: SpacemoltSocialGetNotesParams, requestId?: string): Promise<QueryResult<GetNotesResponse>>;
     /** List notification channels and your current mute state */
-    get_notification_settings(): Promise<QueryResult<NotificationSettingsResponse>>;
+    get_notification_settings(requestId?: string): Promise<QueryResult<NotificationSettingsResponse>>;
     /** Mute notification channels for real-time WebSocket pushes */
-    mute_notifications(params: SpacemoltSocialMuteNotificationsParams): Promise<QueryResult<NotificationSettingsResponse>>;
+    mute_notifications(params: SpacemoltSocialMuteNotificationsParams, requestId?: string): Promise<QueryResult<NotificationSettingsResponse>>;
     /** Send a petition to an empire's government */
-    petition(params: SpacemoltSocialPetitionParams): Promise<QueryResult<PetitionResponse>>;
+    petition(params: SpacemoltSocialPetitionParams, requestId?: string): Promise<QueryResult<PetitionResponse>>;
     /** Read a note document's contents */
-    read_note(params: SpacemoltSocialReadNoteParams): Promise<QueryResult<ReadNoteResponse>>;
+    read_note(params: SpacemoltSocialReadNoteParams, requestId?: string): Promise<QueryResult<ReadNoteResponse>>;
     /** Set your ship colors */
-    set_colors(params?: SpacemoltSocialSetColorsParams): Promise<QueryResult<SetColorsResponse>>;
+    set_colors(params?: SpacemoltSocialSetColorsParams, requestId?: string): Promise<QueryResult<SetColorsResponse>>;
     /** Set your status message and clan tag */
-    set_status(params?: SpacemoltSocialSetStatusParams): Promise<QueryResult<SetStatusResponse>>;
+    set_status(params?: SpacemoltSocialSetStatusParams, requestId?: string): Promise<QueryResult<SetStatusResponse>>;
     /** Unmute previously muted notification channels */
-    unmute_notifications(params?: SpacemoltSocialUnmuteNotificationsParams): Promise<QueryResult<NotificationSettingsResponse>>;
+    unmute_notifications(params?: SpacemoltSocialUnmuteNotificationsParams, requestId?: string): Promise<QueryResult<NotificationSettingsResponse>>;
     /** Overwrite an existing note's full content (full REPLACE, not append) */
-    write_note(params: SpacemoltSocialWriteNoteParams): Promise<QueryResult<WriteNoteResponse>>;
+    write_note(params: SpacemoltSocialWriteNoteParams, requestId?: string): Promise<QueryResult<WriteNoteResponse>>;
   };
   spacemolt_storage: {
     /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
-    deposit(params?: SpacemoltStorageDepositParams): Promise<MutationResult<DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse>>;
+    deposit(params?: SpacemoltStorageDepositParams, requestId?: string): Promise<MutationResult<DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse>>;
     /** Jettison items from cargo into space */
-    jettison(params?: SpacemoltStorageJettisonParams): Promise<MutationResult<JettisonCommandResponse>>;
+    jettison(params?: SpacemoltStorageJettisonParams, requestId?: string): Promise<MutationResult<JettisonCommandResponse>>;
     /** Loot items and modules from a wreck */
-    loot(params?: SpacemoltStorageLootParams): Promise<MutationResult<LootWreckCommandResponse>>;
+    loot(params?: SpacemoltStorageLootParams, requestId?: string): Promise<MutationResult<LootWreckCommandResponse>>;
     /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
-    view(params?: SpacemoltStorageViewParams): Promise<QueryResult<ViewStorageResponse | ViewFactionStorageResponse>>;
+    view(params?: SpacemoltStorageViewParams, requestId?: string): Promise<QueryResult<ViewStorageResponse | ViewFactionStorageResponse>>;
     /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
-    withdraw(params?: SpacemoltStorageWithdrawParams): Promise<MutationResult<WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse>>;
+    withdraw(params?: SpacemoltStorageWithdrawParams, requestId?: string): Promise<MutationResult<WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse>>;
   };
   spacemolt_transfer: {
     /** View pending trade offers */
-    get_trades(): Promise<QueryResult<GetTradesResponse>>;
+    get_trades(requestId?: string): Promise<QueryResult<GetTradesResponse>>;
     /** Accept a trade offer */
-    trade_accept(params: SpacemoltTransferTradeAcceptParams): Promise<MutationResult<TradeAcceptResponse>>;
+    trade_accept(params: SpacemoltTransferTradeAcceptParams, requestId?: string): Promise<MutationResult<TradeAcceptResponse>>;
     /** Cancel your trade offer */
-    trade_cancel(params: SpacemoltTransferTradeCancelParams): Promise<QueryResult<MessageResponse>>;
+    trade_cancel(params: SpacemoltTransferTradeCancelParams, requestId?: string): Promise<QueryResult<MessageResponse>>;
     /** Decline a trade offer */
-    trade_decline(params: SpacemoltTransferTradeDeclineParams): Promise<QueryResult<MessageResponse>>;
+    trade_decline(params: SpacemoltTransferTradeDeclineParams, requestId?: string): Promise<QueryResult<MessageResponse>>;
     /** Offer a trade to another player */
-    trade_offer(params: SpacemoltTransferTradeOfferParams): Promise<MutationResult<TradeOfferResponse>>;
+    trade_offer(params: SpacemoltTransferTradeOfferParams, requestId?: string): Promise<MutationResult<TradeOfferResponse>>;
   };
 }
 
@@ -2444,11 +2444,16 @@ export type CommandDispatch = (
   tool: string,
   action: string,
   payload?: Record<string, unknown>,
+  requestId?: string,
 ) => Promise<QueryResult | MutationResult>;
 
 export function buildCommands(dispatch: CommandDispatch): Commands;
 export function buildCommands(dispatch: CommandDispatch): unknown {
-  const bind = (tool: string, action: string) => (params?: Record<string, unknown>) => dispatch(tool, action, params);
+  const bind =
+    (tool: string, action: string) =>
+    (params?: Record<string, unknown>, requestId?: string) =>
+      dispatch(tool, action, params, requestId);
+  const bindBare = (tool: string, action: string) => (requestId?: string) => dispatch(tool, action, undefined, requestId);
   return {
     spacemolt: {
       abandon_mission: bind("spacemolt", "abandon_mission"),
@@ -2457,45 +2462,45 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       buy: bind("spacemolt", "buy"),
       cloak: bind("spacemolt", "cloak"),
       complete_mission: bind("spacemolt", "complete_mission"),
-      completed_missions: bind("spacemolt", "completed_missions"),
+      completed_missions: bindBare("spacemolt", "completed_missions"),
       craft: bind("spacemolt", "craft"),
       decline_mission: bind("spacemolt", "decline_mission"),
       distress_signal: bind("spacemolt", "distress_signal"),
-      dock: bind("spacemolt", "dock"),
+      dock: bindBare("spacemolt", "dock"),
       find_route: bind("spacemolt", "find_route"),
-      get_achievements: bind("spacemolt", "get_achievements"),
-      get_active_missions: bind("spacemolt", "get_active_missions"),
-      get_base: bind("spacemolt", "get_base"),
-      get_cargo: bind("spacemolt", "get_cargo"),
-      get_commands: bind("spacemolt", "get_commands"),
+      get_achievements: bindBare("spacemolt", "get_achievements"),
+      get_active_missions: bindBare("spacemolt", "get_active_missions"),
+      get_base: bindBare("spacemolt", "get_base"),
+      get_cargo: bindBare("spacemolt", "get_cargo"),
+      get_commands: bindBare("spacemolt", "get_commands"),
       get_empire_info: bind("spacemolt", "get_empire_info"),
-      get_faction_achievements: bind("spacemolt", "get_faction_achievements"),
+      get_faction_achievements: bindBare("spacemolt", "get_faction_achievements"),
       get_guide: bind("spacemolt", "get_guide"),
-      get_location: bind("spacemolt", "get_location"),
+      get_location: bindBare("spacemolt", "get_location"),
       get_map: bind("spacemolt", "get_map"),
-      get_missions: bind("spacemolt", "get_missions"),
-      get_nearby: bind("spacemolt", "get_nearby"),
+      get_missions: bindBare("spacemolt", "get_missions"),
+      get_nearby: bindBare("spacemolt", "get_nearby"),
       get_notifications: bind("spacemolt", "get_notifications"),
-      get_player: bind("spacemolt", "get_player"),
-      get_poi: bind("spacemolt", "get_poi"),
-      get_queue: bind("spacemolt", "get_queue"),
-      get_ship: bind("spacemolt", "get_ship"),
-      get_skills: bind("spacemolt", "get_skills"),
-      get_state: bind("spacemolt", "get_state"),
-      get_status: bind("spacemolt", "get_status"),
-      get_system: bind("spacemolt", "get_system"),
-      get_system_agents: bind("spacemolt", "get_system_agents"),
-      get_tax_estimate: bind("spacemolt", "get_tax_estimate"),
+      get_player: bindBare("spacemolt", "get_player"),
+      get_poi: bindBare("spacemolt", "get_poi"),
+      get_queue: bindBare("spacemolt", "get_queue"),
+      get_ship: bindBare("spacemolt", "get_ship"),
+      get_skills: bindBare("spacemolt", "get_skills"),
+      get_state: bindBare("spacemolt", "get_state"),
+      get_status: bindBare("spacemolt", "get_status"),
+      get_system: bindBare("spacemolt", "get_system"),
+      get_system_agents: bindBare("spacemolt", "get_system_agents"),
+      get_tax_estimate: bindBare("spacemolt", "get_tax_estimate"),
       get_version: bind("spacemolt", "get_version"),
       hunt: bind("spacemolt", "hunt"),
       inspect: bind("spacemolt", "inspect"),
       install_mod: bind("spacemolt", "install_mod"),
       jettison: bind("spacemolt", "jettison"),
       jump: bind("spacemolt", "jump"),
-      list_passengers: bind("spacemolt", "list_passengers"),
-      list_station_passengers: bind("spacemolt", "list_station_passengers"),
+      list_passengers: bindBare("spacemolt", "list_passengers"),
+      list_station_passengers: bindBare("spacemolt", "list_station_passengers"),
       load_passenger: bind("spacemolt", "load_passenger"),
-      mine: bind("spacemolt", "mine"),
+      mine: bindBare("spacemolt", "mine"),
       prepay_tax: bind("spacemolt", "prepay_tax"),
       recycle: bind("spacemolt", "recycle"),
       refuel: bind("spacemolt", "refuel"),
@@ -2503,48 +2508,48 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       repair_module: bind("spacemolt", "repair_module"),
       scan: bind("spacemolt", "scan"),
       search_systems: bind("spacemolt", "search_systems"),
-      self_destruct: bind("spacemolt", "self_destruct"),
+      self_destruct: bindBare("spacemolt", "self_destruct"),
       sell: bind("spacemolt", "sell"),
       subscribe_observation: bind("spacemolt", "subscribe_observation"),
-      survey_system: bind("spacemolt", "survey_system"),
+      survey_system: bindBare("spacemolt", "survey_system"),
       travel: bind("spacemolt", "travel"),
-      undock: bind("spacemolt", "undock"),
+      undock: bindBare("spacemolt", "undock"),
       uninstall_mod: bind("spacemolt", "uninstall_mod"),
       unload_passenger: bind("spacemolt", "unload_passenger"),
-      unsubscribe_observation: bind("spacemolt", "unsubscribe_observation"),
+      unsubscribe_observation: bindBare("spacemolt", "unsubscribe_observation"),
       use_item: bind("spacemolt", "use_item"),
       view_completed_mission: bind("spacemolt", "view_completed_mission"),
     },
     spacemolt_auth: {
       claim: bind("spacemolt_auth", "claim"),
       login: bind("spacemolt_auth", "login"),
-      login_link: bind("spacemolt_auth", "login_link"),
+      login_link: bindBare("spacemolt_auth", "login_link"),
       login_link_poll: bind("spacemolt_auth", "login_link_poll"),
       login_token: bind("spacemolt_auth", "login_token"),
-      logout: bind("spacemolt_auth", "logout"),
+      logout: bindBare("spacemolt_auth", "logout"),
       register: bind("spacemolt_auth", "register"),
     },
     spacemolt_battle: {
-      advance: bind("spacemolt_battle", "advance"),
+      advance: bindBare("spacemolt_battle", "advance"),
       engage: bind("spacemolt_battle", "engage"),
       log: bind("spacemolt_battle", "log"),
       reload: bind("spacemolt_battle", "reload"),
-      retreat: bind("spacemolt_battle", "retreat"),
+      retreat: bindBare("spacemolt_battle", "retreat"),
       stance: bind("spacemolt_battle", "stance"),
-      status: bind("spacemolt_battle", "status"),
+      status: bindBare("spacemolt_battle", "status"),
       summary: bind("spacemolt_battle", "summary"),
       target: bind("spacemolt_battle", "target"),
     },
     spacemolt_citizenship: {
       apply: bind("spacemolt_citizenship", "apply"),
-      list: bind("spacemolt_citizenship", "list"),
+      list: bindBare("spacemolt_citizenship", "list"),
       renounce: bind("spacemolt_citizenship", "renounce"),
       withdraw: bind("spacemolt_citizenship", "withdraw"),
     },
     spacemolt_drone: {
       deploy: bind("spacemolt_drone", "deploy"),
       get: bind("spacemolt_drone", "get"),
-      list: bind("spacemolt_drone", "list"),
+      list: bindBare("spacemolt_drone", "list"),
       load: bind("spacemolt_drone", "load"),
       name: bind("spacemolt_drone", "name"),
       recall: bind("spacemolt_drone", "recall"),
@@ -2555,7 +2560,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       allow_faction: bind("spacemolt_facility", "allow_faction"),
       allow_player: bind("spacemolt_facility", "allow_player"),
       ban: bind("spacemolt_facility", "ban"),
-      base_cost: bind("spacemolt_facility", "base_cost"),
+      base_cost: bindBare("spacemolt_facility", "base_cost"),
       browse_for_sale: bind("spacemolt_facility", "browse_for_sale"),
       build: bind("spacemolt_facility", "build"),
       buy_listing: bind("spacemolt_facility", "buy_listing"),
@@ -2563,21 +2568,21 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       cancel_listing: bind("spacemolt_facility", "cancel_listing"),
       deploy_outpost: bind("spacemolt_facility", "deploy_outpost"),
       dismantle: bind("spacemolt_facility", "dismantle"),
-      dismantle_outpost: bind("spacemolt_facility", "dismantle_outpost"),
+      dismantle_outpost: bindBare("spacemolt_facility", "dismantle_outpost"),
       facility_set_description: bind("spacemolt_facility", "facility_set_description"),
       faction_build: bind("spacemolt_facility", "faction_build"),
       faction_dismantle: bind("spacemolt_facility", "faction_dismantle"),
-      faction_list: bind("spacemolt_facility", "faction_list"),
-      faction_owned: bind("spacemolt_facility", "faction_owned"),
+      faction_list: bindBare("spacemolt_facility", "faction_list"),
+      faction_owned: bindBare("spacemolt_facility", "faction_owned"),
       faction_upgrade: bind("spacemolt_facility", "faction_upgrade"),
       found_station: bind("spacemolt_facility", "found_station"),
       job_add: bind("spacemolt_facility", "job_add"),
       job_cancel: bind("spacemolt_facility", "job_cancel"),
       job_list: bind("spacemolt_facility", "job_list"),
       job_reorder: bind("spacemolt_facility", "job_reorder"),
-      list: bind("spacemolt_facility", "list"),
+      list: bindBare("spacemolt_facility", "list"),
       list_for_sale: bind("spacemolt_facility", "list_for_sale"),
-      owned: bind("spacemolt_facility", "owned"),
+      owned: bindBare("spacemolt_facility", "owned"),
       personal_build: bind("spacemolt_facility", "personal_build"),
       personal_decorate: bind("spacemolt_facility", "personal_decorate"),
       personal_visit: bind("spacemolt_facility", "personal_visit"),
@@ -2597,13 +2602,13 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       set_refuel_price: bind("spacemolt_facility", "set_refuel_price"),
       set_repair_price: bind("spacemolt_facility", "set_repair_price"),
       set_service_access: bind("spacemolt_facility", "set_service_access"),
-      station_info: bind("spacemolt_facility", "station_info"),
+      station_info: bindBare("spacemolt_facility", "station_info"),
       station_set_name: bind("spacemolt_facility", "station_set_name"),
       transfer: bind("spacemolt_facility", "transfer"),
       types: bind("spacemolt_facility", "types"),
       unban: bind("spacemolt_facility", "unban"),
       upgrade: bind("spacemolt_facility", "upgrade"),
-      upgrades: bind("spacemolt_facility", "upgrades"),
+      upgrades: bindBare("spacemolt_facility", "upgrades"),
     },
     spacemolt_faction: {
       accept_ally: bind("spacemolt_faction", "accept_ally"),
@@ -2615,23 +2620,23 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       decline_invite: bind("spacemolt_faction", "decline_invite"),
       delete_role: bind("spacemolt_faction", "delete_role"),
       delete_room: bind("spacemolt_faction", "delete_room"),
-      garages: bind("spacemolt_faction", "garages"),
-      get_invites: bind("spacemolt_faction", "get_invites"),
+      garages: bindBare("spacemolt_faction", "garages"),
+      get_invites: bindBare("spacemolt_faction", "get_invites"),
       info: bind("spacemolt_faction", "info"),
       invite: bind("spacemolt_faction", "invite"),
       join: bind("spacemolt_faction", "join"),
       kick: bind("spacemolt_faction", "kick"),
-      leave: bind("spacemolt_faction", "leave"),
+      leave: bindBare("spacemolt_faction", "leave"),
       list: bind("spacemolt_faction", "list"),
-      list_missions: bind("spacemolt_faction", "list_missions"),
+      list_missions: bindBare("spacemolt_faction", "list_missions"),
       prepay_tax: bind("spacemolt_faction", "prepay_tax"),
       propose_ally: bind("spacemolt_faction", "propose_ally"),
       propose_peace: bind("spacemolt_faction", "propose_peace"),
       remove_ally: bind("spacemolt_faction", "remove_ally"),
       remove_enemy: bind("spacemolt_faction", "remove_enemy"),
-      rooms: bind("spacemolt_faction", "rooms"),
+      rooms: bindBare("spacemolt_faction", "rooms"),
       set_enemy: bind("spacemolt_faction", "set_enemy"),
-      tax_estimate: bind("spacemolt_faction", "tax_estimate"),
+      tax_estimate: bindBare("spacemolt_faction", "tax_estimate"),
       visit_room: bind("spacemolt_faction", "visit_room"),
       withdraw_invite: bind("spacemolt_faction", "withdraw_invite"),
     },
@@ -2648,50 +2653,50 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       create_sell_order: bind("spacemolt_faction_commerce", "create_sell_order"),
     },
     spacemolt_fleet: {
-      accept: bind("spacemolt_fleet", "accept"),
+      accept: bindBare("spacemolt_fleet", "accept"),
       board: bind("spacemolt_fleet", "board"),
-      create: bind("spacemolt_fleet", "create"),
-      decline: bind("spacemolt_fleet", "decline"),
-      disband: bind("spacemolt_fleet", "disband"),
-      disembark: bind("spacemolt_fleet", "disembark"),
+      create: bindBare("spacemolt_fleet", "create"),
+      decline: bindBare("spacemolt_fleet", "decline"),
+      disband: bindBare("spacemolt_fleet", "disband"),
+      disembark: bindBare("spacemolt_fleet", "disembark"),
       invite: bind("spacemolt_fleet", "invite"),
       kick: bind("spacemolt_fleet", "kick"),
-      leave: bind("spacemolt_fleet", "leave"),
-      status: bind("spacemolt_fleet", "status"),
+      leave: bindBare("spacemolt_fleet", "leave"),
+      status: bindBare("spacemolt_fleet", "status"),
     },
     spacemolt_intel: {
-      espionage: bind("spacemolt_intel", "espionage"),
-      intel_status: bind("spacemolt_intel", "intel_status"),
+      espionage: bindBare("spacemolt_intel", "espionage"),
+      intel_status: bindBare("spacemolt_intel", "intel_status"),
       query_intel: bind("spacemolt_intel", "query_intel"),
       query_trade_intel: bind("spacemolt_intel", "query_trade_intel"),
       scan_poi: bind("spacemolt_intel", "scan_poi"),
       submit_intel: bind("spacemolt_intel", "submit_intel"),
       submit_trade_intel: bind("spacemolt_intel", "submit_trade_intel"),
-      trade_intel_status: bind("spacemolt_intel", "trade_intel_status"),
+      trade_intel_status: bindBare("spacemolt_intel", "trade_intel_status"),
     },
     spacemolt_market: {
-      analyze_market: bind("spacemolt_market", "analyze_market"),
+      analyze_market: bindBare("spacemolt_market", "analyze_market"),
       cancel_order: bind("spacemolt_market", "cancel_order"),
       create_buy_order: bind("spacemolt_market", "create_buy_order"),
       create_sell_order: bind("spacemolt_market", "create_sell_order"),
       estimate_purchase: bind("spacemolt_market", "estimate_purchase"),
       modify_order: bind("spacemolt_market", "modify_order"),
-      subscribe_market: bind("spacemolt_market", "subscribe_market"),
-      unsubscribe_market: bind("spacemolt_market", "unsubscribe_market"),
+      subscribe_market: bindBare("spacemolt_market", "subscribe_market"),
+      unsubscribe_market: bindBare("spacemolt_market", "unsubscribe_market"),
       view_market: bind("spacemolt_market", "view_market"),
       view_orders: bind("spacemolt_market", "view_orders"),
     },
     spacemolt_salvage: {
-      insure: bind("spacemolt_salvage", "insure"),
+      insure: bindBare("spacemolt_salvage", "insure"),
       loot: bind("spacemolt_salvage", "loot"),
-      policies: bind("spacemolt_salvage", "policies"),
-      quote: bind("spacemolt_salvage", "quote"),
-      release: bind("spacemolt_salvage", "release"),
-      scrap: bind("spacemolt_salvage", "scrap"),
-      sell: bind("spacemolt_salvage", "sell"),
+      policies: bindBare("spacemolt_salvage", "policies"),
+      quote: bindBare("spacemolt_salvage", "quote"),
+      release: bindBare("spacemolt_salvage", "release"),
+      scrap: bindBare("spacemolt_salvage", "scrap"),
+      sell: bindBare("spacemolt_salvage", "sell"),
       set_home: bind("spacemolt_salvage", "set_home"),
       tow: bind("spacemolt_salvage", "tow"),
-      wrecks: bind("spacemolt_salvage", "wrecks"),
+      wrecks: bindBare("spacemolt_salvage", "wrecks"),
     },
     spacemolt_ship: {
       browse_ships: bind("spacemolt_ship", "browse_ships"),
@@ -2703,15 +2708,15 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       commission_ship: bind("spacemolt_ship", "commission_ship"),
       commission_status: bind("spacemolt_ship", "commission_status"),
       list_ship_for_sale: bind("spacemolt_ship", "list_ship_for_sale"),
-      list_ships: bind("spacemolt_ship", "list_ships"),
+      list_ships: bindBare("spacemolt_ship", "list_ships"),
       place_ship_buy_order: bind("spacemolt_ship", "place_ship_buy_order"),
-      refit_ship: bind("spacemolt_ship", "refit_ship"),
+      refit_ship: bindBare("spacemolt_ship", "refit_ship"),
       rename_ship: bind("spacemolt_ship", "rename_ship"),
       scrap_ship: bind("spacemolt_ship", "scrap_ship"),
       sell_ship_to_order: bind("spacemolt_ship", "sell_ship_to_order"),
       supply_commission: bind("spacemolt_ship", "supply_commission"),
       switch_ship: bind("spacemolt_ship", "switch_ship"),
-      view_ship_buy_orders: bind("spacemolt_ship", "view_ship_buy_orders"),
+      view_ship_buy_orders: bindBare("spacemolt_ship", "view_ship_buy_orders"),
     },
     spacemolt_shipping: {
       accept: bind("spacemolt_shipping", "accept"),
@@ -2744,7 +2749,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       get_action_log: bind("spacemolt_social", "get_action_log"),
       get_chat_history: bind("spacemolt_social", "get_chat_history"),
       get_notes: bind("spacemolt_social", "get_notes"),
-      get_notification_settings: bind("spacemolt_social", "get_notification_settings"),
+      get_notification_settings: bindBare("spacemolt_social", "get_notification_settings"),
       mute_notifications: bind("spacemolt_social", "mute_notifications"),
       petition: bind("spacemolt_social", "petition"),
       read_note: bind("spacemolt_social", "read_note"),
@@ -2761,7 +2766,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       withdraw: bind("spacemolt_storage", "withdraw"),
     },
     spacemolt_transfer: {
-      get_trades: bind("spacemolt_transfer", "get_trades"),
+      get_trades: bindBare("spacemolt_transfer", "get_trades"),
       trade_accept: bind("spacemolt_transfer", "trade_accept"),
       trade_cancel: bind("spacemolt_transfer", "trade_cancel"),
       trade_decline: bind("spacemolt_transfer", "trade_decline"),

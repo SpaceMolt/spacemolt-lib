@@ -416,11 +416,13 @@ function emitCommands(actions: ActionDef[]): string {
     if (a.kind === 'mutation') return a.detailsType ? `MutationResult<${a.detailsType}>` : 'MutationResult';
     return a.responseType ? `QueryResult<${a.responseType}>` : 'QueryResult';
   };
+  // Every command takes an optional trailing `requestId`: the server echoes it
+  // back unchanged, so a caller can correlate its own in-flight requests.
   const signature = (a: ActionDef): string => {
-    if (!a.params.length) return `(): Promise<${ret(a)}>`;
+    if (!a.params.length) return `(requestId?: string): Promise<${ret(a)}>`;
     const paramsType = `${commandTypeName(a.tool, a.action)}Params`;
     const optional = a.params.every((p) => !p.required);
-    return `(params${optional ? '?' : ''}: ${paramsType}): Promise<${ret(a)}>`;
+    return `(params${optional ? '?' : ''}: ${paramsType}, requestId?: string): Promise<${ret(a)}>`;
   };
 
   // Commands interface, grouped by tool.
@@ -436,7 +438,7 @@ function emitCommands(actions: ActionDef[]): string {
   out += `}\n\n`;
 
   out += `export type CommandDispatch = (\n`;
-  out += `  tool: string,\n  action: string,\n  payload?: Record<string, unknown>,\n`;
+  out += `  tool: string,\n  action: string,\n  payload?: Record<string, unknown>,\n  requestId?: string,\n`;
   out += `) => Promise<QueryResult | MutationResult>;\n\n`;
 
   // Runtime: bind each tool/action to the dispatcher. The public overload
@@ -444,12 +446,14 @@ function emitCommands(actions: ActionDef[]): string {
   // raw object as unknown so it does not need a double assertion.
   out += `export function buildCommands(dispatch: CommandDispatch): Commands;\n`;
   out += `export function buildCommands(dispatch: CommandDispatch): unknown {\n`;
-  out += `  const bind = (tool: string, action: string) => (params?: Record<string, unknown>) => dispatch(tool, action, params);\n`;
+  out += `  const bind =\n    (tool: string, action: string) =>\n    (params?: Record<string, unknown>, requestId?: string) =>\n      dispatch(tool, action, params, requestId);\n`;
+  out += `  const bindBare = (tool: string, action: string) => (requestId?: string) => dispatch(tool, action, undefined, requestId);\n`;
   out += `  return {\n`;
   for (const tool of tools) {
     out += `    ${tool}: {\n`;
     for (const a of requireMapValue(byTool, tool)) {
-      out += `      ${a.action}: bind(${JSON.stringify(tool)}, ${JSON.stringify(a.action)}),\n`;
+      const binder = a.params.length ? 'bind' : 'bindBare';
+      out += `      ${a.action}: ${binder}(${JSON.stringify(tool)}, ${JSON.stringify(a.action)}),\n`;
     }
     out += `    },\n`;
   }

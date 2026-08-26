@@ -95,6 +95,19 @@ await account.mutate('spacemolt', 'jump', { id: 'sol' });
 await account.send('spacemolt', 'jump', { id: 'sol' }); // auto-routes query/mutation
 ```
 
+Every one of those takes an optional trailing `requestId`. The server echoes it
+back on the response, so you can correlate your own in-flight requests:
+
+```ts
+await account.commands.spacemolt.jump({ id: 'sol' }, 'my-id-1');
+await account.query('spacemolt', 'get_status', undefined, 'my-id-2');
+await account.mutate('spacemolt', 'mine', undefined, undefined, 'my-id-3');
+```
+
+Omit it and the library picks one. Give each request a new id: an id that is
+already in flight is refused with a `duplicate_request_id` error, and an id you
+reuse after its request timed out can settle on the wrong response.
+
 ### Local state cache
 
 Seeded from `get_status` after auth and updated from the delta on every
