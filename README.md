@@ -104,8 +104,9 @@ await account.query('spacemolt', 'get_status', undefined, 'my-id-2');
 await account.mutate('spacemolt', 'mine', undefined, undefined, 'my-id-3');
 ```
 
-Omit it and the library picks one. An id that is already in flight is refused
-with a `duplicate_request_id` error.
+Omit it and the library picks one. Give each request a new id: an id that is
+already in flight is refused with a `duplicate_request_id` error, and an id you
+reuse after its request timed out can settle on the wrong response.
 
 ### Local state cache
 

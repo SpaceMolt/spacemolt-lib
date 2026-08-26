@@ -942,11 +942,16 @@ export class Account {
   /**
    * Pick the `request_id` for one frame. A caller-supplied id is echoed by the
    * server unchanged, which is the point — it lets the caller correlate its own
-   * in-flight requests. It must be unique while it is in flight: reusing a live
-   * id would displace the first request in the correlator and hang it.
+   * in-flight requests. An empty id is treated as no id, because the server
+   * drops falsy ids and the request would then hang until it timed out.
+   *
+   * A caller-supplied id must be unique for the life of the connection, not
+   * only while it is in flight. Reusing a live id is refused here. Reusing an
+   * id whose request timed out is not detected, and a late frame for the first
+   * request then settles the second one with the wrong outcome.
    */
   private claimRequestId(requestId?: string): string {
-    if (requestId === undefined) return this.nextRequestId();
+    if (!requestId) return this.nextRequestId();
     if (this.correlator.has(requestId)) {
       throw new SpacemoltError('duplicate_request_id', `request_id "${requestId}" is already in flight`);
     }

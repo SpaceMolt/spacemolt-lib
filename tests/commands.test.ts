@@ -118,6 +118,32 @@ test('mutate sends a caller-supplied request_id unchanged', async () => {
   expect(socket.sent.at(-1)?.request_id).toBe('caller-m-1');
 });
 
+test('send forwards a caller-supplied request_id to the query path', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    s.serverSend({
+      type: 'result',
+      request_id: frame.request_id,
+      payload: { result: 'ok', structuredContent: { credits: 1 } },
+    });
+  };
+  await account.send('spacemolt', 'get_status', undefined, 'caller-sq-1');
+  expect(socket.sent.at(-1)?.request_id).toBe('caller-sq-1');
+});
+
+test('an empty request_id falls back to a generated one instead of hanging', async () => {
+  const { account, socket } = await connected();
+  socket.onClientSend = (frame, s) => {
+    s.serverSend({
+      type: 'result',
+      request_id: frame.request_id,
+      payload: { result: 'ok', structuredContent: { credits: 1 } },
+    });
+  };
+  await account.query('spacemolt', 'get_status', undefined, '');
+  expect(socket.sent.at(-1)?.request_id).toBeTruthy();
+});
+
 test('send forwards a caller-supplied request_id to the mutation path', async () => {
   const { account, socket } = await connected();
   socket.onClientSend = (frame, s) => {
