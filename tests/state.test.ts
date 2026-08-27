@@ -24,7 +24,16 @@ function welcomePayload(): WelcomeFrame['payload'] {
 const SNAPSHOT: V2GameState = {
   player: { username: 'Nova', credits: 5000 },
   ship: { class_id: 'shuttle', fuel: 100 },
-  location: { system_id: 'sol', poi_id: 'earth_station' },
+  location: {
+    system_id: 'sol',
+    system_name: 'Sol',
+    poi_id: 'earth_station',
+    poi_name: 'Earth Station',
+    connections: ['alpha_centauri'],
+    security_status: 'core',
+    nearby_players: [{ player_id: 'old_neighbor', username: 'Old Neighbor' }],
+    resources: [{ item_id: 'iron_ore', remaining: 100 }],
+  },
   cargo: [{ item_id: 'iron_ore', quantity: 10 }],
   skills: { mining: { level: 3 } },
   queue: { has_pending: false },
@@ -134,6 +143,234 @@ test('action_result deltas update the cache and fire onStateChange', async () =>
   expect(account.cargo?.[0]?.quantity).toBe(160);
   expect(account.player?.username).toBe('Nova'); // untouched section preserved
   expect(changes.at(-1)?.sort()).toEqual(['cargo', 'queue'] satisfies StateSection[]);
+});
+
+test('fleet follower movement pushes keep the local location cache current', async () => {
+  const { account, socket } = await seededAccount();
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            ...SNAPSHOT,
+            ship: { ...SNAPSHOT.ship, fuel: 90 },
+            location: { system_id: 'markeb', system_name: 'Markeb', poi_id: 'markeb_quantum_eddy' },
+            skills: { ...SNAPSHOT.skills, navigation: { level: 1, xp: 3 } },
+          },
+        },
+      });
+    }
+  };
+
+  // Fleet followers do not issue the jump mutation themselves, so the server
+  // sends unsolicited fleet_jump and plain jump-arrival frames instead of an
+  // action_result delta tied to this account.
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'fleet_jump',
+      destination: 'markeb',
+      arrival_tick: 10,
+      message: 'Your fleet is jumping.',
+    },
+  });
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'jumped',
+      system: 'Markeb',
+      system_id: 'markeb',
+      from_system: 'Sol',
+      navigation_xp: 3,
+      poi: 'markeb_quantum_eddy',
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.system_id).toBe('markeb');
+  expect(account.location?.poi_id).toBe('markeb_quantum_eddy');
+  expect(account.location?.docked_at).toBeUndefined();
+  expect(account.location?.connections).toBeUndefined();
+  expect(account.location?.nearby_players).toBeUndefined();
+  expect(account.location?.resources).toBeUndefined();
+  expect(account.ship?.fuel).toBe(90);
+  expect(account.skills?.navigation?.xp).toBe(3);
+});
+
+test('fleet follower travel pushes update transit and arrival location', async () => {
+  const { account, socket } = await seededAccount();
+  let atDestination = false;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            ...SNAPSHOT,
+            ship: { ...SNAPSHOT.ship, fuel: 98 },
+            location: atDestination
+              ? {
+                  system_id: 'sol',
+                  system_name: 'Sol',
+                  poi_id: 'sol_belt',
+                  poi_name: 'Sol Asteroid Belt',
+                  connections: ['alpha_centauri'],
+                  security_status: 'core',
+                  in_transit: false,
+                }
+              : { ...SNAPSHOT.location, in_transit: true, transit_type: 'travel' },
+          },
+        },
+      });
+    }
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'fleet_travel',
+      destination: 'sol_belt',
+      arrival_tick: 8,
+      message: 'Your fleet is traveling.',
+    },
+  });
+  expect(account.location?.in_transit).toBe(true);
+  expect(account.location?.transit_type).toBe('travel');
+  expect(account.location?.transit_dest_poi_id).toBe('sol_belt');
+
+  atDestination = true;
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'arrived',
+      poi: 'Sol Asteroid Belt',
+      poi_id: 'sol_belt',
+      online_players_count: 0,
+      online_players_truncated: false,
+      online_players: [],
+      offline_collapsed: 0,
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(account.location?.system_id).toBe('sol');
+  expect(account.location?.poi_id).toBe('sol_belt');
+  expect(account.location?.poi_name).toBe('Sol Asteroid Belt');
+  expect(account.location?.in_transit).toBe(false);
+  expect(account.location?.transit_type).toBeUndefined();
+  expect(account.location?.connections).toEqual(['alpha_centauri']);
+  expect(account.location?.security_status).toBe('core');
+  expect(account.location?.nearby_players).toBeUndefined();
+  expect(account.location?.resources).toBeUndefined();
+  expect(account.ship?.fuel).toBe(98);
+});
+
+test('fleet travel can establish its system when initial state seeding is disabled', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m/ws/v2', webSocketFactory: factory, seedState: false });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket to be created synchronously');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            ...SNAPSHOT,
+            location: { system_id: 'sol', system_name: 'Sol', poi_id: 'sol_belt', poi_name: 'Sol Asteroid Belt' },
+          },
+        },
+      });
+    }
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'arrived',
+      poi: 'Sol Asteroid Belt',
+      poi_id: 'sol_belt',
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.system_id).toBe('sol');
+  expect(account.location?.poi_id).toBe('sol_belt');
+});
+
+test('malformed fleet movement pushes do not erase a valid location', async () => {
+  const { account, socket } = await seededAccount();
+  const before = account.location;
+
+  socket.serverSend({ type: 'ok', payload: { action: 'jumped' } });
+
+  expect(account.location).toEqual(before);
+  expect(socket.sent.filter((frame) => frame.action === 'get_status')).toHaveLength(1);
+});
+
+test('fleet follower dock refreshes the canonical base ID and undock clears it', async () => {
+  const { account, socket } = await seededAccount();
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: {
+            ...SNAPSHOT,
+            location: { ...SNAPSHOT.location, docked_at: 'confederacy_central_command' },
+          },
+        },
+      });
+    }
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'fleet_dock', base: 'Confederacy Central Command', message: 'Your fleet has docked.' },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(account.location?.docked_at).toBe('confederacy_central_command');
+
+  socket.serverSend({ type: 'ok', payload: { action: 'fleet_undock', message: 'Your fleet has undocked.' } });
+  expect(account.location?.docked_at).toBeUndefined();
+});
+
+test('a delayed fleet reconciliation cannot overwrite a newer undock push', async () => {
+  const { account, socket } = await seededAccount();
+  let dockRequestId: string | undefined;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') dockRequestId = frame.request_id;
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'fleet_dock', base: 'Confederacy Central Command', message: 'Your fleet has docked.' },
+  });
+  socket.serverSend({ type: 'ok', payload: { action: 'fleet_undock', message: 'Your fleet has undocked.' } });
+  socket.serverSend({
+    type: 'result',
+    request_id: dockRequestId,
+    payload: {
+      result: 'ok',
+      structuredContent: {
+        ...SNAPSHOT,
+        location: { ...SNAPSHOT.location, docked_at: 'confederacy_central_command' },
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.docked_at).toBeUndefined();
 });
 
 test('a throwing onStateChange listener does not block the mutation it was reporting', async () => {

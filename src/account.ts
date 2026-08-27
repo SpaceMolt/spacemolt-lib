@@ -263,6 +263,8 @@ export class Account {
   private subscribedMarketBaseId: string | undefined;
   private observationSubscribedState = false;
   private observationActiveScanState = false;
+  /** Invalidates an in-flight reconciliation whenever a newer cache update arrives. */
+  private stateRevision = 0;
   private subscribedObservationPoiId: string | undefined;
   private readonly reconnectedListeners = new Set<() => void>();
   private readonly reconnectingListeners = new Set<(attempt: number) => void>();
@@ -507,6 +509,7 @@ export class Account {
     const result = await this.commands.spacemolt.get_status();
     const snapshot = requireStructuredContent(result, 'spacemolt/get_status');
     const changed = this.cache.seed(snapshot);
+    if (changed.length) this.stateRevision++;
     if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
     if (changed.length) this.emitStateChange(changed);
     return this.cache.snapshot();
@@ -800,6 +803,7 @@ export class Account {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
     });
+    if (changed.length) this.stateRevision++;
     if (changed.length) this.emitStateChange(changed);
   }
 
@@ -836,6 +840,135 @@ export class Account {
       this.observationCache.clear();
       this.observationSubscribedState = false;
       this.subscribedObservationPoiId = undefined;
+    }
+  }
+
+  /**
+   * Fleet followers do not submit the movement mutation themselves, so their
+   * arrival is delivered as a plain `ok` push rather than an `action_result`
+   * carrying a state delta. Bridge the location data present on those pushes
+   * into the cache. Fleet docking is the one exception: its push only contains
+   * the station's display name, not the canonical base ID used by `docked_at`,
+   * so refresh the canonical snapshot instead of caching the wrong identifier.
+   */
+  private applyFleetMovementPush(frame: RawFrame): void {
+    if (frame.type !== 'ok' || !isRecord(frame.payload) || typeof frame.payload.action !== 'string') return;
+
+    const payload = frame.payload;
+    let changed: StateSection[] = [];
+    let reconcile = false;
+    const currentLocation = this.cache.location;
+    const currentSystem = {
+      connections: currentLocation?.connections,
+      empire: currentLocation?.empire,
+      security_status: currentLocation?.security_status,
+      system_id: currentLocation?.system_id,
+      system_name: currentLocation?.system_name,
+    };
+    switch (payload.action) {
+      case 'fleet_jump': {
+        if (typeof payload.destination !== 'string' || typeof payload.arrival_tick !== 'number') {
+          this.warnMalformedFrame(frame);
+          return;
+        }
+        changed = this.cache.applyDelta({
+          location: {
+            in_transit: true,
+            transit_arrival_tick: payload.arrival_tick,
+            transit_dest_system_id: payload.destination,
+            transit_type: 'jump',
+          },
+        });
+        reconcile = true;
+        break;
+      }
+      case 'jumped':
+      case 'pathfinder_arrival': {
+        if (typeof payload.system_id !== 'string' || typeof payload.system !== 'string') {
+          this.warnMalformedFrame(frame);
+          return;
+        }
+        changed = this.cache.applyDelta({
+          location: {
+            in_transit: false,
+            poi_id: typeof payload.poi === 'string' ? payload.poi : undefined,
+            system_id: payload.system_id,
+            system_name: payload.system,
+          },
+        });
+        reconcile = true;
+        break;
+      }
+      case 'fleet_travel': {
+        if (typeof payload.destination !== 'string' || typeof payload.arrival_tick !== 'number') {
+          this.warnMalformedFrame(frame);
+          return;
+        }
+        changed = this.cache.applyDelta({
+          location: {
+            ...currentSystem,
+            in_transit: true,
+            transit_arrival_tick: payload.arrival_tick,
+            transit_dest_poi_id: payload.destination,
+            transit_type: 'travel',
+          },
+        });
+        reconcile = true;
+        break;
+      }
+      case 'arrived': {
+        if (typeof payload.poi_id !== 'string' || typeof payload.poi !== 'string') {
+          this.warnMalformedFrame(frame);
+          return;
+        }
+        changed = this.cache.applyDelta({
+          location: {
+            ...currentSystem,
+            in_transit: false,
+            poi_id: payload.poi_id,
+            poi_name: payload.poi,
+          },
+        });
+        reconcile = true;
+        break;
+      }
+      case 'fleet_undock':
+        changed = currentLocation
+          ? this.cache.patchSection('location', { docked_at: undefined })
+          : this.cache.applyDelta({ location: {} });
+        break;
+      case 'fleet_dock':
+        reconcile = true;
+        break;
+      default:
+        return;
+    }
+
+    const revision = ++this.stateRevision;
+    if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
+    if (changed.length) this.emitStateChange(changed);
+    if (reconcile) void this.reconcileFleetState(revision, payload.action);
+  }
+
+  /**
+   * Fleet movement pushes omit follower fuel and skill deltas, while docking
+   * omits the canonical base ID. Reconcile those fields from one authoritative
+   * snapshot. A newer movement push invalidates an older in-flight query so a
+   * delayed dock/arrival snapshot cannot move the cache backwards.
+   */
+  private async reconcileFleetState(revision: number, action: string): Promise<void> {
+    try {
+      const result = await this.commands.spacemolt.get_status();
+      const snapshot = requireStructuredContent(result, 'spacemolt/get_status');
+      if (revision !== this.stateRevision) return;
+      const changed = this.cache.seed(snapshot);
+      if (changed.length) this.stateRevision++;
+      if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
+      if (changed.length) this.emitStateChange(changed);
+    } catch (err) {
+      if (revision === this.stateRevision) {
+        console.warn(`[spacemolt] failed to reconcile state after ${action}`, err);
+      }
     }
   }
 
@@ -998,6 +1131,7 @@ export class Account {
         const delta = frame.payload.result;
         if (delta) {
           const changed = this.cache.applyDelta(delta);
+          if (changed.length) this.stateRevision++;
           if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
           // A throwing consumer must never block mutation correlation below —
           // that would strand the awaiting mutate()/query() call until its
@@ -1041,6 +1175,7 @@ export class Account {
         return;
       }
       default:
+        this.applyFleetMovementPush(frame);
         this.emitter.emit(frame);
     }
   }
