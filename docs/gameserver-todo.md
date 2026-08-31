@@ -391,6 +391,42 @@ nothing typechecks it against the server. Publishing `stationListEntry` through
 
 ---
 
+## 11. A delta cannot clear a pointer section, so `fleet board`/`disembark` are silent
+**Status:** todo · **Needed by:** caching `riding`; correct ship state after boarding · **Priority:** medium
+
+Boarding as a passenger parks your ship (`player.CurrentShipID = ""`,
+`internal/handlers/fleet.go`) and `disembark` leaves you docked with no ship at
+all. Neither transition can be expressed in a v2 delta today, so a client that
+boards keeps serving a **stale ship** until something else triggers a full
+`get_status`.
+
+This is *not* the missing `StateSections` bitmask it looks like — adding one
+does not help. The delta contract reads an absent section as "unchanged", and
+`V2GameState.Ship` is a `*V2Ship` with `omitempty`, so a nil pointer is simply
+omitted and "you no longer have a ship" is unsayable. The same applies to
+`Riding` in reverse: it is only present *while* riding, so `disembark` cannot
+signal that riding ended. Giving only `board` a section would leave the two
+commands with asymmetric semantics, which is a worse trap than the current gap.
+
+The server already solved this for slices: `modules`, `cargo` and
+`prize_recoveries` use `omitzero` rather than `omitempty` precisely so an
+explicit `[]` means "emptied" and an absent key means "untouched"
+(`internal/handlers/v2state.go`). Pointer sections have no equivalent. The fix
+is a convention that lets a delta serialize an explicit `null` for a *touched
+but now-empty* pointer section, without every untouched delta emitting
+`"ship": null` — e.g. a wrapper type with custom `MarshalJSON`, or `**V2Ship`
+where the outer nil means untouched and the inner nil means cleared.
+
+That changes the delta wire format for every client, so it wants its own PR and
+its own risk review rather than riding along with a spec-correctness change.
+
+**Lib follow-up when done:** add `riding` as a cached section (or a non-section
+cached field), clear `ship`/`modules`/`cargo` when a delta clears them, and drop
+the note in `GameState`'s doc comment telling callers to `refresh()` after
+`fleet board`.
+
+---
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`
