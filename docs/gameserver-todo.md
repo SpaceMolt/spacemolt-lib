@@ -317,7 +317,7 @@ cycle), so the entry struct needs to move to a shared package (e.g.
 ---
 
 ## 8. `V2Location.docked_at` and `V2GameState.details` are mistyped in the spec
-**Status:** done (gameserver PR #2145, ships in v0.573.2) · **Priority:** —
+**Status:** done (gameserver PR #2145, live in v0.574.0) · **Priority:** —
 
 > **Update (2026-08-31):** Fixed server-side and consumed here. `docked_at`
 > publishes as `["string","null"]` (types now declare their nullable properties
@@ -355,7 +355,7 @@ and let `StateDelta` pick `details` straight from `V2GameState` again; drop the
 ---
 
 ## 9. `MapData.systems` documents a shape `/api/map` never returns
-**Status:** done (gameserver PR #2145, ships in v0.573.2) · **Priority:** —
+**Status:** done (gameserver PR #2145, live in v0.574.0) · **Priority:** —
 
 > **Update (2026-08-31):** Fixed server-side and consumed here. The bulk element
 > is published as `MapDataSystem`, so it no longer collides with the v2 map
