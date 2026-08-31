@@ -26,14 +26,17 @@ import type {
   NotificationMarketUpdate,
   NotificationMiningYield,
   NotificationObservationUpdate,
+  NotificationPersonnelUpdate,
   NotificationPilotlessShip,
   NotificationPirateDestroyed,
   NotificationPirateRadio,
   NotificationPlayerDied,
   NotificationPlayerKill,
+  NotificationPrizeUpdate,
   NotificationRanchPoached,
   NotificationReconnected,
   NotificationScanDetected,
+  NotificationShipCaptured,
   NotificationShipCommissionComplete,
   NotificationSkillLevelUp,
   NotificationStationRepaired,
@@ -66,14 +69,17 @@ export type TypedNotificationType =
   | "market_update"
   | "mining_yield"
   | "observation_update"
+  | "personnel_update"
   | "pilotless_ship"
   | "pirate_destroyed"
   | "pirate_radio"
   | "player_died"
   | "player_kill"
+  | "prize_update"
   | "ranch_poached"
   | "reconnected"
   | "scan_detected"
+  | "ship_captured"
   | "ship_commission_complete"
   | "skill_level_up"
   | "station_repaired"
@@ -105,14 +111,17 @@ export interface NotificationPayloads {
   "market_update": NotificationMarketUpdate;
   "mining_yield": NotificationMiningYield;
   "observation_update": NotificationObservationUpdate;
+  "personnel_update": NotificationPersonnelUpdate;
   "pilotless_ship": NotificationPilotlessShip;
   "pirate_destroyed": NotificationPirateDestroyed;
   "pirate_radio": NotificationPirateRadio;
   "player_died": NotificationPlayerDied;
   "player_kill": NotificationPlayerKill;
+  "prize_update": NotificationPrizeUpdate;
   "ranch_poached": NotificationRanchPoached;
   "reconnected": NotificationReconnected;
   "scan_detected": NotificationScanDetected;
+  "ship_captured": NotificationShipCaptured;
   "ship_commission_complete": NotificationShipCommissionComplete;
   "skill_level_up": NotificationSkillLevelUp;
   "station_repaired": NotificationStationRepaired;
@@ -145,14 +154,17 @@ export const TYPED_NOTIFICATION_TYPES = [
   "market_update",
   "mining_yield",
   "observation_update",
+  "personnel_update",
   "pilotless_ship",
   "pirate_destroyed",
   "pirate_radio",
   "player_died",
   "player_kill",
+  "prize_update",
   "ranch_poached",
   "reconnected",
   "scan_detected",
+  "ship_captured",
   "ship_commission_complete",
   "skill_level_up",
   "station_repaired",

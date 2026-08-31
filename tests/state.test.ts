@@ -5,6 +5,7 @@ import type { V2GameState } from '../src/generated/openapi/types.gen.ts';
 import type { StateSection, WelcomeFrame } from '../src/protocol.ts';
 import { mockFactory, type MockSocket } from './mock-socket.ts';
 import { requireValue } from './require-value.ts';
+import { cargoItem, gameState, location, nearbyPlayer, player, queue, resource, ship, skill } from './fixtures.ts';
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
@@ -21,23 +22,23 @@ function welcomePayload(): WelcomeFrame['payload'] {
   };
 }
 
-const SNAPSHOT: V2GameState = {
-  player: { username: 'Nova', credits: 5000 },
-  ship: { class_id: 'shuttle', fuel: 100 },
-  location: {
+const SNAPSHOT: V2GameState = gameState({
+  player: player({ username: 'Nova', credits: 5000 }),
+  ship: ship({ class_id: 'shuttle', fuel: 100 }),
+  location: location({
     system_id: 'sol',
     system_name: 'Sol',
     poi_id: 'earth_station',
     poi_name: 'Earth Station',
     connections: ['alpha_centauri'],
     security_status: 'core',
-    nearby_players: [{ player_id: 'old_neighbor', username: 'Old Neighbor' }],
-    resources: [{ item_id: 'iron_ore', remaining: 100 }],
-  },
-  cargo: [{ item_id: 'iron_ore', quantity: 10 }],
-  skills: { mining: { level: 3 } },
-  queue: { has_pending: false },
-};
+    nearby_players: [nearbyPlayer({ player_id: 'old_neighbor', username: 'Old Neighbor' })],
+    resources: [resource({ item_id: 'iron_ore', remaining: 100 })],
+  }),
+  cargo: [cargoItem({ item_id: 'iron_ore', quantity: 10 })],
+  skills: { mining: skill({ name: 'Mining', level: 3 }) },
+  queue: queue(),
+});
 
 // --- StateCache unit tests ---
 
@@ -56,9 +57,9 @@ test('applyDelta replaces present sections and leaves absent ones untouched', ()
   const cache = new StateCache();
   cache.seed(SNAPSHOT);
   const changed = cache.applyDelta({
-    ship: { class_id: 'shuttle', fuel: 60 },
-    cargo: [{ item_id: 'iron_ore', quantity: 150 }],
-    queue: { has_pending: true },
+    ship: ship({ fuel: 60 }),
+    cargo: [cargoItem({ quantity: 150 })],
+    queue: queue({ has_pending: true }),
   });
   expect(changed.sort()).toEqual((['cargo', 'queue', 'ship'] satisfies StateSection[]).sort());
   expect(cache.ship?.fuel).toBe(60);
@@ -393,12 +394,12 @@ test('a throwing onStateChange listener does not block the mutation it was repor
       s.serverSend({
         type: 'action_result',
         request_id: frame.request_id,
-        payload: { command: 'mine', tick: 1523, result: { cargo: [{ item_id: 'iron_ore', quantity: 160 }] } },
+        payload: { command: 'mine', tick: 1523, result: { cargo: [cargoItem({ quantity: 160 })] } },
       });
     }
   };
   const result = await account.mutate('spacemolt', 'mine');
-  expect(result.delta).toEqual({ cargo: [{ item_id: 'iron_ore', quantity: 160 }] });
+  expect(result.delta).toEqual({ cargo: [cargoItem({ quantity: 160 })] });
   // the cache update itself must also have gone through before the throw
   expect(account.cargo?.[0]?.quantity).toBe(160);
 });

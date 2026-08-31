@@ -21,6 +21,8 @@ import type {
   NotificationObservationUpdate,
   SubscribeMarketResponse,
   SubscribeObservationResponse,
+  V2Location,
+  V2NearbyPlayer,
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import {
@@ -153,6 +155,46 @@ export interface AccountOptions {
  * instead of the far more generous `mutationTimeoutMs`.
  */
 const TRANSIT_ACTIONS: ReadonlySet<string> = new Set(['spacemolt/jump', 'spacemolt/travel']);
+
+/**
+ * Location fields an arrival push invalidates. Fleet pushes patch the cached
+ * location rather than replacing it, so everything the move invalidates has to
+ * be cleared explicitly: the transit fields written while in flight, which
+ * would otherwise outlive the transit they describe, and the POI-scoped
+ * presence and resource data, which describes the POI just left. Both refill
+ * from `reconcileFleetState`'s snapshot — reporting the previous POI's
+ * contents as if they were still around the ship is worse than reporting
+ * nothing until it lands. The system-level fields (system, connections,
+ * empire, security status) are deliberately left in place: the push carries
+ * the new ones where they changed.
+ */
+const ARRIVED: Partial<V2Location> = {
+  in_transit: false,
+  transit_type: undefined,
+  transit_arrival_tick: undefined,
+  transit_dest_system_id: undefined,
+  transit_dest_system_name: undefined,
+  transit_dest_poi_id: undefined,
+  transit_dest_poi_name: undefined,
+  transit_bearing: undefined,
+  transit_x: undefined,
+  transit_y: undefined,
+  transit_ticks_elapsed: undefined,
+  void_message: undefined,
+  poi_name: undefined,
+  poi_type: undefined,
+  resources: undefined,
+  nearby_players: undefined,
+  nearby_player_count: undefined,
+  nearby_prizes: undefined,
+  nearby_prize_count: undefined,
+  nearby_pirates: undefined,
+  nearby_pirate_count: undefined,
+  nearby_empire_npcs: undefined,
+  nearby_empire_npc_count: undefined,
+  offline_collapsed: undefined,
+  unknown_signature: undefined,
+};
 
 export interface RegisterParams {
   username: string;
@@ -814,7 +856,22 @@ export class Account {
   private bridgeObservationToLocation(): void {
     const view = this.observationCache.current();
     if (!view) return;
-    const nearbyPlayers = [...view.nearby.values()];
+    // The observation feed's `NearbyPlayer` and `location.nearby_players`'
+    // `V2NearbyPlayer` are distinct schemas: the latter declares
+    // `additionalProperties: false` and requires `in_combat`, while the feed
+    // carries extra presence fields (docked, faction_id, colors,
+    // status_message) and leaves `in_combat` off when false. Project the
+    // overlapping fields rather than passing the feed shape through.
+    const nearbyPlayers: V2NearbyPlayer[] = [...view.nearby.entries()].map(([playerId, p]) => ({
+      player_id: playerId,
+      in_combat: p.in_combat ?? false,
+      ...(p.clan_tag !== undefined && { clan_tag: p.clan_tag }),
+      ...(p.faction_tag !== undefined && { faction_tag: p.faction_tag }),
+      ...(p.offline !== undefined && { offline: p.offline }),
+      ...(p.ship_class !== undefined && { ship_class: p.ship_class }),
+      ...(p.ship_name !== undefined && { ship_name: p.ship_name }),
+      ...(p.username !== undefined && { username: p.username }),
+    }));
     const changed = this.cache.patchSection('location', {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
@@ -866,6 +923,14 @@ export class Account {
    * into the cache. Fleet docking is the one exception: its push only contains
    * the station's display name, not the canonical base ID used by `docked_at`,
    * so refresh the canonical snapshot instead of caching the wrong identifier.
+   *
+   * These pushes carry only the few fields the movement itself changed, so
+   * they go through `patchSection` — unlike a server delta, which always
+   * carries a complete `location` and is applied with `applyDelta`. Patching
+   * keeps the rest of the section (system, connections, POI details) intact
+   * until `reconcileFleetState` refreshes the authoritative snapshot; the
+   * per-POI fields that the move invalidates are only as stale as that
+   * round trip.
    */
   private applyFleetMovementPush(frame: RawFrame): void {
     if (frame.type !== 'ok' || !isRecord(frame.payload) || typeof frame.payload.action !== 'string') return;
@@ -873,27 +938,17 @@ export class Account {
     const payload = frame.payload;
     let changed: StateSection[] = [];
     let reconcile = false;
-    const currentLocation = this.cache.location;
-    const currentSystem = {
-      connections: currentLocation?.connections,
-      empire: currentLocation?.empire,
-      security_status: currentLocation?.security_status,
-      system_id: currentLocation?.system_id,
-      system_name: currentLocation?.system_name,
-    };
     switch (payload.action) {
       case 'fleet_jump': {
         if (typeof payload.destination !== 'string' || typeof payload.arrival_tick !== 'number') {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            in_transit: true,
-            transit_arrival_tick: payload.arrival_tick,
-            transit_dest_system_id: payload.destination,
-            transit_type: 'jump',
-          },
+        changed = this.cache.patchSection('location', {
+          in_transit: true,
+          transit_arrival_tick: payload.arrival_tick,
+          transit_dest_system_id: payload.destination,
+          transit_type: 'jump',
         });
         reconcile = true;
         break;
@@ -904,13 +959,11 @@ export class Account {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            in_transit: false,
-            poi_id: typeof payload.poi === 'string' ? payload.poi : undefined,
-            system_id: payload.system_id,
-            system_name: payload.system,
-          },
+        changed = this.cache.patchSection('location', {
+          ...ARRIVED,
+          poi_id: typeof payload.poi === 'string' ? payload.poi : undefined,
+          system_id: payload.system_id,
+          system_name: payload.system,
         });
         reconcile = true;
         break;
@@ -920,14 +973,11 @@ export class Account {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            ...currentSystem,
-            in_transit: true,
-            transit_arrival_tick: payload.arrival_tick,
-            transit_dest_poi_id: payload.destination,
-            transit_type: 'travel',
-          },
+        changed = this.cache.patchSection('location', {
+          in_transit: true,
+          transit_arrival_tick: payload.arrival_tick,
+          transit_dest_poi_id: payload.destination,
+          transit_type: 'travel',
         });
         reconcile = true;
         break;
@@ -937,21 +987,16 @@ export class Account {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            ...currentSystem,
-            in_transit: false,
-            poi_id: payload.poi_id,
-            poi_name: payload.poi,
-          },
+        changed = this.cache.patchSection('location', {
+          ...ARRIVED,
+          poi_id: payload.poi_id,
+          poi_name: payload.poi,
         });
         reconcile = true;
         break;
       }
       case 'fleet_undock':
-        changed = currentLocation
-          ? this.cache.patchSection('location', { docked_at: undefined })
-          : this.cache.applyDelta({ location: {} });
+        changed = this.cache.patchSection('location', { docked_at: undefined });
         break;
       case 'fleet_dock':
         reconcile = true;

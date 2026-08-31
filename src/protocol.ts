@@ -240,7 +240,16 @@ export type GameState = Pick<
  * present; an absent section means unchanged (keep prior local state). Carries
  * the same eight sections as `GameState` plus the per-action convenience fields.
  */
-export type StateDelta = GameState & Pick<V2GameState, 'message' | 'details' | 'credits'>;
+export type StateDelta = GameState &
+  Pick<V2GameState, 'message' | 'credits'> & {
+    /**
+     * Action-specific detail data. The spec declares `details` with no `type`,
+     * which generates as `unknown`; the wire format only ever carries a JSON
+     * object here, and `MutationResult<TDetails>` narrows it per command, so
+     * the object shape is restored locally rather than pushed onto callers.
+     */
+    details?: Record<string, unknown>;
+  };
 
 /**
  * Resolved value of a synchronous query command. `T` is the command's specific

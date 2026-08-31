@@ -67,9 +67,15 @@ test('bulk array-of-object params render their element shape, not string[]', () 
   expect(paramType('spacemolt/recycle', 'jobs')).toBe('Record<string, unknown>[]');
   // An array of enum values must parenthesize the union: `(...)[]`, not `... | "x"[]`
   // (postfix `[]` binds tighter than `|`, which would change the type's meaning).
-  expect(paramType('spacemolt/get_notifications', 'types')).toBe(
-    '("chat" | "combat" | "trade" | "market" | "crafting" | "system")[]',
+  // The members are spec-driven and the server adds notification categories
+  // over time, so assert the bracketing rule this guards rather than pinning
+  // whichever categories exist today.
+  const notificationTypes = requireValue(
+    paramType('spacemolt/get_notifications', 'types'),
+    'expected a rendered type for get_notifications.types',
   );
+  expect(notificationTypes).toMatch(/^\("[a-z_]+"(?: \| "[a-z_]+")+\)\[\]$/);
+  expect(notificationTypes).toContain('"chat"');
 });
 
 test('auth actions are present', () => {

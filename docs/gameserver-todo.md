@@ -270,6 +270,37 @@ cycle), so the entry struct needs to move to a shared package (e.g.
 
 ---
 
+## 8. `V2Location.docked_at` and `V2GameState.details` are mistyped in the spec
+**Status:** todo · **Needed by:** the v0.573.1 sync · **Priority:** medium
+
+Two shapes the v0.573.x spec describes incorrectly. Both are cheap to fix and
+both currently force a hand-written correction here.
+
+**`V2Location.docked_at`** is published as a plain required `{"type": "string"}`,
+but the Go field is `DockedAt *string` with no `omitempty` and its own
+description says "Base ID docked at; **null** when undocked". So the server
+really sends `"docked_at": null` on every undocked location while the spec
+promises a string, and the generated type is `docked_at: string`. Any consumer
+trusting the type gets `null` at runtime. It should be nullable (OpenAPI 3.0:
+`{"type": "string", "nullable": true}`). Until then the lib's test fixtures use
+`''` to stand in for "not docked".
+**Where it lives:** `internal/handlers/v2state.go` (`V2Location.DockedAt`) —
+the reflector needs a `jsonschema:"nullable"` hint or an explicit override.
+
+**`V2GameState.details`** lost its `"type": "object"` between v0.547.0 and
+v0.573.1 — it is now `{"description": "Action-specific detail data"}` with no
+type at all, which generates as `unknown`. Every mutation's `delta.details` is
+a JSON object, and `MutationResult<TDetails>` narrows it per command, so the
+lib restores `Record<string, unknown>` by hand in `src/protocol.ts`. Restoring
+`type: object` on the field would let that hand-written override go away.
+**Where it lives:** `internal/handlers/v2state.go` (`V2GameState.Details`).
+
+**Lib follow-up when done:** drop the `details` override in `src/protocol.ts`
+and let `StateDelta` pick `details` straight from `V2GameState` again; drop the
+`docked_at: ''` note in `tests/fixtures.ts`.
+
+---
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`
