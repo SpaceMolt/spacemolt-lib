@@ -95,6 +95,17 @@ breaks the hand-written layer fails the run instead of committing a broken sync.
 Don't hand-run `fetch-spec`/`generate` to "catch up" — let the workflow do it;
 run them locally only when iterating on the codegen itself.
 
+A failed sync files a single tracking issue ("Spec sync is failing") and the
+next healthy run closes it. Without that, a break is invisible — the schedule
+just retries every 30 minutes while the library quietly stops tracking the
+server, which is how the v0.573.1 break ran red ~1,160 times over five weeks
+before anyone noticed. If that issue is open, fix the sync before anything
+else: reproduce with `bun run fetch-spec && bun run generate && bun run check`.
+Prefer fixes that don't re-break on the next tightening — spec-derived test
+fixtures belong in `tests/fixtures.ts`, and assertions over generated output
+should test the rule they guard, not pin a spec-driven list that legitimately
+grows.
+
 The incremental gameserver-side work that backs this library is tracked in
 [`docs/gameserver-todo.md`](docs/gameserver-todo.md) — push-frame schemas, auth
 frame payloads, optional `x-state-sections`. Add to it whenever we hit a gap the

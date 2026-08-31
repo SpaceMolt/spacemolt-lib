@@ -30,6 +30,12 @@ on:
 
 permissions:
   contents: write
+  issues: write
+
+env:
+  # Title of the single tracking issue opened when a sync breaks and closed
+  # when one succeeds. Matched exactly, so keep it stable.
+  ISSUE_TITLE: 'Spec sync is failing'
 
 concurrency:
   # Never let two sync runs race; a queued run waits rather than piling up.
@@ -194,3 +200,61 @@ jobs:
           else
             echo "Spec unchanged; no action taken." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      # A failing sync was previously invisible: the schedule just retried every
+      # 30 minutes and the library silently stopped tracking the server. The
+      # v0.573.1 break ran red ~1,160 times over five weeks before anyone
+      # noticed. Failing loudly is the point of the quality gate, but "loudly"
+      # has to reach a human — so a break files one tracking issue, and the next
+      # healthy run closes it.
+      - name: Open a tracking issue when the sync breaks
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" --json number,title \
+            --jq "map(select(.title == \"${ISSUE_TITLE}\")) | .[0].number // empty")
+          if [ -n "$existing" ]; then
+            echo "Issue #${existing} already tracks this break; not filing another."
+            exit 0
+          fi
+          summary=$(cat /tmp/spec-summary.txt 2>/dev/null || echo '(no spec diff was produced — the run failed before or during the diff.)')
+          gh issue create --title "$ISSUE_TITLE" --body "$(cat <<EOF
+          The spec sync workflow is failing, so \`openapi.json\` and everything
+          under \`src/generated/\` have stopped tracking the live server.
+
+          Most often this means the live spec changed in a way the hand-written
+          layer doesn't handle and \`bun run check\` rejected it — which is the
+          gate working. Reproduce locally with:
+
+          \`\`\`bash
+          bun run fetch-spec && bun run generate && bun run check
+          \`\`\`
+
+          Failing run: ${RUN_URL}
+
+          Spec diff at the time of the failure:
+
+          \`\`\`
+          ${summary}
+          \`\`\`
+
+          This issue was opened automatically and closes itself on the next
+          successful sync.
+          EOF
+          )"
+
+      - name: Close the tracking issue once the sync is healthy
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" --json number,title \
+            --jq "map(select(.title == \"${ISSUE_TITLE}\")) | .[0].number // empty")
+          if [ -z "$existing" ]; then
+            exit 0
+          fi
+          gh issue close "$existing" --comment "Sync succeeded again: ${RUN_URL}"
+
