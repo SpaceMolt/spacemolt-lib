@@ -193,6 +193,8 @@ test('fleet follower movement pushes keep the local location cache current', asy
 
   expect(account.location?.system_id).toBe('markeb');
   expect(account.location?.poi_id).toBe('markeb_quantum_eddy');
+  // The reconcile snapshot omits these entirely, proving seed() replaces the
+  // section wholesale rather than merging into the patched one.
   expect(account.location?.docked_at).toBeUndefined();
   expect(account.location?.connections).toBeUndefined();
   expect(account.location?.nearby_players).toBeUndefined();
@@ -242,8 +244,8 @@ test('a fleet jump drops system-level location fields it cannot refresh', async 
   expect(account.location?.connections).toBeUndefined();
   expect(account.location?.empire).toBeUndefined();
   expect(account.location?.security_status).toBeUndefined();
-  // Arriving anywhere means no longer docked.
-  expect(account.location?.docked_at).toBeUndefined();
+  // Arriving anywhere means no longer docked; the server reports that as null.
+  expect(account.location?.docked_at).toBeNull();
 });
 
 // Travel stays inside one system, so the system-level fields remain true and
@@ -406,7 +408,7 @@ test('fleet follower dock refreshes the canonical base ID and undock clears it',
   expect(account.location?.docked_at).toBe('confederacy_central_command');
 
   socket.serverSend({ type: 'ok', payload: { action: 'fleet_undock', message: 'Your fleet has undocked.' } });
-  expect(account.location?.docked_at).toBeUndefined();
+  expect(account.location?.docked_at).toBeNull();
 });
 
 test('a delayed fleet reconciliation cannot overwrite a newer undock push', async () => {
@@ -434,7 +436,7 @@ test('a delayed fleet reconciliation cannot overwrite a newer undock push', asyn
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  expect(account.location?.docked_at).toBeUndefined();
+  expect(account.location?.docked_at).toBeNull();
 });
 
 test('a throwing onStateChange listener does not block the mutation it was reporting', async () => {

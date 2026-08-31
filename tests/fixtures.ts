@@ -101,12 +101,6 @@ export function queue(overrides: Partial<V2Queue> = {}): V2Queue {
   return { has_pending: false, ...overrides };
 }
 
-/**
- * `docked_at` is required and non-nullable in the spec, but the server sends
- * `null` when undocked (see docs/gameserver-todo.md). The empty string stands
- * in for "not docked" here so fixtures stay type-clean; tests that care about
- * docking set it explicitly.
- */
 export function location(overrides: Partial<V2Location> = {}): V2Location {
   return {
     system_id: 'sol',
@@ -117,7 +111,7 @@ export function location(overrides: Partial<V2Location> = {}): V2Location {
     poi_id: 'earth_station',
     poi_name: 'Earth Station',
     poi_type: 'station',
-    docked_at: '',
+    docked_at: null,
     resources: [],
     nearby_players: [],
     nearby_player_count: 0,

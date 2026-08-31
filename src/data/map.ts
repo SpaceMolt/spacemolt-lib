@@ -1,3 +1,4 @@
+import type { MapData, MapDataSystem } from '../generated/openapi/types.gen.ts';
 import { isRecord, requireRecord } from '../validation.ts';
 
 /**
@@ -7,38 +8,17 @@ import { isRecord, requireRecord } from '../validation.ts';
  * colour. Static per release; the separate `/api/map/activity` overlay (online
  * counts, battles) changes frequently and is not cached here.
  *
- * These shapes are hand-written rather than taken from the spec's `MapData`,
- * which describes this endpoint incorrectly: the component name `MapSystem`
- * collides with the v2 map *command*'s own `MapSystem` (`system_id`, `visited`,
- * nested `position`), and that one wins, so the published `MapData.systems`
- * documents a shape `/api/map` never returns. Adopting it would silently break
- * the `id`-keyed lookup below. Mirrored from `game.MapSystem` in the
- * gameserver's `internal/game/state.go` and verified against the live endpoint;
- * see gameserver-todo #9. The index signature keeps unknown fields readable
- * until then.
+ * Both shapes come from the spec. `MapDataSystem` is the entry this endpoint
+ * actually returns (`id` with flat `x`/`y`), published under its own name so it
+ * no longer collides with the v2 map *command*'s `MapSystem` (`system_id`, a
+ * nested `position`) — which used to win the name and make `MapData.systems`
+ * document a shape this endpoint never sends.
  */
 
-export interface MapSystem {
-  id: string;
-  name: string;
-  /** Galactic coordinates, flat on the entry (not a nested `position`). */
-  x: number;
-  y: number;
-  online: number;
-  connections: string[];
-  empire?: string;
-  empire_color?: string;
-  is_home?: boolean;
-  is_stronghold?: boolean;
-  has_battle?: boolean;
-  battle_id?: string;
-  [key: string]: unknown;
-}
+/** A system entry from `GET /api/map`. */
+export type MapSystem = MapDataSystem;
 
-export interface GalaxyMap {
-  systems: MapSystem[];
-  empires: Record<string, string>;
-}
+export type GalaxyMap = MapData;
 
 export async function fetchMap(httpBaseUrl: string): Promise<GalaxyMap> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/api/map`;

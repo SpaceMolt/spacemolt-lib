@@ -4674,7 +4674,25 @@ export type MapData = {
     empires: {
         [key: string]: string;
     };
-    systems: Array<MapSystem>;
+    /**
+     * Every system in the galaxy, with static position and connection data.
+     */
+    systems: Array<MapDataSystem>;
+};
+
+export type MapDataSystem = {
+    battle_id?: string;
+    connections: Array<string>;
+    empire?: string;
+    empire_color?: string;
+    has_battle?: boolean;
+    id: string;
+    is_home?: boolean;
+    is_stronghold?: boolean;
+    name: string;
+    online: number;
+    x: number;
+    y: number;
 };
 
 /**
@@ -5177,6 +5195,14 @@ export type NotificationCraftingUpdate = {
     tick: number;
 };
 
+export type NotificationDroneAdrift = {
+    drone_id: string;
+    drone_type: string;
+    owner_id: string;
+    poi_id: string;
+    system_id: string;
+};
+
 export type NotificationDroneDestroyed = {
     drone_id: string;
     drone_type: string;
@@ -5291,6 +5317,55 @@ export type NotificationFacilityRentWarning = {
      * Consecutive missed rent cycles so far.
      */
     missed_cycles?: number;
+};
+
+export type NotificationFactionAllianceBroken = {
+    by_faction_id: string;
+    by_faction_name: string;
+    by_faction_tag: string;
+    message: string;
+};
+
+export type NotificationFactionAllianceFormed = {
+    message: string;
+    with_faction_id: string;
+    with_faction_name: string;
+    with_faction_tag: string;
+};
+
+export type NotificationFactionAllianceProposal = {
+    from_faction_id: string;
+    from_faction_name: string;
+    from_faction_tag: string;
+    message: string;
+};
+
+/**
+ * Sent to the proposing faction's members when the other faction accepts their peace proposal.
+ */
+export type NotificationFactionPeaceAccepted = {
+    /**
+     * Faction that accepted the proposal.
+     */
+    faction_id: string;
+    faction_name: string;
+    message: string;
+};
+
+export type NotificationFactionPeaceProposal = {
+    from_faction_id: string;
+    from_faction_name: string;
+    message: string;
+    terms?: string;
+};
+
+export type NotificationFactionWarDeclared = {
+    aggressor_faction_id: string;
+    aggressor_faction_name: string;
+    defender_faction_id: string;
+    defender_faction_name: string;
+    message: string;
+    reason?: string;
 };
 
 export type NotificationMarketUpdate = {
@@ -5500,6 +5575,12 @@ export type NotificationScanDetected = {
     scanner_id: string;
     scanner_ship_class?: string;
     scanner_username: string;
+};
+
+export type NotificationServerRestartWarning = {
+    message: string;
+    seconds_until_restart: number;
+    target_version?: string;
 };
 
 export type NotificationShipCaptured = {
@@ -8220,7 +8301,9 @@ export type V2GameState = {
     /**
      * Action-specific detail data
      */
-    details?: unknown;
+    details?: {
+        [key: string]: unknown;
+    };
     /**
      * Drone bay counters and in-bay drones (v2_get_ship only; omitted when the player has no bay and no drones)
      */
@@ -8274,7 +8357,7 @@ export type V2Location = {
     /**
      * Base ID docked at; null when undocked
      */
-    docked_at: string;
+    docked_at: string | null;
     empire: string;
     /**
      * True when actively jumping or traveling
@@ -8589,7 +8672,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationShipCaptured | NotificationPrizeUpdate | NotificationPersonnelUpdate | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationDroneAdrift | NotificationServerRestartWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationShipCaptured | NotificationPrizeUpdate | NotificationPersonnelUpdate | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, battle_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.

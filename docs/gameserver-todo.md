@@ -317,7 +317,14 @@ cycle), so the entry struct needs to move to a shared package (e.g.
 ---
 
 ## 8. `V2Location.docked_at` and `V2GameState.details` are mistyped in the spec
-**Status:** todo · **Needed by:** the v0.573.1 sync · **Priority:** medium
+**Status:** done (gameserver PR #2145, ships in v0.573.2) · **Priority:** —
+
+> **Update (2026-08-31):** Fixed server-side and consumed here. `docked_at`
+> publishes as `["string","null"]` (types now declare their nullable properties
+> through a `NullableProperties()` method), and `details` carries `type: object`
+> again. The lib's `StateDelta` takes `details` straight from `V2GameState`
+> once more, and `docked_at` is cleared to `null` rather than `undefined`
+> wherever the lib clears it, matching how the server reports undocked.
 
 Two shapes the v0.573.x spec describes incorrectly. Both are cheap to fix and
 both currently force a hand-written correction here.
@@ -348,7 +355,13 @@ and let `StateDelta` pick `details` straight from `V2GameState` again; drop the
 ---
 
 ## 9. `MapData.systems` documents a shape `/api/map` never returns
-**Status:** todo · **Needed by:** typing `src/data/map.ts` from the spec · **Priority:** medium
+**Status:** done (gameserver PR #2145, ships in v0.573.2) · **Priority:** —
+
+> **Update (2026-08-31):** Fixed server-side and consumed here. The bulk element
+> is published as `MapDataSystem`, so it no longer collides with the v2 map
+> command's `MapSystem`. `src/data/map.ts` now derives `MapSystem` and
+> `GalaxyMap` from the generated `MapDataSystem`/`MapData` instead of the
+> hand-written mirror, so a server-side field change breaks `typecheck` here.
 
 `BulkDataSchemas()` publishes `MapData` for `GET /api/map`, whose Go element is
 `game.MapSystem` (`internal/game/state.go`): `{id, name, x, y, online,

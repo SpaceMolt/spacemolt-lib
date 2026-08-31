@@ -161,7 +161,8 @@ const TRANSIT_ACTIONS: ReadonlySet<string> = new Set(['spacemolt/jump', 'spacemo
  * location rather than replacing it, so everything the move invalidates has to
  * be cleared explicitly: the transit fields written while in flight, which
  * would otherwise outlive the transit they describe; `docked_at`, since
- * arriving anywhere means no longer docked; and the POI-scoped presence and
+ * arriving anywhere means no longer docked (cleared to `null`, which is how
+ * the server itself reports undocked); and the POI-scoped presence and
  * resource data, which describes the POI just left. All of it refills from
  * `reconcileFleetState`'s snapshot — reporting the previous POI's contents as
  * if they were still around the ship is worse than reporting nothing until it
@@ -173,7 +174,7 @@ const TRANSIT_ACTIONS: ReadonlySet<string> = new Set(['spacemolt/jump', 'spacemo
  * `ARRIVED_IN_NEW_SYSTEM`.
  */
 const ARRIVED: Partial<V2Location> = {
-  docked_at: undefined,
+  docked_at: null,
   in_transit: false,
   transit_type: undefined,
   transit_arrival_tick: undefined,
@@ -1029,7 +1030,7 @@ export class Account {
         break;
       }
       case 'fleet_undock':
-        changed = this.cache.patchSection('location', { docked_at: undefined });
+        changed = this.cache.patchSection('location', { docked_at: null });
         break;
       case 'fleet_dock':
         reconcile = true;
