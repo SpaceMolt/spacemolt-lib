@@ -20,7 +20,24 @@ Baseline spec when this file started: gameserver **v0.452.0**.
 ---
 
 ## 1. Publish payload schemas for the untyped push frames
-**Status:** merged (gameserver PR #1563) · pending deploy · **Needed by:** M3 (typed push events) · **Priority:** high
+**Status:** done (live in v0.573.1) — but 8 frames remain · **Needed by:** M3 (typed push events) · **Priority:** medium
+
+> **Update (2026-08-31):** Deployed and verified against the live spec: **39**
+> `Notification_*` schemas are published, and every frame the list below named
+> as missing now has one. The original scope is finished.
+>
+> Still untyped, so they degrade to `Record<string, unknown>` — these were never
+> in the list above and are the remaining work:
+> `server_restart_warning` (broadcast to every connected player; struct
+> `protocol.ServerRestartWarningPayload` already exists — the highest-value one,
+> since `seconds_until_restart` is what lets a fleet pause cleanly),
+> `drone_adrift` (struct `protocol.DroneAdriftPayload` exists), and the six
+> faction frames `faction_alliance_proposal`, `faction_alliance_formed`,
+> `faction_alliance_broken`, `faction_war_declared`, `faction_peace_proposal`,
+> `faction_peace_accepted` (five have `protocol.Faction*Notification` structs;
+> `faction_peace_accepted` is a map literal and needs an inline description).
+> Each is one `schemaForType(...)` line in
+> `internal/openapi/notification_schemas.go`.
 
 > **Update (2026-06-29):** Merged in gameserver PR #1563. Adds typed
 > `Notification_<msg_type>` schemas for the 22 remaining push frames that fire
@@ -75,7 +92,13 @@ schemas flow into `notifications.gen.ts` automatically (no lib code change).
 ---
 
 ## 2. Publish the auth/welcome frame payload schemas
-**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M1–M2 · **Priority:** medium
+**Status:** done (live in v0.573.1; consumed by the lib) · **Needed by:** M1–M2 · **Priority:** —
+
+> **Update (2026-08-31):** Deployed and consumed. `WelcomeFrame`,
+> `LoggedInFrame` and `RegisteredFrame` in `src/protocol.ts` now carry the
+> generated `WelcomePayload` / `LoggedInPayload` / `RegisteredPayload` instead
+> of hand-written mirrors, and the cast in `account.ts` is gone. No lib work
+> left.
 
 > **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
 > `AuthFramePayloadSchemas()` (`internal/openapi/auth_schemas.go`) reflects
@@ -104,7 +127,14 @@ the WS auth frames are not:
 ---
 
 ## 3. (Optional) `x-state-sections` per mutation operation
-**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M2/M3 · **Priority:** low
+**Status:** done server-side (live in v0.573.1); lib half still open · **Needed by:** M2/M3 · **Priority:** low
+
+> **Update (2026-08-31):** Live — 122 operations carry `x-state-sections`, and
+> `tests/generated.test.ts` already uses it to cross-check `STATE_SECTIONS`
+> (that check is what caught the missing `prize_recoveries` section). **Still
+> open:** surfacing it per command in the generated `ACTIONS` catalog as
+> `stateSections?: StateSection[]` for optimistic UI / delta validation.
+> Codegen-only; `scripts/generate.ts` already reads operation extensions.
 
 > **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
 > `v2.go` emits `x-state-sections: [...]` on every mutation operation (103 of
@@ -131,7 +161,11 @@ registry entry that already carries the bitmask
 ---
 
 ## 4. Surface `retry_after` in the WS `rate_limited` error details
-**Status:** merged (gameserver PR #1566) · pending deploy · **Needed by:** M4 (done, with a workaround) · **Priority:** low
+**Status:** done (live in v0.573.1) · **Needed by:** M4 · **Priority:** —
+
+> **Update (2026-08-31):** Deployed — `internal/server/server.go` sets
+> `details["retry_after"]`. `retryAfterMs` already prefers it, so the string
+> parse is now a pure fallback. No lib work left.
 
 > **Update (2026-06-29):** Shipped server-side in gameserver PR #1566 (merged).
 > `rejectWSRateLimit` now sends `Decision.Details()` (limit/scope/limit_per_min/
@@ -159,7 +193,16 @@ becomes a pure fallback.
 ---
 
 ## 5. Publish bulk-data + `registered` frame schemas (catalog, map, mobile base)
-**Status:** done (gameserver PR pending merge) · pending deploy · **Needed by:** M5 (bulk caches) + auth · **Priority:** medium
+**Status:** done (live in v0.573.1); consumed except `MapData`, which is blocked on #9 · **Needed by:** M5 + auth · **Priority:** low
+
+> **Update (2026-08-31):** Deployed. Consumed: `RegisteredPayload` in
+> `src/protocol.ts`; `CatalogDump` now *derives* `Catalog` in
+> `src/data/catalog.ts` (restating it by hand had silently dropped the
+> `achievements`, `faction_achievements` and hidden-count sections — deriving it
+> means the next added section breaks `typecheck` instead of vanishing);
+> `MobileBaseLocation` via the new `src/data/mobile-base.ts`. `MapData` is
+> **not** consumed and must not be — it documents the wrong element shape, see
+> #9.
 
 > **Update (2026-06-29):** Implemented server-side. A new `BulkDataSchemas()`
 > (`internal/openapi/bulk_data_schemas.go`) reflects the three public bulk HTTP
@@ -206,7 +249,10 @@ cycle), so the entry struct needs to move to a shared package (e.g.
 `internal/apiresponses`) first.
 
 ## 6. Rate limit `login_token` per player instead of per IP
-**Status:** merged (gameserver branch `claude/spacemolt-clerk-ratelimit-frjp3a`) · pending deploy · **Needed by:** M4 (Clerk multi-account) · **Priority:** high
+**Status:** done (live in v0.573.1) · **Needed by:** M4 (Clerk multi-account) · **Priority:** —
+
+> **Update (2026-08-31):** Deployed — `CatClerkLoginToken` /
+> `ClerkLoginTokenLimit` are in `internal/ratelimit/`. No lib work left.
 
 > **Update (2026-07-02):** Shipped server-side. `login_token` (WS
 > `spacemolt_auth/login_token` and HTTP v2 `POST /api/v2/spacemolt_auth/

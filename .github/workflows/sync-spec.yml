@@ -213,8 +213,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          existing=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" --json number,title \
-            --jq "map(select(.title == \"${ISSUE_TITLE}\")) | .[0].number // empty")
+          # Plain list, not --search: the search index is eventually consistent and
+          # would not see an issue filed minutes earlier, so a flapping sync could
+          # file duplicates. env.ISSUE_TITLE also keeps the title out of the jq
+          # program text.
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq 'map(select(.title == env.ISSUE_TITLE)) | .[0].number // empty' || true)
           if [ -n "$existing" ]; then
             echo "Issue #${existing} already tracks this break; not filing another."
             exit 0
@@ -251,10 +255,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          existing=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" --json number,title \
-            --jq "map(select(.title == \"${ISSUE_TITLE}\")) | .[0].number // empty")
+          # `|| true`: a transient gh failure here must not turn a healthy sync red.
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq 'map(select(.title == env.ISSUE_TITLE)) | .[0].number // empty' || true)
           if [ -z "$existing" ]; then
             exit 0
           fi
-          gh issue close "$existing" --comment "Sync succeeded again: ${RUN_URL}"
+          gh issue close "$existing" --comment "Sync succeeded again: ${RUN_URL}" || true
 

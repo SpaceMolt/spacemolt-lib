@@ -53,6 +53,7 @@ export {
   fetchCatalog,
   fetchCatalogConditional,
   type Catalog,
+  type CatalogAchievement,
   type CatalogFacility,
   type CatalogFetchResult,
   type CatalogItem,

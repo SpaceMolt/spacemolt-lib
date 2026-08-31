@@ -10,6 +10,7 @@
  * of an edit at every fixture site.
  */
 
+import type { Catalog } from '../src/data/catalog.ts';
 import type { MapSystem } from '../src/data/map.ts';
 import type {
   SkillProgress,
@@ -151,6 +152,23 @@ export function mapSystem(overrides: Partial<MapSystem> = {}): MapSystem {
     y: 0,
     online: 0,
     connections: [],
+    ...overrides,
+  };
+}
+
+/** A complete catalog dump; pass only the sections a test cares about. */
+export function catalog(overrides: Partial<Catalog> = {}): Catalog {
+  return {
+    version: '0.573.1',
+    ships: [],
+    items: [],
+    recipes: [],
+    skills: [],
+    facilities: [],
+    achievements: [],
+    faction_achievements: [],
+    hidden_achievement_count: 0,
+    hidden_faction_achievement_count: 0,
     ...overrides,
   };
 }

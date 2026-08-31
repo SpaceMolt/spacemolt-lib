@@ -157,18 +157,23 @@ export interface AccountOptions {
 const TRANSIT_ACTIONS: ReadonlySet<string> = new Set(['spacemolt/jump', 'spacemolt/travel']);
 
 /**
- * Location fields an arrival push invalidates. Fleet pushes patch the cached
+ * Location fields any arrival push invalidates. Fleet pushes patch the cached
  * location rather than replacing it, so everything the move invalidates has to
  * be cleared explicitly: the transit fields written while in flight, which
- * would otherwise outlive the transit they describe, and the POI-scoped
- * presence and resource data, which describes the POI just left. Both refill
- * from `reconcileFleetState`'s snapshot — reporting the previous POI's
- * contents as if they were still around the ship is worse than reporting
- * nothing until it lands. The system-level fields (system, connections,
- * empire, security status) are deliberately left in place: the push carries
- * the new ones where they changed.
+ * would otherwise outlive the transit they describe; `docked_at`, since
+ * arriving anywhere means no longer docked; and the POI-scoped presence and
+ * resource data, which describes the POI just left. All of it refills from
+ * `reconcileFleetState`'s snapshot — reporting the previous POI's contents as
+ * if they were still around the ship is worse than reporting nothing until it
+ * lands.
+ *
+ * The system-level fields are *not* cleared here: an `arrived` push is
+ * intra-system travel, so system, connections, empire and security status
+ * still describe where the ship is. A jump is the other case — see
+ * `ARRIVED_IN_NEW_SYSTEM`.
  */
 const ARRIVED: Partial<V2Location> = {
+  docked_at: undefined,
   in_transit: false,
   transit_type: undefined,
   transit_arrival_tick: undefined,
@@ -194,6 +199,23 @@ const ARRIVED: Partial<V2Location> = {
   nearby_empire_npc_count: undefined,
   offline_collapsed: undefined,
   unknown_signature: undefined,
+};
+
+/**
+ * Additionally, the system-level fields a jump invalidates. Crossing systems
+ * makes connections, empire and security status describe the system just left,
+ * and the arrival push cannot refresh them: `apiresponses.JumpResponse` carries
+ * only `system`, `system_id`, `from_system` and the XP fields. Serving the
+ * origin's values under the destination's `system_id` is worse than serving
+ * nothing — a consumer picking its next jump from `connections` would get a
+ * plausible, wrong adjacency list rather than an obvious gap. They refill from
+ * `reconcileFleetState`'s snapshot.
+ */
+const ARRIVED_IN_NEW_SYSTEM: Partial<V2Location> = {
+  ...ARRIVED,
+  connections: undefined,
+  empire: undefined,
+  security_status: undefined,
 };
 
 export interface RegisterParams {
@@ -369,7 +391,11 @@ export class Account {
   }
   /**
    * Active intact-ship recovery operations assigned to this account, including
-   * prizes in transit or stalled outside the current POI.
+   * prizes in transit or stalled outside the current POI. Refreshed by the
+   * deltas of this account's own prize commands (`claim_prize`,
+   * `service_prize`) and by `refresh()`; the `prize_update`/`ship_captured`
+   * pushes carry no delta, so listen for those via `on(...)` if you need to
+   * react as they land.
    */
   get prizeRecoveries(): GameState['prize_recoveries'] {
     return this.cache.prizeRecoveries;
@@ -967,7 +993,7 @@ export class Account {
           return;
         }
         changed = this.cache.patchSection('location', {
-          ...ARRIVED,
+          ...ARRIVED_IN_NEW_SYSTEM,
           poi_id: typeof payload.poi === 'string' ? payload.poi : undefined,
           system_id: payload.system_id,
           system_name: payload.system,

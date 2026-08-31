@@ -201,6 +201,69 @@ test('fleet follower movement pushes keep the local location cache current', asy
   expect(account.skills?.navigation?.xp).toBe(3);
 });
 
+// A jump crosses systems, so the system-level fields describe the system the
+// ship just left. The arrival push carries only system/system_id/from_system
+// and XP (apiresponses.JumpResponse) — never connections, empire or security
+// status — so they cannot be refreshed from the push and must not be served as
+// though they describe the destination. Asserted synchronously, before the
+// reconcile lands: that intermediate window is the whole exposure, and the
+// post-reconcile assertions below cannot see it.
+test('a fleet jump drops system-level location fields it cannot refresh', async () => {
+  const { account, socket } = await seededAccount();
+  // Dock first so the jump has a docked_at to clear.
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: { ...SNAPSHOT, location: location({ docked_at: 'sol_station' }) },
+        },
+      });
+    }
+  };
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'fleet_dock', base: 'Sol Station', message: 'Your fleet has docked.' },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(account.location?.docked_at).toBe('sol_station');
+  expect(account.location?.connections).toEqual(['alpha_centauri']);
+
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'jumped', system: 'Markeb', system_id: 'markeb', from_system: 'Sol', navigation_xp: 3 },
+  });
+
+  expect(account.location?.system_id).toBe('markeb');
+  // Stale would be worse than absent here: a consumer picking its next jump off
+  // location.connections would get Sol's neighbours labelled as Markeb's.
+  expect(account.location?.connections).toBeUndefined();
+  expect(account.location?.empire).toBeUndefined();
+  expect(account.location?.security_status).toBeUndefined();
+  // Arriving anywhere means no longer docked.
+  expect(account.location?.docked_at).toBeUndefined();
+});
+
+// Travel stays inside one system, so the system-level fields remain true and
+// are deliberately kept — only the POI-scoped data is invalidated.
+test('an intra-system arrival keeps the system-level location fields', async () => {
+  const { account, socket } = await seededAccount();
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'arrived', poi: 'Sol Asteroid Belt', poi_id: 'sol_belt' },
+  });
+
+  expect(account.location?.poi_id).toBe('sol_belt');
+  expect(account.location?.system_id).toBe('sol');
+  expect(account.location?.connections).toEqual(['alpha_centauri']);
+  expect(account.location?.security_status).toBe('core');
+  // POI-scoped data describes the POI just left.
+  expect(account.location?.resources).toBeUndefined();
+  expect(account.location?.nearby_players).toBeUndefined();
+});
+
 test('fleet follower travel pushes update transit and arrival location', async () => {
   const { account, socket } = await seededAccount();
   let atDestination = false;

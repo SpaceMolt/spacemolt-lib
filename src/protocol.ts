@@ -228,6 +228,14 @@ export function isRegisteredFrame(frame: RawFrame): frame is RegisteredFrame {
  * the server's `StateSections` bitmask in `internal/handlers/delta_wrapper.go`).
  * A section missing here is silently dropped from every delta, so
  * `tests/generated.test.ts` cross-checks this list against the spec.
+ *
+ * `V2GameState` carries further keys that are *not* delta sections and so are
+ * deliberately absent from the cache — read them off the query response that
+ * returns them: `riding` (`get_status`, when riding as a passenger with no ship
+ * of your own), `drone_bay` (`get_ship`), `carried_ships`/`bay_used`/
+ * `bay_capacity` (`get_cargo`, carriers only), and `version` (`get_status`).
+ * Note `fleet/board` and `fleet/disembark` declare no state sections at all, so
+ * boarding emits no delta: call `refresh()` after one.
  */
 export type GameState = Pick<
   V2GameState,
