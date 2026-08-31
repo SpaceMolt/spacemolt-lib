@@ -204,3 +204,30 @@ jobs:
             exit 1
           fi
           echo "Discord notification sent."
+
+      - name: Nudge www to sync (repository_dispatch)
+        # Event-driven counterpart of www's lib-sync workflow: on a genuine
+        # publish, tell SpaceMolt/www a new version exists so it can bump,
+        # gate, and open a PR (or file a breakage issue) immediately instead
+        # of waiting for its daily cron. Requires the WWW_DISPATCH_TOKEN
+        # secret — a fine-grained PAT for SpaceMolt/www with Contents: write
+        # (the scope GitHub requires for the dispatches endpoint). Skips
+        # cleanly when unset; a failed nudge must never fail a shipped
+        # release (www's cron is the backstop).
+        if: steps.release.outputs.published == 'true'
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.WWW_DISPATCH_TOKEN }}
+          NEXT: ${{ steps.classify.outputs.next }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "WWW_DISPATCH_TOKEN secret not set; skipping www nudge."
+            exit 0
+          fi
+          curl -sS -f -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/SpaceMolt/www/dispatches \
+            -d "{\"event_type\":\"lib-released\",\"client_payload\":{\"version\":\"$NEXT\"}}"
+          echo "Dispatched lib-released v$NEXT to SpaceMolt/www."
