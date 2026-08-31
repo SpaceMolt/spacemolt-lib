@@ -17,8 +17,18 @@ import { isRecord, requireRecord } from '../validation.ts';
 
 export interface StationSummary {
   id: string;
+  /**
+   * Base ID for this station — the identifier `location.docked_at` reports and
+   * that base-scoped commands (market, storage, services) take, so this is the
+   * join between the directory and live state. Distinct from `id`.
+   */
+  base_id: string;
+  /** POI the station sits at — the identifier `travel` takes. */
+  poi_id: string;
   name: string;
   description: string;
+  /** Base type, e.g. `station` or `outpost`. */
+  type: string;
   empire?: string;
   empire_name?: string;
   faction_id?: string;

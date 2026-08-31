@@ -301,6 +301,50 @@ and let `StateDelta` pick `details` straight from `V2GameState` again; drop the
 
 ---
 
+## 9. `MapData.systems` documents a shape `/api/map` never returns
+**Status:** todo · **Needed by:** typing `src/data/map.ts` from the spec · **Priority:** medium
+
+`BulkDataSchemas()` publishes `MapData` for `GET /api/map`, whose Go element is
+`game.MapSystem` (`internal/game/state.go`): `{id, name, x, y, online,
+connections, empire?, empire_color?, is_home?, is_stronghold?, has_battle?,
+battle_id?}`. But the component name `MapSystem` is already taken by the **v2
+map command's** own entry type (`{system_id, visited, position: {x, y},
+poi_count, ...}`), and that one wins in `components.schemas`. The published
+`MapData.systems` therefore describes a shape the endpoint never returns —
+different id field (`system_id` vs `id`), nested rather than flat coordinates.
+
+Verified against the live endpoint: all 505 systems carry `id`, none carry
+`system_id`. A client that trusted the spec here would index every system under
+`undefined`.
+
+Fix by giving one of them a distinct component name (e.g. reflect the bulk one
+as `MapDataSystem`, or the v2 one as `DiscoveredMapSystem`) so both shapes can
+coexist.
+**Where it lives:** `internal/openapi/bulk_data_schemas.go` (`MapData`) vs
+whichever v2 map command publishes `MapSystem`.
+
+**Lib follow-up when done:** replace the hand-written `MapSystem` in
+`src/data/map.ts` (currently mirrored from `game.MapSystem` and marked as
+deliberately not spec-derived) with the generated element type.
+
+---
+
+## 10. Station directory drifted from the hand-written mirror
+**Status:** todo · folded into #7 · **Priority:** low
+
+While checking `src/data/stations.ts` against the live `GET /api/stations`,
+three always-present fields were missing from the hand-written mirror:
+`base_id`, `poi_id`, and `type` (76/76 entries carry each). `base_id` matters —
+it is the identifier `location.docked_at` reports and base-scoped commands take,
+so it is the join between the directory and live state, and it is *not* the
+same as `id`. Added by hand for now.
+
+This is the drift #7 predicts: a hand-written mirror rots silently because
+nothing typechecks it against the server. Publishing `stationListEntry` through
+`BulkDataSchemas()` (per #7) is the actual fix.
+
+---
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`

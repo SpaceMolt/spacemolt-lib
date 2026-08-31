@@ -1,5 +1,5 @@
 /**
- * Per-account local cache of the eight game-state sections.
+ * Per-account local cache of the nine game-state sections.
  *
  * Seeded canonically from a full `V2GameState` snapshot (the `get_status`
  * query returns exactly this shape) and kept current by applying the section
@@ -86,6 +86,13 @@ export class StateCache {
   }
   get skills(): GameState['skills'] {
     return this.state.skills;
+  }
+  /**
+   * Active intact-ship recovery operations assigned to this player, including
+   * prizes in transit or stalled outside the current POI.
+   */
+  get prizeRecoveries(): GameState['prize_recoveries'] {
+    return this.state.prize_recoveries;
   }
   /** True when a tick-deferred action is queued for this account. */
   get hasPendingAction(): boolean {

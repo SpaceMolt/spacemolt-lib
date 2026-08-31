@@ -10,6 +10,7 @@
  * of an edit at every fixture site.
  */
 
+import type { MapSystem } from '../src/data/map.ts';
 import type {
   SkillProgress,
   V2CargoItem,
@@ -137,6 +138,19 @@ export function gameState(overrides: Partial<V2GameState> = {}): V2GameState {
     cargo: [cargoItem()],
     skills: { mining: skill({ name: 'Mining', level: 3 }) },
     queue: queue(),
+    ...overrides,
+  };
+}
+
+/** A complete `/api/map` system entry. */
+export function mapSystem(overrides: Partial<MapSystem> = {}): MapSystem {
+  return {
+    id: 'sol',
+    name: 'Sol',
+    x: 0,
+    y: 0,
+    online: 0,
+    connections: [],
     ...overrides,
   };
 }

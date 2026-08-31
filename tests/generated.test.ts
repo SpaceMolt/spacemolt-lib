@@ -1,4 +1,6 @@
 import { expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ACTIONS } from '../src/generated/actions.gen.ts';
 import { TYPED_NOTIFICATION_TYPES } from '../src/generated/notifications.gen.ts';
 import { requireValue } from './require-value.ts';
@@ -91,6 +93,26 @@ test('typed notifications include the documented core pushes', () => {
   }
 });
 
-test('there are eight delta state sections', () => {
-  expect(STATE_SECTIONS.length).toBe(8);
+// STATE_SECTIONS is hand-maintained (it drives the cache), but the server is
+// the authority: each mutation operation publishes the sections it may touch as
+// `x-state-sections`, straight from the StateSections bitmask in the
+// gameserver's internal/handlers/delta_wrapper.go. A section the server emits
+// but this list omits is silently dropped from every delta — a silent, and
+// therefore expensive, way to be wrong. `prize_recoveries` reached the server
+// this way before the list caught up.
+test('STATE_SECTIONS covers every section the spec says deltas carry', () => {
+  const spec = JSON.parse(readFileSync(join(import.meta.dir, '..', 'openapi.json'), 'utf-8'));
+  const declared = new Set<string>();
+  for (const item of Object.values(spec.paths as Record<string, Record<string, unknown>>)) {
+    for (const op of Object.values(item)) {
+      const sections = (op as { 'x-state-sections'?: unknown })?.['x-state-sections'];
+      if (Array.isArray(sections)) for (const s of sections) declared.add(String(s));
+    }
+  }
+  // Sanity: the spec really does publish the extension we're checking against.
+  expect(declared.size).toBeGreaterThan(0);
+  const known = new Set<string>(STATE_SECTIONS);
+  expect([...declared].filter((s) => !known.has(s)).sort()).toEqual([]);
+  // Every section in the cache should also be one the server actually emits.
+  expect([...known].filter((s) => !declared.has(s)).sort()).toEqual([]);
 });

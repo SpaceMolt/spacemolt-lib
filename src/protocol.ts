@@ -8,7 +8,7 @@
  */
 
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
-import type { V2GameState } from './generated/openapi/types.gen.ts';
+import type { LoggedInPayload, RegisteredPayload, V2GameState, WelcomePayload } from './generated/openapi/types.gen.ts';
 import { isRecord } from './validation.ts';
 
 /** Inbound frame: client -> server. `payload` is omitted when an action takes none. */
@@ -79,40 +79,33 @@ export interface ErrorFrame {
   };
 }
 
-/** Unsolicited frame sent immediately after the socket upgrade. No request_id. */
+/**
+ * Unsolicited frame sent immediately after the socket upgrade. No request_id.
+ *
+ * The three auth/handshake payloads below are the server's published schemas
+ * rather than hand-written mirrors, so a server-side field change breaks
+ * `typecheck` here instead of silently rotting a copy (gameserver-todo #2/#5).
+ */
 export interface WelcomeFrame {
   type: 'welcome';
-  payload: {
-    version: string;
-    release_date: string;
-    release_notes: string[];
-    tick_rate: number;
-    current_tick: number;
-    server_time: number;
-    motd?: string;
-    game_info: string;
-    website: string;
-    help_text: string;
-    terms: string;
-  };
+  payload: WelcomePayload;
 }
 
 /** Auth success frame carrying the full initial session state. */
 export interface LoggedInFrame {
   type: 'logged_in';
   request_id?: string;
-  payload: Record<string, unknown>; // LoggedInPayload — typed in M2 against the spec
+  payload: LoggedInPayload;
 }
 
-/** Auth success frame after `register`, carrying generated credentials. */
+/**
+ * Auth success frame after `register`, carrying generated credentials.
+ * `password` is a 256-bit hex credential — this is the only chance to capture it.
+ */
 export interface RegisteredFrame {
   type: 'registered';
   request_id?: string;
-  payload: {
-    /** 256-bit hex credential — only chance to capture it. */
-    password: string;
-    player_id: string;
-  };
+  payload: RegisteredPayload;
 }
 
 /**
@@ -226,19 +219,25 @@ export function isRegisteredFrame(frame: RawFrame): frame is RegisteredFrame {
 }
 
 /**
- * The cacheable game-state sections — the eight independently-tracked sections
+ * The cacheable game-state sections — the nine independently-tracked sections
  * the server emits deltas for. Section shapes are derived from the spec's
  * `V2GameState`, so they stay correct as the spec evolves.
+ *
+ * The list itself is not spec-derived, so it has to be kept in step by hand:
+ * the authority is the `x-state-sections` a mutation operation declares (from
+ * the server's `StateSections` bitmask in `internal/handlers/delta_wrapper.go`).
+ * A section missing here is silently dropped from every delta, so
+ * `tests/generated.test.ts` cross-checks this list against the spec.
  */
 export type GameState = Pick<
   V2GameState,
-  'player' | 'ship' | 'modules' | 'cargo' | 'location' | 'missions' | 'queue' | 'skills'
+  'player' | 'ship' | 'modules' | 'cargo' | 'location' | 'missions' | 'queue' | 'skills' | 'prize_recoveries'
 >;
 
 /**
  * A `V2GameState` delta carried on `action_result`. Only changed sections are
  * present; an absent section means unchanged (keep prior local state). Carries
- * the same eight sections as `GameState` plus the per-action convenience fields.
+ * the same nine sections as `GameState` plus the per-action convenience fields.
  */
 export type StateDelta = GameState &
   Pick<V2GameState, 'message' | 'credits'> & {
@@ -298,5 +297,6 @@ export const STATE_SECTIONS = [
   'missions',
   'queue',
   'skills',
+  'prize_recoveries',
 ] as const;
 export type StateSection = (typeof STATE_SECTIONS)[number];

@@ -4,13 +4,34 @@ import { isRecord, requireRecord } from '../validation.ts';
  * Local copy of the static galaxy map (`GET /api/map`).
  *
  * Returns `{ systems, empires }` where `empires` maps an empire id to a display
- * colour. System shapes aren't in the v2 spec, so they're typed loosely with
- * `id`-keyed lookups. Static per release; the separate `/api/map/activity`
- * overlay (online counts, battles) changes frequently and is not cached here.
+ * colour. Static per release; the separate `/api/map/activity` overlay (online
+ * counts, battles) changes frequently and is not cached here.
+ *
+ * These shapes are hand-written rather than taken from the spec's `MapData`,
+ * which describes this endpoint incorrectly: the component name `MapSystem`
+ * collides with the v2 map *command*'s own `MapSystem` (`system_id`, `visited`,
+ * nested `position`), and that one wins, so the published `MapData.systems`
+ * documents a shape `/api/map` never returns. Adopting it would silently break
+ * the `id`-keyed lookup below. Mirrored from `game.MapSystem` in the
+ * gameserver's `internal/game/state.go` and verified against the live endpoint;
+ * see gameserver-todo #9. The index signature keeps unknown fields readable
+ * until then.
  */
 
 export interface MapSystem {
-  id?: string;
+  id: string;
+  name: string;
+  /** Galactic coordinates, flat on the entry (not a nested `position`). */
+  x: number;
+  y: number;
+  online: number;
+  connections: string[];
+  empire?: string;
+  empire_color?: string;
+  is_home?: boolean;
+  is_stronghold?: boolean;
+  has_battle?: boolean;
+  battle_id?: string;
   [key: string]: unknown;
 }
 

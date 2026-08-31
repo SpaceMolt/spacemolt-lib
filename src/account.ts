@@ -367,6 +367,13 @@ export class Account {
   get skills(): GameState['skills'] {
     return this.cache.skills;
   }
+  /**
+   * Active intact-ship recovery operations assigned to this account, including
+   * prizes in transit or stalled outside the current POI.
+   */
+  get prizeRecoveries(): GameState['prize_recoveries'] {
+    return this.cache.prizeRecoveries;
+  }
   get credits(): number | undefined {
     return this.cache.credits;
   }
@@ -1171,9 +1178,10 @@ export class Account {
         return;
       case 'logged_in': {
         if (!isLoggedInFrame(frame)) return this.warnMalformedFrame(frame);
-        // The frame guard only checks for a payload object; the shape itself
-        // is the server's published LoggedInPayload schema.
-        const payload = frame.payload as LoggedInPayload;
+        // The frame guard only checks for a payload object; the shape itself is
+        // the server's published LoggedInPayload schema, which LoggedInFrame
+        // now carries directly.
+        const payload = frame.payload;
         const auth = this.pendingAuth;
         if (auth) {
           this.pendingAuth = null;
