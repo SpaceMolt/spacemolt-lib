@@ -17,23 +17,34 @@ import type {
   NotificationBattleUpdate,
   NotificationChatMessage,
   NotificationCraftingUpdate,
+  NotificationDroneAdrift,
   NotificationDroneDestroyed,
   NotificationDroneScan,
   NotificationDroneSurvey,
   NotificationDroneUpdate,
   NotificationFacilityReclaimed,
   NotificationFacilityRentWarning,
+  NotificationFactionAllianceBroken,
+  NotificationFactionAllianceFormed,
+  NotificationFactionAllianceProposal,
+  NotificationFactionPeaceAccepted,
+  NotificationFactionPeaceProposal,
+  NotificationFactionWarDeclared,
   NotificationMarketUpdate,
   NotificationMiningYield,
   NotificationObservationUpdate,
+  NotificationPersonnelUpdate,
   NotificationPilotlessShip,
   NotificationPirateDestroyed,
   NotificationPirateRadio,
   NotificationPlayerDied,
   NotificationPlayerKill,
+  NotificationPrizeUpdate,
   NotificationRanchPoached,
   NotificationReconnected,
   NotificationScanDetected,
+  NotificationServerRestartWarning,
+  NotificationShipCaptured,
   NotificationShipCommissionComplete,
   NotificationSkillLevelUp,
   NotificationStationRepaired,
@@ -57,23 +68,34 @@ export type TypedNotificationType =
   | "battle_update"
   | "chat_message"
   | "crafting_update"
+  | "drone_adrift"
   | "drone_destroyed"
   | "drone_scan"
   | "drone_survey"
   | "drone_update"
   | "facility_reclaimed"
   | "facility_rent_warning"
+  | "faction_alliance_broken"
+  | "faction_alliance_formed"
+  | "faction_alliance_proposal"
+  | "faction_peace_accepted"
+  | "faction_peace_proposal"
+  | "faction_war_declared"
   | "market_update"
   | "mining_yield"
   | "observation_update"
+  | "personnel_update"
   | "pilotless_ship"
   | "pirate_destroyed"
   | "pirate_radio"
   | "player_died"
   | "player_kill"
+  | "prize_update"
   | "ranch_poached"
   | "reconnected"
   | "scan_detected"
+  | "server_restart_warning"
+  | "ship_captured"
   | "ship_commission_complete"
   | "skill_level_up"
   | "station_repaired"
@@ -96,23 +118,34 @@ export interface NotificationPayloads {
   "battle_update": NotificationBattleUpdate;
   "chat_message": NotificationChatMessage;
   "crafting_update": NotificationCraftingUpdate;
+  "drone_adrift": NotificationDroneAdrift;
   "drone_destroyed": NotificationDroneDestroyed;
   "drone_scan": NotificationDroneScan;
   "drone_survey": NotificationDroneSurvey;
   "drone_update": NotificationDroneUpdate;
   "facility_reclaimed": NotificationFacilityReclaimed;
   "facility_rent_warning": NotificationFacilityRentWarning;
+  "faction_alliance_broken": NotificationFactionAllianceBroken;
+  "faction_alliance_formed": NotificationFactionAllianceFormed;
+  "faction_alliance_proposal": NotificationFactionAllianceProposal;
+  "faction_peace_accepted": NotificationFactionPeaceAccepted;
+  "faction_peace_proposal": NotificationFactionPeaceProposal;
+  "faction_war_declared": NotificationFactionWarDeclared;
   "market_update": NotificationMarketUpdate;
   "mining_yield": NotificationMiningYield;
   "observation_update": NotificationObservationUpdate;
+  "personnel_update": NotificationPersonnelUpdate;
   "pilotless_ship": NotificationPilotlessShip;
   "pirate_destroyed": NotificationPirateDestroyed;
   "pirate_radio": NotificationPirateRadio;
   "player_died": NotificationPlayerDied;
   "player_kill": NotificationPlayerKill;
+  "prize_update": NotificationPrizeUpdate;
   "ranch_poached": NotificationRanchPoached;
   "reconnected": NotificationReconnected;
   "scan_detected": NotificationScanDetected;
+  "server_restart_warning": NotificationServerRestartWarning;
+  "ship_captured": NotificationShipCaptured;
   "ship_commission_complete": NotificationShipCommissionComplete;
   "skill_level_up": NotificationSkillLevelUp;
   "station_repaired": NotificationStationRepaired;
@@ -136,23 +169,34 @@ export const TYPED_NOTIFICATION_TYPES = [
   "battle_update",
   "chat_message",
   "crafting_update",
+  "drone_adrift",
   "drone_destroyed",
   "drone_scan",
   "drone_survey",
   "drone_update",
   "facility_reclaimed",
   "facility_rent_warning",
+  "faction_alliance_broken",
+  "faction_alliance_formed",
+  "faction_alliance_proposal",
+  "faction_peace_accepted",
+  "faction_peace_proposal",
+  "faction_war_declared",
   "market_update",
   "mining_yield",
   "observation_update",
+  "personnel_update",
   "pilotless_ship",
   "pirate_destroyed",
   "pirate_radio",
   "player_died",
   "player_kill",
+  "prize_update",
   "ranch_poached",
   "reconnected",
   "scan_detected",
+  "server_restart_warning",
+  "ship_captured",
   "ship_commission_complete",
   "skill_level_up",
   "station_repaired",

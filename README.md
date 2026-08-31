@@ -114,8 +114,10 @@ Seeded from `get_status` after auth and updated from the delta on every
 mutation outcome. Read it locally:
 
 ```ts
-account.state;             // the 8 sections: player, ship, modules, cargo, location, missions, queue, skills
+// the 9 sections: player, ship, modules, cargo, location, missions, queue, skills, prize_recoveries
+account.state;
 account.player, account.ship, account.location, account.cargo, account.skills, account.credits;
+account.prizeRecoveries;   // active intact-ship recovery operations
 account.hasPendingAction;  // true while a tick-deferred action is queued
 account.onStateChange((sections) => console.log('changed:', sections));
 await account.refresh();   // force a fresh canonical snapshot
@@ -280,11 +282,15 @@ state, events, subscriptions, commands) works unchanged.
 ## Bulk reference data
 
 ```ts
-import { CatalogCache, MapCache } from '@spacemolt/lib';
+import { CatalogCache, MapCache, fetchStations, fetchMobileBase } from '@spacemolt/lib';
 const catalog = await CatalogCache.load('https://game.spacemolt.com'); // ships/items/recipes/skills/facilities
 catalog.ship('shuttle'); catalog.item('iron_ore');
 const map = await MapCache.load('https://game.spacemolt.com');
 map.system('sol');
+
+// Live directories — fetch on demand rather than caching.
+const { stations } = await fetchStations('https://game.spacemolt.com');
+const { system } = await fetchMobileBase('https://game.spacemolt.com'); // the moving capital
 ```
 
 ## Examples

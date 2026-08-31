@@ -5,6 +5,7 @@ import { ConnectionClosedError, retryAfterMsFromClose, SpacemoltError } from '..
 import type { WelcomeFrame } from '../src/protocol.ts';
 import { mockFactory, type MockSocket } from './mock-socket.ts';
 import { requireValue } from './require-value.ts';
+import { cargoItem } from './fixtures.ts';
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
@@ -474,14 +475,14 @@ test('a late action_result arriving after the timeout already fired still update
     requireValue(sockets[0]).serverSend({
       type: 'action_result',
       request_id: requestId,
-      payload: { command: 'mine', tick: 5, result: { cargo: [{ item_id: 'iron_ore', quantity: 10 }] } },
+      payload: { command: 'mine', tick: 5, result: { cargo: [cargoItem({ quantity: 10 })] } },
     });
   } finally {
     console.warn = originalWarn;
   }
 
   expect(warnings.some((args) => String(args[0]).includes('no matching pending mutation'))).toBe(true);
-  expect(account.cargo).toEqual([{ item_id: 'iron_ore', quantity: 10 }]);
+  expect(account.cargo).toEqual([cargoItem({ quantity: 10 })]);
 });
 
 test('jump/travel use the long mutationTimeoutMs even when fastMutationTimeoutMs is tiny', async () => {

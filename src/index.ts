@@ -53,6 +53,7 @@ export {
   fetchCatalog,
   fetchCatalogConditional,
   type Catalog,
+  type CatalogAchievement,
   type CatalogFacility,
   type CatalogFetchResult,
   type CatalogItem,
@@ -62,6 +63,7 @@ export {
 } from './data/catalog.ts';
 export { MapCache, fetchMap, httpBaseFromWs, type GalaxyMap, type MapSystem } from './data/map.ts';
 export { fetchStations, type StationEmpire, type StationList, type StationSummary } from './data/stations.ts';
+export { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';
 export {
   Socket,
   type SocketOptions,

@@ -1,23 +1,24 @@
+import type { MapData, MapDataSystem } from '../generated/openapi/types.gen.ts';
 import { isRecord, requireRecord } from '../validation.ts';
 
 /**
  * Local copy of the static galaxy map (`GET /api/map`).
  *
  * Returns `{ systems, empires }` where `empires` maps an empire id to a display
- * colour. System shapes aren't in the v2 spec, so they're typed loosely with
- * `id`-keyed lookups. Static per release; the separate `/api/map/activity`
- * overlay (online counts, battles) changes frequently and is not cached here.
+ * colour. Static per release; the separate `/api/map/activity` overlay (online
+ * counts, battles) changes frequently and is not cached here.
+ *
+ * Both shapes come from the spec. `MapDataSystem` is the entry this endpoint
+ * actually returns (`id` with flat `x`/`y`), published under its own name so it
+ * no longer collides with the v2 map *command*'s `MapSystem` (`system_id`, a
+ * nested `position`) — which used to win the name and make `MapData.systems`
+ * document a shape this endpoint never sends.
  */
 
-export interface MapSystem {
-  id?: string;
-  [key: string]: unknown;
-}
+/** A system entry from `GET /api/map`. */
+export type MapSystem = MapDataSystem;
 
-export interface GalaxyMap {
-  systems: MapSystem[];
-  empires: Record<string, string>;
-}
+export type GalaxyMap = MapData;
 
 export async function fetchMap(httpBaseUrl: string): Promise<GalaxyMap> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/api/map`;

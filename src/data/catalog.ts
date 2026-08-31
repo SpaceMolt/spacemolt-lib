@@ -1,4 +1,6 @@
 import type {
+  CatalogAchievement,
+  CatalogDump,
   FacilityDefinition,
   Item,
   Module,
@@ -33,15 +35,22 @@ export type CatalogItem = Item | Module;
 export type CatalogRecipe = Recipe;
 export type CatalogSkill = SkillDefinition;
 export type CatalogFacility = FacilityDefinition;
+/** An achievement entry — the same shape for player and faction achievements. */
+export type { CatalogAchievement };
 
-export interface Catalog {
-  version?: string;
+/**
+ * The normalized catalog. Derived from the spec's `CatalogDump` rather than
+ * restated field by field, so a section the server adds breaks `typecheck`
+ * here instead of being silently dropped by `normalizeCatalog` — which is how
+ * the achievements sections went missing until v0.573.1.
+ */
+export type Catalog = Omit<CatalogDump, 'ships' | 'items' | 'recipes' | 'skills' | 'facilities'> & {
   ships: CatalogShip[];
   items: CatalogItem[];
   recipes: CatalogRecipe[];
   skills: CatalogSkill[];
   facilities: CatalogFacility[];
-}
+};
 
 /** Result of a conditional catalog fetch. */
 export interface CatalogFetchResult {
@@ -60,12 +69,17 @@ function catalogEntries<T>(value: unknown): T[] {
 function normalizeCatalog(value: unknown): Catalog {
   const data = requireRecord(value, 'catalog response');
   return {
-    version: typeof data.version === 'string' ? data.version : undefined,
+    version: typeof data.version === 'string' ? data.version : '',
     ships: catalogEntries<CatalogShip>(data.ships),
     items: catalogEntries<CatalogItem>(data.items),
     recipes: catalogEntries<CatalogRecipe>(data.recipes),
     skills: catalogEntries<CatalogSkill>(data.skills),
     facilities: catalogEntries<CatalogFacility>(data.facilities),
+    achievements: catalogEntries<CatalogAchievement>(data.achievements),
+    faction_achievements: catalogEntries<CatalogAchievement>(data.faction_achievements),
+    hidden_achievement_count: typeof data.hidden_achievement_count === 'number' ? data.hidden_achievement_count : 0,
+    hidden_faction_achievement_count:
+      typeof data.hidden_faction_achievement_count === 'number' ? data.hidden_faction_achievement_count : 0,
   };
 }
 
@@ -103,6 +117,7 @@ export class CatalogCache {
   private readonly recipesById: Map<string, CatalogRecipe>;
   private readonly skillsById: Map<string, CatalogSkill>;
   private readonly facilitiesById: Map<string, CatalogFacility>;
+  private readonly achievementsById: Map<string, CatalogAchievement>;
 
   constructor(
     readonly catalog: Catalog,
@@ -114,6 +129,7 @@ export class CatalogCache {
     this.recipesById = index(catalog.recipes);
     this.skillsById = index(catalog.skills);
     this.facilitiesById = index(catalog.facilities);
+    this.achievementsById = index([...catalog.achievements, ...catalog.faction_achievements]);
   }
 
   /** Fetch the catalog and wrap it in a cache. */
@@ -135,7 +151,8 @@ export class CatalogCache {
     return new CatalogCache(result.catalog, result.etag);
   }
 
-  get version(): string | undefined {
+  /** Server release this catalog was built for; `''` if the response omitted it. */
+  get version(): string {
     return this.catalog.version;
   }
 
@@ -154,6 +171,10 @@ export class CatalogCache {
   facility(id: string): CatalogFacility | undefined {
     return this.facilitiesById.get(id);
   }
+  /** Looks up player and faction achievements alike — the ids share one space. */
+  achievement(id: string): CatalogAchievement | undefined {
+    return this.achievementsById.get(id);
+  }
 
   get ships(): readonly CatalogShip[] {
     return this.catalog.ships;
@@ -169,6 +190,23 @@ export class CatalogCache {
   }
   get facilities(): readonly CatalogFacility[] {
     return this.catalog.facilities;
+  }
+  get achievements(): readonly CatalogAchievement[] {
+    return this.catalog.achievements;
+  }
+  get factionAchievements(): readonly CatalogAchievement[] {
+    return this.catalog.faction_achievements;
+  }
+  /**
+   * Achievements the server withholds from the catalog until earned, reported
+   * as a count so a client can show "9 hidden" rather than imply the list is
+   * complete.
+   */
+  get hiddenAchievementCount(): number {
+    return this.catalog.hidden_achievement_count;
+  }
+  get hiddenFactionAchievementCount(): number {
+    return this.catalog.hidden_faction_achievement_count;
   }
 }
 

@@ -21,6 +21,8 @@ import type {
   NotificationObservationUpdate,
   SubscribeMarketResponse,
   SubscribeObservationResponse,
+  V2Location,
+  V2NearbyPlayer,
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import {
@@ -153,6 +155,69 @@ export interface AccountOptions {
  * instead of the far more generous `mutationTimeoutMs`.
  */
 const TRANSIT_ACTIONS: ReadonlySet<string> = new Set(['spacemolt/jump', 'spacemolt/travel']);
+
+/**
+ * Location fields any arrival push invalidates. Fleet pushes patch the cached
+ * location rather than replacing it, so everything the move invalidates has to
+ * be cleared explicitly: the transit fields written while in flight, which
+ * would otherwise outlive the transit they describe; `docked_at`, since
+ * arriving anywhere means no longer docked (cleared to `null`, which is how
+ * the server itself reports undocked); and the POI-scoped presence and
+ * resource data, which describes the POI just left. All of it refills from
+ * `reconcileFleetState`'s snapshot — reporting the previous POI's contents as
+ * if they were still around the ship is worse than reporting nothing until it
+ * lands.
+ *
+ * The system-level fields are *not* cleared here: an `arrived` push is
+ * intra-system travel, so system, connections, empire and security status
+ * still describe where the ship is. A jump is the other case — see
+ * `ARRIVED_IN_NEW_SYSTEM`.
+ */
+const ARRIVED: Partial<V2Location> = {
+  docked_at: null,
+  in_transit: false,
+  transit_type: undefined,
+  transit_arrival_tick: undefined,
+  transit_dest_system_id: undefined,
+  transit_dest_system_name: undefined,
+  transit_dest_poi_id: undefined,
+  transit_dest_poi_name: undefined,
+  transit_bearing: undefined,
+  transit_x: undefined,
+  transit_y: undefined,
+  transit_ticks_elapsed: undefined,
+  void_message: undefined,
+  poi_name: undefined,
+  poi_type: undefined,
+  resources: undefined,
+  nearby_players: undefined,
+  nearby_player_count: undefined,
+  nearby_prizes: undefined,
+  nearby_prize_count: undefined,
+  nearby_pirates: undefined,
+  nearby_pirate_count: undefined,
+  nearby_empire_npcs: undefined,
+  nearby_empire_npc_count: undefined,
+  offline_collapsed: undefined,
+  unknown_signature: undefined,
+};
+
+/**
+ * Additionally, the system-level fields a jump invalidates. Crossing systems
+ * makes connections, empire and security status describe the system just left,
+ * and the arrival push cannot refresh them: `apiresponses.JumpResponse` carries
+ * only `system`, `system_id`, `from_system` and the XP fields. Serving the
+ * origin's values under the destination's `system_id` is worse than serving
+ * nothing — a consumer picking its next jump from `connections` would get a
+ * plausible, wrong adjacency list rather than an obvious gap. They refill from
+ * `reconcileFleetState`'s snapshot.
+ */
+const ARRIVED_IN_NEW_SYSTEM: Partial<V2Location> = {
+  ...ARRIVED,
+  connections: undefined,
+  empire: undefined,
+  security_status: undefined,
+};
 
 export interface RegisterParams {
   username: string;
@@ -324,6 +389,17 @@ export class Account {
   }
   get skills(): GameState['skills'] {
     return this.cache.skills;
+  }
+  /**
+   * Active intact-ship recovery operations assigned to this account, including
+   * prizes in transit or stalled outside the current POI. Refreshed by the
+   * deltas of this account's own prize commands (`claim_prize`,
+   * `service_prize`) and by `refresh()`; the `prize_update`/`ship_captured`
+   * pushes carry no delta, so listen for those via `on(...)` if you need to
+   * react as they land.
+   */
+  get prizeRecoveries(): GameState['prize_recoveries'] {
+    return this.cache.prizeRecoveries;
   }
   get credits(): number | undefined {
     return this.cache.credits;
@@ -814,7 +890,22 @@ export class Account {
   private bridgeObservationToLocation(): void {
     const view = this.observationCache.current();
     if (!view) return;
-    const nearbyPlayers = [...view.nearby.values()];
+    // The observation feed's `NearbyPlayer` and `location.nearby_players`'
+    // `V2NearbyPlayer` are distinct schemas: the latter declares
+    // `additionalProperties: false` and requires `in_combat`, while the feed
+    // carries extra presence fields (docked, faction_id, colors,
+    // status_message) and leaves `in_combat` off when false. Project the
+    // overlapping fields rather than passing the feed shape through.
+    const nearbyPlayers: V2NearbyPlayer[] = [...view.nearby.entries()].map(([playerId, p]) => ({
+      player_id: playerId,
+      in_combat: p.in_combat ?? false,
+      ...(p.clan_tag !== undefined && { clan_tag: p.clan_tag }),
+      ...(p.faction_tag !== undefined && { faction_tag: p.faction_tag }),
+      ...(p.offline !== undefined && { offline: p.offline }),
+      ...(p.ship_class !== undefined && { ship_class: p.ship_class }),
+      ...(p.ship_name !== undefined && { ship_name: p.ship_name }),
+      ...(p.username !== undefined && { username: p.username }),
+    }));
     const changed = this.cache.patchSection('location', {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
@@ -866,6 +957,14 @@ export class Account {
    * into the cache. Fleet docking is the one exception: its push only contains
    * the station's display name, not the canonical base ID used by `docked_at`,
    * so refresh the canonical snapshot instead of caching the wrong identifier.
+   *
+   * These pushes carry only the few fields the movement itself changed, so
+   * they go through `patchSection` — unlike a server delta, which always
+   * carries a complete `location` and is applied with `applyDelta`. Patching
+   * keeps the rest of the section (system, connections, POI details) intact
+   * until `reconcileFleetState` refreshes the authoritative snapshot; the
+   * per-POI fields that the move invalidates are only as stale as that
+   * round trip.
    */
   private applyFleetMovementPush(frame: RawFrame): void {
     if (frame.type !== 'ok' || !isRecord(frame.payload) || typeof frame.payload.action !== 'string') return;
@@ -873,27 +972,17 @@ export class Account {
     const payload = frame.payload;
     let changed: StateSection[] = [];
     let reconcile = false;
-    const currentLocation = this.cache.location;
-    const currentSystem = {
-      connections: currentLocation?.connections,
-      empire: currentLocation?.empire,
-      security_status: currentLocation?.security_status,
-      system_id: currentLocation?.system_id,
-      system_name: currentLocation?.system_name,
-    };
     switch (payload.action) {
       case 'fleet_jump': {
         if (typeof payload.destination !== 'string' || typeof payload.arrival_tick !== 'number') {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            in_transit: true,
-            transit_arrival_tick: payload.arrival_tick,
-            transit_dest_system_id: payload.destination,
-            transit_type: 'jump',
-          },
+        changed = this.cache.patchSection('location', {
+          in_transit: true,
+          transit_arrival_tick: payload.arrival_tick,
+          transit_dest_system_id: payload.destination,
+          transit_type: 'jump',
         });
         reconcile = true;
         break;
@@ -904,13 +993,11 @@ export class Account {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            in_transit: false,
-            poi_id: typeof payload.poi === 'string' ? payload.poi : undefined,
-            system_id: payload.system_id,
-            system_name: payload.system,
-          },
+        changed = this.cache.patchSection('location', {
+          ...ARRIVED_IN_NEW_SYSTEM,
+          poi_id: typeof payload.poi === 'string' ? payload.poi : undefined,
+          system_id: payload.system_id,
+          system_name: payload.system,
         });
         reconcile = true;
         break;
@@ -920,14 +1007,11 @@ export class Account {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            ...currentSystem,
-            in_transit: true,
-            transit_arrival_tick: payload.arrival_tick,
-            transit_dest_poi_id: payload.destination,
-            transit_type: 'travel',
-          },
+        changed = this.cache.patchSection('location', {
+          in_transit: true,
+          transit_arrival_tick: payload.arrival_tick,
+          transit_dest_poi_id: payload.destination,
+          transit_type: 'travel',
         });
         reconcile = true;
         break;
@@ -937,21 +1021,16 @@ export class Account {
           this.warnMalformedFrame(frame);
           return;
         }
-        changed = this.cache.applyDelta({
-          location: {
-            ...currentSystem,
-            in_transit: false,
-            poi_id: payload.poi_id,
-            poi_name: payload.poi,
-          },
+        changed = this.cache.patchSection('location', {
+          ...ARRIVED,
+          poi_id: payload.poi_id,
+          poi_name: payload.poi,
         });
         reconcile = true;
         break;
       }
       case 'fleet_undock':
-        changed = currentLocation
-          ? this.cache.patchSection('location', { docked_at: undefined })
-          : this.cache.applyDelta({ location: {} });
+        changed = this.cache.patchSection('location', { docked_at: null });
         break;
       case 'fleet_dock':
         reconcile = true;
@@ -1126,9 +1205,10 @@ export class Account {
         return;
       case 'logged_in': {
         if (!isLoggedInFrame(frame)) return this.warnMalformedFrame(frame);
-        // The frame guard only checks for a payload object; the shape itself
-        // is the server's published LoggedInPayload schema.
-        const payload = frame.payload as LoggedInPayload;
+        // The frame guard only checks for a payload object; the shape itself is
+        // the server's published LoggedInPayload schema, which LoggedInFrame
+        // now carries directly.
+        const payload = frame.payload;
         const auth = this.pendingAuth;
         if (auth) {
           this.pendingAuth = null;

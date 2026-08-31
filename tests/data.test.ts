@@ -1,14 +1,17 @@
 import { afterEach, expect, test } from 'bun:test';
 import {
   CatalogCache,
+  type CatalogAchievement,
   type CatalogItem,
   type CatalogShip,
   type CatalogSkill,
   fetchCatalog,
   fetchCatalogConditional,
 } from '../src/data/catalog.ts';
-import { MapCache, fetchMap, httpBaseFromWs } from '../src/data/map.ts';
+import { MapCache, fetchMap, httpBaseFromWs, type MapSystem } from '../src/data/map.ts';
+import { catalog, mapSystem } from './fixtures.ts';
 import { fetchStations } from '../src/data/stations.ts';
+import { fetchMobileBase } from '../src/data/mobile-base.ts';
 import { SpacemoltClient } from '../src/client.ts';
 
 const realFetch = globalThis.fetch;
@@ -47,15 +50,19 @@ test('httpBaseFromWs derives the HTTP origin', () => {
 });
 
 test('CatalogCache indexes entries by id', () => {
-  const cache = new CatalogCache({
-    version: '0.452.0',
-    ships: [{ id: 'shuttle', name: 'Shuttle' } as CatalogShip, { id: 'frigate', name: 'Frigate' } as CatalogShip],
-    items: [{ id: 'iron_ore' } as CatalogItem],
-    recipes: [],
-    skills: [{ id: 'mining' } as CatalogSkill],
-    facilities: [],
-  });
+  const cache = new CatalogCache(
+    catalog({
+      version: '0.452.0',
+      ships: [{ id: 'shuttle', name: 'Shuttle' } as CatalogShip, { id: 'frigate', name: 'Frigate' } as CatalogShip],
+      items: [{ id: 'iron_ore' } as CatalogItem],
+      skills: [{ id: 'mining' } as CatalogSkill],
+      achievements: [{ id: 'artisan', name: 'Artisan' } as CatalogAchievement],
+      hidden_achievement_count: 9,
+    }),
+  );
   expect(cache.version).toBe('0.452.0');
+  expect(cache.achievement('artisan')?.name).toBe('Artisan');
+  expect(cache.hiddenAchievementCount).toBe(9);
   expect(cache.ship('frigate')?.name).toBe('Frigate');
   expect(cache.item('iron_ore')).toBeDefined();
   expect(cache.ship('nope')).toBeUndefined();
@@ -78,7 +85,9 @@ test('fetchCatalog validates and sanitizes external JSON', async () => {
     },
   });
   const catalog = await fetchCatalog('https://game.spacemolt.com');
-  expect(catalog.version).toBeUndefined();
+  // `version` is required in the spec, so a malformed one normalizes to '' rather
+  // than dropping the key and making the catalog fail its own type.
+  expect(catalog.version).toBe('');
   expect(catalog.ships).toEqual([{ id: 'shuttle' } as CatalogShip]);
   expect(catalog.items).toEqual([]);
 
@@ -93,8 +102,10 @@ test('fetchMap validates and sanitizes external JSON', async () => {
       empires: { solarian: '#ffd700', invalid: 42 },
     },
   });
+  // fetchMap only filters non-objects; a well-formed-looking entry is trusted
+  // and passes through as-is, missing fields and all — hence the cast.
   expect(await fetchMap('https://game.spacemolt.com')).toEqual({
-    systems: [{ id: 'sol' }],
+    systems: [{ id: 'sol' } as MapSystem],
     empires: { solarian: '#ffd700' },
   });
 
@@ -104,7 +115,7 @@ test('fetchMap validates and sanitizes external JSON', async () => {
 
 test('MapCache indexes systems by id', () => {
   const cache = new MapCache({
-    systems: [{ id: 'sol', name: 'Sol' }, { id: 'alpha_centauri' }],
+    systems: [mapSystem({ id: 'sol', name: 'Sol' }), mapSystem({ id: 'alpha_centauri', name: 'Alpha Centauri' })],
     empires: { solarian: '#ffd700' },
   });
   expect(cache.system('sol')?.name).toBe('Sol');
@@ -134,6 +145,17 @@ test('fetchStations validates and sanitizes external JSON', async () => {
 
   stubFetch({ '/api/stations': [] });
   expect(fetchStations('https://game.spacemolt.com')).rejects.toThrow('stations response must be a JSON object');
+});
+
+test('fetchMobileBase validates external JSON', async () => {
+  stubFetch({ '/wheres-mobile-base': { system: 'horizon' } });
+  expect(await fetchMobileBase('https://game.spacemolt.com')).toEqual({ system: 'horizon' });
+
+  stubFetch({ '/wheres-mobile-base': { system: 42 } });
+  expect(fetchMobileBase('https://game.spacemolt.com')).rejects.toThrow('missing a system id');
+
+  stubFetch({ '/wheres-mobile-base': [] });
+  expect(fetchMobileBase('https://game.spacemolt.com')).rejects.toThrow('must be a JSON object');
 });
 
 test('fetchCatalogConditional sends If-None-Match and handles 304', async () => {

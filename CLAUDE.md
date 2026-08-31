@@ -95,6 +95,17 @@ breaks the hand-written layer fails the run instead of committing a broken sync.
 Don't hand-run `fetch-spec`/`generate` to "catch up" — let the workflow do it;
 run them locally only when iterating on the codegen itself.
 
+A failed sync files a single tracking issue ("Spec sync is failing") and the
+next healthy run closes it. Without that, a break is invisible — the schedule
+just retries every 30 minutes while the library quietly stops tracking the
+server, which is how the v0.573.1 break ran red ~1,160 times over five weeks
+before anyone noticed. If that issue is open, fix the sync before anything
+else: reproduce with `bun run fetch-spec && bun run generate && bun run check`.
+Prefer fixes that don't re-break on the next tightening — spec-derived test
+fixtures belong in `tests/fixtures.ts`, and assertions over generated output
+should test the rule they guard, not pin a spec-driven list that legitimately
+grows.
+
 The incremental gameserver-side work that backs this library is tracked in
 [`docs/gameserver-todo.md`](docs/gameserver-todo.md) — push-frame schemas, auth
 frame payloads, optional `x-state-sections`. Add to it whenever we hit a gap the
@@ -184,7 +195,7 @@ src/
     socket.ts             WS lifecycle over an injectable WebSocket
     correlator.ts         request_id ⇄ promise; two-phase mutation flow
   state/
-    cache.ts              StateCache — 8-section cache, seed + applyDelta (M2)
+    cache.ts              StateCache — 9-section cache, seed + applyDelta (M2)
     market.ts             MarketCache — subscribed order books (M3)
     observation.ts        ObservationCache — subscribed presence watch (M3)
   events/
@@ -195,6 +206,8 @@ src/
   data/
     catalog.ts            CatalogCache — /api/catalog.json copy (M5)
     map.ts                MapCache — /api/map copy + httpBaseFromWs (M5)
+    stations.ts           fetchStations — /api/stations directory (live)
+    mobile-base.ts        fetchMobileBase — /wheres-mobile-base (live)
   generated/              AUTO-GENERATED — do not edit
 tests/
   mock-socket.ts          scriptable WebSocketLike for transport tests
@@ -211,7 +224,7 @@ tests/
   injected mock WebSocket (`tests/mock-socket.ts`).
 - **M2 (done):** per-account state cache (`StateCache`). Seeded canonically via
   a `get_status` query after auth (its `structuredContent` is `V2GameState` —
-  the same shape deltas patch), then kept current by applying the 8-section
+  the same shape deltas patch), then kept current by applying the 9-section
   deltas from every `action_result`. `logged_in` has a *different* shape
   (`system`+`poi`, login extras) so it is not used to seed the section cache —
   it is exposed raw as `account.loginPayload`. `account.state` + section getters

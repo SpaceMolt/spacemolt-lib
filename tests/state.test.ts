@@ -5,6 +5,7 @@ import type { V2GameState } from '../src/generated/openapi/types.gen.ts';
 import type { StateSection, WelcomeFrame } from '../src/protocol.ts';
 import { mockFactory, type MockSocket } from './mock-socket.ts';
 import { requireValue } from './require-value.ts';
+import { cargoItem, gameState, location, nearbyPlayer, player, queue, resource, ship, skill } from './fixtures.ts';
 
 function welcomePayload(): WelcomeFrame['payload'] {
   return {
@@ -21,23 +22,23 @@ function welcomePayload(): WelcomeFrame['payload'] {
   };
 }
 
-const SNAPSHOT: V2GameState = {
-  player: { username: 'Nova', credits: 5000 },
-  ship: { class_id: 'shuttle', fuel: 100 },
-  location: {
+const SNAPSHOT: V2GameState = gameState({
+  player: player({ username: 'Nova', credits: 5000 }),
+  ship: ship({ class_id: 'shuttle', fuel: 100 }),
+  location: location({
     system_id: 'sol',
     system_name: 'Sol',
     poi_id: 'earth_station',
     poi_name: 'Earth Station',
     connections: ['alpha_centauri'],
     security_status: 'core',
-    nearby_players: [{ player_id: 'old_neighbor', username: 'Old Neighbor' }],
-    resources: [{ item_id: 'iron_ore', remaining: 100 }],
-  },
-  cargo: [{ item_id: 'iron_ore', quantity: 10 }],
-  skills: { mining: { level: 3 } },
-  queue: { has_pending: false },
-};
+    nearby_players: [nearbyPlayer({ player_id: 'old_neighbor', username: 'Old Neighbor' })],
+    resources: [resource({ item_id: 'iron_ore', remaining: 100 })],
+  }),
+  cargo: [cargoItem({ item_id: 'iron_ore', quantity: 10 })],
+  skills: { mining: skill({ name: 'Mining', level: 3 }) },
+  queue: queue(),
+});
 
 // --- StateCache unit tests ---
 
@@ -56,9 +57,9 @@ test('applyDelta replaces present sections and leaves absent ones untouched', ()
   const cache = new StateCache();
   cache.seed(SNAPSHOT);
   const changed = cache.applyDelta({
-    ship: { class_id: 'shuttle', fuel: 60 },
-    cargo: [{ item_id: 'iron_ore', quantity: 150 }],
-    queue: { has_pending: true },
+    ship: ship({ fuel: 60 }),
+    cargo: [cargoItem({ quantity: 150 })],
+    queue: queue({ has_pending: true }),
   });
   expect(changed.sort()).toEqual((['cargo', 'queue', 'ship'] satisfies StateSection[]).sort());
   expect(cache.ship?.fuel).toBe(60);
@@ -192,12 +193,77 @@ test('fleet follower movement pushes keep the local location cache current', asy
 
   expect(account.location?.system_id).toBe('markeb');
   expect(account.location?.poi_id).toBe('markeb_quantum_eddy');
+  // The reconcile snapshot omits these entirely, proving seed() replaces the
+  // section wholesale rather than merging into the patched one.
   expect(account.location?.docked_at).toBeUndefined();
   expect(account.location?.connections).toBeUndefined();
   expect(account.location?.nearby_players).toBeUndefined();
   expect(account.location?.resources).toBeUndefined();
   expect(account.ship?.fuel).toBe(90);
   expect(account.skills?.navigation?.xp).toBe(3);
+});
+
+// A jump crosses systems, so the system-level fields describe the system the
+// ship just left. The arrival push carries only system/system_id/from_system
+// and XP (apiresponses.JumpResponse) — never connections, empire or security
+// status — so they cannot be refreshed from the push and must not be served as
+// though they describe the destination. Asserted synchronously, before the
+// reconcile lands: that intermediate window is the whole exposure, and the
+// post-reconcile assertions below cannot see it.
+test('a fleet jump drops system-level location fields it cannot refresh', async () => {
+  const { account, socket } = await seededAccount();
+  // Dock first so the jump has a docked_at to clear.
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: {
+          result: 'ok',
+          structuredContent: { ...SNAPSHOT, location: location({ docked_at: 'sol_station' }) },
+        },
+      });
+    }
+  };
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'fleet_dock', base: 'Sol Station', message: 'Your fleet has docked.' },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(account.location?.docked_at).toBe('sol_station');
+  expect(account.location?.connections).toEqual(['alpha_centauri']);
+
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'jumped', system: 'Markeb', system_id: 'markeb', from_system: 'Sol', navigation_xp: 3 },
+  });
+
+  expect(account.location?.system_id).toBe('markeb');
+  // Stale would be worse than absent here: a consumer picking its next jump off
+  // location.connections would get Sol's neighbours labelled as Markeb's.
+  expect(account.location?.connections).toBeUndefined();
+  expect(account.location?.empire).toBeUndefined();
+  expect(account.location?.security_status).toBeUndefined();
+  // Arriving anywhere means no longer docked; the server reports that as null.
+  expect(account.location?.docked_at).toBeNull();
+});
+
+// Travel stays inside one system, so the system-level fields remain true and
+// are deliberately kept — only the POI-scoped data is invalidated.
+test('an intra-system arrival keeps the system-level location fields', async () => {
+  const { account, socket } = await seededAccount();
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'arrived', poi: 'Sol Asteroid Belt', poi_id: 'sol_belt' },
+  });
+
+  expect(account.location?.poi_id).toBe('sol_belt');
+  expect(account.location?.system_id).toBe('sol');
+  expect(account.location?.connections).toEqual(['alpha_centauri']);
+  expect(account.location?.security_status).toBe('core');
+  // POI-scoped data describes the POI just left.
+  expect(account.location?.resources).toBeUndefined();
+  expect(account.location?.nearby_players).toBeUndefined();
 });
 
 test('fleet follower travel pushes update transit and arrival location', async () => {
@@ -342,7 +408,7 @@ test('fleet follower dock refreshes the canonical base ID and undock clears it',
   expect(account.location?.docked_at).toBe('confederacy_central_command');
 
   socket.serverSend({ type: 'ok', payload: { action: 'fleet_undock', message: 'Your fleet has undocked.' } });
-  expect(account.location?.docked_at).toBeUndefined();
+  expect(account.location?.docked_at).toBeNull();
 });
 
 test('a delayed fleet reconciliation cannot overwrite a newer undock push', async () => {
@@ -370,7 +436,7 @@ test('a delayed fleet reconciliation cannot overwrite a newer undock push', asyn
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  expect(account.location?.docked_at).toBeUndefined();
+  expect(account.location?.docked_at).toBeNull();
 });
 
 test('a throwing onStateChange listener does not block the mutation it was reporting', async () => {
@@ -393,12 +459,12 @@ test('a throwing onStateChange listener does not block the mutation it was repor
       s.serverSend({
         type: 'action_result',
         request_id: frame.request_id,
-        payload: { command: 'mine', tick: 1523, result: { cargo: [{ item_id: 'iron_ore', quantity: 160 }] } },
+        payload: { command: 'mine', tick: 1523, result: { cargo: [cargoItem({ quantity: 160 })] } },
       });
     }
   };
   const result = await account.mutate('spacemolt', 'mine');
-  expect(result.delta).toEqual({ cargo: [{ item_id: 'iron_ore', quantity: 160 }] });
+  expect(result.delta).toEqual({ cargo: [cargoItem({ quantity: 160 })] });
   // the cache update itself must also have gone through before the throw
   expect(account.cargo?.[0]?.quantity).toBe(160);
 });

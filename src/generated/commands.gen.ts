@@ -26,6 +26,7 @@ import type {
   ChatResponse,
   CitizenshipResponse,
   ClaimInsuranceResponse,
+  ClaimPrizeResponse,
   CloakResponse,
   CommissionQuoteResponse,
   CommissionShipResponse,
@@ -96,6 +97,7 @@ import type {
   FactionKickResponse,
   FactionListMissionsResponse,
   FactionListResponse,
+  FactionPersonnelResponse,
   FactionPostMissionResponse,
   FactionPrepayTaxResponse,
   FactionPromoteResponse,
@@ -178,20 +180,22 @@ import type {
   NameShipResponse,
   NotificationSettingsResponse,
   PackageJobResponse,
+  PayBountyResponse,
   PetitionResponse,
   PlaceShipBuyOrderResponse,
   PrepayTaxResponse,
+  PrizeServiceResponse,
   RanchSetCullResponse,
   RanchStatusResponse,
   ReadNoteResponse,
   RecallDroneResponse,
+  RecruitPersonnelResponse,
   RecycleJobResponse,
   RefitShipResponse,
   RefuelResponse,
   RegisterResponse,
   ReleaseTowResponse,
   ReloadResponse,
-  RepairModuleResponse,
   RepairResponse,
   ScanResponse,
   ScrapShipResponse,
@@ -211,6 +215,7 @@ import type {
   SetOutputPriceResponse,
   SetStatusResponse,
   ShipLicenseResponse,
+  ShippingActiveResponse,
   ShippingContractResponse,
   ShippingDebtPaymentResponse,
   ShippingListResponse,
@@ -231,7 +236,9 @@ import type {
   TradeOfferResponse,
   TransferCreditsResponse,
   TransferItemsResponse,
+  TransferPersonnelResponse,
   TravelResponse,
+  TreatPersonnelResponse,
   UndockResponse,
   UninstallModResponse,
   UnloadDroneResponse,
@@ -284,7 +291,7 @@ export interface SpacemoltAuthRegisterParams {
 }
 
 export interface SpacemoltBattleEngageParams {
-  /** Side to join (optional for action=engage — auto-assigned by faction if omitted) */
+  /** Side to join (optional when you engage — auto-assigned by faction if omitted) */
   side_id?: number;
 }
 
@@ -307,8 +314,12 @@ export interface SpacemoltBattleReloadParams {
 }
 
 export interface SpacemoltBattleStanceParams {
-  /** Battle stance (required for action=stance): fire (100% dmg dealt/taken), evade (0% dealt, 50% taken, costs fuel), brace (0% dealt, 25% taken, shields regen 2x), flee (0% dealt, 100% taken, auto-retreats, 3 ticks from outer to escape) */
-  id: "fire" | "evade" | "brace" | "flee";
+  /** Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). Changing away from board begins non-instant withdrawal. */
+  id: "fire" | "evade" | "brace" | "flee" | "board";
+  /** Positive fit-marine commitment required when setting stance=board. The battle tick caps it to the fit marines actually available. */
+  marines?: number;
+  /** ID or name of the enemy — required when focusing a target and when entering the board stance */
+  target?: string;
 }
 
 export interface SpacemoltBattleSummaryParams {
@@ -317,7 +328,7 @@ export interface SpacemoltBattleSummaryParams {
 }
 
 export interface SpacemoltBattleTargetParams {
-  /** Player ID or username of enemy to target (required for action=target) */
+  /** ID or name of the enemy — required when focusing a target and when entering the board stance */
   id: string;
 }
 
@@ -728,7 +739,7 @@ export interface SpacemoltFactionAdminPostMissionParams {
   /** Optional: NPC title */
   giver_title?: string;
   /** List of mission objectives */
-  objectives: { description: string; item_id?: string; quantity?: number; system_id?: string; target_id?: string; type: string }[];
+  objectives: { description: string; item_id?: string; quantity?: number; system_id?: string; target_base_id?: string; target_id?: string; type: string }[];
   /** Mission rewards (credits, items, reputation) */
   rewards: { credits?: number; items?: Record<string, unknown>[] };
   /** Mission title */
@@ -944,7 +955,7 @@ export interface SpacemoltIntelQueryIntelParams {
 }
 
 export interface SpacemoltIntelQueryTradeIntelParams {
-  /** Filter by base/station ID */
+  /** Filter by station Base ID or station POI ID */
   base_id?: string;
   /** Filter by item ID (requires L2 Commerce Terminal) */
   item_id?: string;
@@ -959,7 +970,7 @@ export interface SpacemoltIntelQueryTradeIntelParams {
 }
 
 export interface SpacemoltIntelScanPoiParams {
-  /** ID of the POI to scan. The faction's sensor facility must be in range (L1 same system, L2 one jump, L3 two jumps). */
+  /** ID of the POI to scan; for a station, either its POI ID or Base ID is accepted. The faction's sensor facility must be in range (L1 same system, L2 one jump, L3 two jumps). */
   poi_id: string;
 }
 
@@ -1046,8 +1057,17 @@ export interface SpacemoltMarketViewOrdersParams {
   search?: string;
   /** Sort order: 'newest' (default), 'oldest', 'price_asc', 'price_desc' */
   sort_by?: "newest" | "oldest" | "price_asc" | "price_desc";
-  /** Optional: station ID to view your orders at without being docked. If omitted, must be docked and uses the current station. */
+  /** Optional: station Base ID or station POI ID to view your orders at without being docked. If omitted, must be docked and uses the current station. */
   station_id?: string;
+}
+
+export interface SpacemoltSalvageClaimPrizeParams {
+  /** Where surviving assigned crew go on delivery. Defaults to aboard; faction_reserve requires and reserves capacity in your faction's destination reserve. */
+  crew_disposition?: "aboard" | "faction_reserve";
+  /** Intact prize record ID at your current POI */
+  id: string;
+  /** Accessible station base ID where the autonomous prize should recover */
+  target: string;
 }
 
 export interface SpacemoltSalvageLootParams {
@@ -1061,6 +1081,17 @@ export interface SpacemoltSalvageLootParams {
   quantity?: number;
 }
 
+export interface SpacemoltSalvageServicePrizeParams {
+  /** Claimed intact prize record ID at your current POI */
+  id: string;
+  /** Optional quantity. For refuel, zero or omission transfers the safe maximum; for repair, zero or omission uses one repair kit. */
+  quantity?: number;
+  /** Physical recovery action to perform */
+  service_action: "stop" | "resume" | "redirect" | "refuel" | "repair";
+  /** Accessible replacement station for redirect */
+  target?: string;
+}
+
 export interface SpacemoltSalvageSetHomeParams {
   /** UUID of base to set as home (must be docked there) */
   id: string;
@@ -1072,7 +1103,7 @@ export interface SpacemoltSalvageTowParams {
 }
 
 export interface SpacemoltShipBrowseShipsParams {
-  /** Base to browse listings at (defaults to current base) */
+  /** Station to browse listings at, given by either its Base ID or station POI ID (defaults to current station) */
   base_id?: string;
   /** Filter by ship class ID */
   class_id?: string;
@@ -1101,22 +1132,39 @@ export interface SpacemoltShipCancelShipListingParams {
 }
 
 export interface SpacemoltShipCommissionQuoteParams {
+  /** If true, quote the hull without its default module loadout. */
+  bare_hull?: boolean;
   /** Ship class ID to get a quote for */
   id: string;
+  /** Preview the materials you can contribute, the remaining deficit, and partial-sourcing total. */
+  source_missing_materials?: boolean;
 }
 
 export interface SpacemoltShipCommissionShipParams {
+  /** If true, commission only the hull without its default module loadout. Defaults to false so ships arrive fitted. */
+  bare_hull?: boolean;
   /** At your own faction's station: build from faction storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected. */
   fund_from_faction?: boolean;
   /** Ship class ID to commission (use ship_catalog to see options) */
   id: string;
   /** At an empire/NPC shipyard: if true, supply build materials from cargo/storage (cheaper); if false, pay credits for everything (default). */
   provide_materials?: boolean;
+  /** At an empire/NPC shipyard: take available requirements from cargo then station storage and charge only to source the deficit. Do not combine with provide_materials. */
+  source_missing_materials?: boolean;
 }
 
 export interface SpacemoltShipCommissionStatusParams {
-  /** Optional: filter commissions to a specific base */
+  /** Optional: filter commissions to a station by either its Base ID or station POI ID */
   base_id?: string;
+}
+
+export interface SpacemoltShipFactionPersonnelParams {
+  fit_crew?: number;
+  fit_marines?: number;
+  injured_crew?: number;
+  injured_marines?: number;
+  /** Reserve operation; defaults to status. On v2 transports this field is named personnel_action. */
+  personnel_action?: "status" | "recruit" | "deposit" | "withdraw";
 }
 
 export interface SpacemoltShipListShipForSaleParams {
@@ -1129,29 +1177,33 @@ export interface SpacemoltShipListShipForSaleParams {
 export interface SpacemoltShippingAcceptParams {
   /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance. */
   carrier?: "player" | "faction";
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
   shipment_id: string;
 }
 
 export interface SpacemoltShippingCancelParams {
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
   shipment_id: string;
 }
 
 export interface SpacemoltShippingDeliverParams {
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
-  shipment_id: string;
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  package_id?: string;
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  shipment_id?: string;
 }
 
 export interface SpacemoltShippingGetParams {
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
-  shipment_id: string;
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  package_id?: string;
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  shipment_id?: string;
 }
 
 export interface SpacemoltShippingListParams {
   /** For list, show contracts you may accept personally (player, default) or for your current faction. */
   eligible_as?: "player" | "faction";
-  /** For list, only show runs bound for this destination station (ID or name). */
+  /** For list, only show runs bound for this destination station, given by either its Base ID or station POI ID. */
   filter_destination?: string;
   /** For list, only show runs of this service tier. */
   filter_service_level?: "standard" | "priority";
@@ -1174,8 +1226,8 @@ export interface SpacemoltShippingPayDebtParams {
 
 export interface SpacemoltShippingPostParams {
   /** Flat reward paid to the carrier on delivery. You set the price — required to post (post fails with reward_required if omitted or non-positive). quote returns estimated_reward from recently-completed similar-distance contracts to guide you; there is no automatic distance-based rate. */
-  base_reward?: number;
-  /** Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid. */
+  base_reward: number;
+  /** Destination station for quote or post, given as either a station's base ID or the station POI ID the map shows you. It must differ from the origin station; another station in the same system is valid. */
   destination_base_id: string;
   /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
   insured?: boolean;
@@ -1185,9 +1237,9 @@ export interface SpacemoltShippingPostParams {
   invited_carrier_type?: "player" | "faction";
   /** Optional post guard. The contract is rejected if the recomputed fees, reward escrow, and premium exceed this amount. */
   max_total_cost?: number;
-  /** Sealed package to quote or post. The package must be owned by the selected shipper at this station. */
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
   package_id: string;
-  /** Player, faction, or station ID matching recipient_type. */
+  /** Player, faction, or station ID matching recipient_type; a station takes either the base ID or the station POI ID. */
   recipient_id?: string;
   /** Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper. */
   recipient_type?: "player" | "faction" | "station";
@@ -1213,7 +1265,7 @@ export interface SpacemoltShippingProfileParams {
 export interface SpacemoltShippingQuoteParams {
   /** Flat reward paid to the carrier on delivery. You set the price — required to post (post fails with reward_required if omitted or non-positive). quote returns estimated_reward from recently-completed similar-distance contracts to guide you; there is no automatic distance-based rate. */
   base_reward?: number;
-  /** Destination station/base ID for quote or post. It must differ from the origin station; another station in the same system is valid. */
+  /** Destination station for quote or post, given as either a station's base ID or the station POI ID the map shows you. It must differ from the origin station; another station in the same system is valid. */
   destination_base_id: string;
   /** Request cargo insurance. Unpriceable packages may still be shipped uninsured. */
   insured?: boolean;
@@ -1221,9 +1273,9 @@ export interface SpacemoltShippingQuoteParams {
   invited_carrier_id?: string;
   /** Invited prime carrier kind when visibility=invited. */
   invited_carrier_type?: "player" | "faction";
-  /** Sealed package to quote or post. The package must be owned by the selected shipper at this station. */
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
   package_id: string;
-  /** Player, faction, or station ID matching recipient_type. */
+  /** Player, faction, or station ID matching recipient_type; a station takes either the base ID or the station POI ID. */
   recipient_id?: string;
   /** Delivery beneficiary kind. Omit both recipient fields to deliver back to the shipper. */
   recipient_type?: "player" | "faction" | "station";
@@ -1242,15 +1294,19 @@ export interface SpacemoltShippingQuoteParams {
 }
 
 export interface SpacemoltShippingReturnParams {
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
-  shipment_id: string;
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  package_id?: string;
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  shipment_id?: string;
 }
 
 export interface SpacemoltShippingTrackParams {
   /** Maximum recent beacon events returned by track. */
   limit?: number;
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. */
-  shipment_id: string;
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  package_id?: string;
+  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  shipment_id?: string;
 }
 
 export interface SpacemoltShipPlaceShipBuyOrderParams {
@@ -1258,6 +1314,13 @@ export interface SpacemoltShipPlaceShipBuyOrderParams {
   id: string;
   /** Offered price in credits (escrowed with sales tax until filled or cancelled) */
   price: number;
+}
+
+export interface SpacemoltShipRecruitPersonnelParams {
+  /** Fit crew to recruit into the active ship. Request crew and/or marines; at least one count must be positive. */
+  crew?: number;
+  /** Fit marines to recruit into the active ship. Request crew and/or marines; at least one count must be positive. */
+  marines?: number;
 }
 
 export interface SpacemoltShipRenameShipParams {
@@ -1289,6 +1352,28 @@ export interface SpacemoltShipSupplyCommissionParams {
 export interface SpacemoltShipSwitchShipParams {
   /** ID of the ship to switch to (must be stored at current station, use list_ships to see your fleet) */
   id: string;
+}
+
+export interface SpacemoltShipTransferPersonnelParams {
+  fit_crew?: number;
+  fit_marines?: number;
+  /** Allied player ID or username at the same POI. */
+  id: string;
+  injured_crew?: number;
+  injured_marines?: number;
+}
+
+export interface SpacemoltShipTreatPersonnelParams {
+  /** Injured crew to treat. Omit or use zero to treat as many as possible. */
+  crew?: number;
+  /** Optional allied player ID or username for remote field treatment. Omit to treat your active ship or faction reserve. */
+  id?: string;
+  /** Injured marines to treat. Omit or use zero to treat as many as possible. */
+  marines?: number;
+  /** Treatment source. Omit to choose the appropriate local station or field provider automatically. */
+  provider?: "station" | "field" | "faction";
+  /** Treat personnel in the local faction reserve. Requires provider=faction and ManageTreasury permission. */
+  reserve?: boolean;
 }
 
 export interface SpacemoltSocialCaptainsLogAddParams {
@@ -1480,13 +1565,13 @@ export interface SpacemoltSocialWriteNoteParams {
 }
 
 export interface SpacemoltStorageDepositParams {
-  /** Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in action=view target=faction. */
+  /** Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in a storage view with target=faction. */
   bucket?: string;
   /** For 'deposit' with target=<player name/id>: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.) */
   credits?: number;
   /** Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury. */
   dest_bucket?: string;
-  /** Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
+  /** Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> on a deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
   item_id?: string;
   /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure. */
   items?: { item_id: string; quantity: number }[];
@@ -1496,7 +1581,7 @@ export interface SpacemoltStorageDepositParams {
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift) */
+  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. */
   target?: string;
 }
 
@@ -1521,18 +1606,18 @@ export interface SpacemoltStorageLootParams {
 }
 
 export interface SpacemoltStorageViewParams {
-  /** Optional: station ID to view storage at without being docked. Only applies to action="view", target="self". */
+  /** Optional: station Base ID or station POI ID to view storage at without being docked. Read-only: it applies to a storage view (target="self" or "faction"), not to a deposit or withdraw. */
   station_id?: string;
-  /** Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift) */
+  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. */
   target?: string;
 }
 
 export interface SpacemoltStorageWithdrawParams {
-  /** Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in action=view target=faction. */
+  /** Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in a storage view with target=faction. */
   bucket?: string;
   /** Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury. */
   dest_bucket?: string;
-  /** Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> with action=deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
+  /** Item ID for normal item transfers, 'credits' for credit operations (faction target only), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> on a deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
   item_id?: string;
   /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure. */
   items?: { item_id: string; quantity: number }[];
@@ -1540,7 +1625,7 @@ export interface SpacemoltStorageWithdrawParams {
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift) */
+  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. */
   target?: string;
 }
 
@@ -1585,7 +1670,7 @@ export interface SpacemoltAcceptMissionParams {
 }
 
 export interface SpacemoltAttackParams {
-  /** ID of the target: a player, pirate, empire NPC, wildlife creature, or station. Opening fire on a station starts a siege; shelling an empire station is a serious crime. */
+  /** ID of the target: a player, pirate, empire NPC, wildlife creature, intact-prize actor, or station. Prize actor IDs come from get_nearby. Opening fire on a station starts a siege; shelling an empire station is a serious crime. */
   id: string;
 }
 
@@ -1615,7 +1700,7 @@ export interface SpacemoltCompleteMissionParams {
 export interface SpacemoltCraftParams {
   /** Alias for quantity (used when quantity is not set). */
   count?: number;
-  /** Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket. */
+  /** Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket. Pass it alongside job_id to redirect an ALREADY QUEUED job's remaining output there instead of queuing anything new. */
   deliver_to?: string;
   /** Return a cost+time quote (materials, labor, rental fee, auto-routed venue, ETA) without queuing or spending anything. Not supported with bulk jobs. */
   dry_run?: boolean;
@@ -1625,7 +1710,7 @@ export interface SpacemoltCraftParams {
   id?: string;
   /** For pack_package: selected items to pack; total unpacked size may not exceed 100. */
   items?: { item_id: string; quantity: number }[];
-  /** Cancel this queued job (refunding its unconsumed inputs, labor, and rental fee) instead of crafting. Use action='queue' to list your job IDs. Setting job_id implies cancel. */
+  /** Act on this queued job instead of crafting. Call craft with no recipe_id to list your job IDs. job_id alone cancels it (refunding its unconsumed inputs, labor, and rental fee); job_id together with deliver_to instead redirects the job's REMAINING output to that destination, keeping its recipe, runs, escrow, cost, and queue position. */
   job_id?: string;
   /** Bulk cancel: cancel many queued jobs in one action. Each ID is cancelled independently with per-job success/failure, so one bad ID doesn't sink the batch. Refunds the unconsumed escrow of every cancelled job. */
   job_ids?: string[];
@@ -1662,7 +1747,7 @@ export interface SpacemoltDistressSignalParams {
 }
 
 export interface SpacemoltFindRouteParams {
-  /** ID of the destination system. Use search_systems to find system IDs by name. */
+  /** Destination system ID, POI ID, or station Base ID. A station may be identified by either its Base ID or station POI ID. Use search_systems to find system IDs by name. */
   id: string;
 }
 
@@ -1673,7 +1758,7 @@ export interface SpacemoltGetEmpireInfoParams {
 
 export interface SpacemoltGetGuideParams {
   /** Guide to read (omit to list available guides) */
-  id?: "miner" | "trader" | "pirate-hunter" | "explorer" | "base-builder" | "drones" | "fuel" | "crafting";
+  id?: "miner" | "trader" | "pirate-hunter" | "boarding" | "explorer" | "base-builder" | "drones" | "fuel" | "crafting";
 }
 
 export interface SpacemoltGetMapParams {
@@ -1687,7 +1772,12 @@ export interface SpacemoltGetNotificationsParams {
   /** Max notifications to return (default: 50, max: 100). */
   limit?: number;
   /** Filter by notification types. Omit for all types. */
-  types?: ("chat" | "combat" | "trade" | "market" | "crafting" | "system")[];
+  types?: ("chat" | "combat" | "trade" | "market" | "crafting" | "observation" | "system")[];
+}
+
+export interface SpacemoltGetShipParams {
+  /** Ship to report on (from list_ships or faction_garages). Omit for the ship you are flying. Any ship you own — parked, garaged, or in a carrier bay — or any ship in your own faction's garage pool can be read from anywhere, without docking or travelling to it. */
+  id?: string;
 }
 
 export interface SpacemoltGetVersionParams {
@@ -1731,8 +1821,15 @@ export interface SpacemoltJumpParams {
 }
 
 export interface SpacemoltLoadPassengerParams {
-  /** Destination station ID or name. Loads all waiting passengers here bound for it, up to your free berths. */
+  /** Destination station Base ID, station POI ID, or name. Loads all waiting passengers here bound for it, up to your free berths. */
   id: string;
+}
+
+export interface SpacemoltPayBountyParams {
+  /** Empire whose bounty to clear: solarian, voidborn, crimson, nebula, outerrim. Omit when you owe exactly one empire. */
+  id?: string;
+  /** Who funds it: "self" (your wallet, the default) or "faction" (the faction treasury; requires ManageTreasury). */
+  source?: "self" | "faction";
 }
 
 export interface SpacemoltPrepayTaxParams {
@@ -1741,7 +1838,7 @@ export interface SpacemoltPrepayTaxParams {
 }
 
 export interface SpacemoltRecycleParams {
-  /** Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific Storage Extension bucket. */
+  /** Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific Storage Extension bucket. Pass it alongside job_id to redirect an ALREADY QUEUED job's remaining output there instead of queuing anything new. */
   deliver_to?: string;
   /** Return a cost+time quote (feedstock consumed, fees, venue, ETA) without queuing anything. Not supported with bulk jobs. */
   dry_run?: boolean;
@@ -1749,7 +1846,7 @@ export interface SpacemoltRecycleParams {
   facility_id?: string;
   /** Recipe ID to recycle (the recycler consumes the recipe's outputs and returns a lossy fraction of its inputs). Use catalog with type=recipes to browse. */
   id?: string;
-  /** Cancel this queued job (refunding its unconsumed escrow) instead of recycling. Setting job_id implies cancel. */
+  /** Act on this queued job instead of recycling. job_id alone cancels it (refunding its unconsumed escrow); job_id together with deliver_to instead redirects the job's REMAINING output to that destination, keeping everything else about the job unchanged. */
   job_id?: string;
   /** Bulk cancel: cancel many queued jobs in one action. Each ID is cancelled independently with per-job success/failure, so one bad ID doesn't sink the batch. Refunds the unconsumed escrow of every cancelled job. */
   job_ids?: string[];
@@ -1766,28 +1863,23 @@ export interface SpacemoltRecycleParams {
 export interface SpacemoltRefuelParams {
   /** Specific fuel cell type to use (e.g. fuel_cell, fuel_cell_premium, fuel_cell_military). Auto-selects cheapest if omitted. */
   id?: string;
-  /** Number of fuel cells to burn or units to transfer (default 1). Applies only to fuel-cell purchases and ship-to-ship transfers; station (credit) refueling ignores quantity and always fills your tank to full. */
+  /** Number of fuel cells to burn or fuel units to transfer. Fuel cells default to 1; remote transfer defaults to the maximum allowed by donor reserve and recipient tank space. Docked station refueling ignores quantity and draws available fuel toward a full tank. */
   quantity?: number;
-  /** Player ID or username to transfer fuel to, or 'fleet' for fleet fuel status. Requires a Refueling Pump module for transfers. */
+  /** Player ID or username at the same real POI to receive fuel, or 'fleet' for read-only fleet fuel status. Transfers require an operational Refueling Pump and the donor retains at least one fuel. */
   target?: string;
 }
 
 export interface SpacemoltRepairParams {
   /** Specific repair item to use (e.g. repair_kit, hull_patch). Auto-selects cheapest if omitted. */
-  item_id?: string;
-  /** Number of repair kits to use (default 1). Capped to what's available and what hull needs. */
+  id?: string;
+  /** Number of repair kits to use (default 1). Remote repair is limited by available kits and target hull need. Without a target, a docked repair service uses credits; otherwise kits self-repair anywhere. */
   quantity?: number;
-  /** Player ID or username to repair, or 'fleet' for fleet hull status. Requires a Repair Arm module for ship-to-ship repair. */
+  /** Player ID or username to repair at the same real POI, or 'fleet' for read-only fleet hull status. Ship-to-ship repair consumes repair kits and requires an operational Repair Arm. */
   target?: string;
 }
 
-export interface SpacemoltRepairModuleParams {
-  /** Instance ID of the module to repair (must be in cargo, not fitted) */
-  id: string;
-}
-
 export interface SpacemoltScanParams {
-  /** ID/username of the player or NPC to scan. Omit to run an area sensor sweep that reveals cloaked ships at your location your scanner out-powers. */
+  /** Player ID/username, NPC ID/name, wildlife creature ID, or intact-prize actor ID to scan. Prize actor IDs come from get_nearby. Omit to run an area sensor sweep that reveals cloaked ships at your location your scanner out-powers. */
   id?: string;
 }
 
@@ -1811,7 +1903,7 @@ export interface SpacemoltSubscribeObservationParams {
 }
 
 export interface SpacemoltTravelParams {
-  /** UUID of the POI to travel to (use get_system to see available POIs) */
+  /** POI ID to travel to (use get_system to see available POIs). For a station, either its POI ID or Base ID is accepted. */
   id: string;
 }
 
@@ -1845,7 +1937,7 @@ export interface Commands {
     abandon_mission(params: SpacemoltAbandonMissionParams, requestId?: string): Promise<MutationResult<AbandonMissionResponse>>;
     /** Accept a mission from the mission board */
     accept_mission(params?: SpacemoltAcceptMissionParams, requestId?: string): Promise<MutationResult<AcceptMissionResponse>>;
-    /** Attack another player, pirate, empire NPC, creature, or station */
+    /** Attack another player, pirate, empire NPC, creature, station, or intact prize */
     attack(params: SpacemoltAttackParams, requestId?: string): Promise<MutationResult<AttackResponse>>;
     /** Buy items at market price from the station exchange */
     buy(params: SpacemoltBuyParams, requestId?: string): Promise<MutationResult<BuyResponse>>;
@@ -1887,7 +1979,7 @@ export interface Commands {
     get_map(params?: SpacemoltGetMapParams, requestId?: string): Promise<QueryResult<GetMapCommandResponse>>;
     /** Get available missions at your current base */
     get_missions(requestId?: string): Promise<QueryResult<GetMissionsResponse>>;
-    /** Get other players at your current POI */
+    /** Get visible players, NPCs, creatures, and intact prizes at your current POI */
     get_nearby(requestId?: string): Promise<QueryResult<GetNearbyResponse>>;
     /** Retrieve pending notifications (combat results, trade fills, chat messages, mission updates, etc.) */
     get_notifications(params?: SpacemoltGetNotificationsParams, requestId?: string): Promise<QueryResult<GetNotificationsResponse>>;
@@ -1898,7 +1990,7 @@ export interface Commands {
     /** Get action queue (v2 format) */
     get_queue(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get ship and module details (v2 format) */
-    get_ship(requestId?: string): Promise<QueryResult<V2GameState>>;
+    get_ship(params?: SpacemoltGetShipParams, requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get skills progress (v2 format) */
     get_skills(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get full canonical game state (v2) */
@@ -1931,6 +2023,8 @@ export interface Commands {
     load_passenger(params: SpacemoltLoadPassengerParams, requestId?: string): Promise<MutationResult<LoadPassengersResponse>>;
     /** Mine resources from asteroids, ice fields, or gas clouds */
     mine(requestId?: string): Promise<MutationResult<MineResponse>>;
+    /** Settle your outstanding bounty with an empire from anywhere */
+    pay_bounty(params?: SpacemoltPayBountyParams, requestId?: string): Promise<MutationResult<PayBountyResponse>>;
     /** Prepay credits toward your next tax assessment */
     prepay_tax(params: SpacemoltPrepayTaxParams, requestId?: string): Promise<MutationResult<PrepayTaxResponse>>;
     /** Queue a recycling job: consume a recipe's outputs to recover a fraction of its inputs */
@@ -1939,8 +2033,6 @@ export interface Commands {
     refuel(params?: SpacemoltRefuelParams, requestId?: string): Promise<MutationResult<RefuelResponse>>;
     /** Repair hull — at station (credits), in space (repair kits), or on another ship (repair arm + kits) */
     repair(params?: SpacemoltRepairParams, requestId?: string): Promise<MutationResult<RepairResponse>>;
-    /** Repair wear on a module using a Repair Kit */
-    repair_module(params: SpacemoltRepairModuleParams, requestId?: string): Promise<MutationResult<RepairModuleResponse>>;
     /** Scan a target, or sweep the area for cloaked ships when no target is given */
     scan(params?: SpacemoltScanParams, requestId?: string): Promise<MutationResult<ScanResponse>>;
     /** Search for systems by name */
@@ -1985,23 +2077,25 @@ export interface Commands {
     register(params: SpacemoltAuthRegisterParams, requestId?: string): Promise<QueryResult<RegisterResponse>>;
   };
   spacemolt_battle: {
-    /** Manage your battle — move, change stance, target enemies, or join a fight */
+    /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     advance(requestId?: string): Promise<QueryResult<BattleResponse>>;
-    /** Manage your battle — move, change stance, target enemies, or join a fight */
+    /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     engage(params?: SpacemoltBattleEngageParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** View the tick-by-tick combat replay of a battle by ID */
     log(params: SpacemoltBattleLogParams, requestId?: string): Promise<QueryResult<GetBattleLogResponse>>;
     /** Reload a weapon's magazine from ammo in cargo */
     reload(params: SpacemoltBattleReloadParams, requestId?: string): Promise<MutationResult<ReloadResponse>>;
-    /** Manage your battle — move, change stance, target enemies, or join a fight */
+    /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     retreat(requestId?: string): Promise<QueryResult<BattleResponse>>;
-    /** Manage your battle — move, change stance, target enemies, or join a fight */
+    /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
+    self_destruct(requestId?: string): Promise<QueryResult<BattleResponse>>;
+    /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     stance(params: SpacemoltBattleStanceParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** View current battle status */
     status(requestId?: string): Promise<QueryResult<GetBattleStatusResponse>>;
     /** View the aggregate result of a battle by ID */
     summary(params: SpacemoltBattleSummaryParams, requestId?: string): Promise<QueryResult<BattleSummaryResponse>>;
-    /** Manage your battle — move, change stance, target enemies, or join a fight */
+    /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     target(params: SpacemoltBattleTargetParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
   };
   spacemolt_citizenship: {
@@ -2181,7 +2275,7 @@ export interface Commands {
     propose_ally(params: SpacemoltFactionProposeAllyParams, requestId?: string): Promise<MutationResult<FactionProposeAllyResponse>>;
     /** Propose peace to a faction you're at war with */
     propose_peace(params: SpacemoltFactionProposePeaceParams, requestId?: string): Promise<MutationResult<FactionProposePeaceResponse>>;
-    /** Dissolve an alliance with another faction */
+    /** Dissolve an alliance or clear pending alliance proposals with another faction */
     remove_ally(params: SpacemoltFactionRemoveAllyParams, requestId?: string): Promise<MutationResult<FactionRemoveAllyResponse>>;
     /** Return an enemy faction to neutral standing */
     remove_enemy(params: SpacemoltFactionRemoveEnemyParams, requestId?: string): Promise<MutationResult<FactionRemoveEnemyResponse>>;
@@ -2279,6 +2373,8 @@ export interface Commands {
     view_orders(params?: SpacemoltMarketViewOrdersParams, requestId?: string): Promise<QueryResult<ViewOrdersResponse>>;
   };
   spacemolt_salvage: {
+    /** Assign prize crew and begin recovery of an intact captured ship */
+    claim_prize(params: SpacemoltSalvageClaimPrizeParams, requestId?: string): Promise<MutationResult<ClaimPrizeResponse>>;
     /** Purchase ship insurance */
     insure(requestId?: string): Promise<MutationResult<BuyInsuranceResponse>>;
     /** Loot items and modules from a wreck */
@@ -2293,6 +2389,8 @@ export interface Commands {
     scrap(requestId?: string): Promise<MutationResult<ScrapWreckResponse>>;
     /** Sell a towed wreck to the salvage yard for credits */
     sell(requestId?: string): Promise<MutationResult<SellWreckResponse>>;
+    /** Stop, resume, redirect, refuel, or repair a claimed intact prize */
+    service_prize(params: SpacemoltSalvageServicePrizeParams, requestId?: string): Promise<MutationResult<PrizeServiceResponse>>;
     /** Set your home base for respawning */
     set_home(params: SpacemoltSalvageSetHomeParams, requestId?: string): Promise<MutationResult<SetHomeBaseResponse>>;
     /** Attach a tow line to a wreck for hauling */
@@ -2317,12 +2415,16 @@ export interface Commands {
     commission_ship(params: SpacemoltShipCommissionShipParams, requestId?: string): Promise<MutationResult<CommissionShipResponse>>;
     /** Check the status of your ship commissions */
     commission_status(params?: SpacemoltShipCommissionStatusParams, requestId?: string): Promise<QueryResult<CommissionStatusResponse>>;
+    /** View, recruit, or transfer personnel held in your faction's local reserve */
+    faction_personnel(params?: SpacemoltShipFactionPersonnelParams, requestId?: string): Promise<MutationResult<FactionPersonnelResponse>>;
     /** List a stored ship for sale on the exchange */
     list_ship_for_sale(params: SpacemoltShipListShipForSaleParams, requestId?: string): Promise<MutationResult<ListShipForSaleResponse>>;
     /** List all ships you own and their locations */
     list_ships(requestId?: string): Promise<QueryResult<ListShipsResponse>>;
     /** Place a standing buy order for a ship class at this base */
     place_ship_buy_order(params: SpacemoltShipPlaceShipBuyOrderParams, requestId?: string): Promise<MutationResult<PlaceShipBuyOrderResponse>>;
+    /** Recruit fit crew and marines at a station personnel service */
+    recruit_personnel(params?: SpacemoltShipRecruitPersonnelParams, requestId?: string): Promise<MutationResult<RecruitPersonnelResponse>>;
     /** Refit your active ship to its latest class specifications */
     refit_ship(requestId?: string): Promise<MutationResult<RefitShipResponse>>;
     /** Set or clear a custom name for your active ship */
@@ -2335,6 +2437,10 @@ export interface Commands {
     supply_commission(params: SpacemoltShipSupplyCommissionParams, requestId?: string): Promise<MutationResult<SupplyCommissionResponse>>;
     /** Switch to a different ship stored at this station */
     switch_ship(params: SpacemoltShipSwitchShipParams, requestId?: string): Promise<MutationResult<SwitchShipResponse>>;
+    /** Transfer fit or injured crew and marines to an allied ship at the same POI */
+    transfer_personnel(params: SpacemoltShipTransferPersonnelParams, requestId?: string): Promise<MutationResult<TransferPersonnelResponse>>;
+    /** Treat injured crew and marines at a station or with an onboard medical module */
+    treat_personnel(params?: SpacemoltShipTreatPersonnelParams, requestId?: string): Promise<MutationResult<TreatPersonnelResponse>>;
     /** View your open ship buy orders across all bases */
     view_ship_buy_orders(requestId?: string): Promise<QueryResult<ViewShipBuyOrdersResponse>>;
   };
@@ -2342,11 +2448,13 @@ export interface Commands {
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     accept(params: SpacemoltShippingAcceptParams, requestId?: string): Promise<MutationResult<ShippingContractResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    active(requestId?: string): Promise<QueryResult<ShippingActiveResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     cancel(params: SpacemoltShippingCancelParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    deliver(params: SpacemoltShippingDeliverParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
+    deliver(params?: SpacemoltShippingDeliverParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    get(params: SpacemoltShippingGetParams, requestId?: string): Promise<QueryResult<ShippingContractResponse>>;
+    get(params?: SpacemoltShippingGetParams, requestId?: string): Promise<QueryResult<ShippingContractResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     list(params?: SpacemoltShippingListParams, requestId?: string): Promise<QueryResult<ShippingListResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
@@ -2358,9 +2466,9 @@ export interface Commands {
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     quote(params: SpacemoltShippingQuoteParams, requestId?: string): Promise<QueryResult<ShippingQuoteResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    return(params: SpacemoltShippingReturnParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
+    return(params?: SpacemoltShippingReturnParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
-    track(params: SpacemoltShippingTrackParams, requestId?: string): Promise<QueryResult<ShippingTrackResponse>>;
+    track(params?: SpacemoltShippingTrackParams, requestId?: string): Promise<QueryResult<ShippingTrackResponse>>;
   };
   spacemolt_social: {
     /** Add an entry to your captain's log (personal journal) */
@@ -2484,7 +2592,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       get_player: bindBare("spacemolt", "get_player"),
       get_poi: bindBare("spacemolt", "get_poi"),
       get_queue: bindBare("spacemolt", "get_queue"),
-      get_ship: bindBare("spacemolt", "get_ship"),
+      get_ship: bind("spacemolt", "get_ship"),
       get_skills: bindBare("spacemolt", "get_skills"),
       get_state: bindBare("spacemolt", "get_state"),
       get_status: bindBare("spacemolt", "get_status"),
@@ -2501,11 +2609,11 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       list_station_passengers: bindBare("spacemolt", "list_station_passengers"),
       load_passenger: bind("spacemolt", "load_passenger"),
       mine: bindBare("spacemolt", "mine"),
+      pay_bounty: bind("spacemolt", "pay_bounty"),
       prepay_tax: bind("spacemolt", "prepay_tax"),
       recycle: bind("spacemolt", "recycle"),
       refuel: bind("spacemolt", "refuel"),
       repair: bind("spacemolt", "repair"),
-      repair_module: bind("spacemolt", "repair_module"),
       scan: bind("spacemolt", "scan"),
       search_systems: bind("spacemolt", "search_systems"),
       self_destruct: bindBare("spacemolt", "self_destruct"),
@@ -2535,6 +2643,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       log: bind("spacemolt_battle", "log"),
       reload: bind("spacemolt_battle", "reload"),
       retreat: bindBare("spacemolt_battle", "retreat"),
+      self_destruct: bindBare("spacemolt_battle", "self_destruct"),
       stance: bind("spacemolt_battle", "stance"),
       status: bindBare("spacemolt_battle", "status"),
       summary: bind("spacemolt_battle", "summary"),
@@ -2687,6 +2796,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       view_orders: bind("spacemolt_market", "view_orders"),
     },
     spacemolt_salvage: {
+      claim_prize: bind("spacemolt_salvage", "claim_prize"),
       insure: bindBare("spacemolt_salvage", "insure"),
       loot: bind("spacemolt_salvage", "loot"),
       policies: bindBare("spacemolt_salvage", "policies"),
@@ -2694,6 +2804,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       release: bindBare("spacemolt_salvage", "release"),
       scrap: bindBare("spacemolt_salvage", "scrap"),
       sell: bindBare("spacemolt_salvage", "sell"),
+      service_prize: bind("spacemolt_salvage", "service_prize"),
       set_home: bind("spacemolt_salvage", "set_home"),
       tow: bind("spacemolt_salvage", "tow"),
       wrecks: bindBare("spacemolt_salvage", "wrecks"),
@@ -2707,19 +2818,24 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       commission_quote: bind("spacemolt_ship", "commission_quote"),
       commission_ship: bind("spacemolt_ship", "commission_ship"),
       commission_status: bind("spacemolt_ship", "commission_status"),
+      faction_personnel: bind("spacemolt_ship", "faction_personnel"),
       list_ship_for_sale: bind("spacemolt_ship", "list_ship_for_sale"),
       list_ships: bindBare("spacemolt_ship", "list_ships"),
       place_ship_buy_order: bind("spacemolt_ship", "place_ship_buy_order"),
+      recruit_personnel: bind("spacemolt_ship", "recruit_personnel"),
       refit_ship: bindBare("spacemolt_ship", "refit_ship"),
       rename_ship: bind("spacemolt_ship", "rename_ship"),
       scrap_ship: bind("spacemolt_ship", "scrap_ship"),
       sell_ship_to_order: bind("spacemolt_ship", "sell_ship_to_order"),
       supply_commission: bind("spacemolt_ship", "supply_commission"),
       switch_ship: bind("spacemolt_ship", "switch_ship"),
+      transfer_personnel: bind("spacemolt_ship", "transfer_personnel"),
+      treat_personnel: bind("spacemolt_ship", "treat_personnel"),
       view_ship_buy_orders: bindBare("spacemolt_ship", "view_ship_buy_orders"),
     },
     spacemolt_shipping: {
       accept: bind("spacemolt_shipping", "accept"),
+      active: bindBare("spacemolt_shipping", "active"),
       cancel: bind("spacemolt_shipping", "cancel"),
       deliver: bind("spacemolt_shipping", "deliver"),
       get: bind("spacemolt_shipping", "get"),
