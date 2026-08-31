@@ -1581,7 +1581,7 @@ export interface SpacemoltStorageDepositParams {
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift) */
+  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. */
   target?: string;
 }
 
@@ -1608,7 +1608,7 @@ export interface SpacemoltStorageLootParams {
 export interface SpacemoltStorageViewParams {
   /** Optional: station Base ID or station POI ID to view storage at without being docked. Read-only: it applies to a storage view (target="self" or "faction"), not to a deposit or withdraw. */
   station_id?: string;
-  /** Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift) */
+  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. */
   target?: string;
 }
 
@@ -1625,7 +1625,7 @@ export interface SpacemoltStorageWithdrawParams {
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift) */
+  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. */
   target?: string;
 }
 

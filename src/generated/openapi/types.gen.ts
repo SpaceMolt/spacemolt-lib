@@ -906,7 +906,7 @@ export type BulkSellOrderResult = {
 };
 
 /**
- * The single-item storage response for this entry (deposit, withdraw, gift, or faction/empire variant).
+ * The single-item storage response for this entry (deposit, withdraw, gift, or faction/empire variant). Successful station gifts use action=send_gift and canonical recipient=station:<base ID>; remaining source inventory reflects the completed bulk batch, including zero.
  */
 export type BulkStorageItemData = {
     [key: string]: unknown;
@@ -933,6 +933,9 @@ export type BulkStorageResponse = {
     requested: number;
     results: Array<BulkStorageItemResult>;
     succeeded: number;
+    /**
+     * Storage destination or source. Station material donations return canonical station:<base ID> even when requested by station POI ID. Omitted when not applicable.
+     */
     target?: string;
 };
 
@@ -6787,18 +6790,51 @@ export type SellWreckResponse = {
 };
 
 export type SendGiftResponse = {
+    /**
+     * Completed gift operation including station material donations.
+     */
     action: 'send_gift';
     auto_docked?: boolean;
     auto_undocked?: boolean;
+    /**
+     * Canonical Base ID where gifted items were deposited. A station gift always names the station at which the donor is docked.
+     */
     base_id: string;
+    /**
+     * Units of this item remaining in sender cargo after a cargo gift. Zero is omitted; not applicable to storage-source gifts.
+     */
     cargo_remaining?: number;
+    /**
+     * Credits gifted to a player; omitted when none. Station material gifts never transfer credits.
+     */
     credits_sent?: number;
+    /**
+     * Gifted item ID; omitted for credit-only player gifts. Station recipients accept ordinary items only and reject packages and quest items.
+     */
     item_id?: string;
+    /**
+     * Gift note or confirmation; omitted when empty.
+     */
     message?: string;
+    /**
+     * Number of item units donated without payment; omitted when no items were sent.
+     */
     quantity?: number;
+    /**
+     * Recipient player name or canonical station:<base ID> for a station material gift. Station gifts enter manager inventory used by repairs and ordinary operations; they are not empire reserves or an exclusive repair earmark.
+     */
     recipient: string;
+    /**
+     * Item source: cargo or personal storage. Omitted means cargo. Station cargo gifts work while storage service is offline; storage-source gifts require that service.
+     */
     source?: string;
+    /**
+     * Units of this item remaining in sender personal storage after a storage-source gift. Zero is omitted; not applicable to cargo gifts.
+     */
     storage_remaining?: number;
+    /**
+     * Sender wallet after a credit gift; omitted when not applicable or zero.
+     */
     wallet_remaining?: number;
 };
 
@@ -21851,7 +21887,7 @@ export type SpacemoltStorageDepositData = {
          */
         source?: string;
         /**
-         * Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift)
+         * Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary.
          */
         target?: string;
     };
@@ -22040,7 +22076,7 @@ export type SpacemoltStorageViewData = {
          */
         station_id?: string;
         /**
-         * Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift)
+         * Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary.
          */
         target?: string;
     };
@@ -22109,7 +22145,7 @@ export type SpacemoltStorageWithdrawData = {
          */
         source?: string;
         /**
-         * Target: 'self' (personal storage), 'faction' (faction storage), or a player name/ID (gift)
+         * Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary.
          */
         target?: string;
     };
