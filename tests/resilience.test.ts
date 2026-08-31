@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { Account } from '../src/account.ts';
 import type { AuthCredentials } from '../src/auth/credentials.ts';
-import { ConnectionClosedError, retryAfterMsFromClose } from '../src/errors.ts';
+import { ConnectionClosedError, retryAfterMsFromClose, SpacemoltError } from '../src/errors.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
 import { mockFactory, type MockSocket } from './mock-socket.ts';
 import { requireValue } from './require-value.ts';
@@ -683,4 +683,64 @@ test('multiple onDisconnected listeners all fire; unsubscribe removes only its o
   requireValue(sockets[0]).close(4001); // session_replaced -> terminal
   await both;
   expect(codes).toEqual([4001, 4001]);
+});
+
+// --- send-on-closed-socket cleanup (dc#000031) ---
+
+/**
+ * Connect an account against a mock socket, then close that socket, so any
+ * later `send` throws `ConnectionClosedError` synchronously.
+ */
+async function connectedThenClosed(): Promise<Account> {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    reconnect: false,
+    queryTimeoutMs: 20,
+  });
+  const cp = account.connect();
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+  socket.close(1006, 'gone');
+  return account;
+}
+
+test('mutate on a closed socket leaves no armed timeout behind', async () => {
+  const account = await connectedThenClosed();
+  // Only a leaked mutation timer raises `mutation_timeout`, so this filter
+  // ignores whatever else the runner drops in the same window.
+  const leaked: unknown[] = [];
+  const onUnhandled = (err: unknown) => {
+    if (err instanceof SpacemoltError && err.code === 'mutation_timeout') leaked.push(err);
+  };
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    await account.mutate('spacemolt_ship', 'undock').catch(() => undefined);
+    // Outlive the 20ms ack timeout, so a leaked timer has time to fire.
+    await new Promise((r) => setTimeout(r, 80));
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  expect(leaked).toEqual([]);
+});
+
+test('mutate on a closed socket rejects and frees its request_id', async () => {
+  const account = await connectedThenClosed();
+  await expect(account.mutate('spacemolt_ship', 'undock', undefined, undefined, 'm-1')).rejects.toThrow(
+    ConnectionClosedError,
+  );
+  // Reusing the id proves the correlator entry was cancelled — a leaked one
+  // fails with `duplicate_request_id` instead.
+  await expect(account.mutate('spacemolt_ship', 'undock', undefined, undefined, 'm-1')).rejects.toThrow(
+    ConnectionClosedError,
+  );
+});
+
+test('query on a closed socket rejects and frees its request_id', async () => {
+  const account = await connectedThenClosed();
+  await expect(account.query('spacemolt_ship', 'get_status', undefined, 'q-1')).rejects.toThrow(ConnectionClosedError);
+  await expect(account.query('spacemolt_ship', 'get_status', undefined, 'q-1')).rejects.toThrow(ConnectionClosedError);
 });
