@@ -684,3 +684,69 @@ test('multiple onDisconnected listeners all fire; unsubscribe removes only its o
   await both;
   expect(codes).toEqual([4001, 4001]);
 });
+
+// --- send-on-closed-socket cleanup (dc#000031) ---
+
+/**
+ * Connect an account against a mock socket, then close that socket, so any
+ * later `send` throws `ConnectionClosedError` synchronously.
+ */
+async function connectedThenClosed(): Promise<Account> {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    reconnect: false,
+    queryTimeoutMs: 20,
+  });
+  const cp = account.connect();
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+  socket.close(1006, 'gone');
+  return account;
+}
+
+/** Record unhandled rejections raised while `fn` runs. */
+async function withUnhandledRejections(fn: () => Promise<void>): Promise<unknown[]> {
+  const seen: unknown[] = [];
+  const onUnhandled = (err: unknown) => seen.push(err);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    await fn();
+    // Outlive the 20ms mutation-ack timer, so a leaked one has time to fire.
+    await new Promise((r) => setTimeout(r, 80));
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  return seen;
+}
+
+test('mutate on a closed socket rejects cleanly and leaves no correlator entry or timer', async () => {
+  const account = await connectedThenClosed();
+  const seen = await withUnhandledRejections(async () => {
+    await expect(account.mutate('spacemolt_ship', 'undock', undefined, undefined, 'm-1')).rejects.toThrow(
+      ConnectionClosedError,
+    );
+    // Reusing the id proves the correlator entry was cancelled — a leaked one
+    // would fail with `duplicate_request_id` instead.
+    await expect(account.mutate('spacemolt_ship', 'undock', undefined, undefined, 'm-1')).rejects.toThrow(
+      ConnectionClosedError,
+    );
+  });
+  expect(seen).toEqual([]);
+});
+
+test('query on a closed socket rejects cleanly and leaves no correlator entry or timer', async () => {
+  const account = await connectedThenClosed();
+  const seen = await withUnhandledRejections(async () => {
+    await expect(account.query('spacemolt_ship', 'get_status', undefined, 'q-1')).rejects.toThrow(
+      ConnectionClosedError,
+    );
+    await expect(account.query('spacemolt_ship', 'get_status', undefined, 'q-1')).rejects.toThrow(
+      ConnectionClosedError,
+    );
+  });
+  expect(seen).toEqual([]);
+});

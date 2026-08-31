@@ -566,8 +566,10 @@ export class Account {
     return this.withRateLimitRetry(async () => {
       const id = this.claimRequestId(requestId);
       const promise = this.correlator.awaitQuery(id);
-      this.sendFrame(tool, action, payload, id);
       try {
+        // Inside the try: a closed socket throws here, and an uncancelled entry
+        // would block the id and later reject into nothing.
+        this.sendFrame(tool, action, payload, id);
         return await withTimeout(
           promise,
           this.queryTimeoutMs,
@@ -609,9 +611,12 @@ export class Account {
     return this.enqueueMutation(() =>
       this.withRateLimitRetry(() => {
         const id = this.claimRequestId(requestId);
-        const promise = this.awaitMutationWithTimeout(id, mutationTimeoutMs, onAck);
-        this.sendFrame(tool, action, payload, id);
-        return promise;
+        return this.awaitMutationWithTimeout(
+          id,
+          mutationTimeoutMs,
+          () => this.sendFrame(tool, action, payload, id),
+          onAck,
+        );
       }),
     );
   }
@@ -632,6 +637,7 @@ export class Account {
   private awaitMutationWithTimeout(
     requestId: string,
     mutationTimeoutMs: number,
+    send: () => void,
     onAck?: (ack: MutationAck) => void,
   ): Promise<MutationResult> {
     return new Promise<MutationResult>((resolve, reject) => {
@@ -659,6 +665,16 @@ export class Account {
             reject(err instanceof Error ? err : new Error(String(err)));
           },
         );
+      // Send last, so the entry and timer exist before any response can
+      // arrive — and undo both if a closed socket throws, or this promise is
+      // orphaned with a live timer and rejects into nothing.
+      try {
+        send();
+      } catch (err) {
+        if (timer) clearTimeout(timer);
+        this.correlator.cancel(requestId);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
     });
   }
 
