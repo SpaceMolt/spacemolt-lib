@@ -6,6 +6,8 @@
 
 import type {
   NotificationAchievementUnlocked,
+  NotificationActionError,
+  NotificationActionResult,
   NotificationBaseDestroyed,
   NotificationBaseRaidUpdate,
   NotificationBattleAlert,
@@ -57,6 +59,8 @@ import type {
 /** msg_type values that have a published payload schema. */
 export type TypedNotificationType =
   | "achievement_unlocked"
+  | "action_error"
+  | "action_result"
   | "base_destroyed"
   | "base_raid_update"
   | "battle_alert"
@@ -107,6 +111,8 @@ export type TypedNotificationType =
 /** Maps a typed push msg_type to its payload type. */
 export interface NotificationPayloads {
   "achievement_unlocked": NotificationAchievementUnlocked;
+  "action_error": NotificationActionError;
+  "action_result": NotificationActionResult;
   "base_destroyed": NotificationBaseDestroyed;
   "base_raid_update": NotificationBaseRaidUpdate;
   "battle_alert": NotificationBattleAlert;
@@ -158,6 +164,8 @@ export interface NotificationPayloads {
 /** Names of every push msg_type with a published schema, for runtime checks. */
 export const TYPED_NOTIFICATION_TYPES = [
   "achievement_unlocked",
+  "action_error",
+  "action_result",
   "base_destroyed",
   "base_raid_update",
   "battle_alert",

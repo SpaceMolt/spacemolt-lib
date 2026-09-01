@@ -1346,12 +1346,18 @@ export type ClaimInsuranceResponse = {
 
 export type ClaimPrizeResponse = {
     crew_assigned: number;
-    crew_disposition: string;
+    /**
+     * Where the prize crew came from and returns to.
+     */
+    crew_disposition: 'aboard' | 'faction_reserve';
     destination_base_id: string;
     idempotent: boolean;
     prize_id: string;
     ship_id: string;
-    status: string;
+    /**
+     * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
+     */
+    status: 'available' | 'claimed' | 'in_transit' | 'delivered' | 'destroyed' | 'expired' | 'recaptured';
 };
 
 export type ClientConnectionInfo = {
@@ -3264,7 +3270,10 @@ export type FactionPersonnelEmployment = {
 };
 
 export type FactionPersonnelResponse = {
-    action: string;
+    /**
+     * The personnel_action the request asked for. It is echoed back unchanged.
+     */
+    action: 'status' | 'recruit' | 'deposit' | 'withdraw';
     auto_docked?: boolean;
     auto_undocked?: boolean;
     base_id: string;
@@ -4683,10 +4692,20 @@ export type LoungeCheckInResponse = {
 };
 
 export type McpNotification = {
+    /**
+     * Frame payload. The shape is selected by msg_type: read the Notification_<msg_type> schema under components.schemas. The notifications array on every v2 response carries the same payloads as an explicit anyOf.
+     */
+    data: unknown;
     id: string;
+    /**
+     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / server_restart_warning. A types=combat filter does not carry them.
+     */
     msg_type: string;
     timestamp: string;
-    type: string;
+    /**
+     * Coarse notification category. This is the value get_notifications accepts in its types filter. The server derives it from msg_type — see the msg_type field for the routing table.
+     */
+    type: 'chat' | 'combat' | 'trade' | 'market' | 'crafting' | 'observation' | 'system';
 };
 
 export type MapData = {
@@ -5078,6 +5097,60 @@ export type NotificationAchievementUnlocked = {
     faction?: boolean;
 };
 
+/**
+ * A queued action that failed when it ran on a later tick. Delivered on the same path as action_result: to the caller waiting on the originating request_id when one is still attached, otherwise queued and collected through get_notifications.
+ */
+export type NotificationActionError = {
+    /**
+     * Machine-readable error code. Switch on this rather than on message. It is the same code set the synchronous error response uses for that command, so it is not enumerated here — a command can fail at execution time for any reason it can fail immediately.
+     */
+    code: string;
+    /**
+     * Name of the command that failed.
+     */
+    command: string;
+    /**
+     * Optional extra context. Shape depends on code. Omitted when the failure carries none.
+     */
+    details?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Human-readable explanation of the failure.
+     */
+    message: string;
+    /**
+     * Tick the command failed on.
+     */
+    tick: number;
+};
+
+/**
+ * Result of a queued action that completed on a later tick. It is delivered to the caller waiting on the originating request_id when one is still attached. Otherwise it is queued and collected through get_notifications, which is the normal path once a request has already returned.
+ */
+export type NotificationActionResult = {
+    /**
+     * True when the server docked you to run the command.
+     */
+    auto_docked?: boolean;
+    /**
+     * True when the server undocked you to run the command.
+     */
+    auto_undocked?: boolean;
+    /**
+     * Name of the command that ran.
+     */
+    command: string;
+    /**
+     * Payload of the completed command. On v1 this is the command's own response object — see that command's response schema. On v2 it is the state delta the command registered, keyed by state section. Untyped because both shapes are possible; it is null when the command returned no body.
+     */
+    result: unknown;
+    /**
+     * Tick the command executed on.
+     */
+    tick: number;
+};
+
 export type NotificationBaseDestroyed = {
     attacker_id: string;
     attacker_name: string;
@@ -5440,7 +5513,10 @@ export type NotificationObservationUpdate = {
 };
 
 export type NotificationPersonnelUpdate = {
-    action: string;
+    /**
+     * What an ally did to your active ship. treatment healed injured crew or marines. transfer moved personnel between ships.
+     */
+    action: 'treatment' | 'transfer';
     crew_capacity: number;
     crew_treated?: number;
     fit_crew_transferred?: number;
@@ -5628,9 +5704,15 @@ export type NotificationPrizeUpdate = {
     ship_class: string;
     ship_id: string;
     ship_name?: string;
-    status: string;
+    /**
+     * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
+     */
+    status: 'available' | 'claimed' | 'in_transit' | 'delivered' | 'destroyed' | 'expired' | 'recaptured';
     system_id?: string;
-    wait_reason?: string;
+    /**
+     * Why an in_transit prize is stalled. Omitted while the prize is moving.
+     */
+    wait_reason?: 'no_route' | 'no_fuel' | 'destination_missing' | 'incapacitated' | 'manual_stop';
     wreck_id?: string;
 };
 
@@ -6442,13 +6524,22 @@ export type PrizeInfo = {
     ship_class: string;
     ship_id: string;
     ship_name?: string;
-    status: string;
-    wait_reason?: string;
+    /**
+     * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
+     */
+    status: 'available' | 'claimed' | 'in_transit' | 'delivered' | 'destroyed' | 'expired' | 'recaptured';
+    /**
+     * Why an in_transit prize is stalled. Omitted while the prize is moving.
+     */
+    wait_reason?: 'no_route' | 'no_fuel' | 'destination_missing' | 'incapacitated' | 'manual_stop';
 };
 
 export type PrizeRecoveryInfo = {
     actor_id: string;
-    crew_disposition: string;
+    /**
+     * Where the prize crew came from and returns to.
+     */
+    crew_disposition: 'aboard' | 'faction_reserve';
     destination_base_id: string;
     fuel: number;
     hull: number;
@@ -6461,28 +6552,49 @@ export type PrizeRecoveryInfo = {
     ship_class: string;
     ship_id: string;
     ship_name?: string;
-    status: string;
+    /**
+     * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
+     */
+    status: 'available' | 'claimed' | 'in_transit' | 'delivered' | 'destroyed' | 'expired' | 'recaptured';
     system_id?: string;
     transit_arrival_tick?: number;
     transit_from_poi_id?: string;
     transit_from_system_id?: string;
-    transit_kind?: string;
+    /**
+     * Which leg the prize is flying. jump crosses systems. travel crosses POIs inside one system.
+     */
+    transit_kind?: 'jump' | 'travel';
     transit_to_poi_id?: string;
     transit_to_system_id?: string;
-    wait_reason?: string;
+    /**
+     * Why an in_transit prize is stalled. Omitted while the prize is moving.
+     */
+    wait_reason?: 'no_route' | 'no_fuel' | 'destination_missing' | 'incapacitated' | 'manual_stop';
 };
 
 export type PrizeServiceResponse = {
-    action: string;
-    crew_disposition?: string;
+    /**
+     * The service_action the request asked for. It is echoed back unchanged.
+     */
+    action: 'stop' | 'resume' | 'redirect' | 'refuel' | 'repair';
+    /**
+     * Where the prize crew came from and returns to.
+     */
+    crew_disposition?: 'aboard' | 'faction_reserve';
     destination_base_id?: string;
     fuel_transferred?: number;
     hull_repaired?: number;
     prize_id: string;
     repair_kits_used?: number;
     ship_id: string;
-    status: string;
-    wait_reason?: string;
+    /**
+     * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
+     */
+    status: 'available' | 'claimed' | 'in_transit' | 'delivered' | 'destroyed' | 'expired' | 'recaptured';
+    /**
+     * Why an in_transit prize is stalled. Omitted while the prize is moving.
+     */
+    wait_reason?: 'no_route' | 'no_fuel' | 'destination_missing' | 'incapacitated' | 'manual_stop';
 };
 
 export type RanchFeedInfo = {
@@ -8242,7 +8354,10 @@ export type TreatPersonnelResponse = {
     crew_treated: number;
     marines_treated: number;
     medical_pool_remaining?: number;
-    source: string;
+    /**
+     * Which medical supply paid for the treatment. station is the base infirmary. faction is your faction reserve. field is shipboard medical supplies.
+     */
+    source: 'station' | 'faction' | 'field';
     supplies_used?: number;
     target: string;
 };
@@ -8813,7 +8928,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationDroneAdrift | NotificationServerRestartWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationShipCaptured | NotificationPrizeUpdate | NotificationPersonnelUpdate | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationDroneAdrift | NotificationServerRestartWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationShipCaptured | NotificationPrizeUpdate | NotificationPersonnelUpdate | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, battle_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
