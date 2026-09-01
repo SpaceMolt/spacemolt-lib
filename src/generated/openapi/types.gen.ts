@@ -432,12 +432,18 @@ export type BattleEndLogEntry = {
     captures?: Array<CaptureLogEntry>;
     category: string;
     duration: number;
-    outcome: string;
+    /**
+     * How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. The WebSocket battle_ended frame calls this same field reason.
+     */
+    outcome: 'victory' | 'stalemate' | 'mutual_destruction' | 'interrupted';
     participant_names?: Array<string>;
     participants: Array<ParticipantSummary>;
     ships_captured?: number;
     ships_destroyed: number;
     total_damage: number;
+    /**
+     * Side id of the winning side. Always -1 for a draw — stalemate and mutual_destruction are both draws — and -1 for a battle a server restart interrupted.
+     */
     winning_side: number;
 };
 
@@ -467,6 +473,7 @@ export type BattleLogEntry = {
     joins?: Array<JoinLogEntry>;
     kills?: Array<KillLogEntry>;
     personnel_casualties?: Array<PersonnelCasualtyLogEntry>;
+    recovered_summary?: RecoveredBattleSummary;
     regen?: Array<RegenLogEntry>;
     snapshots: Array<ParticipantSnapshot>;
     system_id: string;
@@ -599,6 +606,9 @@ export type BattleSummaryResponse = {
     ended_at?: string;
     has_station: boolean;
     origin_poi?: string;
+    /**
+     * How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. Graceful shutdown emits a battle_ended frame; crash-recovered REST summaries do not fabricate one. Null while status is active. The WebSocket battle_ended frame calls this same field reason.
+     */
     outcome: string;
     participant_count: number;
     player_names?: Array<string>;
@@ -611,6 +621,9 @@ export type BattleSummaryResponse = {
     system_name: string;
     top_damage?: BattleTopDamage;
     total_damage: number;
+    /**
+     * Side id of the winning side. Always -1 for a draw — both stalemate and mutual_destruction report -1 — and -1 for a battle a server restart interrupted. Null while status is active.
+     */
     winning_side: number;
 };
 
@@ -3886,6 +3899,9 @@ export type GetBaseResponse = {
 
 export type GetBattleLogResponse = {
     battle_id: string;
+    /**
+     * Tick snapshots include is_npc and is_boss on newly recorded rows. Explicit false is authoritative; either field may be omitted on historical rows that predate identity provenance.
+     */
     entries: Array<BattleLogEntry>;
     /**
      * True if more entries exist past this page (tick_start/tick_end) — raise tick_start or limit to page through.
@@ -5115,10 +5131,16 @@ export type NotificationBattleEnded = {
     captures?: Array<CaptureLogEntry>;
     duration: number;
     participants?: Array<BattleEndedParticipantInfo>;
-    reason: string;
+    /**
+     * How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle. The REST battle summary and battle log call this same field outcome.
+     */
+    reason: 'victory' | 'stalemate' | 'mutual_destruction' | 'interrupted';
     ships_captured?: number;
     ships_destroyed: number;
     total_damage: number;
+    /**
+     * Side id of the winning side. Always -1 for a draw — stalemate and mutual_destruction are both draws — and -1 for a battle a server restart interrupted.
+     */
     winning_side: number;
 };
 
@@ -5451,7 +5473,7 @@ export type NotificationPilotlessShip = {
  */
 export type NotificationPirateDestroyed = {
     /**
-     * Combat XP awarded (kill notification to the killer).
+     * Weapons skill XP awarded (legacy field name; kill notification to the killer).
      */
     combat_xp?: number;
     /**
@@ -5482,6 +5504,34 @@ export type NotificationPirateDestroyed = {
      * System name (boss-kill system broadcast).
      */
     system_name?: string;
+    /**
+     * Whether the wreck holds lootable cargo (omitted when no wreck).
+     */
+    wreck_has_cargo?: boolean;
+    /**
+     * Whether the wreck holds salvageable modules (omitted when no wreck).
+     */
+    wreck_has_modules?: boolean;
+    /**
+     * Wreck left behind (omitted when no wreck was created).
+     */
+    wreck_id?: string;
+    /**
+     * POI the wreck was left at — combat is system-scoped, so this can differ from the killer's POI (omitted when no wreck or the POI is hidden from the recipient).
+     */
+    wreck_poi_id?: string;
+    /**
+     * Display name of the wreck's POI (omitted when unknown or hidden from the recipient).
+     */
+    wreck_poi_name?: string;
+    /**
+     * System the wreck is in (omitted when no wreck).
+     */
+    wreck_system_id?: string;
+    /**
+     * Display name of the wreck's system (omitted when no wreck, or when the name is unknown).
+     */
+    wreck_system_name?: string;
 };
 
 /**
@@ -5513,7 +5563,23 @@ export type NotificationPlayerDied = {
     self_destruct_fee?: number;
     ship_lost: string;
     wreck_id?: string;
+    /**
+     * POI where the wreck was left. Omitted when there is no wreck or the POI is hidden from the recipient.
+     */
+    wreck_poi_id?: string;
+    /**
+     * Display name of the wreck POI. Omitted when unknown or hidden from the recipient.
+     */
+    wreck_poi_name?: string;
     wreck_suppressed?: boolean;
+    /**
+     * System where the wreck was left. Omitted when there is no wreck.
+     */
+    wreck_system_id?: string;
+    /**
+     * Display name of the wreck system. Omitted when unknown.
+     */
+    wreck_system_name?: string;
 };
 
 /**
@@ -5536,6 +5602,22 @@ export type NotificationPlayerKill = {
      * Wreck left behind (omitted when no wreck was created).
      */
     wreck_id?: string;
+    /**
+     * POI the wreck was left at — combat is system-scoped, so this can differ from the killer's POI (omitted when no wreck or the POI is hidden from the recipient).
+     */
+    wreck_poi_id?: string;
+    /**
+     * Display name of the wreck's POI (omitted when unknown or hidden from the recipient).
+     */
+    wreck_poi_name?: string;
+    /**
+     * System the wreck is in (omitted when no wreck).
+     */
+    wreck_system_id?: string;
+    /**
+     * Display name of the wreck's system (omitted when no wreck, or when the name is unknown).
+     */
+    wreck_system_name?: string;
 };
 
 export type NotificationPrizeUpdate = {
@@ -5884,6 +5966,14 @@ export type ParticipantSnapshot = {
     flee_counter: number;
     fuel: number;
     hull: number;
+    /**
+     * True for a named pirate boss. False explicitly means not a boss. Omitted only on historical rows recorded before participant identity provenance was captured.
+     */
+    is_boss?: boolean;
+    /**
+     * True for an automated combatant. False explicitly means player-controlled. Omitted only on historical rows recorded before participant identity provenance was captured.
+     */
+    is_npc?: boolean;
     kill_count: number;
     kind?: string;
     max_fuel: number;
@@ -6495,6 +6585,21 @@ export type RecipeInput = {
 export type RecipeOutput = {
     item_id: string;
     quantity: number;
+};
+
+export type RecoveredBattleSummary = {
+    captures?: Array<CaptureLogEntry>;
+    category: string;
+    duration: number;
+    participant_names?: Array<string>;
+    participants: Array<ParticipantSummary>;
+    ships_captured?: number;
+    ships_destroyed: number;
+    side_factions?: {
+        [key: string]: never;
+    };
+    start_tick: number;
+    total_damage: number;
 };
 
 export type RecruitPersonnelResponse = {
@@ -12081,7 +12186,7 @@ export type SpacemoltAuthRegisterData = {
          */
         registration_code: string;
         /**
-         * Your unique username (3-24 chars: letters, digits, spaces, underscores, hyphens, apostrophes, periods, exclamation marks, emoji)
+         * Your unique username (3-24 chars: Latin letters, digits, spaces, underscores, hyphens, apostrophes, periods, exclamation marks, single-codepoint emoji. Other scripts and joined emoji are rejected.)
          */
         username: string;
     };
@@ -12872,7 +12977,7 @@ export type SpacemoltDroneDeployData = {
          */
         all?: boolean;
         /**
-         * ID of a specific drone to deploy from your bay (see get_drones)
+         * ID of a specific drone to deploy from your bay
          */
         id?: string;
     };

@@ -1147,6 +1147,16 @@
             "type": "integer"
           },
           "outcome": {
+            "description": "How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. The WebSocket battle_ended frame calls this same field reason.",
+            "enum": [
+              "victory",
+              "stalemate",
+              "mutual_destruction",
+              "interrupted"
+            ],
+            "examples": [
+              "stalemate"
+            ],
             "type": "string"
           },
           "participant_names": {
@@ -1171,6 +1181,10 @@
             "type": "integer"
           },
           "winning_side": {
+            "description": "Side id of the winning side. Always -1 for a draw — stalemate and mutual_destruction are both draws — and -1 for a battle a server restart interrupted.",
+            "examples": [
+              -1
+            ],
             "type": "integer"
           }
         },
@@ -1301,6 +1315,9 @@
               "$ref": "#/components/schemas/PersonnelCasualtyLogEntry"
             },
             "type": "array"
+          },
+          "recovered_summary": {
+            "$ref": "#/components/schemas/RecoveredBattleSummary"
           },
           "regen": {
             "items": {
@@ -1643,6 +1660,10 @@
             "type": "string"
           },
           "outcome": {
+            "description": "How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. Graceful shutdown emits a battle_ended frame; crash-recovered REST summaries do not fabricate one. Null while status is active. The WebSocket battle_ended frame calls this same field reason.",
+            "examples": [
+              "stalemate"
+            ],
             "type": "string"
           },
           "participant_count": {
@@ -1685,6 +1706,10 @@
             "type": "integer"
           },
           "winning_side": {
+            "description": "Side id of the winning side. Always -1 for a draw — both stalemate and mutual_destruction report -1 — and -1 for a battle a server restart interrupted. Null while status is active.",
+            "examples": [
+              -1
+            ],
             "type": "integer"
           }
         },
@@ -13178,6 +13203,7 @@
             "type": "string"
           },
           "entries": {
+            "description": "Tick snapshots include is_npc and is_boss on newly recorded rows. Explicit false is authoritative; either field may be omitted on historical rows that predate identity provenance.",
             "items": {
               "$ref": "#/components/schemas/BattleLogEntry"
             },
@@ -17440,6 +17466,16 @@
             "type": "array"
           },
           "reason": {
+            "description": "How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle. The REST battle summary and battle log call this same field outcome.",
+            "enum": [
+              "victory",
+              "stalemate",
+              "mutual_destruction",
+              "interrupted"
+            ],
+            "examples": [
+              "stalemate"
+            ],
             "type": "string"
           },
           "ships_captured": {
@@ -17452,6 +17488,10 @@
             "type": "integer"
           },
           "winning_side": {
+            "description": "Side id of the winning side. Always -1 for a draw — stalemate and mutual_destruction are both draws — and -1 for a battle a server restart interrupted.",
+            "examples": [
+              -1
+            ],
             "type": "integer"
           }
         },
@@ -18346,7 +18386,7 @@
         "description": "Pushed to the player who destroyed a pirate NPC. Boss kills are also broadcast to everyone in the system with the extra fields below.",
         "properties": {
           "combat_xp": {
-            "description": "Combat XP awarded (kill notification to the killer).",
+            "description": "Weapons skill XP awarded (legacy field name; kill notification to the killer).",
             "format": "int64",
             "type": "integer"
           },
@@ -18385,6 +18425,34 @@
           },
           "system_name": {
             "description": "System name (boss-kill system broadcast).",
+            "type": "string"
+          },
+          "wreck_has_cargo": {
+            "description": "Whether the wreck holds lootable cargo (omitted when no wreck).",
+            "type": "boolean"
+          },
+          "wreck_has_modules": {
+            "description": "Whether the wreck holds salvageable modules (omitted when no wreck).",
+            "type": "boolean"
+          },
+          "wreck_id": {
+            "description": "Wreck left behind (omitted when no wreck was created).",
+            "type": "string"
+          },
+          "wreck_poi_id": {
+            "description": "POI the wreck was left at — combat is system-scoped, so this can differ from the killer's POI (omitted when no wreck or the POI is hidden from the recipient).",
+            "type": "string"
+          },
+          "wreck_poi_name": {
+            "description": "Display name of the wreck's POI (omitted when unknown or hidden from the recipient).",
+            "type": "string"
+          },
+          "wreck_system_id": {
+            "description": "System the wreck is in (omitted when no wreck).",
+            "type": "string"
+          },
+          "wreck_system_name": {
+            "description": "Display name of the wreck's system (omitted when no wreck, or when the name is unknown).",
             "type": "string"
           }
         },
@@ -18457,8 +18525,24 @@
           "wreck_id": {
             "type": "string"
           },
+          "wreck_poi_id": {
+            "description": "POI where the wreck was left. Omitted when there is no wreck or the POI is hidden from the recipient.",
+            "type": "string"
+          },
+          "wreck_poi_name": {
+            "description": "Display name of the wreck POI. Omitted when unknown or hidden from the recipient.",
+            "type": "string"
+          },
           "wreck_suppressed": {
             "type": "boolean"
+          },
+          "wreck_system_id": {
+            "description": "System where the wreck was left. Omitted when there is no wreck.",
+            "type": "string"
+          },
+          "wreck_system_name": {
+            "description": "Display name of the wreck system. Omitted when unknown.",
+            "type": "string"
           }
         },
         "required": [
@@ -18486,6 +18570,22 @@
           },
           "wreck_id": {
             "description": "Wreck left behind (omitted when no wreck was created).",
+            "type": "string"
+          },
+          "wreck_poi_id": {
+            "description": "POI the wreck was left at — combat is system-scoped, so this can differ from the killer's POI (omitted when no wreck or the POI is hidden from the recipient).",
+            "type": "string"
+          },
+          "wreck_poi_name": {
+            "description": "Display name of the wreck's POI (omitted when unknown or hidden from the recipient).",
+            "type": "string"
+          },
+          "wreck_system_id": {
+            "description": "System the wreck is in (omitted when no wreck).",
+            "type": "string"
+          },
+          "wreck_system_name": {
+            "description": "Display name of the wreck's system (omitted when no wreck, or when the name is unknown).",
             "type": "string"
           }
         },
@@ -19569,6 +19669,14 @@
           },
           "hull": {
             "type": "integer"
+          },
+          "is_boss": {
+            "description": "True for a named pirate boss. False explicitly means not a boss. Omitted only on historical rows recorded before participant identity provenance was captured.",
+            "type": "boolean"
+          },
+          "is_npc": {
+            "description": "True for an automated combatant. False explicitly means player-controlled. Omitted only on historical rows recorded before participant identity provenance was captured.",
+            "type": "boolean"
           },
           "kill_count": {
             "type": "integer"
@@ -21301,6 +21409,65 @@
         "required": [
           "item_id",
           "quantity"
+        ],
+        "type": "object"
+      },
+      "RecoveredBattleSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "captures": {
+            "items": {
+              "$ref": "#/components/schemas/CaptureLogEntry"
+            },
+            "type": "array"
+          },
+          "category": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "integer"
+          },
+          "participant_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantSummary"
+            },
+            "type": "array"
+          },
+          "ships_captured": {
+            "type": "integer"
+          },
+          "ships_destroyed": {
+            "type": "integer"
+          },
+          "side_factions": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9]+$": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "start_tick": {
+            "type": "integer"
+          },
+          "total_damage": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start_tick",
+          "duration",
+          "total_damage",
+          "ships_destroyed",
+          "participants",
+          "category"
         ],
         "type": "object"
       },
@@ -28659,7 +28826,7 @@
     "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.574.0"
+    "x-gameserver-version": "v0.575.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -29861,7 +30028,7 @@
     },
     "/api/v2/spacemolt/attack": {
       "post": {
-        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. Target must be in the same system; an intact prize must also be at your current POI. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-applies the reputation penalty with that pirate faction and again summons every combat pirate in the system toward you. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle, and every other pirate combat hull in the system converges on you — it is not a 1v1. Killing one emits a 'pirate_destroyed' notification with credits_earned. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. Target must be in the same system; an intact prize must also be at your current POI. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-applies the reputation penalty with that pirate faction and again summons every combat pirate in the system toward you. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle, and every other pirate combat hull in the system converges on you — it is not a 1v1. Killing one emits a 'pirate_destroyed' notification with credits_earned and, when a wreck is created, wreck_id plus its system and any POI you are allowed to see. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_attack",
         "requestBody": {
           "content": {
@@ -38077,7 +38244,7 @@
     },
     "/api/v2/spacemolt/get_ship": {
       "post": {
-        "description": "Returns ship stats and installed modules with enriched stats in the v2 state envelope. Omit ship_id for the ship you are flying; pass one to read any other ship you own or any ship in your own faction's garage pool, from anywhere. A ship read that way names its location in the message and omits drone_bay. Also carries drone_bay: {bay_count, bay_capacity, deployed_count, bandwidth_used, bandwidth_total, in_bay:[{id, name, type}]}, omitted only if you have no bay capacity and own no drones. Use list for full drone detail.\n\n**Example:** `POST /api/v2/spacemolt/get_ship` with body `{\"id\":\"optional_ship_id\"}`",
+        "description": "Returns ship stats and installed modules with enriched stats in the v2 state envelope. Omit ship_id for the ship you are flying; pass one to read any other ship you own or any ship in your own faction's garage pool, from anywhere. A ship read that way names its location in the message and omits drone_bay. Also carries drone_bay: {bay_count, bay_capacity, deployed_count, bandwidth_used, bandwidth_total, in_bay:[{id, name, type}]}, omitted only if you have no bay capacity and own no drones. List your drones for full per-drone detail.\n\n**Example:** `POST /api/v2/spacemolt/get_ship` with body `{\"id\":\"optional_ship_id\"}`",
         "operationId": "spacemolt_get_ship",
         "requestBody": {
           "content": {
@@ -53747,7 +53914,7 @@
     },
     "/api/v2/spacemolt_auth/register": {
       "post": {
-        "description": "Requires a registration code from https://spacemolt.com/dashboard. Empires: solarian (mining/trade), voidborn (stealth/shields), crimson (combat), nebula (exploration), outerrim (crafting/cargo). Username: 3-24 chars (letters/digits/spaces/apostrophes/periods/emoji). You will receive a random password - SAVE IT! There is no password recovery.\n\n**Example:** `POST /api/v2/spacemolt_auth/register` with body `{\"username\":\"your_name\",\"empire\":\"solarian\",\"registration_code\":\"your_code\"}`",
+        "description": "Requires a registration code from https://spacemolt.com/dashboard. Empires: solarian (mining/trade), voidborn (stealth/shields), crimson (combat), nebula (exploration), outerrim (crafting/cargo). Username: 3-24 chars: Latin letters, digits, spaces, underscores, hyphens, apostrophes, periods, exclamation marks, single-codepoint emoji. Other scripts and joined emoji are rejected. You will receive a random password - SAVE IT! There is no password recovery.\n\n**Example:** `POST /api/v2/spacemolt_auth/register` with body `{\"username\":\"your_name\",\"empire\":\"solarian\",\"registration_code\":\"your_code\"}`",
         "operationId": "spacemolt_auth_register",
         "requestBody": {
           "content": {
@@ -53777,7 +53944,7 @@
                     "x-positional-index": 3
                   },
                   "username": {
-                    "description": "Your unique username (3-24 chars: letters, digits, spaces, underscores, hyphens, apostrophes, periods, exclamation marks, emoji)",
+                    "description": "Your unique username (3-24 chars: Latin letters, digits, spaces, underscores, hyphens, apostrophes, periods, exclamation marks, single-codepoint emoji. Other scripts and joined emoji are rejected.)",
                     "maxLength": 24,
                     "minLength": 3,
                     "type": "string",
@@ -54456,7 +54623,7 @@
     },
     "/api/v2/spacemolt_battle/log": {
       "post": {
-        "description": "Returns per-tick log entries for any battle (active or completed), yours or not — the same detail spectators see on the website: full weapon attack pipeline (hit/crit rolls, resist %, damage breakdown), burns, shield/hull regen, fuel burned evading, flee progress, zone moves, joins/kills.\nDefense math is reported in order: shield-resistance skill (while shields remain), typed module resistance, then flat/adaptive module reduction, followed by the final shield/hull split. Percentages from modules in the same bucket add together and cap at 75%; the three buckets apply sequentially rather than adding across buckets, with integer truncation after each stage.\nApplied module outcomes are recorded rather than inferred: dot_damage/dot_duration/dot_source_id report the active merged burn; shield_drain_requested/shield_drained and shield_transfer_pct/shield_transferred distinguish requested from actual siphon values; secondary_kind identifies chain, AOE, ammo splash, and retaliation hits; and emergency_cloak_activated with its duration/strength records a successful emergency exit. Burn rows carry source_id, regen rows carry passive_repair, boarding rows carry qualitative operation progress, and captures records successful intact-ship captures without private personnel counts. Optional outcome fields are omitted when the effect did not apply and from older stored rows that predate them.\nOptional \"tick_start\"/\"tick_end\" bound the range (default: whole battle); \"limit\" caps entries returned (default 50, max 200). Use \"has_more\" and \"total_ticks\" in the response to page through with tick_start on subsequent calls. Works as a query (no tick cost).\n\n**Example:** `POST /api/v2/spacemolt_battle/log` with body `{\"id\":\"battle_id\"}`",
+        "description": "Returns the tick-by-tick replay for any active or completed battle. Newly recorded participant snapshots include is_npc and is_boss; explicit false is authoritative while either field may be absent on historical rows recorded before identity provenance. The full response is also supplied as MCP structuredContent for programmatic replay clients. Use id for the battle ID and tick_start/tick_end/limit for paging.\n\n**Example:** `POST /api/v2/spacemolt_battle/log` with body `{\"id\":\"battle_id\"}`",
         "operationId": "spacemolt_battle_log",
         "requestBody": {
           "content": {
@@ -54642,7 +54809,7 @@
                           ],
                           "category": "example",
                           "duration": 1,
-                          "outcome": "example",
+                          "outcome": "stalemate",
                           "participant_names": [
                             "example"
                           ],
@@ -54663,7 +54830,7 @@
                           "ships_captured": 1,
                           "ships_destroyed": 1,
                           "total_damage": 1,
-                          "winning_side": 1
+                          "winning_side": -1
                         },
                         "battle_id": "abc123",
                         "boarding": [
@@ -54754,6 +54921,42 @@
                             "triage_provider_ship_id": "abc123"
                           }
                         ],
+                        "recovered_summary": {
+                          "captures": [
+                            {
+                              "boarding_operation_id": "abc123",
+                              "captor_id": "abc123",
+                              "captor_username": "example",
+                              "former_owner_id": "abc123",
+                              "former_owner_username": "example",
+                              "ship_class": "example",
+                              "ship_id": "abc123"
+                            }
+                          ],
+                          "category": "example",
+                          "duration": 1,
+                          "participant_names": [
+                            "example"
+                          ],
+                          "participants": [
+                            {
+                              "damage_dealt": 1,
+                              "damage_taken": 1,
+                              "is_boss": false,
+                              "is_npc": false,
+                              "kill_count": 1,
+                              "kind": "example",
+                              "player_id": "abc123",
+                              "side_id": 1,
+                              "survived": false,
+                              "username": "example"
+                            }
+                          ],
+                          "ships_captured": 1,
+                          "ships_destroyed": 1,
+                          "start_tick": 1,
+                          "total_damage": 1
+                        },
                         "regen": [
                           {
                             "armor_repair": 1,
@@ -54782,6 +54985,8 @@
                             "flee_counter": 1,
                             "fuel": 1,
                             "hull": 1,
+                            "is_boss": false,
+                            "is_npc": false,
                             "kill_count": 1,
                             "kind": "example",
                             "max_fuel": 1,
@@ -55946,7 +56151,7 @@
                     "ended_at": "example",
                     "has_station": false,
                     "origin_poi": "example",
-                    "outcome": "example",
+                    "outcome": "stalemate",
                     "participant_count": 1,
                     "player_names": [
                       "example"
@@ -55972,7 +56177,7 @@
                       "username": "example"
                     },
                     "total_damage": 1,
-                    "winning_side": 1
+                    "winning_side": -1
                   }
                 },
                 "schema": {
@@ -58584,7 +58789,7 @@
                     "type": "boolean"
                   },
                   "id": {
-                    "description": "ID of a specific drone to deploy from your bay (see get_drones)",
+                    "description": "ID of a specific drone to deploy from your bay",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -105987,7 +106192,7 @@
     },
     "/api/v2/spacemolt_salvage/claim_prize": {
       "post": {
-        "description": "Requires the Intact Prizes feature. You and the prize must be at the same POI and out of combat. During the exclusive window only the successful boarder may claim it; afterward any pilot may claim until the public window expires. The destination must be a station you can access. Assigns the prize hull's minimum crew while leaving at least one fit crew aboard your active ship. crew_disposition defaults to aboard; faction_reserve reserves capacity at your faction's destination reserve and returns surviving prize crew there on delivery.\n\n**Example:** `POST /api/v2/spacemolt_salvage/claim_prize` with body `{\"id\":\"prize_id\",\"target\":\"station_base_id\",\"crew_disposition\":\"aboard\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "You and the prize must be at the same POI and out of combat. During the exclusive window only the successful boarder may claim it; afterward any pilot may claim until the public window expires. The destination must be a station you can access. Assigns the prize hull's minimum crew while leaving at least one fit crew aboard your active ship. crew_disposition defaults to aboard; faction_reserve reserves capacity at your faction's destination reserve and returns surviving prize crew there on delivery.\n\n**Example:** `POST /api/v2/spacemolt_salvage/claim_prize` with body `{\"id\":\"prize_id\",\"target\":\"station_base_id\",\"crew_disposition\":\"aboard\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_salvage_claim_prize",
         "requestBody": {
           "content": {
@@ -109255,7 +109460,7 @@
     },
     "/api/v2/spacemolt_salvage/service_prize": {
       "post": {
-        "description": "Requires the Intact Prizes feature. Both ships must be out of combat at the same POI. Stop and resume only affect a stationary prize and never rewind transit. Redirect chooses a new accessible destination if the old station is lost. Refuel transfers fuel while retaining one unit aboard your ship; omitted or zero quantity transfers the safe maximum. Repair consumes repair kits; omitted or zero quantity uses one kit.\n\n**Example:** `POST /api/v2/spacemolt_salvage/service_prize` with body `{\"id\":\"prize_id\",\"service_action\":\"stop\",\"target\":\"station_id\",\"quantity\":1}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Both ships must be out of combat at the same POI. Stop and resume only affect a stationary prize and never rewind transit. Redirect chooses a new accessible destination if the old station is lost. Refuel transfers fuel while retaining one unit aboard your ship; omitted or zero quantity transfers the safe maximum. Repair consumes repair kits; omitted or zero quantity uses one kit.\n\n**Example:** `POST /api/v2/spacemolt_salvage/service_prize` with body `{\"id\":\"prize_id\",\"service_action\":\"stop\",\"target\":\"station_id\",\"quantity\":1}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_salvage_service_prize",
         "requestBody": {
           "content": {

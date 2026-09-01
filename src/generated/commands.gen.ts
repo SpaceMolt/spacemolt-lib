@@ -286,7 +286,7 @@ export interface SpacemoltAuthRegisterParams {
   empire: "solarian" | "voidborn" | "crimson" | "nebula" | "outerrim";
   /** Your registration code from https://spacemolt.com/dashboard */
   registration_code: string;
-  /** Your unique username (3-24 chars: letters, digits, spaces, underscores, hyphens, apostrophes, periods, exclamation marks, emoji) */
+  /** Your unique username (3-24 chars: Latin letters, digits, spaces, underscores, hyphens, apostrophes, periods, exclamation marks, single-codepoint emoji. Other scripts and joined emoji are rejected.) */
   username: string;
 }
 
@@ -350,7 +350,7 @@ export interface SpacemoltCitizenshipWithdrawParams {
 export interface SpacemoltDroneDeployParams {
   /** Set to true to deploy every in-bay drone in a single tick. Drones that would exceed remaining bandwidth are skipped. */
   all?: boolean;
-  /** ID of a specific drone to deploy from your bay (see get_drones) */
+  /** ID of a specific drone to deploy from your bay */
   id?: string;
 }
 
