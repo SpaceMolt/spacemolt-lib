@@ -373,7 +373,7 @@ export type BaseCostResponse = {
 
 export type BattleCombatState = {
     /**
-     * Whether your ship can make escape progress. False when warp-disrupted or when no fit crew can operate the ship. True still requires flee stance and the required escape ticks.
+     * Whether your ship can make escape progress. False when warp-disrupted or intercepted by a faster boarding pursuer or when no fit crew can operate the ship. True still requires flee stance and the required escape ticks.
      */
     can_escape: boolean;
     /**
@@ -393,7 +393,7 @@ export type BattleCombatState = {
      */
     flee_counter: number;
     /**
-     * Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted when warp-disrupted because escape is impossible until the tackle is removed.
+     * Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted while warp-disrupted or intercepted by a faster boarding pursuer because escape progress is blocked.
      */
     flee_required?: number;
     /**
@@ -433,7 +433,7 @@ export type BattleEndLogEntry = {
     category: string;
     duration: number;
     /**
-     * How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. The WebSocket battle_ended frame calls this same field reason.
+     * How the battle ended. victory means one side survived and destroyed or captured an opponent. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. The WebSocket battle_ended frame calls this same field reason.
      */
     outcome: 'victory' | 'stalemate' | 'mutual_destruction' | 'interrupted';
     participant_names?: Array<string>;
@@ -607,7 +607,7 @@ export type BattleSummaryResponse = {
     has_station: boolean;
     origin_poi?: string;
     /**
-     * How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. Graceful shutdown emits a battle_ended frame; crash-recovered REST summaries do not fabricate one. Null while status is active. The WebSocket battle_ended frame calls this same field reason.
+     * How the battle ended. victory means one side survived and destroyed or captured an opponent. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. Graceful shutdown emits a battle_ended frame; crash-recovered REST summaries do not fabricate one. Null while status is active. The WebSocket battle_ended frame calls this same field reason.
      */
     outcome: string;
     participant_count: number;
@@ -1358,9 +1358,21 @@ export type ClaimPrizeResponse = {
      */
     crew_disposition: 'aboard' | 'faction_reserve';
     destination_base_id: string;
+    /**
+     * Player-facing name of the recovery station.
+     */
+    destination_name: string;
     idempotent: boolean;
     prize_id: string;
+    /**
+     * Stable ship class ID for the captured hull.
+     */
+    ship_class: string;
     ship_id: string;
+    /**
+     * Player-facing ship name. Uses the custom name when present and otherwise the class name.
+     */
+    ship_name: string;
     /**
      * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
      */
@@ -5228,7 +5240,7 @@ export type NotificationBattleEnded = {
     duration: number;
     participants?: Array<BattleEndedParticipantInfo>;
     /**
-     * How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle. The REST battle summary and battle log call this same field outcome.
+     * How the battle ended. victory means one side survived and destroyed or captured an opponent. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle. The REST battle summary and battle log call this same field outcome.
      */
     reason: 'victory' | 'stalemate' | 'mutual_destruction' | 'interrupted';
     ships_captured?: number;
@@ -12718,7 +12730,7 @@ export type SpacemoltBattleSelfDestructResponse = SpacemoltBattleSelfDestructRes
 export type SpacemoltBattleStanceData = {
     body?: {
         /**
-         * Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). Changing away from board begins non-instant withdrawal.
+         * Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from board begins non-instant withdrawal.
          */
         id: 'fire' | 'evade' | 'brace' | 'flee' | 'board';
         /**
@@ -12726,7 +12738,7 @@ export type SpacemoltBattleStanceData = {
          */
         marines?: number;
         /**
-         * ID or name of the enemy — required when focusing a target and when entering the board stance
+         * ID or name of the enemy — required when focusing a target and when entering the board stance. Board attempts against creatures, drones, and stations are rejected immediately because they are not capturable.
          */
         target?: string;
     };
@@ -12837,7 +12849,7 @@ export type SpacemoltBattleSummaryResponse = SpacemoltBattleSummaryResponses[key
 export type SpacemoltBattleTargetData = {
     body?: {
         /**
-         * ID or name of the enemy — required when focusing a target and when entering the board stance
+         * ID or name of the enemy — required when focusing a target and when entering the board stance. Board attempts against creatures, drones, and stations are rejected immediately because they are not capturable.
          */
         id: string;
     };

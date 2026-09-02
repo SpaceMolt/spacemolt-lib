@@ -1049,7 +1049,7 @@
         "additionalProperties": false,
         "properties": {
           "can_escape": {
-            "description": "Whether your ship can make escape progress. False when warp-disrupted or when no fit crew can operate the ship. True still requires flee stance and the required escape ticks.",
+            "description": "Whether your ship can make escape progress. False when warp-disrupted or intercepted by a faster boarding pursuer or when no fit crew can operate the ship. True still requires flee stance and the required escape ticks.",
             "type": "boolean"
           },
           "disruption_ticks": {
@@ -1069,7 +1069,7 @@
             "type": "integer"
           },
           "flee_required": {
-            "description": "Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted when warp-disrupted because escape is impossible until the tackle is removed.",
+            "description": "Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted while warp-disrupted or intercepted by a faster boarding pursuer because escape progress is blocked.",
             "type": "integer"
           },
           "incapacitated": {
@@ -1147,7 +1147,7 @@
             "type": "integer"
           },
           "outcome": {
-            "description": "How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. The WebSocket battle_ended frame calls this same field reason.",
+            "description": "How the battle ended. victory means one side survived and destroyed or captured an opponent. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. The WebSocket battle_ended frame calls this same field reason.",
             "enum": [
               "victory",
               "stalemate",
@@ -1660,7 +1660,7 @@
             "type": "string"
           },
           "outcome": {
-            "description": "How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. Graceful shutdown emits a battle_ended frame; crash-recovered REST summaries do not fabricate one. Null while status is active. The WebSocket battle_ended frame calls this same field reason.",
+            "description": "How the battle ended. victory means one side survived and destroyed or captured an opponent. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle before either side won. Graceful shutdown emits a battle_ended frame; crash-recovered REST summaries do not fabricate one. Null while status is active. The WebSocket battle_ended frame calls this same field reason.",
             "examples": [
               "stalemate"
             ],
@@ -4262,13 +4262,25 @@
           "destination_base_id": {
             "type": "string"
           },
+          "destination_name": {
+            "description": "Player-facing name of the recovery station.",
+            "type": "string"
+          },
           "idempotent": {
             "type": "boolean"
           },
           "prize_id": {
             "type": "string"
           },
+          "ship_class": {
+            "description": "Stable ship class ID for the captured hull.",
+            "type": "string"
+          },
           "ship_id": {
+            "type": "string"
+          },
+          "ship_name": {
+            "description": "Player-facing ship name. Uses the custom name when present and otherwise the class name.",
             "type": "string"
           },
           "status": {
@@ -4288,7 +4300,10 @@
         "required": [
           "prize_id",
           "ship_id",
+          "ship_class",
+          "ship_name",
           "destination_base_id",
+          "destination_name",
           "status",
           "crew_assigned",
           "crew_disposition",
@@ -17589,7 +17604,7 @@
             "type": "array"
           },
           "reason": {
-            "description": "How the battle ended. victory means one side survived and took a kill. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle. The REST battle summary and battle log call this same field outcome.",
+            "description": "How the battle ended. victory means one side survived and destroyed or captured an opponent. stalemate and mutual_destruction are both draws. interrupted means a server restart ended the battle. The REST battle summary and battle log call this same field outcome.",
             "enum": [
               "victory",
               "stalemate",
@@ -29168,7 +29183,7 @@
     "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.578.1"
+    "x-gameserver-version": "v0.579.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -56147,7 +56162,7 @@
     },
     "/api/v2/spacemolt_battle/stance": {
       "post": {
-        "description": "Sets your combat posture via `id`: `fire` (100% damage dealt and taken), `evade` (0% dealt / 50% taken, burns extra fuel), `brace` (0% dealt / 25% taken, shields regenerate at 2x), `flee` (0% dealt / 100% taken, escapes after auto-retreat), or `board` (no weapons or defensive reduction; automatically closes for repeated latch attempts). `board` requires `target` and a positive `marines` commitment. Changing away from `board` begins a costly, non-instant withdrawal; the requested stance takes effect only after disengagement. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/stance` with body `{\"id\":\"fire\",\"marines\":1,\"target\":\"example\"}`",
+        "description": "Sets your combat posture via `id`: `fire` (100% damage dealt and taken), `evade` (0% dealt / 50% taken, burns extra fuel), `brace` (0% dealt / 25% taken, shields regenerate at 2x), `flee` (0% dealt / 100% taken, escapes after auto-retreat), or `board` (no weapons or defensive reduction; automatically closes for repeated latch attempts). `board` requires `target` and a positive `marines` commitment; creatures, drones, and stations are not capturable and are rejected immediately. A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from `board` begins a costly, non-instant withdrawal; the requested stance takes effect only after disengagement. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/stance` with body `{\"id\":\"fire\",\"marines\":1,\"target\":\"example\"}`",
         "operationId": "spacemolt_battle_stance",
         "requestBody": {
           "content": {
@@ -56160,7 +56175,7 @@
               "schema": {
                 "properties": {
                   "id": {
-                    "description": "Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). Changing away from board begins non-instant withdrawal.",
+                    "description": "Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from board begins non-instant withdrawal.",
                     "enum": [
                       "fire",
                       "evade",
@@ -56177,7 +56192,7 @@
                     "type": "integer"
                   },
                   "target": {
-                    "description": "ID or name of the enemy — required when focusing a target and when entering the board stance",
+                    "description": "ID or name of the enemy — required when focusing a target and when entering the board stance. Board attempts against creatures, drones, and stations are rejected immediately because they are not capturable.",
                     "type": "string",
                     "x-positional-index": 1
                   }
@@ -56282,7 +56297,7 @@
     },
     "/api/v2/spacemolt_battle/status": {
       "post": {
-        "description": "Returns full battle state including all participants, zones, sides, and your stats. Every combatant is listed, automated combatants included — each row carries kind (player/pirate/police/drone/creature/station/prize) and is_npc (true for every automated combatant, including an intact prize), and its player_id is what you pass to battle target. Your combat_state includes webbed plus web_strength_pct, the exact combined escape-speed penalty from enemy webifiers; webifier penalties add and cap at 75% and do not affect hit chance. If not in a battle, shows any active battle in your system. Works as a query (no tick cost).",
+        "description": "Returns full battle state including all participants, zones, sides, and your stats. Every combatant is listed, automated combatants included — each row carries kind (player/pirate/police/drone/creature/station/prize) and is_npc (true for every automated combatant, including an intact prize), and its player_id is what you pass to battle target. Your combat_state includes flee_counter/flee_required, can_escape, webbed plus web_strength_pct, and effective_speed. Webifier penalties add and cap at 75% and do not affect hit chance. A faster boarding pursuer makes can_escape false and omits flee_required while it intercepts your retreat and flee movement. If not in a battle, shows any active battle in your system. Works as a query (no tick cost).",
         "operationId": "spacemolt_battle_status",
         "requestBody": {
           "content": {
@@ -56595,7 +56610,7 @@
               "schema": {
                 "properties": {
                   "id": {
-                    "description": "ID or name of the enemy — required when focusing a target and when entering the board stance",
+                    "description": "ID or name of the enemy — required when focusing a target and when entering the board stance. Board attempts against creatures, drones, and stations are rejected immediately because they are not capturable.",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -106665,9 +106680,12 @@
                       "crew_assigned": 1,
                       "crew_disposition": "aboard",
                       "destination_base_id": "abc123",
+                      "destination_name": "example",
                       "idempotent": false,
                       "prize_id": "abc123",
+                      "ship_class": "example",
                       "ship_id": "abc123",
+                      "ship_name": "example",
                       "status": "available"
                     },
                     "drone_bay": {

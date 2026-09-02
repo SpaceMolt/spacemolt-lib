@@ -314,11 +314,11 @@ export interface SpacemoltBattleReloadParams {
 }
 
 export interface SpacemoltBattleStanceParams {
-  /** Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). Changing away from board begins non-instant withdrawal. */
+  /** Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from board begins non-instant withdrawal. */
   id: "fire" | "evade" | "brace" | "flee" | "board";
   /** Positive fit-marine commitment required when setting stance=board. The battle tick caps it to the fit marines actually available. */
   marines?: number;
-  /** ID or name of the enemy — required when focusing a target and when entering the board stance */
+  /** ID or name of the enemy — required when focusing a target and when entering the board stance. Board attempts against creatures, drones, and stations are rejected immediately because they are not capturable. */
   target?: string;
 }
 
@@ -328,7 +328,7 @@ export interface SpacemoltBattleSummaryParams {
 }
 
 export interface SpacemoltBattleTargetParams {
-  /** ID or name of the enemy — required when focusing a target and when entering the board stance */
+  /** ID or name of the enemy — required when focusing a target and when entering the board stance. Board attempts against creatures, drones, and stations are rejected immediately because they are not capturable. */
   id: string;
 }
 
