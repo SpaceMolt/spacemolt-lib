@@ -673,6 +673,9 @@ export type BoardingStateLogEntry = {
     casualties_occurred?: boolean;
     defender_casualties?: boolean;
     destroyed?: boolean;
+    /**
+     * Observable boarding transition. Terminal values include capture_ready; plundered; withdrawn; attacker_destroyed; attacker_incapacitated; target_destroyed; target_self_destructed; and restart_canceled. plundered means pirates removed eligible cargo and then disengaged without taking the hull.
+     */
     event: string;
     hull_damage?: number;
     operation_id: string;
@@ -1090,6 +1093,10 @@ export type CaptainsLogListResponse = {
 export type CaptureLogEntry = {
     boarding_operation_id: string;
     captor_id: string;
+    /**
+     * Kind of combat actor identified by captor_id. Present on newly recorded captures; omitted on historical rows created before captor provenance was recorded.
+     */
+    captor_kind?: 'player' | 'pirate' | 'npc';
     captor_username: string;
     former_owner_id: string;
     former_owner_username: string;
@@ -3427,9 +3434,25 @@ export type FactionScanPoiResponse = {
 };
 
 export type FactionScanPirateContact = {
+    /**
+     * Stronghold crew this pirate flies for and the pirate-standing counterparty affected by fighting them. Omitted only when no stronghold crew can be resolved.
+     */
+    faction?: string;
+    /**
+     * Human-readable name of the pirate stronghold crew. Omitted only when no stronghold crew can be resolved.
+     */
+    faction_name?: string;
     id: string;
     name?: string;
+    /**
+     * Primary livery color configured by the pirate stronghold crew as #RRGGBB. Omitted when the crew has no configured branding.
+     */
+    primary_color?: string;
     role?: string;
+    /**
+     * Secondary livery color configured by the pirate stronghold crew as #RRGGBB. Omitted when the crew has no configured branding.
+     */
+    secondary_color?: string;
     ship_class?: string;
 };
 
@@ -5610,22 +5633,87 @@ export type NotificationPirateDestroyed = {
     wreck_system_name?: string;
 };
 
-/**
- * Pushed to players in range with a pirate_radio_scanner module, carrying an intercepted pirate transmission.
- */
 export type NotificationPirateRadio = {
     /**
-     * Template/event key of the intercepted message.
+     * Acting pirate combat ID when the grammatical speaker differs from the actor. Omitted when there is no separate actor.
      */
-    event_key?: string;
+    actor_id?: string;
     /**
-     * Pirate faction key the transmission belongs to.
+     * Acting pirate display name when the grammatical speaker differs from the actor. Omitted when there is no separate actor.
      */
-    faction_key?: string;
+    actor_name?: string;
+    /**
+     * Battle identity when the transmission refers to a fight.
+     */
+    battle_id?: string;
+    /**
+     * Backward-compatible alias of editorial_class. Both fields always carry the same bounded editorial class.
+     */
+    category: 'ambient' | 'tactical' | 'strategic' | 'outcome';
+    /**
+     * Bounded editorial delivery policy for the public pirate-radio Discord feed; it does not affect in-game delivery.
+     */
+    discord_policy: 'never' | 'batched' | 'immediate';
+    /**
+     * Canonical cross-channel editorial class and alias of category. Both fields always carry the same value.
+     */
+    editorial_class: 'ambient' | 'tactical' | 'strategic' | 'outcome';
+    /**
+     * Bounded pirate-radio template and lifecycle event key.
+     */
+    event_key: string;
+    /**
+     * Pirate stronghold crew key the transmission belongs to.
+     */
+    faction_key: string;
+    /**
+     * Human-readable pirate stronghold crew name.
+     */
+    faction_name: string;
+    /**
+     * Ship class ID of the crew flagship when configured.
+     */
+    flagship_ship_class: string;
+    /**
+     * Rendered in-character transmission text.
+     */
     message: string;
+    /**
+     * Stable raid; expedition; breakout; return; or incident identity when the transmission belongs to an operation.
+     */
+    operation_id?: string;
+    /**
+     * Display name of the selected speaker: the acting pirate; operation leader; stronghold control; or boss.
+     */
     pirate_name: string;
-    source_poi?: string;
-    source_system?: string;
+    /**
+     * Primary pirate-crew livery color as #RRGGBB.
+     */
+    primary_color: string;
+    /**
+     * Bounded machine-readable doctrine or lifecycle reason code when available.
+     */
+    reason_code?: string;
+    /**
+     * Secondary pirate-crew livery color as #RRGGBB.
+     */
+    secondary_color: string;
+    /**
+     * POI ID from which the transmission originated. Empty when no POI can be resolved.
+     */
+    source_poi: string;
+    /**
+     * System ID from which the transmission originated.
+     */
+    source_system: string;
+    /**
+     * Selected grammatical speaker category such as actor; operation_leader; stronghold_control; or boss.
+     */
+    speaker_category: string;
+    /**
+     * Combat actor ID or stable synthetic stronghold-control speaker ID.
+     */
+    speaker_id: string;
 };
 
 export type NotificationPlayerDied = {
@@ -5754,6 +5842,10 @@ export type NotificationShipCaptured = {
     battle_id: string;
     boarding_operation_id: string;
     captor_id: string;
+    /**
+     * Kind of combat actor identified by captor_id. Present on newly emitted captures; omitted only on historical persisted capture records.
+     */
+    captor_kind?: 'player' | 'pirate' | 'npc';
     captor_username: string;
     former_owner_id: string;
     former_owner_username: string;
@@ -6196,6 +6288,14 @@ export type PirateInfo = {
     max_shield?: number;
     name: string;
     pirate_id: string;
+    /**
+     * Primary livery color for this pirate crew as a hex color.
+     */
+    primary_color?: string;
+    /**
+     * Secondary livery color for this pirate crew as a hex color.
+     */
+    secondary_color?: string;
     shield?: number;
     status: string;
     tier: string;

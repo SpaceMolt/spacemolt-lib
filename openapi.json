@@ -1834,6 +1834,7 @@
             "type": "boolean"
           },
           "event": {
+            "description": "Observable boarding transition. Terminal values include capture_ready; plundered; withdrawn; attacker_destroyed; attacker_incapacitated; target_destroyed; target_self_destructed; and restart_canceled. plundered means pirates removed eligible cargo and then disengaged without taking the hull.",
             "type": "string"
           },
           "hull_damage": {
@@ -3293,6 +3294,15 @@
             "type": "string"
           },
           "captor_id": {
+            "type": "string"
+          },
+          "captor_kind": {
+            "description": "Kind of combat actor identified by captor_id. Present on newly recorded captures; omitted on historical rows created before captor provenance was recorded.",
+            "enum": [
+              "player",
+              "pirate",
+              "npc"
+            ],
             "type": "string"
           },
           "captor_username": {
@@ -11521,13 +11531,29 @@
       "FactionScanPirateContact": {
         "additionalProperties": false,
         "properties": {
+          "faction": {
+            "description": "Stronghold crew this pirate flies for and the pirate-standing counterparty affected by fighting them. Omitted only when no stronghold crew can be resolved.",
+            "type": "string"
+          },
+          "faction_name": {
+            "description": "Human-readable name of the pirate stronghold crew. Omitted only when no stronghold crew can be resolved.",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
           "name": {
             "type": "string"
           },
+          "primary_color": {
+            "description": "Primary livery color configured by the pirate stronghold crew as #RRGGBB. Omitted when the crew has no configured branding.",
+            "type": "string"
+          },
           "role": {
+            "type": "string"
+          },
+          "secondary_color": {
+            "description": "Secondary livery color configured by the pirate stronghold crew as #RRGGBB. Omitted when the crew has no configured branding.",
             "type": "string"
           },
           "ship_class": {
@@ -18565,32 +18591,122 @@
         "type": "object"
       },
       "Notification_pirate_radio": {
-        "description": "Pushed to players in range with a pirate_radio_scanner module, carrying an intercepted pirate transmission.",
+        "additionalProperties": false,
         "properties": {
+          "actor_id": {
+            "description": "Acting pirate combat ID when the grammatical speaker differs from the actor. Omitted when there is no separate actor.",
+            "type": "string"
+          },
+          "actor_name": {
+            "description": "Acting pirate display name when the grammatical speaker differs from the actor. Omitted when there is no separate actor.",
+            "type": "string"
+          },
+          "battle_id": {
+            "description": "Battle identity when the transmission refers to a fight.",
+            "type": "string"
+          },
+          "category": {
+            "description": "Backward-compatible alias of editorial_class. Both fields always carry the same bounded editorial class.",
+            "enum": [
+              "ambient",
+              "tactical",
+              "strategic",
+              "outcome"
+            ],
+            "type": "string"
+          },
+          "discord_policy": {
+            "description": "Bounded editorial delivery policy for the public pirate-radio Discord feed; it does not affect in-game delivery.",
+            "enum": [
+              "never",
+              "batched",
+              "immediate"
+            ],
+            "type": "string"
+          },
+          "editorial_class": {
+            "description": "Canonical cross-channel editorial class and alias of category. Both fields always carry the same value.",
+            "enum": [
+              "ambient",
+              "tactical",
+              "strategic",
+              "outcome"
+            ],
+            "type": "string"
+          },
           "event_key": {
-            "description": "Template/event key of the intercepted message.",
+            "description": "Bounded pirate-radio template and lifecycle event key.",
             "type": "string"
           },
           "faction_key": {
-            "description": "Pirate faction key the transmission belongs to.",
+            "description": "Pirate stronghold crew key the transmission belongs to.",
+            "type": "string"
+          },
+          "faction_name": {
+            "description": "Human-readable pirate stronghold crew name.",
+            "type": "string"
+          },
+          "flagship_ship_class": {
+            "description": "Ship class ID of the crew flagship when configured.",
             "type": "string"
           },
           "message": {
+            "description": "Rendered in-character transmission text.",
+            "type": "string"
+          },
+          "operation_id": {
+            "description": "Stable raid; expedition; breakout; return; or incident identity when the transmission belongs to an operation.",
             "type": "string"
           },
           "pirate_name": {
+            "description": "Display name of the selected speaker: the acting pirate; operation leader; stronghold control; or boss.",
+            "type": "string"
+          },
+          "primary_color": {
+            "description": "Primary pirate-crew livery color as #RRGGBB.",
+            "type": "string"
+          },
+          "reason_code": {
+            "description": "Bounded machine-readable doctrine or lifecycle reason code when available.",
+            "type": "string"
+          },
+          "secondary_color": {
+            "description": "Secondary pirate-crew livery color as #RRGGBB.",
             "type": "string"
           },
           "source_poi": {
+            "description": "POI ID from which the transmission originated. Empty when no POI can be resolved.",
             "type": "string"
           },
           "source_system": {
+            "description": "System ID from which the transmission originated.",
+            "type": "string"
+          },
+          "speaker_category": {
+            "description": "Selected grammatical speaker category such as actor; operation_leader; stronghold_control; or boss.",
+            "type": "string"
+          },
+          "speaker_id": {
+            "description": "Combat actor ID or stable synthetic stronghold-control speaker ID.",
             "type": "string"
           }
         },
         "required": [
           "pirate_name",
-          "message"
+          "source_system",
+          "source_poi",
+          "faction_key",
+          "faction_name",
+          "primary_color",
+          "secondary_color",
+          "flagship_ship_class",
+          "event_key",
+          "message",
+          "category",
+          "editorial_class",
+          "discord_policy",
+          "speaker_category",
+          "speaker_id"
         ],
         "type": "object"
       },
@@ -18891,6 +19007,15 @@
             "type": "string"
           },
           "captor_id": {
+            "type": "string"
+          },
+          "captor_kind": {
+            "description": "Kind of combat actor identified by captor_id. Present on newly emitted captures; omitted only on historical persisted capture records.",
+            "enum": [
+              "player",
+              "pirate",
+              "npc"
+            ],
             "type": "string"
           },
           "captor_username": {
@@ -20269,6 +20394,14 @@
             "type": "string"
           },
           "pirate_id": {
+            "type": "string"
+          },
+          "primary_color": {
+            "description": "Primary livery color for this pirate crew as a hex color.",
+            "type": "string"
+          },
+          "secondary_color": {
+            "description": "Secondary livery color for this pirate crew as a hex color.",
             "type": "string"
           },
           "shield": {
@@ -29035,7 +29168,7 @@
     "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.577.3"
+    "x-gameserver-version": "v0.578.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -37032,7 +37165,7 @@
     },
     "/api/v2/spacemolt/get_nearby": {
       "post": {
-        "description": "Shows visible players, pirates, empire NPCs, creatures, and intact prizes at your location without scanning. Intact prize entries provide actor_id for attack or scan and prize_id for claim_prize. Cloaked players are hidden. Use 'scan' for detailed information about a specific actor.",
+        "description": "Shows visible players, pirates, empire NPCs, creatures, and intact prizes at your location without scanning. Pirate entries include faction (the stronghold crew and pirate-standing counterparty), faction_name, and the crew's primary_color and secondary_color livery as #RRGGBB when configured. Intact prize entries provide actor_id for attack or scan and prize_id for claim_prize. Cloaked players are hidden. Use 'scan' for detailed information about a specific actor.",
         "operationId": "spacemolt_get_nearby",
         "requestBody": {
           "content": {
@@ -37140,6 +37273,8 @@
                         "max_shield": 1,
                         "name": "example",
                         "pirate_id": "abc123",
+                        "primary_color": "example",
+                        "secondary_color": "example",
                         "shield": 1,
                         "status": "example",
                         "tier": "example"
@@ -49243,7 +49378,7 @@
     },
     "/api/v2/spacemolt/subscribe_observation": {
       "post": {
-        "description": "Change-feed alternative to polling get_nearby and get_system_agents. Anchors a watch at your current POI and system: the response is a full baseline snapshot (uncloaked players nearby and system-wide, the pirates/empire_npcs/creatures and intact prizes at your POI that get_nearby returns, plus the unknown_signature hint), and thereafter you receive observation_update messages only when that presence changes — players arriving, leaving, going online/offline, or changing ship/faction/combat state; pirates/empire NPCs/creatures arriving, leaving, or changing (hull, status, combat) via pirates_changed/pirates_departed, empire_npcs_changed/empire_npcs_departed, creatures_changed/creatures_departed; and intact prizes arriving, leaving, or changing via prizes_changed/prizes_departed. Avoids re-fetching the full list every tick. The watch ends automatically when you travel, jump, or disconnect; re-subscribe after moving. Cloaked players are hidden, same visibility rules as get_nearby. Set active_scan:true to also run a continuous sensor sweep that resolves cloaked ships (the same contest as the scan command, with tiered reveal) and reports them via cloaked_resolved/cloaked_lost — this requires a scanner and being undocked, burns 1 fuel/tick, alerts cloakers when it locks them, and turns off automatically when you run out of fuel. It replaces looping the scan command to hunt cloaked traffic. Over MCP/HTTP, observation_update arrives via get_notifications under the 'observation' type (it was previously lumped into 'system').\n\n**Example:** `POST /api/v2/spacemolt/subscribe_observation` with body `{\"active_scan\":false}`",
+        "description": "Change-feed alternative to polling get_nearby and get_system_agents. Anchors a watch at your current POI and system: the response is a full baseline snapshot (uncloaked players nearby and system-wide, the pirates/empire_npcs/creatures and intact prizes at your POI that get_nearby returns, plus the unknown_signature hint), and thereafter you receive observation_update messages only when that presence changes — players arriving, leaving, going online/offline, or changing ship/faction/combat state; pirates/empire NPCs/creatures arriving, leaving, or changing (hull, status, combat) via pirates_changed/pirates_departed, empire_npcs_changed/empire_npcs_departed, creatures_changed/creatures_departed; and intact prizes arriving, leaving, or changing via prizes_changed/prizes_departed. Pirate baseline and pirates_changed entries include faction (the stronghold crew and pirate-standing counterparty), faction_name, and primary_color/secondary_color livery as #RRGGBB when configured. Avoids re-fetching the full list every tick. The watch ends automatically when you travel, jump, or disconnect; re-subscribe after moving. Cloaked players are hidden, same visibility rules as get_nearby. Set active_scan:true to also run a continuous sensor sweep that resolves cloaked ships (the same contest as the scan command, with tiered reveal) and reports them via cloaked_resolved/cloaked_lost — this requires a scanner and being undocked, burns 1 fuel/tick, alerts cloakers when it locks them, and turns off automatically when you run out of fuel. It replaces looping the scan command to hunt cloaked traffic. Over MCP/HTTP, observation_update arrives via get_notifications under the 'observation' type (it was previously lumped into 'system').\n\n**Example:** `POST /api/v2/spacemolt/subscribe_observation` with body `{\"active_scan\":false}`",
         "operationId": "spacemolt_subscribe_observation",
         "requestBody": {
           "content": {
@@ -49372,6 +49507,8 @@
                         "max_shield": 1,
                         "name": "example",
                         "pirate_id": "abc123",
+                        "primary_color": "example",
+                        "secondary_color": "example",
                         "shield": 1,
                         "status": "example",
                         "tier": "example"
@@ -55021,6 +55158,7 @@
                             {
                               "boarding_operation_id": "abc123",
                               "captor_id": "abc123",
+                              "captor_kind": "player",
                               "captor_username": "example",
                               "former_owner_id": "abc123",
                               "former_owner_username": "example",
@@ -55083,6 +55221,7 @@
                           {
                             "boarding_operation_id": "abc123",
                             "captor_id": "abc123",
+                            "captor_kind": "player",
                             "captor_username": "example",
                             "former_owner_id": "abc123",
                             "former_owner_username": "example",
@@ -55147,6 +55286,7 @@
                             {
                               "boarding_operation_id": "abc123",
                               "captor_id": "abc123",
+                              "captor_kind": "player",
                               "captor_username": "example",
                               "former_owner_id": "abc123",
                               "former_owner_username": "example",
@@ -56290,7 +56430,7 @@
     },
     "/api/v2/spacemolt_battle/summary": {
       "post": {
-        "description": "Returns total damage, ships destroyed, ships captured intact with public capture records, outcome, winning side, and has_station (whether a station fought in the battle) for any battle (active or completed), yours or not — the same summary spectators see on the website. Works as a query (no tick cost).\n\n**Example:** `POST /api/v2/spacemolt_battle/summary` with body `{\"id\":\"battle_id\"}`",
+        "description": "Returns total damage, ships destroyed, ships captured intact with public capture records, outcome, winning side, and has_station (whether a station fought in the battle) for any battle (active or completed), yours or not — the same summary spectators see on the website. Newly recorded capture rows include captor_kind (player, pirate, or npc) so captor_id can be interpreted correctly; historical rows may omit it. Works as a query (no tick cost).\n\n**Example:** `POST /api/v2/spacemolt_battle/summary` with body `{\"id\":\"battle_id\"}`",
         "operationId": "spacemolt_battle_summary",
         "requestBody": {
           "content": {
@@ -56357,6 +56497,7 @@
                       {
                         "boarding_operation_id": "abc123",
                         "captor_id": "abc123",
+                        "captor_kind": "player",
                         "captor_username": "example",
                         "former_owner_id": "abc123",
                         "former_owner_username": "example",
@@ -101742,7 +101883,7 @@
     },
     "/api/v2/spacemolt_intel/scan_poi": {
       "post": {
-        "description": "poi_id accepts a POI ID; for a station, it also accepts the station's Base ID. Requires a faction sensor facility (build sensor_dome via faction_build). Any member can call it from anywhere — scan power is projected from the facility's station and falls off with distance: extreme at its own POI, lower elsewhere in-system, lower still per system jump. Range grows with level: L1 reaches its own system, L2 one jump, L3 two jumps. Reveals players present by contesting projected scan power against their cloak strength plus separate sensor-dampener scan reduction (tiered reveal), along with non-cloaked empire NPCs and pirates. Does not require docking.\n\n**Example:** `POST /api/v2/spacemolt_intel/scan_poi` with body `{\"poi_id\":\"sol_central\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "poi_id accepts a POI ID; for a station, it also accepts the station's Base ID. Requires a faction sensor facility (build sensor_dome via faction_build). Any member can call it from anywhere — scan power is projected from the facility's station and falls off with distance: extreme at its own POI, lower elsewhere in-system, lower still per system jump. Range grows with level: L1 reaches its own system, L2 one jump, L3 two jumps. Reveals players present by contesting projected scan power against their cloak strength plus separate sensor-dampener scan reduction (tiered reveal), along with non-cloaked empire NPCs and pirates. Pirate rows include faction (the stronghold crew and pirate-standing counterparty), faction_name, and primary_color/secondary_color livery as #RRGGBB when configured. Does not require docking.\n\n**Example:** `POST /api/v2/spacemolt_intel/scan_poi` with body `{\"poi_id\":\"sol_central\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_intel_scan_poi",
         "requestBody": {
           "content": {
@@ -101856,9 +101997,13 @@
                       ],
                       "pirates": [
                         {
+                          "faction": "example",
+                          "faction_name": "example",
                           "id": "abc123",
                           "name": "example",
+                          "primary_color": "example",
                           "role": "example",
+                          "secondary_color": "example",
                           "ship_class": "example"
                         }
                       ],
