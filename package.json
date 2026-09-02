@@ -33,7 +33,7 @@
     "prepare": "bun run build",
     "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --target node --format esm && bun build src/node.ts --outfile dist/node.js --target node --format esm && bun x tsc -p tsconfig.build.json && bun run scripts/fix-dts-extensions.ts",
     "build:smoke": "node scripts/check-build.mjs",
-    "build:browser-check": "bun build src/index.ts --target browser --outfile /dev/null",
+    "build:browser-check": "bun run scripts/check-browser-build.ts",
     "test": "bun test"
   },
   "repository": {

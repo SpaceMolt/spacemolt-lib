@@ -9,9 +9,9 @@ name: Release
 #
 # Triggers:
 # - push to main: hand-written changes merged via PR.
-# - workflow_run after a spec sync: the sync commits via GITHUB_TOKEN, which by
-#   design does NOT fire a push event, so we hook its completion instead.
-# - workflow_dispatch: manual.
+# - workflow_dispatch: manual, or explicitly dispatched by sync-spec.yml after
+#   it pushes a real generated change to main. GITHUB_TOKEN sync commits do not
+#   emit a push event.
 #
 # Publishes to npm via trusted publishing (OIDC) — no long-lived NPM_TOKEN.
 # The version bump commit is pushed with GITHUB_TOKEN, which does not
@@ -20,9 +20,6 @@ name: Release
 on:
   push:
     branches: [main]
-  workflow_run:
-    workflows: ['Sync OpenAPI spec']
-    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -36,8 +33,6 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # On the workflow_run trigger, only proceed if the spec sync actually succeeded.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v4

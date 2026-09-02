@@ -141,8 +141,8 @@ The bump level is computed programmatically — `scripts/classify-bump.ts` print
 
 `.github/workflows/ci.yml` runs the full quality gate for pull requests and
 pushes to `main`. `.github/workflows/release.yml` runs the classifier on every change to `main`
-(PR merges via `push`; spec syncs via `workflow_run`, since the sync's
-`GITHUB_TOKEN` commit doesn't fire a `push`), gates on typecheck + tests, then
+(PR merges via `push`; spec syncs explicitly dispatch it after pushing a real
+change, since the sync's `GITHUB_TOKEN` commit doesn't fire a `push`), gates on typecheck + tests, then
 passes the same full quality gate, bumps `package.json`, tags `vX.Y.Z`, cuts a GitHub Release whose notes are the
 classifier's reasons, and publishes to npm. The bump commit is pushed with
 `GITHUB_TOKEN`, which does not re-trigger workflows — so there's no release
