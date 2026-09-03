@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { ACTIONS } from '../src/generated/actions.gen.ts';
 import { TYPED_NOTIFICATION_TYPES } from '../src/generated/notifications.gen.ts';
 import { requireValue } from './require-value.ts';
-import { STATE_SECTIONS } from '../src/protocol.ts';
+import { isWelcomeFrame, STATE_SECTIONS } from '../src/protocol.ts';
+import { WELCOME_PAYLOAD_FIELDS, WELCOME_PAYLOAD_REQUIRED } from '../src/generated/frames.gen.ts';
 
 test('action catalog is populated and keyed by tool/action', () => {
   const keys = Object.keys(ACTIONS);
@@ -115,4 +116,41 @@ test('STATE_SECTIONS covers every section the spec says deltas carry', () => {
   expect([...declared].filter((s) => !known.has(s)).sort()).toEqual([]);
   // Every section in the cache should also be one the server actually emits.
   expect([...known].filter((s) => !declared.has(s)).sort()).toEqual([]);
+});
+
+test('the welcome guard tracks the spec, and is not a hand-written list', () => {
+  const spec = JSON.parse(readFileSync(join(import.meta.dir, '..', 'openapi.json'), 'utf-8'));
+  const schema = spec.components.schemas.WelcomePayload as {
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+  // Sanity: the spec really does publish what we generate from.
+  expect(Object.keys(schema.properties).length).toBeGreaterThan(0);
+  expect(schema.required.length).toBeGreaterThan(0);
+
+  expect(Object.keys(WELCOME_PAYLOAD_FIELDS).sort()).toEqual(Object.keys(schema.properties).sort());
+  expect([...WELCOME_PAYLOAD_REQUIRED].sort()).toEqual([...schema.required].sort());
+  // Every required field is one we know how to check at runtime.
+  for (const field of WELCOME_PAYLOAD_REQUIRED) expect(WELCOME_PAYLOAD_FIELDS[field]).toBeDefined();
+});
+
+test('isWelcomeFrame requires the spec-required fields and tolerates the rest', () => {
+  const full: Record<string, unknown> = {};
+  for (const [field, kind] of Object.entries(WELCOME_PAYLOAD_FIELDS)) {
+    full[field] = kind === 'string' ? 'x' : kind === 'number' ? 1 : kind === 'boolean' ? true : [];
+  }
+  expect(isWelcomeFrame({ type: 'welcome', payload: full })).toBe(true);
+  // An unknown field the server adds must not break an older client.
+  expect(isWelcomeFrame({ type: 'welcome', payload: { ...full, brand_new_field: 'x' } })).toBe(true);
+
+  const optional = Object.keys(WELCOME_PAYLOAD_FIELDS).filter((f) => !WELCOME_PAYLOAD_REQUIRED.has(f));
+  for (const field of optional) {
+    const { [field]: _omitted, ...rest } = full;
+    expect(isWelcomeFrame({ type: 'welcome', payload: rest })).toBe(true);
+  }
+  for (const field of WELCOME_PAYLOAD_REQUIRED) {
+    const { [field]: _omitted, ...rest } = full;
+    expect(isWelcomeFrame({ type: 'welcome', payload: rest })).toBe(false);
+    expect(isWelcomeFrame({ type: 'welcome', payload: { ...full, [field]: Symbol('wrong') } })).toBe(false);
+  }
 });

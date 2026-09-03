@@ -8,6 +8,7 @@
  */
 
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
+import { type FieldKind, WELCOME_PAYLOAD_FIELDS, WELCOME_PAYLOAD_REQUIRED } from './generated/frames.gen.ts';
 import type {
   LoggedInPayload,
   NotificationActionError,
@@ -190,23 +191,26 @@ export function isErrorFrame(frame: RawFrame): frame is ErrorFrame {
   );
 }
 
+function matchesKind(value: unknown, kind: FieldKind): boolean {
+  const element = kind.endsWith('[]') ? kind.slice(0, -2) : undefined;
+  if (element) return Array.isArray(value) && value.every((item) => typeof item === element);
+  return typeof value === kind;
+}
+
+/**
+ * Field names and kinds come from the spec (`WELCOME_PAYLOAD_FIELDS`) rather
+ * than a hand-written list, which drifted the moment the server added a field.
+ * A required field must be present and match. An optional one must match only
+ * when it is sent.
+ */
 export function isWelcomeFrame(frame: RawFrame): frame is WelcomeFrame {
-  return (
-    frame.type === 'welcome' &&
-    hasPayload(frame) &&
-    typeof frame.payload.version === 'string' &&
-    typeof frame.payload.release_date === 'string' &&
-    Array.isArray(frame.payload.release_notes) &&
-    frame.payload.release_notes.every((note) => typeof note === 'string') &&
-    typeof frame.payload.tick_rate === 'number' &&
-    typeof frame.payload.current_tick === 'number' &&
-    typeof frame.payload.server_time === 'number' &&
-    (frame.payload.motd === undefined || typeof frame.payload.motd === 'string') &&
-    typeof frame.payload.game_info === 'string' &&
-    typeof frame.payload.website === 'string' &&
-    typeof frame.payload.help_text === 'string' &&
-    typeof frame.payload.terms === 'string'
-  );
+  if (frame.type !== 'welcome' || !hasPayload(frame)) return false;
+  const payload = frame.payload;
+  return Object.entries(WELCOME_PAYLOAD_FIELDS).every(([field, kind]) => {
+    const value = payload[field];
+    if (value === undefined) return !WELCOME_PAYLOAD_REQUIRED.has(field);
+    return matchesKind(value, kind);
+  });
 }
 
 export function isLoggedInFrame(frame: RawFrame): frame is LoggedInFrame {

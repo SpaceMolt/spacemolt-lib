@@ -523,6 +523,56 @@ export function emitCommandsDoc(spec: OpenAPISpec, actions: ActionDef[]): string
   return out;
 }
 
+/** Runtime kind of a frame-payload field, for the hand-written frame guards. */
+const FIELD_KINDS: Record<string, string> = {
+  string: 'string',
+  integer: 'number',
+  number: 'number',
+  boolean: 'boolean',
+};
+
+function fieldKind(schemaName: string, field: string, prop: OpenAPIProperty): string {
+  if (prop.type === 'array') {
+    const element = prop.items ? FIELD_KINDS[prop.items.type ?? ''] : undefined;
+    if (element) return `${element}[]`;
+  }
+  const kind = FIELD_KINDS[prop.type ?? ''];
+  if (!kind) {
+    // Silently defaulting would emit a guard that accepts anything for this
+    // field. Fail the generate instead, so the gap is visible.
+    throw new Error(`${schemaName}.${field}: no runtime kind for spec type ${JSON.stringify(prop.type)}`);
+  }
+  return kind;
+}
+
+/**
+ * Emit the field kinds behind `isWelcomeFrame`. The guard used to restate the
+ * schema's required list by hand, which drifts the moment the server adds a
+ * field. The envelope itself stays hand-written — the spec publishes payloads,
+ * not frames.
+ */
+function emitFrames(spec: OpenAPISpec): string {
+  const name = 'WelcomePayload';
+  const schema = spec.components.schemas[name] as OpenAPIProperty | undefined;
+  if (!schema?.properties) throw new Error(`Spec is missing ${name}.properties`);
+  const kinds = Object.entries(schema.properties).map(([field, prop]) => [field, fieldKind(name, field, prop)]);
+  const required = schema.required ?? [];
+  if (!required.length) throw new Error(`Spec is missing ${name}.required`);
+  return (
+    BANNER +
+    `\n/** Runtime kind of a frame-payload field. */\n` +
+    `export type FieldKind = 'string' | 'number' | 'boolean' | 'string[]' | 'number[]' | 'boolean[]';\n` +
+    `\n/** Every field of the server's \`WelcomePayload\`, with its runtime kind. */\n` +
+    `export const WELCOME_PAYLOAD_FIELDS: Readonly<Record<string, FieldKind>> = {\n` +
+    kinds.map(([field, kind]) => `  ${field}: '${kind}',`).join('\n') +
+    `\n};\n` +
+    `\n/** The subset of those fields the server always sends. */\n` +
+    `export const WELCOME_PAYLOAD_REQUIRED: ReadonlySet<string> = new Set([\n` +
+    required.map((field) => `  '${field}',`).join('\n') +
+    `\n]);\n`
+  );
+}
+
 function main() {
   const spec: OpenAPISpec = JSON.parse(readFileSync(SPEC_PATH, 'utf-8'));
   const actions = extractActions(spec);
@@ -530,6 +580,7 @@ function main() {
   writeFileSync(join(OUT_DIR, 'actions.gen.ts'), emitActions(spec, actions));
   writeFileSync(join(OUT_DIR, 'notifications.gen.ts'), emitNotifications(spec));
   writeFileSync(join(OUT_DIR, 'commands.gen.ts'), emitCommands(actions));
+  writeFileSync(join(OUT_DIR, 'frames.gen.ts'), emitFrames(spec));
   writeFileSync(COMMANDS_DOC_PATH, emitCommandsDoc(spec, actions));
 
   const queries = actions.filter((a) => a.kind === 'query').length;
