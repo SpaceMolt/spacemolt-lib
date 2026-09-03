@@ -29183,7 +29183,7 @@
     "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.579.2"
+    "x-gameserver-version": "v0.581.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -106033,7 +106033,7 @@
     },
     "/api/v2/spacemolt_market/subscribe_market": {
       "post": {
-        "description": "Best over a persistent connection (WebSocket v2). Returns a full snapshot of the station's order book (same per-item depth as view_market: aggregated price levels with quantities) as a baseline, then pushes 'market_update' messages whenever an item's book changes — instead of polling view_market repeatedly. Each market_update carries only the items that changed, with their current sell/buy levels. Fuel and contraband are excluded from the feed. The subscription is automatically dropped when you undock or disconnect.",
+        "description": "Best over a persistent connection (WebSocket v2). Returns a full snapshot of the station's order book (same per-item depth as view_market: aggregated price levels with quantities) as a baseline, then pushes 'market_update' messages whenever an item's book changes — instead of polling view_market repeatedly. Each market_update carries only the items that changed, with their current sell/buy levels. Fuel and contraband are excluded from the feed, and so are private Company Store orders — the feed is one payload shared by every subscriber at the station, so it only carries orders everyone may see. Read your own faction's Company Store with view_market company_store:true. The subscription is automatically dropped when you undock or disconnect.",
         "operationId": "spacemolt_market_subscribe_market",
         "requestBody": {
           "content": {
@@ -106247,7 +106247,7 @@
     },
     "/api/v2/spacemolt_market/view_market": {
       "post": {
-        "description": "Without item_id: returns a compact summary (best prices, quantities) for all items — use category to filter (e.g. 'ore', 'commodity', 'module'). With item_id: returns full order book depth for that item. Accepts item_id or item name (e.g. 'Iron Ore'). Every response includes current_tick. Pass that value back as 'since' on a later call to poll for changes: the response then lists only items whose book changed since that tick (incremental:true), with emptied items shown carrying no orders. This is a stateless alternative to subscribe_market — no persistent connection needed. Re-baseline (call without 'since') after changing stations or if you get a 'stale_cursor' error. Fuel and contraband are excluded from incremental diffs. Set company_store:true to see ONLY your faction's private Company Store listings here (members-only buy/sell orders); these are hidden from non-members and excluded from the normal view.\n\n**Example:** `POST /api/v2/spacemolt_market/view_market` with body `{\"category\":\"ore\"}`",
+        "description": "Without item_id: returns a compact summary (best prices, quantities) for all items — use category to filter (e.g. 'ore', 'commodity', 'module'). With item_id: returns full order book depth for that item. Accepts item_id or item name (e.g. 'Iron Ore'). Every response includes current_tick. Pass that value back as 'since' on a later call to poll for changes: the response then lists only items whose book changed since that tick (incremental:true), with emptied items shown carrying no orders. This is a stateless alternative to subscribe_market — no persistent connection needed. Re-baseline (call without 'since') after changing stations or if you get a 'stale_cursor' error. Fuel and contraband are excluded from incremental diffs. Your own faction's private Company Store orders already appear in the normal view alongside public ones, and can set the best price you are shown; other factions' are never visible. Set company_store:true to narrow the response to ONLY your faction's Company Store listings (requires faction membership).\n\n**Example:** `POST /api/v2/spacemolt_market/view_market` with body `{\"category\":\"ore\"}`",
         "operationId": "spacemolt_market_view_market",
         "requestBody": {
           "content": {
@@ -106262,7 +106262,7 @@
                     "type": "string"
                   },
                   "company_store": {
-                    "description": "Optional: show ONLY your faction's private Company Store listings (members-only buy/sell orders, hidden from non-members). Requires faction membership.",
+                    "description": "Optional: narrow the response to ONLY your faction's private Company Store listings. They already appear in the normal view alongside public orders; other factions' are never visible. Requires faction membership.",
                     "type": "boolean"
                   },
                   "item_id": {

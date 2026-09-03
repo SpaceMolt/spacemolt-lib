@@ -18760,7 +18760,7 @@ export type SpacemoltMarketViewMarketData = {
          */
         category?: string;
         /**
-         * Optional: show ONLY your faction's private Company Store listings (members-only buy/sell orders, hidden from non-members). Requires faction membership.
+         * Optional: narrow the response to ONLY your faction's private Company Store listings. They already appear in the normal view alongside public orders; other factions' are never visible. Requires faction membership.
          */
         company_store?: boolean;
         /**
