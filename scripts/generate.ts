@@ -545,32 +545,44 @@ function fieldKind(schemaName: string, field: string, prop: OpenAPIProperty): st
   return kind;
 }
 
+/** Schemas backing a hand-written frame guard (`isWelcomeFrame`, `isRegisteredFrame`, ...). */
+const FRAME_GUARD_SCHEMAS = ['WelcomePayload', 'RegisteredPayload'];
+
+/** `WelcomePayload` -> `WELCOME_PAYLOAD`, for a generated constant name. */
+function screamingSnake(schemaName: string): string {
+  return schemaName.replace(/[A-Z]/g, (c, i) => (i ? '_' : '') + c).toUpperCase();
+}
+
 /**
- * Emit the field kinds behind `isWelcomeFrame`. The guard used to restate the
- * schema's required list by hand, which drifts the moment the server adds a
- * field. The envelope itself stays hand-written — the spec publishes payloads,
- * not frames.
+ * Emit the field kind and required-ness behind each schema in
+ * `FRAME_GUARD_SCHEMAS`. A guard used to restate its schema's field list by
+ * hand, which drifts the moment the server adds or requires a field. The
+ * envelope itself stays hand-written — the spec publishes payloads, not
+ * frames.
  */
 function emitFrames(spec: OpenAPISpec): string {
-  const name = 'WelcomePayload';
-  const schema = spec.components.schemas[name] as OpenAPIProperty | undefined;
-  if (!schema?.properties) throw new Error(`Spec is missing ${name}.properties`);
-  const kinds = Object.entries(schema.properties).map(([field, prop]) => [field, fieldKind(name, field, prop)]);
-  const required = schema.required ?? [];
-  if (!required.length) throw new Error(`Spec is missing ${name}.required`);
-  return (
+  let out =
     BANNER +
     `\n/** Runtime kind of a frame-payload field. */\n` +
     `export type FieldKind = 'string' | 'number' | 'boolean' | 'string[]' | 'number[]' | 'boolean[]';\n` +
-    `\n/** Every field of the server's \`WelcomePayload\`, with its runtime kind. */\n` +
-    `export const WELCOME_PAYLOAD_FIELDS: Readonly<Record<string, FieldKind>> = {\n` +
-    kinds.map(([field, kind]) => `  ${field}: '${kind}',`).join('\n') +
-    `\n};\n` +
-    `\n/** The subset of those fields the server always sends. */\n` +
-    `export const WELCOME_PAYLOAD_REQUIRED: ReadonlySet<string> = new Set([\n` +
-    required.map((field) => `  '${field}',`).join('\n') +
-    `\n]);\n`
-  );
+    `\n/** A frame-payload field's runtime kind, and whether the server always sends it. */\n` +
+    `export interface FrameField {\n  kind: FieldKind;\n  required: boolean;\n}\n`;
+
+  for (const name of FRAME_GUARD_SCHEMAS) {
+    const schema = spec.components.schemas[name] as OpenAPIProperty | undefined;
+    if (!schema?.properties) throw new Error(`Spec is missing ${name}.properties`);
+    const required = new Set(schema.required ?? []);
+    if (!required.size) throw new Error(`Spec is missing ${name}.required`);
+    const fields = Object.entries(schema.properties).map(
+      ([field, prop]) => `  ${field}: { kind: '${fieldKind(name, field, prop)}', required: ${required.has(field)} },`,
+    );
+    out +=
+      `\n/** Every field of the server's \`${name}\`, with its runtime kind and required-ness. */\n` +
+      `export const ${screamingSnake(name)}_FIELDS: Readonly<Record<string, FrameField>> = {\n` +
+      fields.join('\n') +
+      `\n};\n`;
+  }
+  return out;
 }
 
 function main() {

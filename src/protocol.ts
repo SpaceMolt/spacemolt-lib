@@ -8,7 +8,12 @@
  */
 
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
-import { type FieldKind, WELCOME_PAYLOAD_FIELDS, WELCOME_PAYLOAD_REQUIRED } from './generated/frames.gen.ts';
+import {
+  type FieldKind,
+  type FrameField,
+  REGISTERED_PAYLOAD_FIELDS,
+  WELCOME_PAYLOAD_FIELDS,
+} from './generated/frames.gen.ts';
 import type {
   LoggedInPayload,
   NotificationActionError,
@@ -40,14 +45,6 @@ export interface ResultFrame {
     structuredContent?: Record<string, unknown>;
   };
 }
-
-/**
- * Mutation-ack: the structuredContent of a `result` frame that flags
- * `pending: true`. The server's published `PendingActionResponse`, so the
- * `auto_docked`/`auto_undocked` flags it carries reach the caller at ack time
- * rather than only on the final outcome. See `MutationAck`, its alias.
- */
-export type PendingAck = PendingActionResponse;
 
 /** Outcome push for a queued mutation; echoes the original request_id. */
 export interface ActionResultFrame {
@@ -198,19 +195,22 @@ function matchesKind(value: unknown, kind: FieldKind): boolean {
 }
 
 /**
- * Field names and kinds come from the spec (`WELCOME_PAYLOAD_FIELDS`) rather
- * than a hand-written list, which drifted the moment the server added a field.
- * A required field must be present and match. An optional one must match only
- * when it is sent.
+ * Checks a frame payload against a spec-derived field map (`frames.gen.ts`)
+ * rather than a hand-written field list, which drifts the moment the server
+ * adds or requires a field. A required field must be present and match. An
+ * optional one must match only when it is sent. Shared by every frame guard
+ * whose payload has a published schema.
  */
-export function isWelcomeFrame(frame: RawFrame): frame is WelcomeFrame {
-  if (frame.type !== 'welcome' || !hasPayload(frame)) return false;
-  const payload = frame.payload;
-  return Object.entries(WELCOME_PAYLOAD_FIELDS).every(([field, kind]) => {
+function matchesFields(payload: Record<string, unknown>, fields: Readonly<Record<string, FrameField>>): boolean {
+  return Object.entries(fields).every(([field, { kind, required }]) => {
     const value = payload[field];
-    if (value === undefined) return !WELCOME_PAYLOAD_REQUIRED.has(field);
+    if (value === undefined) return !required;
     return matchesKind(value, kind);
   });
+}
+
+export function isWelcomeFrame(frame: RawFrame): frame is WelcomeFrame {
+  return frame.type === 'welcome' && hasPayload(frame) && matchesFields(frame.payload, WELCOME_PAYLOAD_FIELDS);
 }
 
 export function isLoggedInFrame(frame: RawFrame): frame is LoggedInFrame {
@@ -218,12 +218,7 @@ export function isLoggedInFrame(frame: RawFrame): frame is LoggedInFrame {
 }
 
 export function isRegisteredFrame(frame: RawFrame): frame is RegisteredFrame {
-  return (
-    frame.type === 'registered' &&
-    hasPayload(frame) &&
-    typeof frame.payload.password === 'string' &&
-    typeof frame.payload.player_id === 'string'
-  );
+  return frame.type === 'registered' && hasPayload(frame) && matchesFields(frame.payload, REGISTERED_PAYLOAD_FIELDS);
 }
 
 /**
@@ -270,8 +265,13 @@ export interface QueryResult<T = Record<string, unknown>> {
   structuredContent?: T;
 }
 
-/** The immediate `pending: true` acknowledgement for a queued mutation. */
-export type MutationAck = PendingAck;
+/**
+ * The immediate `pending: true` acknowledgement for a queued mutation. The
+ * server's published `PendingActionResponse`, so the `auto_docked`/
+ * `auto_undocked` flags it carries reach the caller at ack time rather than
+ * only on the final outcome.
+ */
+export type MutationAck = PendingActionResponse;
 
 /**
  * Resolved value of a two-phase mutation, delivered when the action executes.

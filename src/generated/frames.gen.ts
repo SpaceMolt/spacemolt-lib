@@ -3,31 +3,29 @@
 /** Runtime kind of a frame-payload field. */
 export type FieldKind = 'string' | 'number' | 'boolean' | 'string[]' | 'number[]' | 'boolean[]';
 
-/** Every field of the server's `WelcomePayload`, with its runtime kind. */
-export const WELCOME_PAYLOAD_FIELDS: Readonly<Record<string, FieldKind>> = {
-  current_tick: 'number',
-  game_info: 'string',
-  help_text: 'string',
-  motd: 'string',
-  release_date: 'string',
-  release_notes: 'string[]',
-  server_time: 'number',
-  terms: 'string',
-  tick_rate: 'number',
-  version: 'string',
-  website: 'string',
+/** A frame-payload field's runtime kind, and whether the server always sends it. */
+export interface FrameField {
+  kind: FieldKind;
+  required: boolean;
+}
+
+/** Every field of the server's `WelcomePayload`, with its runtime kind and required-ness. */
+export const WELCOME_PAYLOAD_FIELDS: Readonly<Record<string, FrameField>> = {
+  current_tick: { kind: 'number', required: true },
+  game_info: { kind: 'string', required: true },
+  help_text: { kind: 'string', required: true },
+  motd: { kind: 'string', required: false },
+  release_date: { kind: 'string', required: true },
+  release_notes: { kind: 'string[]', required: true },
+  server_time: { kind: 'number', required: true },
+  terms: { kind: 'string', required: true },
+  tick_rate: { kind: 'number', required: true },
+  version: { kind: 'string', required: true },
+  website: { kind: 'string', required: true },
 };
 
-/** The subset of those fields the server always sends. */
-export const WELCOME_PAYLOAD_REQUIRED: ReadonlySet<string> = new Set([
-  'version',
-  'release_date',
-  'release_notes',
-  'tick_rate',
-  'current_tick',
-  'server_time',
-  'game_info',
-  'website',
-  'help_text',
-  'terms',
-]);
+/** Every field of the server's `RegisteredPayload`, with its runtime kind and required-ness. */
+export const REGISTERED_PAYLOAD_FIELDS: Readonly<Record<string, FrameField>> = {
+  password: { kind: 'string', required: true },
+  player_id: { kind: 'string', required: true },
+};
