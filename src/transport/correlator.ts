@@ -119,7 +119,7 @@ export class Correlator {
         if (!isResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         const payload = frame.payload;
         if (pending.kind === 'query') {
-          this.settle(requestId);
+          this.pending.delete(requestId);
           pending.resolve({ result: payload.result, structuredContent: payload.structuredContent });
           return true;
         }
@@ -131,7 +131,7 @@ export class Correlator {
           // wait for. Settle now with this frame as the whole answer: no
           // state changed, so the only meaningful content is structuredContent
           // itself, carried as delta.details same as a real outcome would.
-          this.settle(requestId);
+          this.pending.delete(requestId);
           pending.resolve({
             command: String(structured?.command ?? ''),
             tick: 0,
@@ -149,7 +149,7 @@ export class Correlator {
         if (pending.kind !== 'mutation') return true;
         if (!isActionResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         const payload = frame.payload;
-        this.settle(requestId);
+        this.pending.delete(requestId);
         pending.resolve({
           command: payload.command,
           tick: payload.tick,
@@ -161,13 +161,13 @@ export class Correlator {
       }
       case 'action_error': {
         if (!isActionErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
-        this.settle(requestId);
+        this.pending.delete(requestId);
         pending.reject(errorFromActionFrame(frame));
         return true;
       }
       case 'error': {
         if (!isErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
-        this.settle(requestId);
+        this.pending.delete(requestId);
         pending.reject(errorFromFrame(frame));
         return true;
       }
@@ -182,12 +182,8 @@ export class Correlator {
     this.pending.clear();
   }
 
-  private settle(requestId: string): void {
-    this.pending.delete(requestId);
-  }
-
   private rejectInvalidResponse(requestId: string, pending: Pending, frameType: string): true {
-    this.settle(requestId);
+    this.pending.delete(requestId);
     pending.reject(new SpacemoltError('invalid_response', `Malformed ${frameType} frame for request ${requestId}`));
     return true;
   }
