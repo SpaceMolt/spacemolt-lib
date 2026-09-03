@@ -8,6 +8,26 @@
 
 import type { RawFrame } from '../protocol.ts';
 
+/**
+ * Fan an event out to every registered listener. A throwing listener is warned
+ * and skipped — a listener is told what already happened, so it must never
+ * break the caller (frame routing, mutation correlation, a connect or reconnect
+ * in progress) or starve the listeners after it.
+ */
+export function notifyListeners<A extends unknown[]>(
+  listeners: ReadonlySet<(...args: A) => void>,
+  label: string,
+  ...args: A
+): void {
+  for (const listener of listeners) {
+    try {
+      listener(...args);
+    } catch (err) {
+      console.warn(`[spacemolt] ${label} listener threw: ${err}`);
+    }
+  }
+}
+
 type PayloadHandler = (payload: unknown) => void;
 type FrameHandler = (frame: RawFrame) => void;
 

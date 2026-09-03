@@ -622,3 +622,61 @@ test('a market subscription active before a disconnect is restored on the reconn
   // reconnect is in place — client.account() still returns the SAME instance
   expect(client.account('Nova')).toBe(account);
 }, 5000);
+
+test('a throwing onAccountConnected listener does not kill the connection it reports', async () => {
+  // The notification is a report, not a step of the connect. A consumer whose
+  // listener throws (e.g. its own indexing blew up) must not have its healthy,
+  // authenticated account closed, dropped, and retried underneath it.
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 0,
+    connectRetry: { baseDelayMs: 1, maxDelayMs: 5, maxRetries: 2 },
+  });
+  await client.addLogin('Nova', 'pw');
+  client.onAccountConnected(() => {
+    throw new Error('consumer listener blew up');
+  });
+
+  const connectP = client.connect('Nova');
+  await Promise.resolve();
+  autoServe(requireValue(sockets[0]), 'Nova');
+  const account = await connectP;
+
+  expect(account.authenticated).toBe(true);
+  expect(client.account('Nova')).toBe(account);
+  expect(sockets.length).toBe(1); // no retry was triggered
+}, 5000);
+
+test('a throwing onAccountReconnected listener does not drop the account it reports', async () => {
+  // Same rule on the reconnect path: the listener runs after the reconnect
+  // already succeeded, so a throw from it must not be read as a failed
+  // reconnect and discard a live connection.
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    connectStaggerMs: 0,
+    connectRetry: { baseDelayMs: 1, maxDelayMs: 5, maxRetries: 2 },
+  });
+  await client.addLogin('Nova', 'pw');
+
+  const connectP = client.connect('Nova');
+  await Promise.resolve();
+  autoServe(requireValue(sockets[0]), 'Nova');
+  const account = await connectP;
+
+  const disconnects: string[] = [];
+  client.onAccountDisconnected((id) => disconnects.push(id));
+  client.onAccountReconnected(() => {
+    throw new Error('consumer listener blew up');
+  });
+
+  requireValue(sockets[0]).close(1006, 'abnormal');
+  while (sockets.length < 2) await new Promise((r) => setTimeout(r, 2));
+  autoServe(requireValue(sockets[1]), 'Nova');
+  while (!account.authenticated) await new Promise((r) => setTimeout(r, 2));
+  await new Promise((r) => setTimeout(r, 30));
+
+  expect(disconnects).toEqual([]);
+  expect(client.account('Nova')).toBe(account);
+}, 5000);

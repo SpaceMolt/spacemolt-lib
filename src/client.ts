@@ -18,6 +18,7 @@ import {
 import type { WebSocketFactory } from './transport/socket.ts';
 import type { ReconnectOptions, RegisterParams, RegisterResult } from './account.ts';
 import { CatalogCache } from './data/catalog.ts';
+import { notifyListeners } from './events/emitter.ts';
 import { MapCache, httpBaseFromWs } from './data/map.ts';
 import { ClerkSource, type ClerkPlayer } from './auth/clerk.ts';
 import { CLOSE_CODE, type ConnectionClosedError, retryAfterMsFromClose } from './errors.ts';
@@ -224,15 +225,15 @@ export class SpacemoltClient {
   }
 
   private notifyAccountConnected(account: Account): void {
-    for (const listener of this.accountConnectedListeners) listener(account);
+    notifyListeners(this.accountConnectedListeners, 'onAccountConnected', account);
   }
 
   private notifyAccountReconnected(account: Account): void {
-    for (const listener of this.accountReconnectedListeners) listener(account);
+    notifyListeners(this.accountReconnectedListeners, 'onAccountReconnected', account);
   }
 
   private notifyAccountDisconnected(id: string, err: ConnectionClosedError): void {
-    for (const listener of this.accountDisconnectedListeners) listener(id, err);
+    notifyListeners(this.accountDisconnectedListeners, 'onAccountDisconnected', id, err);
   }
 
   /** HTTP origin used for bulk data fetches (catalog, map). */
