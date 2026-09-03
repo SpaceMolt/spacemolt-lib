@@ -42,18 +42,23 @@ export type RequestKind = 'query' | 'mutation';
  * Extracts the pending ack from a mutation's `result` frame structuredContent,
  * checking both known locations the flag has been observed in (see the
  * module doc comment). Returns undefined if neither location flags pending —
- * meaning this frame is the final outcome, not an ack.
+ * meaning this frame is the final outcome, not an ack. The server's
+ * `auto_docked`/`auto_undocked` flags are carried through when present, so a
+ * caller learns at ack time that the server moved its ship.
  */
 function extractPendingAck(structured: Record<string, unknown> | undefined): MutationAck | undefined {
   if (!structured) return undefined;
-  if (structured.pending === true) {
-    return { command: String(structured.command ?? ''), message: String(structured.message ?? '') };
-  }
   const details = structured.details;
-  if (isRecord(details) && details.pending === true) {
-    return { command: String(details.command ?? ''), message: String(details.message ?? '') };
-  }
-  return undefined;
+  const source =
+    structured.pending === true ? structured : isRecord(details) && details.pending === true ? details : undefined;
+  if (!source) return undefined;
+  return {
+    pending: true,
+    command: String(source.command ?? ''),
+    message: String(source.message ?? ''),
+    ...(typeof source.auto_docked === 'boolean' && { auto_docked: source.auto_docked }),
+    ...(typeof source.auto_undocked === 'boolean' && { auto_undocked: source.auto_undocked }),
+  };
 }
 
 interface PendingBase {

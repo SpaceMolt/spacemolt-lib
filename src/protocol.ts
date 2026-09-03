@@ -8,7 +8,15 @@
  */
 
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
-import type { LoggedInPayload, RegisteredPayload, V2GameState, WelcomePayload } from './generated/openapi/types.gen.ts';
+import type {
+  LoggedInPayload,
+  NotificationActionError,
+  NotificationActionResult,
+  PendingActionResponse,
+  RegisteredPayload,
+  V2GameState,
+  WelcomePayload,
+} from './generated/openapi/types.gen.ts';
 import { isRecord } from './validation.ts';
 
 /** Inbound frame: client -> server. `payload` is omitted when an action takes none. */
@@ -32,24 +40,26 @@ export interface ResultFrame {
   };
 }
 
-/** Mutation-ack: a `result` frame whose structuredContent flags `pending: true`. */
-export interface PendingAck {
-  pending: true;
-  command: string;
-  message: string;
-}
+/**
+ * Mutation-ack: the structuredContent of a `result` frame that flags
+ * `pending: true`. The server's published `PendingActionResponse`, so the
+ * `auto_docked`/`auto_undocked` flags it carries reach the caller at ack time
+ * rather than only on the final outcome. See `MutationAck`, its alias.
+ */
+export type PendingAck = PendingActionResponse;
 
 /** Outcome push for a queued mutation; echoes the original request_id. */
 export interface ActionResultFrame {
   type: 'action_result';
   request_id?: string;
-  payload: {
-    command: string;
-    tick: number;
+  /**
+   * The server's published `Notification_action_result`, except for `result`:
+   * the spec leaves it untyped because the v1 and v2 shapes differ, and on
+   * `/ws/v2` it is always the delta. Narrow it here rather than lose the type.
+   */
+  payload: Omit<NotificationActionResult, 'result'> & {
     /** A V2GameState delta — only the sections that changed. See StateDelta. */
     result: StateDelta;
-    auto_docked?: boolean;
-    auto_undocked?: boolean;
   };
 }
 
@@ -57,13 +67,7 @@ export interface ActionResultFrame {
 export interface ActionErrorFrame {
   type: 'action_error';
   request_id?: string;
-  payload: {
-    command: string;
-    tick: number;
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-  };
+  payload: NotificationActionError;
 }
 
 /** Generic error frame emitted by the framing layer or a handler. */
@@ -263,10 +267,7 @@ export interface QueryResult<T = Record<string, unknown>> {
 }
 
 /** The immediate `pending: true` acknowledgement for a queued mutation. */
-export interface MutationAck {
-  command: string;
-  message: string;
-}
+export type MutationAck = PendingAck;
 
 /**
  * Resolved value of a two-phase mutation, delivered when the action executes.

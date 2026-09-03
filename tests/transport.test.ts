@@ -133,7 +133,10 @@ test('mutation: pending ack fires onAck, action_result resolves with delta', asy
       s.serverSend({
         type: 'result',
         request_id: frame.request_id,
-        payload: { result: 'pending', structuredContent: { pending: true, command: 'jump', message: 'queued' } },
+        payload: {
+          result: 'pending',
+          structuredContent: { pending: true, command: 'jump', message: 'queued', auto_undocked: true },
+        },
       });
       s.serverSend({
         type: 'action_result',
@@ -145,6 +148,10 @@ test('mutation: pending ack fires onAck, action_result resolves with delta', asy
   let ack: MutationAck | undefined;
   const res = await account.mutate('spacemolt', 'jump', { target_system: 'sol' }, (a) => (ack = a));
   expect(ack?.command).toBe('jump');
+  // The server's auto_docked/auto_undocked flags reach the caller at ack time,
+  // not only on the final outcome.
+  expect(ack?.auto_undocked).toBe(true);
+  expect(ack?.auto_docked).toBeUndefined();
   expect(res.tick).toBe(1523);
   expect(res.delta.ship?.fuel).toBe(60);
   expect(res.delta.queue?.has_pending).toBe(false);
