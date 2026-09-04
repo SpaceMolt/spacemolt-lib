@@ -173,7 +173,13 @@ export type AnalysisStep = {
 };
 
 export type AnalyzeMarketResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     insights: Array<MarketInsight>;
     message: string;
@@ -231,7 +237,13 @@ export type AttackLogEntry = {
 
 export type AttackNpcResponse = {
     action: 'attack';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'npc';
     target: string;
@@ -245,7 +257,13 @@ export type AttackNpcResponse = {
 
 export type AttackPlayerResponse = {
     action: 'attack';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     battle_id: string;
     kind: 'player';
@@ -373,7 +391,7 @@ export type BaseCostResponse = {
 
 export type BattleCombatState = {
     /**
-     * Whether your ship can make escape progress. False when warp-disrupted or intercepted by a faster boarding pursuer or when no fit crew can operate the ship. True still requires flee stance and the required escape ticks.
+     * Whether your ship can make escape progress. False when the ship is warp-disrupted (warp_disrupted), intercepted by a latched-on boarder that out-runs it (intercepted), or has no fit crew to operate it (incapacitated). Those three are independent and can hold together, so read each boolean rather than inferring a single cause from this field. True still requires flee stance and the required escape ticks.
      */
     can_escape: boolean;
     /**
@@ -393,13 +411,29 @@ export type BattleCombatState = {
      */
     flee_counter: number;
     /**
-     * Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted while warp-disrupted or intercepted by a faster boarding pursuer because escape progress is blocked.
+     * Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted while escape progress is blocked — by warp disruption or by a boarding intercept alike — so its absence does not identify which. Read warp_disrupted and intercepted for that.
      */
     flee_required?: number;
     /**
      * Always present in the requesting participant's combat_state. True means no fit crew can operate your ship; false means personnel can operate it. Independent of warp_disrupted: both may be true. When true can_escape is false and the ship cannot fire or move. Not included for observers or other participants. Injured crew may recover automatically while the ship remains intact and uncaptured; ship status reports the recovery timing.
      */
     incapacitated: boolean;
+    /**
+     * A boarding pursuer that has latched on and out-runs your ship is cancelling your retreat and flee movement. Independent of warp_disrupted and incapacitated: any combination of the three can be true at once, and each blocks escape on its own. Match or beat its effective speed, or destroy it, to resume escape progress. interceptor_id names the pursuer.
+     */
+    intercepted: boolean;
+    /**
+     * Your own boarding attempt is out-running its target, cancelling that target's retreat and flee movement. This is the boarder's side of intercepted; combat_state is self-only and get_battle_status does not publish another ship's stance or speed, so this is the only way to confirm your pursuit is holding. intercepting_target_id names the ship.
+     */
+    intercepting: boolean;
+    /**
+     * player_id of the ship your boarding attempt is out-running, matching a participant row in the same get_battle_status response. Present exactly when intercepting is true.
+     */
+    intercepting_target_id?: string;
+    /**
+     * player_id of the boarder intercepting you, matching a participant row in the same get_battle_status response. Present exactly when intercepted is true. At most one hull can intercept you: a ship already in a boarding link cannot open a second one.
+     */
+    interceptor_id?: string;
     /**
      * Largest zone distance any fitted weapon can fire against your selected target after its targeting-range reductions. A target whose zone_distance exceeds this is out of range.
      */
@@ -537,11 +571,11 @@ export type BattleParticipant = {
 export type BattleParticipantInfo = {
     hull_pct?: number;
     /**
-     * True for server-controlled combatants including pirates
+     * True for server-controlled combatants including pirates, police, drones, creatures, stations, and intact prizes.
      */
     is_npc?: boolean;
     /**
-     * Combatant kind: player
+     * Combatant kind: player, pirate, police, drone, creature, station, prize, or npc. Prize identifies an autonomously controlled intact captured ship.
      */
     kind?: string;
     player_id: string;
@@ -555,18 +589,36 @@ export type BattleParticipantInfo = {
 };
 
 export type BattleResponse = {
+    /**
+     * The battle action the request asked for. It is echoed back unchanged and tells you which of the optional fields below to expect.
+     */
     action: 'advance' | 'retreat' | 'stance' | 'target' | 'engage' | 'self_destruct';
+    /**
+     * Battle the command applied to. Omitted when the command did not resolve against a specific battle.
+     */
     battle_id?: string;
+    /**
+     * Marines you committed to the boarding attempt, echoed back. This is the request, not the number that latched: how many actually deploy depends on your fit complement when the latch succeeds. Present on a board stance only. Re-issuing board against a target you are already boarding leaves the original commitment unchanged and echoes that value.
+     */
     marines_requested?: number;
+    /**
+     * Human-readable outcome of the command. Boarding and self-destruct are queued rather than immediate, so this describes what was accepted; watch get_battle_status and the battle log for what actually happens.
+     */
     message: string;
     operation_id?: string;
     phase?: string;
     progress?: string;
+    /**
+     * Ticks remaining on an in-battle self-destruct countdown. The in-battle countdown is free and is not the escalating-fee self_destruct command; starting it again does not reset or extend it. Omitted when no countdown is running.
+     */
     self_destruct_countdown?: number;
     /**
-     * Resulting combat stance: fire/evade/brace/flee/board
+     * Combat stance now in effect. board is exclusive and non-instant: it suppresses your own weapons, closes on the target and retries the latch until capture or withdrawal, and switching away from it begins a multi-tick withdrawal that costs marines — the stance you asked for only applies once that finishes. Present on action=stance.
      */
-    stance?: string;
+    stance?: 'fire' | 'evade' | 'brace' | 'flee' | 'board';
+    /**
+     * Combatant this command aimed at — the ship being boarded on a board stance, or your new focus-fire target on action=target. Present on those actions only.
+     */
     target_id?: string;
 };
 
@@ -659,29 +711,80 @@ export type BerthsView = {
 };
 
 export type BoardingPublicStatus = {
+    /**
+     * Combatant driving the operation — the boarder for a boarding row, or the ship running the countdown for a self_destruct row. Matches a participant player_id in the same get_battle_status response. Omitted only when the actor is no longer resolvable.
+     */
     attacker_id?: string;
+    /**
+     * Stable identity for this operation for as long as it is live. A boarding operation's id is opaque; an in-battle self-destruct row instead uses the synthetic form self_destruct:<ship_id>. Rows disappear from the list once the operation resolves — the battle log keeps the history.
+     */
     operation_id: string;
-    phase: string;
-    progress?: string;
+    /**
+     * What the operation is doing now. latching: the boarder is closing and trying to attach. assault: marines are aboard and fighting. withdrawing: the boarder is disengaging, which takes several ticks and costs marines. self_destruct marks a countdown row rather than a boarding operation, and is the only value that carries self_destruct_countdown. A resolved operation is removed from the list rather than reported.
+     */
+    phase: 'latching' | 'assault' | 'withdrawing' | 'self_destruct';
+    /**
+     * Coarse observable state for onlookers. Derived from phase, never a percentage — exact latch and assault progress stay private to the two combatants. closing pairs with latching, attached with assault, withdrawing with withdrawing, and countdown with self_destruct.
+     */
+    progress?: 'closing' | 'attached' | 'withdrawing' | 'countdown';
+    /**
+     * Ticks remaining until the ship detonates. Present only on phase=self_destruct rows and omitted everywhere else. Counts down one per tick; at zero the hull explodes, damaging an attached boarder.
+     */
     self_destruct_countdown?: number;
+    /**
+     * Combatant being boarded. Matches a participant player_id in the same response. Always omitted on self_destruct rows, which have no target.
+     */
     target_id?: string;
 };
 
 export type BoardingStateLogEntry = {
+    /**
+     * Combatant whose action produced this row — the boarder on boarding rows, the detonating ship on self_destruct rows. Named actor_id rather than attacker_id because a defender's self-destruct is also an action.
+     */
     actor_id?: string;
+    /**
+     * True when the boarding party took losses this round. Omitted when false. Qualitative only: the number of marines lost is private.
+     */
     attacker_casualties?: boolean;
+    /**
+     * True when this round hurt either side. Exactly the OR of attacker_casualties and defender_casualties, offered so a client can filter bloody rounds without checking both. Omitted when false. Never reports how many — counts stay private to each side.
+     */
     casualties_occurred?: boolean;
+    /**
+     * True when the defending complement took losses this round. Omitted when false. Qualitative only: the number lost is private.
+     */
     defender_casualties?: boolean;
+    /**
+     * True when hull_damage finished the counterpart ship off. Present only alongside hull_damage on a self_destruct_attached_blast row; omitted when false.
+     */
     destroyed?: boolean;
     /**
      * Observable boarding transition. Terminal values include capture_ready; plundered; withdrawn; attacker_destroyed; attacker_incapacitated; target_destroyed; target_self_destructed; and restart_canceled. plundered means pirates removed eligible cargo and then disengaged without taking the hull.
      */
     event: string;
+    /**
+     * Hull points the blast took off the counterpart ship. Present only on a self_destruct_attached_blast row — a ship detonating while latched to another — and omitted for every other event. Capped at the counterpart's remaining hull.
+     */
     hull_damage?: number;
+    /**
+     * The operation this transition belongs to, matching operation_id in get_battle_status while the operation was live. Empty on rows emitted for an operation that could no longer be resolved.
+     */
     operation_id: string;
-    phase: string;
+    /**
+     * Phase the operation was in when this transition happened. Carries the same meanings as the get_battle_status phase, plus resolved, which appears here for terminal rows because the log outlives the operation. self_destruct marks a countdown row rather than a boarding operation.
+     */
+    phase: 'latching' | 'assault' | 'withdrawing' | 'resolved' | 'self_destruct';
+    /**
+     * Why the event fired, when the event alone is ambiguous. Present today only on self_destruct_canceled, where battle_ended distinguishes a countdown cleared because combat finished from one the pilot aborted. Omitted otherwise.
+     */
     reason?: string;
+    /**
+     * Ticks that remained on the countdown when this row was written. Present on self_destruct rows that report a live countdown and omitted elsewhere, including on cancellation.
+     */
     self_destruct_countdown?: number;
+    /**
+     * Combatant on the receiving end. Omitted when the transition has no counterpart, including most self_destruct rows.
+     */
     target_id?: string;
 };
 
@@ -694,7 +797,13 @@ export type BrowseShipsResponse = {
 };
 
 export type BuildBaseResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     base_id: string;
     fee_paid: number;
@@ -744,7 +853,13 @@ export type BulkCancelOrderResult = {
 
 export type BulkCancelOrdersResponse = {
     action: 'cancel_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
@@ -760,7 +875,13 @@ export type BulkCancelReturns = {
 
 export type BulkCraftResponse = {
     action: 'craft' | 'recycle';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk_craft';
     mode: 'bulk';
@@ -786,7 +907,13 @@ export type BulkCraftResult = {
 
 export type BulkCreateBuyOrdersResponse = {
     action: 'create_buy_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
@@ -796,7 +923,13 @@ export type BulkCreateBuyOrdersResponse = {
 
 export type BulkCreateSellOrdersResponse = {
     action: 'create_sell_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
@@ -827,7 +960,13 @@ export type BulkFactionBuyOrderResult = {
 
 export type BulkFactionCreateBuyOrdersResponse = {
     action: 'faction_create_buy_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
@@ -837,7 +976,13 @@ export type BulkFactionCreateBuyOrdersResponse = {
 
 export type BulkFactionCreateSellOrdersResponse = {
     action: 'faction_create_sell_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
@@ -866,7 +1011,13 @@ export type BulkFactionSellOrderResult = {
 
 export type BulkJobCancelResponse = {
     action: 'job_cancel';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk_cancel';
     message: string;
@@ -889,7 +1040,13 @@ export type BulkModifyOrderResult = {
 
 export type BulkModifyOrdersResponse = {
     action: 'modify_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'bulk';
     mode: 'bulk';
@@ -939,7 +1096,13 @@ export type BulkStorageItemResult = {
 
 export type BulkStorageResponse = {
     action: 'bulk_deposit' | 'bulk_withdraw' | 'bulk_transfer';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
@@ -970,7 +1133,13 @@ export type BurnLogEntry = {
 };
 
 export type BuyInsuranceResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     coverage: number;
     expires_at: string;
@@ -983,7 +1152,13 @@ export type BuyInsuranceResponse = {
 };
 
 export type BuyListedShipResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     class_id: string;
     credits_left: number;
@@ -995,8 +1170,14 @@ export type BuyListedShipResponse = {
 
 export type BuyResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
     auto_listed?: AutoListedOrder;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     delivered_to_cargo?: number;
     delivered_to_storage?: number;
@@ -1027,7 +1208,13 @@ export type CancelOrderCommandResponse = ({
 
 export type CancelOrderResponse = {
     action: 'cancel_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     delivered_to?: string;
     faction_order?: boolean;
@@ -1352,22 +1539,37 @@ export type ClaimInsuranceResponse = {
 };
 
 export type ClaimPrizeResponse = {
+    /**
+     * Fit crew committed to fly the prize home. They leave your available complement for the whole trip and come back on delivery, to the place crew_disposition names.
+     */
     crew_assigned: number;
     /**
      * Where the prize crew came from and returns to.
      */
     crew_disposition: 'aboard' | 'faction_reserve';
+    /**
+     * Base you asked the prize to be flown to. Change it later with service_prize action=redirect.
+     */
     destination_base_id: string;
     /**
      * Player-facing name of the recovery station.
      */
     destination_name: string;
+    /**
+     * True when this claim matched one you already held and nothing changed — re-claiming is safe and assigns no additional crew. False when this call created the assignment.
+     */
     idempotent: boolean;
+    /**
+     * Stable identity for the recovery operation you just claimed. Pass it to service_prize.
+     */
     prize_id: string;
     /**
      * Stable ship class ID for the captured hull.
      */
     ship_class: string;
+    /**
+     * The captured hull. It keeps the id it had under its former owner.
+     */
     ship_id: string;
     /**
      * Player-facing ship name. Uses the custom name when present and otherwise the class name.
@@ -1585,7 +1787,13 @@ export type CommissionMaterialStatus = {
 };
 
 export type CommissionQuoteResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bare_hull: boolean;
     blockers?: Array<string>;
@@ -1617,7 +1825,13 @@ export type CommissionQuoteResponse = {
 };
 
 export type CommissionShipResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bare_hull: boolean;
     build_time?: number;
@@ -1707,7 +1921,13 @@ export type CraftCommandResponse = ({
 
 export type CraftJobResponse = {
     action: 'craft' | 'recycle' | 'job_add';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     effective_time_per_run: number;
     escrowed: EscrowSummary;
@@ -1729,7 +1949,13 @@ export type CraftJobResponse = {
 
 export type CraftQueueResponse = {
     action: 'queue';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     jobs: Array<JobView>;
     kind: 'queue';
@@ -1739,7 +1965,13 @@ export type CraftQueueResponse = {
 
 export type CraftQuoteResponse = {
     action: 'craft' | 'recycle';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cost: EscrowSummary;
     credits_total: number;
@@ -1792,7 +2024,13 @@ export type CreateBuyOrderCommandResponse = ({
 
 export type CreateBuyOrderResponse = {
     action: 'create_buy_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     consolidated?: boolean;
     delivered_to_cargo?: number;
@@ -1839,7 +2077,13 @@ export type CreateSellOrderCommandResponse = ({
 
 export type CreateSellOrderResponse = {
     action: 'create_sell_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     consolidated?: boolean;
     fills?: Array<Fill>;
@@ -1915,7 +2159,13 @@ export type DeleteNoteResponse = {
 
 export type DeployAllDronesResponse = {
     action: 'deploy_all_drones';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bandwidth_total: number;
     bandwidth_used: number;
@@ -1932,7 +2182,13 @@ export type DeployDroneCommandResponse = ({
 
 export type DeployDroneResponse = {
     action: 'deploy_drone';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bandwidth_total: number;
     bandwidth_used: number;
@@ -1946,7 +2202,13 @@ export type DeployDroneResponse = {
 
 export type DepositItemsResponse = {
     action: 'deposit_items';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cargo_remaining: number;
     cargo_space: number;
@@ -1957,7 +2219,13 @@ export type DepositItemsResponse = {
 };
 
 export type DismantleOutpostResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     base_id: string;
     fee_refunded: number;
@@ -1969,7 +2237,13 @@ export type DismantleOutpostResponse = {
 
 export type DistressSignalResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     distress_type: string;
     expires_seconds: number;
@@ -1983,7 +2257,13 @@ export type DistressSignalResponse = {
 
 export type DockResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     base: string;
     claimed_note?: string;
@@ -2064,7 +2344,13 @@ export type DroneInfo = {
 
 export type EmpireGiftResponse = {
     action: 'empire_gift_credits' | 'empire_gift_items' | 'empire_gift_ship';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     base_id: string;
     base_name: string;
@@ -2198,7 +2484,13 @@ export type EscrowedRewards = {
 
 export type EspionageResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     intel_type?: string;
     outcome: string;
@@ -2470,7 +2762,7 @@ export type FacilityFactionEntry = {
     crew_capacity?: number;
     custom_name?: string;
     /**
-     * Set when this facility was knocked out in battle. It does nothing until repaired (facility action repair). A station rebuilds its own faction's facilities automatically out of that faction's storage at the station
+     * Set when this facility was knocked out in battle. It does nothing until repaired (facility action repair). A station rebuilds its own faction's facilities automatically out of that faction's storage at the station, in parallel when supplied, so keeping that store supplied is enough.
      */
     damaged?: boolean;
     facility_id: string;
@@ -2916,7 +3208,13 @@ export type FactionCreateBuyOrderCommandResponse = ({
 
 export type FactionCreateBuyOrderResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bucket?: string;
     consolidated?: boolean;
@@ -2965,7 +3263,13 @@ export type FactionCreateSellOrderCommandResponse = ({
 
 export type FactionCreateSellOrderResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bucket?: string;
     consolidated?: boolean;
@@ -3011,7 +3315,13 @@ export type FactionDeleteRoomResponse = {
 export type FactionDepositCreditsResponse = {
     action: 'faction_deposit_credits';
     amount: number;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     faction_credits: number;
     player_credits: number;
@@ -3019,7 +3329,13 @@ export type FactionDepositCreditsResponse = {
 
 export type FactionDepositFuelResponse = {
     action: 'faction_deposit_fuel';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     fuel: number;
     fuel_capacity: number;
@@ -3029,7 +3345,13 @@ export type FactionDepositFuelResponse = {
 
 export type FactionDepositItemsResponse = {
     action: 'faction_deposit_items';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
@@ -3095,7 +3417,13 @@ export type FactionGarageStationEntry = {
 
 export type FactionGarageStoreResponse = {
     action: 'faction_garage_store';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     base_id: string;
     capacity: number;
@@ -3117,7 +3445,13 @@ export type FactionGetInvitesResponse = {
 
 export type FactionGiftResponse = {
     action: 'faction_gift';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     credits_sent: number;
     faction_id: string;
@@ -3293,28 +3627,88 @@ export type FactionPersonnelResponse = {
      * The personnel_action the request asked for. It is echoed back unchanged.
      */
     action: 'status' | 'recruit' | 'deposit' | 'withdraw';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
+    /**
+     * Base whose reserve this is. A faction holds a separate reserve at each base and they never pool.
+     */
     base_id: string;
+    /**
+     * Credits charged to the faction treasury. Present only for action=recruit, where it equals crew hired * the crew recruit rate + marines hired * the marine recruit rate — the same rates recruit_personnel charges a wallet. Omitted for status, deposit and withdraw, which are free.
+     */
     cost?: number;
+    /**
+     * Maximum crew the reserve can hold at this base, set by the faction's built facilities. fit_crew + injured_crew + inbound_crew never exceeds it. Zero means the faction has built no crew berthing here.
+     */
     crew_capacity: number;
+    /**
+     * Total crew that entered or left the reserve, as an absolute count. Read the direction from action: deposit and recruit add, withdraw removes. Omitted when zero.
+     */
     crew_moved?: number;
+    /**
+     * Crew left in this station's shared hiring pool after an action=recruit purchase. Omitted for every other action and when the station has no crew pool. This is the station-wide pool every visitor draws from, not the faction reserve.
+     */
     crew_pool_remaining?: number;
+    /**
+     * Fit crew held in the reserve at this base after the action.
+     */
     fit_crew: number;
+    /**
+     * Fit marines held in the reserve at this base after the action.
+     */
     fit_marines: number;
+    /**
+     * Prize crew currently flying captured hulls home to this base, who will rejoin the reserve on delivery. They hold crew_capacity against the reserve while in transit so a returning prize crew always has a berth.
+     */
     inbound_crew: number;
+    /**
+     * Number of captured hulls in transit to this base crewed from this reserve. Each contributes to inbound_crew.
+     */
     inbound_prizes: number;
+    /**
+     * Injured crew held in the reserve. Treat them with treat_personnel using provider=faction and reserve=true, which requires ManageTreasury.
+     */
     injured_crew: number;
+    /**
+     * Injured marines held in the reserve.
+     */
     injured_marines: number;
+    /**
+     * Maximum marines the reserve can hold at this base, set by the faction's built facilities. fit_marines + injured_marines never exceeds it. Zero means the faction has built no marine berthing here.
+     */
     marine_capacity: number;
+    /**
+     * Marines left in this station's shared marine-training pool after an action=recruit purchase. Omitted for every other action and when the station trains no marines. Station-wide, not faction-private.
+     */
     marine_pool_remaining?: number;
+    /**
+     * Total marines that entered or left the reserve, as an absolute count. Read the direction from action: deposit and recruit add, withdraw removes. Omitted when zero.
+     */
     marines_moved?: number;
+    /**
+     * Treatment capacity currently usable from the faction's private hospital at this base. One unit is consumed per patient treated with provider=faction. Zero means exhausted; it refills over time from the faction's supplies.
+     */
     medical_available: number;
+    /**
+     * Maximum treatment capacity of the faction's private hospital at this base, set by the faction's built medical facilities. medical_available never exceeds it. Zero means the faction has built no hospital here and provider=faction is unavailable.
+     */
     medical_capacity: number;
 };
 
 export type FactionPostMissionResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     escrowed: EscrowedRewards;
     message: string;
@@ -3566,7 +3960,13 @@ export type FactionWarInfo = {
 export type FactionWithdrawCreditsResponse = {
     action: 'faction_withdraw_credits';
     amount: number;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     faction_credits: number;
     player_credits: number;
@@ -3579,7 +3979,13 @@ export type FactionWithdrawInviteResponse = {
 
 export type FactionWithdrawItemsResponse = {
     action: 'faction_withdraw_items';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
@@ -3956,13 +4362,19 @@ export type GetBattleLogResponse = {
      */
     status: string;
     /**
-     * Total number of logged ticks for this battle
+     * Total number of logged ticks for this battle, for paging.
      */
     total_ticks: number;
 };
 
 export type GetBattleStatusResponse = {
+    /**
+     * Battle being reported. Pass it to get_battle_log to replay this battle tick by tick.
+     */
     battle_id: string;
+    /**
+     * Live boarding operations and in-battle self-destruct countdowns in this battle, visible to every observer. Privacy-safe: it reports phase and a coarse progress label but never personnel complements, deployment sizes or exact casualties. Omitted when nothing is boarding. An operation is dropped from this list the moment it resolves — read the battle log for terminal outcomes.
+     */
     boarding?: Array<BoardingPublicStatus>;
     /**
      * The requesting participant's own tactical state. Present only when is_participant is true; omitted for observers. Never describes another participant.
@@ -3972,9 +4384,21 @@ export type GetBattleStatusResponse = {
      * True when the requesting player participates in this battle and receives their own combat_state; false for an observer.
      */
     is_participant: boolean;
+    /**
+     * Every combatant in the battle, automated ones included. Detail fields from stance through kill_count are populated only on your own row; other rows carry public information only.
+     */
     participants?: Array<BattleParticipant>;
+    /**
+     * The opposing sides. Every participant belongs to exactly one side_id listed here; join one with battle action=engage. Omitted when no sides have formed.
+     */
     sides?: Array<BattleSide>;
+    /**
+     * System the battle is happening in.
+     */
     system_id: string;
+    /**
+     * Ticks the battle has been running. Omitted before the first tick resolves.
+     */
     tick_duration?: number;
 };
 
@@ -4208,7 +4632,13 @@ export type GiftNotification = {
 
 export type GiftShipResponse = {
     action: 'gift_ship';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     base_id: string;
     class_id: string;
@@ -4225,7 +4655,13 @@ export type GuideEntry = {
 };
 
 export type HuntResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     command: string;
     message: string;
@@ -4313,7 +4749,13 @@ export type InspectResponse = {
 };
 
 export type InstallModResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cpu_used: number;
     current_ammo?: number;
@@ -4474,7 +4916,13 @@ export type JettisonResponse = {
 
 export type JobCancelResponse = {
     action: 'job_cancel';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     job_id: string;
     kind: 'cancel';
@@ -4500,7 +4948,13 @@ export type JobReorderResponse = {
 
 export type JobRetargetResponse = {
     action: 'job_retarget';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     deliver_to: string;
     job_id: string;
@@ -4553,7 +5007,13 @@ export type JumpCommandResponse = ({
 
 export type JumpResponse = {
     action: 'jumped' | 'pathfinder_arrival';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     exploration_xp?: number;
     from_system: string;
@@ -4580,7 +5040,13 @@ export type ListPassengersResponse = {
 };
 
 export type ListShipForSaleResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     credits_left: number;
     fee: number;
@@ -4611,7 +5077,13 @@ export type LoadDroneResponse = {
 };
 
 export type LoadPassengersResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     count: number;
     loaded: Array<PassengerView>;
@@ -4712,7 +5184,13 @@ export type LootedModule = {
 };
 
 export type LoungeCheckInResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     capacity: number;
     checked_in: Array<PassengerView>;
@@ -4848,7 +5326,13 @@ export type MessageResponse = {
 };
 
 export type MineFilteredResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     filtered: boolean;
     kind: 'filtered';
@@ -4956,7 +5440,13 @@ export type ModifyOrderCommandResponse = ({
 
 export type ModifyOrderResponse = {
     action: 'modify_order';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     kind: 'single';
     listing_fee?: number;
@@ -6074,7 +6564,13 @@ export type Poi = {
 
 export type PackageJobResponse = {
     action: 'pack' | 'unpack';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     escrowed: EscrowSummary;
     eta_ticks: number;
@@ -6104,7 +6600,13 @@ export type PackagedCraftGates = {
 
 export type PackagedCraftQuoteResponse = {
     action: 'craft';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cost: EscrowSummary;
     credits_total: number;
@@ -6218,7 +6720,13 @@ export type PassengerView = {
 
 export type PathfinderJumpResponse = {
     action: 'pathfinder_jump' | 'pathfinder_redirect';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bearing: number;
     message: string;
@@ -6248,7 +6756,13 @@ export type PayBountyResponse = {
 };
 
 export type PendingActionResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     command: string;
     message: string;
@@ -6314,7 +6828,13 @@ export type PirateInfo = {
 };
 
 export type PlaceShipBuyOrderResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     class_id: string;
     credits_left: number;
@@ -6647,36 +7167,93 @@ export type PrizeInfo = {
 };
 
 export type PrizeRecoveryInfo = {
+    /**
+     * Combat identity the prize flies under while in transit. Not a player account: it is what appears as a participant player_id in a battle and as a target in get_nearby and scan, so a rival can intercept the prize by targeting this id.
+     */
     actor_id: string;
     /**
      * Where the prize crew came from and returns to.
      */
     crew_disposition: 'aboard' | 'faction_reserve';
+    /**
+     * Base the prize is being flown to. Delivery there ends the recovery; redirect it with service_prize while it is still in transit.
+     */
     destination_base_id: string;
+    /**
+     * Fuel remaining aboard the prize. It burns fuel on every leg; reaching zero stalls it with wait_reason no_fuel until you top it up with service_prize action=refuel.
+     */
     fuel: number;
+    /**
+     * Current hull points of the captured ship. It is not repaired by capture and takes damage if intercepted; at zero the prize is destroyed and the recovery ends. Raise it with service_prize action=repair.
+     */
     hull: number;
+    /**
+     * Maximum fuel this hull holds. fuel never exceeds it, and a refuel stops here.
+     */
     max_fuel: number;
+    /**
+     * Maximum hull points for this hull. hull never exceeds it, and a repair stops here.
+     */
     max_hull: number;
+    /**
+     * POI the prize is at right now. Omitted mid-jump, when it is between POIs rather than at one.
+     */
     poi_id?: string;
+    /**
+     * Fit crew aboard flying the prize home. Zero means it is adrift and cannot move; crew_disposition says where these crew return to on delivery.
+     */
     prize_crew_fit: number;
+    /**
+     * Stable identity for this recovery operation. Pass it to service_prize.
+     */
     prize_id: string;
+    /**
+     * Faction whose reserve the prize crew return to on delivery. Present only when crew_disposition is faction_reserve; omitted when the crew came from and return to the claimant ship.
+     */
     return_crew_faction_id?: string;
+    /**
+     * Stable ship class ID for the captured hull.
+     */
     ship_class: string;
+    /**
+     * The captured hull itself. It keeps the id it had under its former owner, so the prize and the ship it delivers are the same object.
+     */
     ship_id: string;
+    /**
+     * Player-facing ship name. Uses the hull's custom name when it has one and otherwise the class name. Omitted when neither resolves.
+     */
     ship_name?: string;
     /**
      * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
      */
     status: 'available' | 'claimed' | 'in_transit' | 'delivered' | 'destroyed' | 'expired' | 'recaptured';
+    /**
+     * System the prize is in right now. While a transit leg is in flight this is the leg it started from; the destination of the leg is in transit_to_system_id.
+     */
     system_id?: string;
+    /**
+     * Absolute game tick the current leg completes on — not a duration and not a timestamp. Subtract the tick in get_status to get the ticks remaining. Omitted when no leg is in flight.
+     */
     transit_arrival_tick?: number;
+    /**
+     * POI the current leg departed. Present only while a leg is in flight.
+     */
     transit_from_poi_id?: string;
+    /**
+     * System the current leg departed. Present only while status is in_transit and the prize is actually moving.
+     */
     transit_from_system_id?: string;
     /**
      * Which leg the prize is flying. jump crosses systems. travel crosses POIs inside one system.
      */
     transit_kind?: 'jump' | 'travel';
+    /**
+     * POI the current leg is heading to. Present only while a leg is in flight.
+     */
     transit_to_poi_id?: string;
+    /**
+     * System the current leg is heading to. Equal to transit_from_system_id on a travel leg, which stays inside one system.
+     */
     transit_to_system_id?: string;
     /**
      * Why an in_transit prize is stalled. Omitted while the prize is moving.
@@ -6693,11 +7270,29 @@ export type PrizeServiceResponse = {
      * Where the prize crew came from and returns to.
      */
     crew_disposition?: 'aboard' | 'faction_reserve';
+    /**
+     * The prize's recovery destination after this action. Changed by action=redirect and echoed unchanged by the others. Omitted when the prize no longer has a destination.
+     */
     destination_base_id?: string;
+    /**
+     * Fuel moved out of your own ship's tank into the prize. Present only for action=refuel. Limited by what you carry and the prize's remaining capacity, so it can be less than the quantity you asked for; omitted when nothing moved.
+     */
     fuel_transferred?: number;
+    /**
+     * Hull points restored on the prize. Present only for action=repair. Capped by the prize's missing hull and by the repair kits you carry; omitted when nothing was repaired.
+     */
     hull_repaired?: number;
+    /**
+     * The recovery operation this action applied to, echoed back.
+     */
     prize_id: string;
+    /**
+     * Repair kits consumed from your own cargo to deliver hull_repaired. Present only for action=repair; omitted when none were spent.
+     */
     repair_kits_used?: number;
+    /**
+     * The captured hull the prize is flying.
+     */
     ship_id: string;
     /**
      * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
@@ -6827,12 +7422,33 @@ export type RecoveredBattleSummary = {
 };
 
 export type RecruitPersonnelResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
+    /**
+     * Credits charged for this transaction. Equals crew_recruited * the crew recruit rate + marines_recruited * the marine recruit rate; both rates are published in the catalog. Deducted before the response is sent and counted in lifetime credits_spent.
+     */
     cost: number;
+    /**
+     * Crew left in this station's shared hiring pool after the purchase. Omitted when the station has no crew pool at all; zero means the pool exists but is exhausted. The pool is shared by every visitor and refills over time.
+     */
     crew_pool_remaining?: number;
+    /**
+     * Fit crew actually hired and added to the ship. Zero when capacity or credits admitted none. Crew are filled before marines.
+     */
     crew_recruited: number;
+    /**
+     * Marines left in this station's shared marine-training pool after the purchase. Omitted when the station trains no marines; zero means the pool exists but is exhausted. Shared by every visitor and refills over time.
+     */
     marine_pool_remaining?: number;
+    /**
+     * Fit marines actually hired and added to the ship. Marines are filled from whatever credits remain after crew.
+     */
     marines_recruited: number;
 };
 
@@ -6851,7 +7467,13 @@ export type RecycleJobResponse = ({
 } & JobRetargetResponse);
 
 export type RefitShipResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cargo_returned: number;
     class_id: string;
@@ -7049,7 +7671,13 @@ export type ScrapShipResponse = {
 
 export type ScrapWreckResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     materials: Array<SalvageMaterial>;
     message: string;
@@ -7067,19 +7695,46 @@ export type SearchSystemsResponse = {
 };
 
 export type SelfDestructResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
+    /**
+     * Why the ship was destroyed. Always self_destruct for this command; it matches the cause recorded on the death event and in the action log.
+     */
     cause: string;
+    /**
+     * Human-readable outcome including the fee charged and any trading restriction. Machine-readable equivalents are in the other fields.
+     */
     message: string;
+    /**
+     * Credits seized for repeated self-destruction. The first two self-destructs in a rolling 24 hours are free and omit this field; the third costs 200 and the charge doubles for each one after. If you cannot cover it your wallet is drained to zero — the usual minimum-credits floor is not restored after this fee — and wreck_suppressed becomes true.
+     */
     self_destruct_fee?: number;
+    /**
+     * UTC timestamp until which trading, gifting and exchange orders are blocked. Set only once a fee applies, starting at two hours for the third self-destruct in 24 hours and doubling each time to a 24-hour cap. Omitted for a free self-destruct.
+     */
     trading_restricted_until?: string;
+    /**
+     * Whether the destruction left no wreck for anyone to loot. True for a starter hull, which never leaves one, and when the fee drained your wallet without being covered in full. Omitted when a wreck was created normally.
+     */
     wreck_suppressed?: boolean;
 };
 
 export type SellResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
     auto_listed?: AutoListedOrder;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     fills: Array<Fill>;
     item: string;
@@ -7096,7 +7751,13 @@ export type SellResponse = {
 };
 
 export type SellShipToOrderResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     class_id: string;
     credits_left: number;
@@ -7107,7 +7768,13 @@ export type SellShipToOrderResponse = {
 
 export type SellWreckResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cargo_value?: number;
     message: string;
@@ -7123,7 +7790,13 @@ export type SendGiftResponse = {
      * Completed gift operation including station material donations.
      */
     action: 'send_gift';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     /**
      * Canonical Base ID where gifted items were deposited. A station gift always names the station at which the donor is docked.
@@ -7199,7 +7872,13 @@ export type SetFacilityNameResponse = {
 };
 
 export type SetHomeBaseResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     home_base: string;
     message: string;
@@ -8111,7 +8790,13 @@ export type SubscribeObservationResponse = {
 
 export type SupplyCommissionResponse = {
     all_sourced: boolean;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     commission_id: string;
     commission_status: string;
@@ -8152,7 +8837,13 @@ export type SurveyedPoi = {
 export type SwitchShipResponse = {
     active_ship_class: string;
     active_ship_id: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cargo_note?: string;
     cargo_to_storage?: Array<SoldCargoItem>;
@@ -8307,7 +8998,13 @@ export type TaxableIncomeByCategoryEntry = {
 
 export type TowWreckResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cargo_count?: number;
     insured: boolean;
@@ -8382,7 +9079,13 @@ export type TradeOfferResponse = {
 export type TransferCreditsResponse = {
     action: 'transfer';
     amount: number;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     dest_credits: number;
     destination: string;
@@ -8392,7 +9095,13 @@ export type TransferCreditsResponse = {
 
 export type TransferItemsResponse = {
     action: 'transfer';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     bucket?: string;
     bucket_id?: string;
@@ -8407,7 +9116,13 @@ export type TransferItemsResponse = {
 };
 
 export type TransferPassengersResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     count: number;
     kind: 'transfer';
@@ -8420,12 +9135,33 @@ export type TransferPassengersResponse = {
 };
 
 export type TransferPersonnelResponse = {
+    /**
+     * Fit crew moved from your ship to the target's.
+     */
     fit_crew_transferred: number;
+    /**
+     * Fit marines moved from your ship to the target's.
+     */
     fit_marines_transferred: number;
+    /**
+     * Injured crew sent back from the target to your ship to free the berths your fit crew took. Non-zero only when the target was already at crew capacity. Never exceeds fit_crew_transferred.
+     */
     injured_crew_swapped: number;
+    /**
+     * Injured crew moved from your ship to the target's — how a casualty is handed to a ship with a medical module.
+     */
     injured_crew_transferred: number;
+    /**
+     * Injured marines sent back from the target to your ship to free the berths your fit marines took. Non-zero only when the target was already at marine capacity. Never exceeds fit_marines_transferred.
+     */
     injured_marines_swapped: number;
+    /**
+     * Injured marines moved from your ship to the target's.
+     */
     injured_marines_transferred: number;
+    /**
+     * Username of the ally who received the transfer.
+     */
     target: string;
 };
 
@@ -8447,7 +9183,13 @@ export type TravelNearbyPlayer = {
 
 export type TravelResponse = {
     action: string;
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     message?: string;
     offline_collapsed: number;
@@ -8462,15 +9204,33 @@ export type TravelResponse = {
 };
 
 export type TreatPersonnelResponse = {
+    /**
+     * Credits charged. Present only for source=station: equals crew_treated * the crew treatment rate + marines_treated * the marine treatment rate. Omitted for faction and field treatment, which cost no credits.
+     */
     cost?: number;
+    /**
+     * Injured crew moved back to fit. Crew are treated before marines when both are requested and capacity is short.
+     */
     crew_treated: number;
+    /**
+     * Injured marines moved back to fit.
+     */
     marines_treated: number;
+    /**
+     * Treatment capacity left in the pool that paid, after this treatment. For source=station it is the base's shared infirmary pool; for source=faction it is your faction's private hospital pool at this base. Omitted entirely for source=field. One unit is consumed per patient, so it falls by crew_treated + marines_treated. Zero means the pool is exhausted; it refills over time.
+     */
     medical_pool_remaining?: number;
     /**
      * Which medical supply paid for the treatment. station is the base infirmary. faction is your faction reserve. field is shipboard medical supplies.
      */
     source: 'station' | 'faction' | 'field';
+    /**
+     * medical_supplies consumed from the treating ship's cargo. Present only for source=field. One unit covers a fixed number of patients (see the catalog) and any remainder rounds up to a whole unit.
+     */
     supplies_used?: number;
+    /**
+     * Username of the player whose ship was treated. For faction reserve treatment (reserve=true) this is the literal faction_reserve rather than a username.
+     */
     target: string;
 };
 
@@ -8510,7 +9270,13 @@ export type UndockResponse = {
 };
 
 export type UninstallModResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cpu_used: number;
     message: string;
@@ -8519,7 +9285,13 @@ export type UninstallModResponse = {
 };
 
 export type UnloadAllPassengersResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     delivered: Array<PassengerView>;
     fare_collected: number;
@@ -8548,7 +9320,13 @@ export type UnloadPassengerCommandResponse = ({
 } & LoungeCheckInResponse);
 
 export type UnloadPassengerResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     base_fare?: number;
     delivered: boolean;
@@ -9355,7 +10133,13 @@ export type WildlifeSurvey = {
 
 export type WithdrawItemsResponse = {
     action: 'withdraw_items';
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
     auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
     auto_undocked?: boolean;
     cargo_space: number;
     cargo_total: number;
@@ -9375,6 +10159,9 @@ export type ZoneMoveLogEntry = {
     new_zone: string;
     old_zone: string;
     player_id: string;
+    /**
+     * Why the ship changed ring. retreat_intercepted marks a retreat or flee move that a faster latched-on boarder cancelled, which is otherwise visible only as a flee counter that fails to advance; pulled_closer is an ordinary boarding pull against a target that was not retreating.
+     */
     reason: string;
 };
 

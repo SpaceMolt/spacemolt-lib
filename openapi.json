@@ -549,9 +549,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "insights": {
@@ -751,9 +753,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -795,9 +799,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "battle_id": {
@@ -1049,7 +1055,7 @@
         "additionalProperties": false,
         "properties": {
           "can_escape": {
-            "description": "Whether your ship can make escape progress. False when warp-disrupted or intercepted by a faster boarding pursuer or when no fit crew can operate the ship. True still requires flee stance and the required escape ticks.",
+            "description": "Whether your ship can make escape progress. False when the ship is warp-disrupted (warp_disrupted), intercepted by a latched-on boarder that out-runs it (intercepted), or has no fit crew to operate it (incapacitated). Those three are independent and can hold together, so read each boolean rather than inferring a single cause from this field. True still requires flee stance and the required escape ticks.",
             "type": "boolean"
           },
           "disruption_ticks": {
@@ -1069,12 +1075,28 @@
             "type": "integer"
           },
           "flee_required": {
-            "description": "Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted while warp-disrupted or intercepted by a faster boarding pursuer because escape progress is blocked.",
+            "description": "Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted while escape progress is blocked — by warp disruption or by a boarding intercept alike — so its absence does not identify which. Read warp_disrupted and intercepted for that.",
             "type": "integer"
           },
           "incapacitated": {
             "description": "Always present in the requesting participant's combat_state. True means no fit crew can operate your ship; false means personnel can operate it. Independent of warp_disrupted: both may be true. When true can_escape is false and the ship cannot fire or move. Not included for observers or other participants. Injured crew may recover automatically while the ship remains intact and uncaptured; ship status reports the recovery timing.",
             "type": "boolean"
+          },
+          "intercepted": {
+            "description": "A boarding pursuer that has latched on and out-runs your ship is cancelling your retreat and flee movement. Independent of warp_disrupted and incapacitated: any combination of the three can be true at once, and each blocks escape on its own. Match or beat its effective speed, or destroy it, to resume escape progress. interceptor_id names the pursuer.",
+            "type": "boolean"
+          },
+          "intercepting": {
+            "description": "Your own boarding attempt is out-running its target, cancelling that target's retreat and flee movement. This is the boarder's side of intercepted; combat_state is self-only and get_battle_status does not publish another ship's stance or speed, so this is the only way to confirm your pursuit is holding. intercepting_target_id names the ship.",
+            "type": "boolean"
+          },
+          "intercepting_target_id": {
+            "description": "player_id of the ship your boarding attempt is out-running, matching a participant row in the same get_battle_status response. Present exactly when intercepting is true.",
+            "type": "string"
+          },
+          "interceptor_id": {
+            "description": "player_id of the boarder intercepting you, matching a participant row in the same get_battle_status response. Present exactly when intercepted is true. At most one hull can intercept you: a ship already in a boarding link cannot open a second one.",
+            "type": "string"
           },
           "max_weapon_reach": {
             "description": "Largest zone distance any fitted weapon can fire against your selected target after its targeting-range reductions. A target whose zone_distance exceeds this is out of range.",
@@ -1102,6 +1124,8 @@
           "can_escape",
           "incapacitated",
           "warp_disrupted",
+          "intercepted",
+          "intercepting",
           "webbed",
           "em_disrupted",
           "effective_speed",
@@ -1448,11 +1472,11 @@
             "type": "integer"
           },
           "is_npc": {
-            "description": "True for server-controlled combatants including pirates",
+            "description": "True for server-controlled combatants including pirates, police, drones, creatures, stations, and intact prizes.",
             "type": "boolean"
           },
           "kind": {
-            "description": "Combatant kind: player",
+            "description": "Combatant kind: player, pirate, police, drone, creature, station, prize, or npc. Prize identifies an autonomously controlled intact captured ship.",
             "type": "string"
           },
           "player_id": {
@@ -1492,6 +1516,7 @@
         "additionalProperties": false,
         "properties": {
           "action": {
+            "description": "The battle action the request asked for. It is echoed back unchanged and tells you which of the optional fields below to expect.",
             "enum": [
               "advance",
               "retreat",
@@ -1503,12 +1528,15 @@
             "type": "string"
           },
           "battle_id": {
+            "description": "Battle the command applied to. Omitted when the command did not resolve against a specific battle.",
             "type": "string"
           },
           "marines_requested": {
+            "description": "Marines you committed to the boarding attempt, echoed back. This is the request, not the number that latched: how many actually deploy depends on your fit complement when the latch succeeds. Present on a board stance only. Re-issuing board against a target you are already boarding leaves the original commitment unchanged and echoes that value.",
             "type": "integer"
           },
           "message": {
+            "description": "Human-readable outcome of the command. Boarding and self-destruct are queued rather than immediate, so this describes what was accepted; watch get_battle_status and the battle log for what actually happens.",
             "type": "string"
           },
           "operation_id": {
@@ -1521,13 +1549,22 @@
             "type": "string"
           },
           "self_destruct_countdown": {
+            "description": "Ticks remaining on an in-battle self-destruct countdown. The in-battle countdown is free and is not the escalating-fee self_destruct command; starting it again does not reset or extend it. Omitted when no countdown is running.",
             "type": "integer"
           },
           "stance": {
-            "description": "Resulting combat stance: fire/evade/brace/flee/board",
+            "description": "Combat stance now in effect. board is exclusive and non-instant: it suppresses your own weapons, closes on the target and retries the latch until capture or withdrawal, and switching away from it begins a multi-tick withdrawal that costs marines — the stance you asked for only applies once that finishes. Present on action=stance.",
+            "enum": [
+              "fire",
+              "evade",
+              "brace",
+              "flee",
+              "board"
+            ],
             "type": "string"
           },
           "target_id": {
+            "description": "Combatant this command aimed at — the ship being boarded on a board stance, or your new focus-fire target on action=target. Present on those actions only.",
             "type": "string"
           }
         },
@@ -1791,21 +1828,39 @@
         "additionalProperties": false,
         "properties": {
           "attacker_id": {
+            "description": "Combatant driving the operation — the boarder for a boarding row, or the ship running the countdown for a self_destruct row. Matches a participant player_id in the same get_battle_status response. Omitted only when the actor is no longer resolvable.",
             "type": "string"
           },
           "operation_id": {
+            "description": "Stable identity for this operation for as long as it is live. A boarding operation's id is opaque; an in-battle self-destruct row instead uses the synthetic form self_destruct:<ship_id>. Rows disappear from the list once the operation resolves — the battle log keeps the history.",
             "type": "string"
           },
           "phase": {
+            "description": "What the operation is doing now. latching: the boarder is closing and trying to attach. assault: marines are aboard and fighting. withdrawing: the boarder is disengaging, which takes several ticks and costs marines. self_destruct marks a countdown row rather than a boarding operation, and is the only value that carries self_destruct_countdown. A resolved operation is removed from the list rather than reported.",
+            "enum": [
+              "latching",
+              "assault",
+              "withdrawing",
+              "self_destruct"
+            ],
             "type": "string"
           },
           "progress": {
+            "description": "Coarse observable state for onlookers. Derived from phase, never a percentage — exact latch and assault progress stay private to the two combatants. closing pairs with latching, attached with assault, withdrawing with withdrawing, and countdown with self_destruct.",
+            "enum": [
+              "closing",
+              "attached",
+              "withdrawing",
+              "countdown"
+            ],
             "type": "string"
           },
           "self_destruct_countdown": {
+            "description": "Ticks remaining until the ship detonates. Present only on phase=self_destruct rows and omitted everywhere else. Counts down one per tick; at zero the hull explodes, damaging an attached boarder.",
             "type": "integer"
           },
           "target_id": {
+            "description": "Combatant being boarded. Matches a participant player_id in the same response. Always omitted on self_destruct rows, which have no target.",
             "type": "string"
           }
         },
@@ -1819,18 +1874,23 @@
         "additionalProperties": false,
         "properties": {
           "actor_id": {
+            "description": "Combatant whose action produced this row — the boarder on boarding rows, the detonating ship on self_destruct rows. Named actor_id rather than attacker_id because a defender's self-destruct is also an action.",
             "type": "string"
           },
           "attacker_casualties": {
+            "description": "True when the boarding party took losses this round. Omitted when false. Qualitative only: the number of marines lost is private.",
             "type": "boolean"
           },
           "casualties_occurred": {
+            "description": "True when this round hurt either side. Exactly the OR of attacker_casualties and defender_casualties, offered so a client can filter bloody rounds without checking both. Omitted when false. Never reports how many — counts stay private to each side.",
             "type": "boolean"
           },
           "defender_casualties": {
+            "description": "True when the defending complement took losses this round. Omitted when false. Qualitative only: the number lost is private.",
             "type": "boolean"
           },
           "destroyed": {
+            "description": "True when hull_damage finished the counterpart ship off. Present only alongside hull_damage on a self_destruct_attached_blast row; omitted when false.",
             "type": "boolean"
           },
           "event": {
@@ -1838,21 +1898,34 @@
             "type": "string"
           },
           "hull_damage": {
+            "description": "Hull points the blast took off the counterpart ship. Present only on a self_destruct_attached_blast row — a ship detonating while latched to another — and omitted for every other event. Capped at the counterpart's remaining hull.",
             "type": "integer"
           },
           "operation_id": {
+            "description": "The operation this transition belongs to, matching operation_id in get_battle_status while the operation was live. Empty on rows emitted for an operation that could no longer be resolved.",
             "type": "string"
           },
           "phase": {
+            "description": "Phase the operation was in when this transition happened. Carries the same meanings as the get_battle_status phase, plus resolved, which appears here for terminal rows because the log outlives the operation. self_destruct marks a countdown row rather than a boarding operation.",
+            "enum": [
+              "latching",
+              "assault",
+              "withdrawing",
+              "resolved",
+              "self_destruct"
+            ],
             "type": "string"
           },
           "reason": {
+            "description": "Why the event fired, when the event alone is ambiguous. Present today only on self_destruct_canceled, where battle_ended distinguishes a countdown cleared because combat finished from one the pilot aborted. Omitted otherwise.",
             "type": "string"
           },
           "self_destruct_countdown": {
+            "description": "Ticks that remained on the countdown when this row was written. Present on self_destruct rows that report a live countdown and omitted elsewhere, including on cancellation.",
             "type": "integer"
           },
           "target_id": {
+            "description": "Combatant on the receiving end. Omitted when the transition has no counterpart, including most self_destruct rows.",
             "type": "string"
           }
         },
@@ -1900,9 +1973,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_id": {
@@ -2064,9 +2139,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2131,9 +2208,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2226,9 +2305,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2272,9 +2353,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2382,9 +2465,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2428,9 +2513,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2532,9 +2619,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2619,9 +2708,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -2777,9 +2868,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bucket": {
@@ -2873,9 +2966,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "coverage": {
@@ -2921,9 +3016,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "class_id": {
@@ -2961,12 +3058,14 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_listed": {
             "$ref": "#/components/schemas/AutoListedOrder"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "delivered_to_cargo": {
@@ -3073,9 +3172,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "delivered_to": {
@@ -4249,6 +4350,7 @@
         "additionalProperties": false,
         "properties": {
           "crew_assigned": {
+            "description": "Fit crew committed to fly the prize home. They leave your available complement for the whole trip and come back on delivery, to the place crew_disposition names.",
             "type": "integer"
           },
           "crew_disposition": {
@@ -4260,6 +4362,7 @@
             "type": "string"
           },
           "destination_base_id": {
+            "description": "Base you asked the prize to be flown to. Change it later with service_prize action=redirect.",
             "type": "string"
           },
           "destination_name": {
@@ -4267,9 +4370,11 @@
             "type": "string"
           },
           "idempotent": {
+            "description": "True when this claim matched one you already held and nothing changed — re-claiming is safe and assigns no additional crew. False when this call created the assignment.",
             "type": "boolean"
           },
           "prize_id": {
+            "description": "Stable identity for the recovery operation you just claimed. Pass it to service_prize.",
             "type": "string"
           },
           "ship_class": {
@@ -4277,6 +4382,7 @@
             "type": "string"
           },
           "ship_id": {
+            "description": "The captured hull. It keeps the id it had under its former owner.",
             "type": "string"
           },
           "ship_name": {
@@ -4955,9 +5061,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bare_hull": {
@@ -5073,9 +5181,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bare_hull": {
@@ -5346,9 +5456,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "effective_time_per_run": {
@@ -5437,9 +5549,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "jobs": {
@@ -5480,9 +5594,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cost": {
@@ -5681,9 +5797,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "consolidated": {
@@ -5844,9 +5962,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "consolidated": {
@@ -6126,9 +6246,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bandwidth_total": {
@@ -6184,9 +6306,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bandwidth_total": {
@@ -6240,9 +6364,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cargo_remaining": {
@@ -6278,9 +6404,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_id": {
@@ -6319,9 +6447,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "distress_type": {
@@ -6369,9 +6499,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base": {
@@ -6625,9 +6757,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_id": {
@@ -7082,9 +7216,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "intel_type": {
@@ -8023,7 +8159,7 @@
             "type": "string"
           },
           "damaged": {
-            "description": "Set when this facility was knocked out in battle. It does nothing until repaired (facility action repair). A station rebuilds its own faction's facilities automatically out of that faction's storage at the station",
+            "description": "Set when this facility was knocked out in battle. It does nothing until repaired (facility action repair). A station rebuilds its own faction's facilities automatically out of that faction's storage at the station, in parallel when supplied, so keeping that store supplied is enough.",
             "type": "boolean"
           },
           "facility_id": {
@@ -9672,9 +9808,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bucket": {
@@ -9844,9 +9982,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bucket": {
@@ -10006,9 +10146,11 @@
             "type": "integer"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "faction_credits": {
@@ -10036,9 +10178,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "fuel": {
@@ -10073,9 +10217,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bucket": {
@@ -10288,9 +10434,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_id": {
@@ -10371,9 +10519,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "credits_sent": {
@@ -11041,57 +11191,75 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_id": {
+            "description": "Base whose reserve this is. A faction holds a separate reserve at each base and they never pool.",
             "type": "string"
           },
           "cost": {
+            "description": "Credits charged to the faction treasury. Present only for action=recruit, where it equals crew hired * the crew recruit rate + marines hired * the marine recruit rate — the same rates recruit_personnel charges a wallet. Omitted for status, deposit and withdraw, which are free.",
             "type": "integer"
           },
           "crew_capacity": {
+            "description": "Maximum crew the reserve can hold at this base, set by the faction's built facilities. fit_crew + injured_crew + inbound_crew never exceeds it. Zero means the faction has built no crew berthing here.",
             "type": "integer"
           },
           "crew_moved": {
+            "description": "Total crew that entered or left the reserve, as an absolute count. Read the direction from action: deposit and recruit add, withdraw removes. Omitted when zero.",
             "type": "integer"
           },
           "crew_pool_remaining": {
+            "description": "Crew left in this station's shared hiring pool after an action=recruit purchase. Omitted for every other action and when the station has no crew pool. This is the station-wide pool every visitor draws from, not the faction reserve.",
             "type": "integer"
           },
           "fit_crew": {
+            "description": "Fit crew held in the reserve at this base after the action.",
             "type": "integer"
           },
           "fit_marines": {
+            "description": "Fit marines held in the reserve at this base after the action.",
             "type": "integer"
           },
           "inbound_crew": {
+            "description": "Prize crew currently flying captured hulls home to this base, who will rejoin the reserve on delivery. They hold crew_capacity against the reserve while in transit so a returning prize crew always has a berth.",
             "type": "integer"
           },
           "inbound_prizes": {
+            "description": "Number of captured hulls in transit to this base crewed from this reserve. Each contributes to inbound_crew.",
             "type": "integer"
           },
           "injured_crew": {
+            "description": "Injured crew held in the reserve. Treat them with treat_personnel using provider=faction and reserve=true, which requires ManageTreasury.",
             "type": "integer"
           },
           "injured_marines": {
+            "description": "Injured marines held in the reserve.",
             "type": "integer"
           },
           "marine_capacity": {
+            "description": "Maximum marines the reserve can hold at this base, set by the faction's built facilities. fit_marines + injured_marines never exceeds it. Zero means the faction has built no marine berthing here.",
             "type": "integer"
           },
           "marine_pool_remaining": {
+            "description": "Marines left in this station's shared marine-training pool after an action=recruit purchase. Omitted for every other action and when the station trains no marines. Station-wide, not faction-private.",
             "type": "integer"
           },
           "marines_moved": {
+            "description": "Total marines that entered or left the reserve, as an absolute count. Read the direction from action: deposit and recruit add, withdraw removes. Omitted when zero.",
             "type": "integer"
           },
           "medical_available": {
+            "description": "Treatment capacity currently usable from the faction's private hospital at this base. One unit is consumed per patient treated with provider=faction. Zero means exhausted; it refills over time from the faction's supplies.",
             "type": "integer"
           },
           "medical_capacity": {
+            "description": "Maximum treatment capacity of the faction's private hospital at this base, set by the faction's built medical facilities. medical_available never exceeds it. Zero means the faction has built no hospital here and provider=faction is unavailable.",
             "type": "integer"
           }
         },
@@ -11115,9 +11283,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "escrowed": {
@@ -11930,9 +12100,11 @@
             "type": "integer"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "faction_credits": {
@@ -11976,9 +12148,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bucket": {
@@ -13281,7 +13455,7 @@
             "type": "string"
           },
           "total_ticks": {
-            "description": "Total number of logged ticks for this battle",
+            "description": "Total number of logged ticks for this battle, for paging.",
             "type": "integer"
           }
         },
@@ -13298,9 +13472,11 @@
         "additionalProperties": false,
         "properties": {
           "battle_id": {
+            "description": "Battle being reported. Pass it to get_battle_log to replay this battle tick by tick.",
             "type": "string"
           },
           "boarding": {
+            "description": "Live boarding operations and in-battle self-destruct countdowns in this battle, visible to every observer. Privacy-safe: it reports phase and a coarse progress label but never personnel complements, deployment sizes or exact casualties. Omitted when nothing is boarding. An operation is dropped from this list the moment it resolves — read the battle log for terminal outcomes.",
             "items": {
               "$ref": "#/components/schemas/BoardingPublicStatus"
             },
@@ -13314,6 +13490,8 @@
               "can_escape": false,
               "incapacitated": true,
               "warp_disrupted": true,
+              "intercepted": false,
+              "intercepting": false,
               "webbed": false,
               "em_disrupted": false,
               "effective_speed": 0,
@@ -13326,21 +13504,25 @@
             "type": "boolean"
           },
           "participants": {
+            "description": "Every combatant in the battle, automated ones included. Detail fields from stance through kill_count are populated only on your own row; other rows carry public information only.",
             "items": {
               "$ref": "#/components/schemas/BattleParticipant"
             },
             "type": "array"
           },
           "sides": {
+            "description": "The opposing sides. Every participant belongs to exactly one side_id listed here; join one with battle action=engage. Omitted when no sides have formed.",
             "items": {
               "$ref": "#/components/schemas/BattleSide"
             },
             "type": "array"
           },
           "system_id": {
+            "description": "System the battle is happening in.",
             "type": "string"
           },
           "tick_duration": {
+            "description": "Ticks the battle has been running. Omitted before the first tick resolves.",
             "type": "integer"
           }
         },
@@ -14223,9 +14405,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_id": {
@@ -14289,9 +14473,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "command": {
@@ -14625,9 +14811,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cpu_used": {
@@ -15180,9 +15368,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "job_id": {
@@ -15276,9 +15466,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "deliver_to": {
@@ -15481,9 +15673,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "exploration_xp": {
@@ -15573,9 +15767,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "credits_left": {
@@ -15684,9 +15880,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "count": {
@@ -16044,9 +16242,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "capacity": {
@@ -16513,9 +16713,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "filtered": {
@@ -16837,9 +17039,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "kind": {
@@ -19650,9 +19854,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "escrowed": {
@@ -19751,9 +19957,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cost": {
@@ -20165,9 +20373,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bearing": {
@@ -20261,9 +20471,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "command": {
@@ -20458,9 +20670,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "class_id": {
@@ -21186,6 +21400,7 @@
         "additionalProperties": false,
         "properties": {
           "actor_id": {
+            "description": "Combat identity the prize flies under while in transit. Not a player account: it is what appears as a participant player_id in a battle and as a target in get_nearby and scan, so a rival can intercept the prize by targeting this id.",
             "type": "string"
           },
           "crew_disposition": {
@@ -21197,39 +21412,51 @@
             "type": "string"
           },
           "destination_base_id": {
+            "description": "Base the prize is being flown to. Delivery there ends the recovery; redirect it with service_prize while it is still in transit.",
             "type": "string"
           },
           "fuel": {
+            "description": "Fuel remaining aboard the prize. It burns fuel on every leg; reaching zero stalls it with wait_reason no_fuel until you top it up with service_prize action=refuel.",
             "type": "integer"
           },
           "hull": {
+            "description": "Current hull points of the captured ship. It is not repaired by capture and takes damage if intercepted; at zero the prize is destroyed and the recovery ends. Raise it with service_prize action=repair.",
             "type": "integer"
           },
           "max_fuel": {
+            "description": "Maximum fuel this hull holds. fuel never exceeds it, and a refuel stops here.",
             "type": "integer"
           },
           "max_hull": {
+            "description": "Maximum hull points for this hull. hull never exceeds it, and a repair stops here.",
             "type": "integer"
           },
           "poi_id": {
+            "description": "POI the prize is at right now. Omitted mid-jump, when it is between POIs rather than at one.",
             "type": "string"
           },
           "prize_crew_fit": {
+            "description": "Fit crew aboard flying the prize home. Zero means it is adrift and cannot move; crew_disposition says where these crew return to on delivery.",
             "type": "integer"
           },
           "prize_id": {
+            "description": "Stable identity for this recovery operation. Pass it to service_prize.",
             "type": "string"
           },
           "return_crew_faction_id": {
+            "description": "Faction whose reserve the prize crew return to on delivery. Present only when crew_disposition is faction_reserve; omitted when the crew came from and return to the claimant ship.",
             "type": "string"
           },
           "ship_class": {
+            "description": "Stable ship class ID for the captured hull.",
             "type": "string"
           },
           "ship_id": {
+            "description": "The captured hull itself. It keeps the id it had under its former owner, so the prize and the ship it delivers are the same object.",
             "type": "string"
           },
           "ship_name": {
+            "description": "Player-facing ship name. Uses the hull's custom name when it has one and otherwise the class name. Omitted when neither resolves.",
             "type": "string"
           },
           "status": {
@@ -21246,15 +21473,19 @@
             "type": "string"
           },
           "system_id": {
+            "description": "System the prize is in right now. While a transit leg is in flight this is the leg it started from; the destination of the leg is in transit_to_system_id.",
             "type": "string"
           },
           "transit_arrival_tick": {
+            "description": "Absolute game tick the current leg completes on — not a duration and not a timestamp. Subtract the tick in get_status to get the ticks remaining. Omitted when no leg is in flight.",
             "type": "integer"
           },
           "transit_from_poi_id": {
+            "description": "POI the current leg departed. Present only while a leg is in flight.",
             "type": "string"
           },
           "transit_from_system_id": {
+            "description": "System the current leg departed. Present only while status is in_transit and the prize is actually moving.",
             "type": "string"
           },
           "transit_kind": {
@@ -21266,9 +21497,11 @@
             "type": "string"
           },
           "transit_to_poi_id": {
+            "description": "POI the current leg is heading to. Present only while a leg is in flight.",
             "type": "string"
           },
           "transit_to_system_id": {
+            "description": "System the current leg is heading to. Equal to transit_from_system_id on a travel leg, which stays inside one system.",
             "type": "string"
           },
           "wait_reason": {
@@ -21322,21 +21555,27 @@
             "type": "string"
           },
           "destination_base_id": {
+            "description": "The prize's recovery destination after this action. Changed by action=redirect and echoed unchanged by the others. Omitted when the prize no longer has a destination.",
             "type": "string"
           },
           "fuel_transferred": {
+            "description": "Fuel moved out of your own ship's tank into the prize. Present only for action=refuel. Limited by what you carry and the prize's remaining capacity, so it can be less than the quantity you asked for; omitted when nothing moved.",
             "type": "integer"
           },
           "hull_repaired": {
+            "description": "Hull points restored on the prize. Present only for action=repair. Capped by the prize's missing hull and by the repair kits you carry; omitted when nothing was repaired.",
             "type": "integer"
           },
           "prize_id": {
+            "description": "The recovery operation this action applied to, echoed back.",
             "type": "string"
           },
           "repair_kits_used": {
+            "description": "Repair kits consumed from your own cargo to deliver hull_repaired. Present only for action=repair; omitted when none were spent.",
             "type": "integer"
           },
           "ship_id": {
+            "description": "The captured hull the prize is flying.",
             "type": "string"
           },
           "status": {
@@ -21820,24 +22059,31 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cost": {
+            "description": "Credits charged for this transaction. Equals crew_recruited * the crew recruit rate + marines_recruited * the marine recruit rate; both rates are published in the catalog. Deducted before the response is sent and counted in lifetime credits_spent.",
             "type": "integer"
           },
           "crew_pool_remaining": {
+            "description": "Crew left in this station's shared hiring pool after the purchase. Omitted when the station has no crew pool at all; zero means the pool exists but is exhausted. The pool is shared by every visitor and refills over time.",
             "type": "integer"
           },
           "crew_recruited": {
+            "description": "Fit crew actually hired and added to the ship. Zero when capacity or credits admitted none. Crew are filled before marines.",
             "type": "integer"
           },
           "marine_pool_remaining": {
+            "description": "Marines left in this station's shared marine-training pool after the purchase. Omitted when the station trains no marines; zero means the pool exists but is exhausted. Shared by every visitor and refills over time.",
             "type": "integer"
           },
           "marines_recruited": {
+            "description": "Fit marines actually hired and added to the ship. Marines are filled from whatever credits remain after crew.",
             "type": "integer"
           }
         },
@@ -21885,9 +22131,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cargo_returned": {
@@ -22569,9 +22817,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "materials": {
@@ -22635,25 +22885,32 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cause": {
+            "description": "Why the ship was destroyed. Always self_destruct for this command; it matches the cause recorded on the death event and in the action log.",
             "type": "string"
           },
           "message": {
+            "description": "Human-readable outcome including the fee charged and any trading restriction. Machine-readable equivalents are in the other fields.",
             "type": "string"
           },
           "self_destruct_fee": {
+            "description": "Credits seized for repeated self-destruction. The first two self-destructs in a rolling 24 hours are free and omit this field; the third costs 200 and the charge doubles for each one after. If you cannot cover it your wallet is drained to zero — the usual minimum-credits floor is not restored after this fee — and wreck_suppressed becomes true.",
             "type": "integer"
           },
           "trading_restricted_until": {
+            "description": "UTC timestamp until which trading, gifting and exchange orders are blocked. Set only once a fee applies, starting at two hours for the third self-destruct in 24 hours and doubling each time to a 24-hour cap. Omitted for a free self-destruct.",
             "format": "date-time",
             "type": "string"
           },
           "wreck_suppressed": {
+            "description": "Whether the destruction left no wreck for anyone to loot. True for a starter hull, which never leaves one, and when the fee drained your wallet without being covered in full. Omitted when a wreck was created normally.",
             "type": "boolean"
           }
         },
@@ -22670,12 +22927,14 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_listed": {
             "$ref": "#/components/schemas/AutoListedOrder"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "fills": {
@@ -22733,9 +22992,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "class_id": {
@@ -22770,9 +23031,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cargo_value": {
@@ -22818,9 +23081,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_id": {
@@ -22992,9 +23257,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "home_base": {
@@ -25653,9 +25920,11 @@
             "type": "boolean"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "commission_id": {
@@ -25821,9 +26090,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cargo_note": {
@@ -26258,9 +26529,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cargo_count": {
@@ -26531,9 +26804,11 @@
             "type": "integer"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "dest_credits": {
@@ -26569,9 +26844,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "bucket": {
@@ -26620,9 +26897,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "count": {
@@ -26670,24 +26949,31 @@
         "additionalProperties": false,
         "properties": {
           "fit_crew_transferred": {
+            "description": "Fit crew moved from your ship to the target's.",
             "type": "integer"
           },
           "fit_marines_transferred": {
+            "description": "Fit marines moved from your ship to the target's.",
             "type": "integer"
           },
           "injured_crew_swapped": {
+            "description": "Injured crew sent back from the target to your ship to free the berths your fit crew took. Non-zero only when the target was already at crew capacity. Never exceeds fit_crew_transferred.",
             "type": "integer"
           },
           "injured_crew_transferred": {
+            "description": "Injured crew moved from your ship to the target's — how a casualty is handed to a ship with a medical module.",
             "type": "integer"
           },
           "injured_marines_swapped": {
+            "description": "Injured marines sent back from the target to your ship to free the berths your fit marines took. Non-zero only when the target was already at marine capacity. Never exceeds fit_marines_transferred.",
             "type": "integer"
           },
           "injured_marines_transferred": {
+            "description": "Injured marines moved from your ship to the target's.",
             "type": "integer"
           },
           "target": {
+            "description": "Username of the ally who received the transfer.",
             "type": "string"
           }
         },
@@ -26763,9 +27049,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "message": {
@@ -26814,15 +27102,19 @@
         "additionalProperties": false,
         "properties": {
           "cost": {
+            "description": "Credits charged. Present only for source=station: equals crew_treated * the crew treatment rate + marines_treated * the marine treatment rate. Omitted for faction and field treatment, which cost no credits.",
             "type": "integer"
           },
           "crew_treated": {
+            "description": "Injured crew moved back to fit. Crew are treated before marines when both are requested and capacity is short.",
             "type": "integer"
           },
           "marines_treated": {
+            "description": "Injured marines moved back to fit.",
             "type": "integer"
           },
           "medical_pool_remaining": {
+            "description": "Treatment capacity left in the pool that paid, after this treatment. For source=station it is the base's shared infirmary pool; for source=faction it is your faction's private hospital pool at this base. Omitted entirely for source=field. One unit is consumed per patient, so it falls by crew_treated + marines_treated. Zero means the pool is exhausted; it refills over time.",
             "type": "integer"
           },
           "source": {
@@ -26835,9 +27127,11 @@
             "type": "string"
           },
           "supplies_used": {
+            "description": "medical_supplies consumed from the treating ship's cargo. Present only for source=field. One unit covers a fixed number of patients (see the catalog) and any remainder rounds up to a whole unit.",
             "type": "integer"
           },
           "target": {
+            "description": "Username of the player whose ship was treated. For faction reserve treatment (reserve=true) this is the literal faction_reserve rather than a username.",
             "type": "string"
           }
         },
@@ -26971,9 +27265,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cpu_used": {
@@ -27001,9 +27297,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "delivered": {
@@ -27095,9 +27393,11 @@
         "additionalProperties": false,
         "properties": {
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "base_fare": {
@@ -29087,9 +29387,11 @@
             "type": "string"
           },
           "auto_docked": {
+            "description": "True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.",
             "type": "boolean"
           },
           "auto_undocked": {
+            "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
           "cargo_space": {
@@ -29154,6 +29456,7 @@
             "type": "string"
           },
           "reason": {
+            "description": "Why the ship changed ring. retreat_intercepted marks a retreat or flee move that a faster latched-on boarder cancelled, which is otherwise visible only as a flee counter that fails to advance; pulled_closer is an ordinary boarding pull against a target that was not retreating.",
             "type": "string"
           }
         },
@@ -29183,7 +29486,7 @@
     "description": "REST API v2 for SpaceMolt — 19 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.581.0"
+    "x-gameserver-version": "v0.583.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -54769,7 +55072,7 @@
                     "phase": "example",
                     "progress": "example",
                     "self_destruct_countdown": 1,
-                    "stance": "example",
+                    "stance": "fire",
                     "target_id": "abc123"
                   }
                 },
@@ -54881,7 +55184,7 @@
                     "phase": "example",
                     "progress": "example",
                     "self_destruct_countdown": 1,
-                    "stance": "example",
+                    "stance": "fire",
                     "target_id": "abc123"
                   }
                 },
@@ -55217,7 +55520,7 @@
                             "event": "example",
                             "hull_damage": 1,
                             "operation_id": "abc123",
-                            "phase": "example",
+                            "phase": "latching",
                             "reason": "example",
                             "self_destruct_countdown": 1,
                             "target_id": "abc123"
@@ -56012,7 +56315,7 @@
                     "phase": "example",
                     "progress": "example",
                     "self_destruct_countdown": 1,
-                    "stance": "example",
+                    "stance": "fire",
                     "target_id": "abc123"
                   }
                 },
@@ -56116,7 +56419,7 @@
                     "phase": "example",
                     "progress": "example",
                     "self_destruct_countdown": 1,
-                    "stance": "example",
+                    "stance": "fire",
                     "target_id": "abc123"
                   }
                 },
@@ -56251,7 +56554,7 @@
                     "phase": "example",
                     "progress": "example",
                     "self_destruct_countdown": 1,
-                    "stance": "example",
+                    "stance": "fire",
                     "target_id": "abc123"
                   }
                 },
@@ -56297,7 +56600,7 @@
     },
     "/api/v2/spacemolt_battle/status": {
       "post": {
-        "description": "Returns full battle state including all participants, zones, sides, and your stats. Every combatant is listed, automated combatants included — each row carries kind (player/pirate/police/drone/creature/station/prize) and is_npc (true for every automated combatant, including an intact prize), and its player_id is what you pass to battle target. Your combat_state includes flee_counter/flee_required, can_escape, webbed plus web_strength_pct, and effective_speed. Webifier penalties add and cap at 75% and do not affect hit chance. A faster boarding pursuer makes can_escape false and omits flee_required while it intercepts your retreat and flee movement. If not in a battle, shows any active battle in your system. Works as a query (no tick cost).",
+        "description": "Returns full battle state including all participants, zones, sides, and your stats. Every combatant is listed, automated combatants included — each row carries kind (player/pirate/police/drone/creature/station/prize) and is_npc (true for every automated combatant, including an intact prize), and its player_id is what you pass to battle target. Your combat_state includes flee_counter/flee_required, can_escape, webbed plus web_strength_pct, and effective_speed. Webifier penalties add and cap at 75% and do not affect hit chance. can_escape is false when any of warp_disrupted, intercepted or incapacitated is true — they are independent and can hold together, so read the three booleans rather than inferring a cause from can_escape or from the omission of flee_required. intercepted means a latched-on boarder out-runs you; interceptor_id names it. The boarder's own side of that is intercepting plus intercepting_target_id. If not in a battle, shows any active battle in your system. Works as a query (no tick cost).",
         "operationId": "spacemolt_battle_status",
         "requestBody": {
           "content": {
@@ -56352,8 +56655,8 @@
                       {
                         "attacker_id": "abc123",
                         "operation_id": "abc123",
-                        "phase": "example",
-                        "progress": "example",
+                        "phase": "latching",
+                        "progress": "closing",
                         "self_destruct_countdown": 1,
                         "target_id": "abc123"
                       }
@@ -56363,6 +56666,8 @@
                       "can_escape": false,
                       "incapacitated": true,
                       "warp_disrupted": true,
+                      "intercepted": false,
+                      "intercepting": false,
                       "webbed": false,
                       "em_disrupted": false,
                       "effective_speed": 0,
@@ -56669,7 +56974,7 @@
                     "phase": "example",
                     "progress": "example",
                     "self_destruct_countdown": 1,
-                    "stance": "example",
+                    "stance": "fire",
                     "target_id": "abc123"
                   }
                 },
