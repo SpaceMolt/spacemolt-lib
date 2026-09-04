@@ -187,6 +187,216 @@ export type AnalyzeMarketResponse = {
     station: string;
 };
 
+export type ArenaAcceptResponse = {
+    /**
+     * Always accept.
+     */
+    action: 'accept';
+    /**
+     * ID of the arena battle. Use the battle command and get_battle_status to fight it.
+     */
+    battle_id: string;
+    /**
+     * Human-readable confirmation.
+     */
+    message: string;
+    /**
+     * The challenger's battle side ID.
+     */
+    opponent_side: number;
+    /**
+     * Every pilot in the match, both sides, at the moment it started.
+     */
+    participants: Array<ArenaParticipantInfo>;
+    /**
+     * Your battle side ID.
+     */
+    your_side: number;
+};
+
+export type ArenaActionResponse = {
+    /**
+     * The action that was performed.
+     */
+    action: 'decline' | 'cancel';
+    /**
+     * ID of the challenge that was removed.
+     */
+    challenge_id: string;
+    /**
+     * Human-readable confirmation.
+     */
+    message: string;
+};
+
+export type ArenaChallengeInfo = {
+    /**
+     * ID of the pending challenge.
+     */
+    challenge_id: string;
+    /**
+     * Server tick after which the challenge lapses.
+     */
+    expires_tick: number;
+    /**
+     * Maximum ships per side. 0 means every eligible fleet member joins.
+     */
+    max_side_size: number;
+    /**
+     * Player ID of the other party.
+     */
+    opponent_id: string;
+    /**
+     * Username of the other party.
+     */
+    opponent_name: string;
+    /**
+     * Arena POI the match will be fought at.
+     */
+    poi_id: string;
+};
+
+export type ArenaChallengeResponse = {
+    /**
+     * Always challenge.
+     */
+    action: 'challenge';
+    /**
+     * ID of the pending challenge. Only one challenge per player is pending at a time.
+     */
+    challenge_id: string;
+    /**
+     * Server tick after which the challenge lapses if not accepted.
+     */
+    expires_tick: number;
+    /**
+     * Maximum ships per side. 0 means every eligible fleet member joins, 1 means a solo duel.
+     */
+    max_side_size: number;
+    /**
+     * Human-readable confirmation.
+     */
+    message: string;
+    /**
+     * Arena POI the match will be fought at. Both sides must stay undocked here until the challenge is answered.
+     */
+    poi_id: string;
+    /**
+     * Player ID of the pilot you challenged.
+     */
+    target_id: string;
+    /**
+     * Username of the pilot you challenged.
+     */
+    target_name: string;
+};
+
+export type ArenaDroneEntry = {
+    hull: number;
+    owner_id: string;
+    status: string;
+};
+
+export type ArenaParticipantInfo = {
+    /**
+     * Player ID.
+     */
+    player_id: string;
+    /**
+     * Battle side the pilot fights on. Fleet members share their leader's side.
+     */
+    side_id: number;
+    /**
+     * Username.
+     */
+    username: string;
+};
+
+export type ArenaResponse = ({
+    action: 'challenge';
+} & ArenaChallengeResponse) | ({
+    action: 'accept';
+} & ArenaAcceptResponse) | ({
+    action: 'cancel' | 'decline';
+} & ArenaActionResponse) | ({
+    action: 'status';
+} & ArenaStatusResponse) | ({
+    action: 'help';
+} & CommandHelpResponse);
+
+export type ArenaRestoreState = {
+    battle_id: string;
+    drones?: {
+        [key: string]: ArenaDroneEntry;
+    };
+    ships?: {
+        [key: string]: ArenaShipEntry;
+    };
+};
+
+export type ArenaShipEntry = {
+    armor: number;
+    hull: number;
+    max_hull: number;
+    max_shield: number;
+    personnel: PersonnelState;
+    personnel_recovery_tick?: number;
+    player_id: string;
+    shield: number;
+};
+
+export type ArenaStatusResponse = {
+    /**
+     * Always status.
+     */
+    action: 'status';
+    /**
+     * Lifetime opponents and drones you knocked out in the arena.
+     */
+    arena_knockouts: number;
+    /**
+     * Lifetime arena matches your side lost. Stalemates count for neither.
+     */
+    arena_losses: number;
+    /**
+     * Lifetime arena matches your side won.
+     */
+    arena_wins: number;
+    /**
+     * True when your current POI hosts arena matches.
+     */
+    at_arena: boolean;
+    /**
+     * ID of the arena battle you are fighting in. Omitted when you are not in one.
+     */
+    battle_id?: string;
+    /**
+     * A challenge waiting for your answer. Omitted when none is pending.
+     */
+    incoming?: ArenaChallengeInfo;
+    /**
+     * A challenge you issued that is still unanswered. Omitted when none is pending.
+     */
+    outgoing?: ArenaChallengeInfo;
+    /**
+     * Daily arena XP limit per skill.
+     */
+    xp_cap_per_skill: number;
+    /**
+     * Combat XP earned from arena fights today (UTC), keyed by skill ID. Empty when none. Each skill stops earning arena XP at xp_cap_per_skill until the next UTC day.
+     */
+    xp_used_today: {
+        [key: string]: number;
+    };
+};
+
+export type ArenaXpLedger = {
+    by_skill: {
+        [key: string]: number;
+    };
+    day: string;
+};
+
 export type AttackLogEntry = {
     after_def_buff?: number;
     after_stance?: number;
@@ -494,6 +704,8 @@ export type BattleEndedParticipantInfo = {
 };
 
 export type BattleLogEntry = {
+    arena?: boolean;
+    arena_restore?: ArenaRestoreState;
     attacks?: Array<AttackLogEntry>;
     autopilot?: Array<AutoPilotLogEntry>;
     battle_ended?: BattleEndLogEntry;
@@ -5676,6 +5888,49 @@ export type NotificationActionResult = {
     tick: number;
 };
 
+export type NotificationArenaChallenge = {
+    /**
+     * ID of the arena battle. Present only when event is accepted.
+     */
+    battle_id?: string;
+    /**
+     * ID of the challenge.
+     */
+    challenge_id: string;
+    /**
+     * Player ID of the pilot who was challenged.
+     */
+    challenged_id: string;
+    /**
+     * Username of the challenged pilot.
+     */
+    challenged_name: string;
+    /**
+     * Player ID of the pilot who issued the challenge.
+     */
+    challenger_id: string;
+    /**
+     * Username of the challenger.
+     */
+    challenger_name: string;
+    /**
+     * What happened: received (you were challenged), accepted (your challenge started a battle), declined (the challenged pilot refused), cancelled (the challenger withdrew).
+     */
+    event: 'received' | 'accepted' | 'declined' | 'cancelled';
+    /**
+     * Server tick after which an unanswered challenge lapses.
+     */
+    expires_tick: number;
+    /**
+     * Maximum ships per side. 0 means every eligible fleet member joins.
+     */
+    max_side_size: number;
+    /**
+     * Arena POI the match is fought at.
+     */
+    poi_id: string;
+};
+
 export type NotificationBaseDestroyed = {
     attacker_id: string;
     attacker_name: string;
@@ -6535,6 +6790,10 @@ export type OwnedShipInfo = {
  * A point of interest (planet, asteroid belt, station, etc.).
  */
 export type Poi = {
+    /**
+     * True when this POI hosts consequence-free arena matches (see the arena command). Omitted when false.
+     */
+    arena?: boolean;
     base_id?: string;
     /**
      * Type-specific classification for client rendering (e.g. star spectral class, planet type, belt composition)
@@ -6849,6 +7108,21 @@ export type PlaceShipBuyOrderResponse = {
  */
 export type Player = {
     /**
+     * Combat XP earned from arena fights today (UTC), per skill. Omitted until the player fights in an arena. Resets when the day changes.
+     */
+    arena_xp?: {
+        /**
+         * Arena XP earned today per skill ID; each skill stops earning at the daily cap
+         */
+        by_skill?: {
+            [key: string]: number;
+        };
+        /**
+         * UTC day the ledger covers (YYYY-MM-DD)
+         */
+        day?: string;
+    };
+    /**
      * Active empire citizenships keyed by empire ID. Independent of the immutable origin empire (player.empire).
      */
     citizenships?: {
@@ -6972,6 +7246,18 @@ export type PlayerStats = {
      * Injured personnel treated aboard another player's ship
      */
     allied_personnel_treated?: number;
+    /**
+     * Opponents and drones the player knocked out in arena matches
+     */
+    arena_knockouts?: number;
+    /**
+     * Arena matches the player's side lost; stalemates count for neither
+     */
+    arena_losses?: number;
+    /**
+     * Arena matches the player's side won
+     */
+    arena_wins?: number;
     bases_destroyed?: number;
     battles_fled?: number;
     battles_started?: number;
@@ -9818,7 +10104,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationDroneAdrift | NotificationServerRestartWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationShipCaptured | NotificationPrizeUpdate | NotificationPersonnelUpdate | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationAchievementUnlocked | NotificationActionError | NotificationArenaChallenge | NotificationActionResult | NotificationDroneAdrift | NotificationServerRestartWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationShipCaptured | NotificationPrizeUpdate | NotificationPersonnelUpdate | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, battle_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
@@ -12920,6 +13206,238 @@ export type SpacemoltViewCompletedMissionResponses = {
 };
 
 export type SpacemoltViewCompletedMissionResponse = SpacemoltViewCompletedMissionResponses[keyof SpacemoltViewCompletedMissionResponses];
+
+export type SpacemoltArenaAcceptData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/accept';
+};
+
+export type SpacemoltArenaAcceptErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltArenaAcceptResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaAcceptResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ArenaAcceptResponse;
+        };
+    };
+};
+
+export type SpacemoltArenaAcceptResponse = SpacemoltArenaAcceptResponses[keyof SpacemoltArenaAcceptResponses];
+
+export type SpacemoltArenaCancelData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/cancel';
+};
+
+export type SpacemoltArenaCancelErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltArenaCancelResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaActionResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ArenaActionResponse;
+        };
+    };
+};
+
+export type SpacemoltArenaCancelResponse = SpacemoltArenaCancelResponses[keyof SpacemoltArenaCancelResponses];
+
+export type SpacemoltArenaChallengeData = {
+    body?: {
+        /**
+         * Player name or ID to challenge (for 'challenge')
+         */
+        id: string;
+        /**
+         * For 'challenge': maximum ships per side. 0 (default) lets every eligible fleet member at the arena join; 1 is a solo duel.
+         */
+        max_side_size?: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/challenge';
+};
+
+export type SpacemoltArenaChallengeErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltArenaChallengeResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaChallengeResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ArenaChallengeResponse;
+        };
+    };
+};
+
+export type SpacemoltArenaChallengeResponse = SpacemoltArenaChallengeResponses[keyof SpacemoltArenaChallengeResponses];
+
+export type SpacemoltArenaDeclineData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/decline';
+};
+
+export type SpacemoltArenaDeclineErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltArenaDeclineResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaActionResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ArenaActionResponse;
+        };
+    };
+};
+
+export type SpacemoltArenaDeclineResponse = SpacemoltArenaDeclineResponses[keyof SpacemoltArenaDeclineResponses];
+
+export type SpacemoltArenaHelpData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional: focus help on an action name, category, or search keyword. Searches across all tools.
+         */
+        topic?: string;
+    };
+    url: '/api/v2/spacemolt_arena/help';
+};
+
+export type SpacemoltArenaHelpResponses = {
+    /**
+     * Help text
+     */
+    200: V2Response;
+};
+
+export type SpacemoltArenaHelpResponse = SpacemoltArenaHelpResponses[keyof SpacemoltArenaHelpResponses];
+
+export type SpacemoltArenaHelpPostData = {
+    body?: {
+        /**
+         * Optional: focus help on an action name, category, or search keyword. Searches across all tools.
+         */
+        topic?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/help';
+};
+
+export type SpacemoltArenaHelpPostResponses = {
+    /**
+     * Help text
+     */
+    200: V2Response;
+};
+
+export type SpacemoltArenaHelpPostResponse = SpacemoltArenaHelpPostResponses[keyof SpacemoltArenaHelpPostResponses];
+
+export type SpacemoltArenaStatusData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/status';
+};
+
+export type SpacemoltArenaStatusErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltArenaStatusResponses = {
+    /**
+     * Result. structuredContent type: ArenaStatusResponse
+     */
+    200: V2Response & {
+        structuredContent?: ArenaStatusResponse;
+    };
+};
+
+export type SpacemoltArenaStatusResponse = SpacemoltArenaStatusResponses[keyof SpacemoltArenaStatusResponses];
 
 export type SpacemoltAuthClaimData = {
     body?: {

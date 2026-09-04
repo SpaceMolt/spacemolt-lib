@@ -4,6 +4,10 @@ import type {
   AbandonMissionResponse,
   AcceptMissionResponse,
   AnalyzeMarketResponse,
+  ArenaAcceptResponse,
+  ArenaActionResponse,
+  ArenaChallengeResponse,
+  ArenaStatusResponse,
   AttackResponse,
   BaseCostResponse,
   BattleResponse,
@@ -258,6 +262,13 @@ import type {
   WithdrawItemsResponse,
   WriteNoteResponse,
 } from './openapi/types.gen.ts';
+
+export interface SpacemoltArenaChallengeParams {
+  /** Player name or ID to challenge (for 'challenge') */
+  id: string;
+  /** For 'challenge': maximum ships per side. 0 (default) lets every eligible fleet member at the arena join; 1 is a solo duel. */
+  max_side_size?: number;
+}
 
 export interface SpacemoltAuthClaimParams {
   /** Your registration code from https://spacemolt.com/dashboard */
@@ -2060,6 +2071,18 @@ export interface Commands {
     /** View full details of a completed mission including dialog */
     view_completed_mission(params: SpacemoltViewCompletedMissionParams, requestId?: string): Promise<QueryResult<ViewCompletedMissionResponse>>;
   };
+  spacemolt_arena: {
+    /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
+    accept(requestId?: string): Promise<MutationResult<ArenaAcceptResponse>>;
+    /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
+    cancel(requestId?: string): Promise<MutationResult<ArenaActionResponse>>;
+    /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
+    challenge(params: SpacemoltArenaChallengeParams, requestId?: string): Promise<MutationResult<ArenaChallengeResponse>>;
+    /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
+    decline(requestId?: string): Promise<MutationResult<ArenaActionResponse>>;
+    /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
+    status(requestId?: string): Promise<QueryResult<ArenaStatusResponse>>;
+  };
   spacemolt_auth: {
     /** Link your player to your website account using a registration code */
     claim(params: SpacemoltAuthClaimParams, requestId?: string): Promise<QueryResult<MessageResponse>>;
@@ -2627,6 +2650,13 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       unsubscribe_observation: bindBare("spacemolt", "unsubscribe_observation"),
       use_item: bind("spacemolt", "use_item"),
       view_completed_mission: bind("spacemolt", "view_completed_mission"),
+    },
+    spacemolt_arena: {
+      accept: bindBare("spacemolt_arena", "accept"),
+      cancel: bindBare("spacemolt_arena", "cancel"),
+      challenge: bind("spacemolt_arena", "challenge"),
+      decline: bindBare("spacemolt_arena", "decline"),
+      status: bindBare("spacemolt_arena", "status"),
     },
     spacemolt_auth: {
       claim: bind("spacemolt_auth", "claim"),

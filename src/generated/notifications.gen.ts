@@ -8,6 +8,7 @@ import type {
   NotificationAchievementUnlocked,
   NotificationActionError,
   NotificationActionResult,
+  NotificationArenaChallenge,
   NotificationBaseDestroyed,
   NotificationBaseRaidUpdate,
   NotificationBattleAlert,
@@ -61,6 +62,7 @@ export type TypedNotificationType =
   | "achievement_unlocked"
   | "action_error"
   | "action_result"
+  | "arena_challenge"
   | "base_destroyed"
   | "base_raid_update"
   | "battle_alert"
@@ -113,6 +115,7 @@ export interface NotificationPayloads {
   "achievement_unlocked": NotificationAchievementUnlocked;
   "action_error": NotificationActionError;
   "action_result": NotificationActionResult;
+  "arena_challenge": NotificationArenaChallenge;
   "base_destroyed": NotificationBaseDestroyed;
   "base_raid_update": NotificationBaseRaidUpdate;
   "battle_alert": NotificationBattleAlert;
@@ -166,6 +169,7 @@ export const TYPED_NOTIFICATION_TYPES = [
   "achievement_unlocked",
   "action_error",
   "action_result",
+  "arena_challenge",
   "base_destroyed",
   "base_raid_update",
   "battle_alert",
