@@ -7,6 +7,8 @@ import type {
   ArenaAcceptResponse,
   ArenaActionResponse,
   ArenaChallengeResponse,
+  ArenaChallengesResponse,
+  ArenaFightResponse,
   ArenaStatusResponse,
   AttackResponse,
   BaseCostResponse,
@@ -270,6 +272,11 @@ export interface SpacemoltArenaChallengeParams {
   max_side_size?: number;
 }
 
+export interface SpacemoltArenaFightParams {
+  /** For 'fight': the NPC challenge to start, from 'challenges'. */
+  id: string;
+}
+
 export interface SpacemoltAuthClaimParams {
   /** Your registration code from https://spacemolt.com/dashboard */
   registration_code: string;
@@ -325,7 +332,7 @@ export interface SpacemoltBattleReloadParams {
 }
 
 export interface SpacemoltBattleStanceParams {
-  /** Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from board begins non-instant withdrawal. */
+  /** Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records reason contested_same_tick. Changing away from board begins non-instant withdrawal. */
   id: "fire" | "evade" | "brace" | "flee" | "board";
   /** Positive fit-marine commitment required when setting stance=board. The battle tick caps it to the fit marines actually available. */
   marines?: number;
@@ -1681,7 +1688,7 @@ export interface SpacemoltAcceptMissionParams {
 }
 
 export interface SpacemoltAttackParams {
-  /** ID of the target: a player, pirate, empire NPC, wildlife creature, intact-prize actor, or station. Prize actor IDs come from get_nearby. Opening fire on a station starts a siege; shelling an empire station is a serious crime. */
+  /** ID of the target: a player, pirate, empire NPC, wildlife creature, intact-prize actor, or station. Prize actor IDs come from get_nearby. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Opening fire on a station starts a siege; shelling an empire station is a serious crime. */
   id: string;
 }
 
@@ -2079,7 +2086,11 @@ export interface Commands {
     /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
     challenge(params: SpacemoltArenaChallengeParams, requestId?: string): Promise<MutationResult<ArenaChallengeResponse>>;
     /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
+    challenges(requestId?: string): Promise<QueryResult<ArenaChallengesResponse>>;
+    /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
     decline(requestId?: string): Promise<MutationResult<ArenaActionResponse>>;
+    /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
+    fight(params: SpacemoltArenaFightParams, requestId?: string): Promise<MutationResult<ArenaFightResponse>>;
     /** Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact */
     status(requestId?: string): Promise<QueryResult<ArenaStatusResponse>>;
   };
@@ -2410,7 +2421,7 @@ export interface Commands {
     release(requestId?: string): Promise<MutationResult<ReleaseTowResponse>>;
     /** Scrap a towed wreck for salvage materials */
     scrap(requestId?: string): Promise<MutationResult<ScrapWreckResponse>>;
-    /** Sell a towed wreck to the salvage yard for credits */
+    /** Sell a towed wreck to an NPC salvage yard for credits */
     sell(requestId?: string): Promise<MutationResult<SellWreckResponse>>;
     /** Stop, resume, redirect, refuel, or repair a claimed intact prize */
     service_prize(params: SpacemoltSalvageServicePrizeParams, requestId?: string): Promise<MutationResult<PrizeServiceResponse>>;
@@ -2655,7 +2666,9 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       accept: bindBare("spacemolt_arena", "accept"),
       cancel: bindBare("spacemolt_arena", "cancel"),
       challenge: bind("spacemolt_arena", "challenge"),
+      challenges: bindBare("spacemolt_arena", "challenges"),
       decline: bindBare("spacemolt_arena", "decline"),
+      fight: bind("spacemolt_arena", "fight"),
       status: bindBare("spacemolt_arena", "status"),
     },
     spacemolt_auth: {

@@ -147,6 +147,8 @@ export type AmmoStats = {
     shield_bypass?: number;
     shield_damage_mod?: number;
     splash_pct?: number;
+    splash_radius?: number;
+    splash_stack_cap?: number;
     untraceable?: boolean;
 };
 
@@ -229,6 +231,61 @@ export type ArenaActionResponse = {
     message: string;
 };
 
+export type ArenaChallengeDefInfo = {
+    /**
+     * True when you are undocked at the challenge's arena right now. Starting it also needs locked to be false.
+     */
+    at_this_arena: boolean;
+    /**
+     * Challenge ID to pass as challenge_id to arena action=fight.
+     */
+    challenge_id: string;
+    /**
+     * Lore and briefing for the fight, including what the rules ask of your ship.
+     */
+    description: string;
+    /**
+     * The enemy ships spawned for the fight, one entry per line of the definition.
+     */
+    enemies: Array<ArenaEnemyInfo>;
+    /**
+     * True while any challenge in requires has no win on your record. arena action=fight refuses a locked challenge with challenge_locked.
+     */
+    locked: boolean;
+    /**
+     * Display name of the challenge.
+     */
+    name: string;
+    /**
+     * Arena POI the fight is held at. You must be undocked there to start it.
+     */
+    poi_id: string;
+    /**
+     * Display name of the arena POI.
+     */
+    poi_name: string;
+    /**
+     * Challenge IDs you must have won at least once before this one will start. Empty when the challenge is open to everyone.
+     */
+    requires: Array<string>;
+    /**
+     * Loadout rules every ship on your side must pass. Zero or omitted fields are unrestricted. A ship that breaks a rule refuses the whole side with a rule_* error naming the pilot, the hull and the rule.
+     */
+    rules: ArenaRules;
+    /**
+     * Series the challenge belongs to. Challenges list in series, then stage, order.
+     */
+    series: string;
+    /**
+     * Position within the series, from 1. Higher stages are harder.
+     */
+    stage: number;
+    /**
+     * Times you have won this challenge. 0 until your first win.
+     */
+    wins: number;
+};
+
 export type ArenaChallengeInfo = {
     /**
      * ID of the pending challenge.
@@ -291,10 +348,138 @@ export type ArenaChallengeResponse = {
     target_name: string;
 };
 
+export type ArenaChallengesResponse = {
+    /**
+     * Always challenges.
+     */
+    action: 'challenges';
+    /**
+     * Every NPC challenge in the game, in series then stage order. Empty when none are defined.
+     */
+    challenges: Array<ArenaChallengeDefInfo>;
+};
+
 export type ArenaDroneEntry = {
     hull: number;
     owner_id: string;
     status: string;
+};
+
+export type ArenaEnemyInfo = {
+    /**
+     * How many ships of this line the challenge spawns. Always at least 1.
+     */
+    count: number;
+    /**
+     * True for the named headline enemy of the fight. Your ship opens targeting the boss when there is one.
+     */
+    is_boss: boolean;
+    /**
+     * Display name of the enemy. Copies of a multi-ship line are numbered (Ring Cleaver 1, Ring Cleaver 2) once spawned.
+     */
+    name: string;
+    /**
+     * Ship class ID of the enemy hull.
+     */
+    ship_class: string;
+    /**
+     * Display name of the enemy hull.
+     */
+    ship_class_name: string;
+};
+
+export type ArenaFightResponse = {
+    /**
+     * Always fight.
+     */
+    action: 'fight';
+    /**
+     * ID of the arena battle. Use the battle command and get_battle_status to fight it.
+     */
+    battle_id: string;
+    /**
+     * Challenge ID that was started.
+     */
+    challenge_id: string;
+    /**
+     * The enemy lines of the challenge, as listed by arena action=challenges.
+     */
+    enemies: Array<ArenaEnemyInfo>;
+    /**
+     * Battle side ID every challenge enemy fights on.
+     */
+    enemy_side: number;
+    /**
+     * Human-readable confirmation.
+     */
+    message: string;
+    /**
+     * Display name of the challenge.
+     */
+    name: string;
+    /**
+     * Every combatant in the match at the moment it started, your side and the enemies. Enemy entries carry the spawned NPC's id as player_id.
+     */
+    participants: Array<ArenaParticipantInfo>;
+    /**
+     * Your battle side ID. Fleet members share it.
+     */
+    your_side: number;
+};
+
+export type ArenaNpcInfo = {
+    /**
+     * ID of the arena match the enemy is fighting in. Enemies exist only for the length of their match.
+     */
+    battle_id: string;
+    /**
+     * Current hull points.
+     */
+    hull: number;
+    /**
+     * True for the named headline enemy of its challenge.
+     */
+    is_boss: boolean;
+    /**
+     * Maximum hull points.
+     */
+    max_hull: number;
+    /**
+     * Maximum shield points.
+     */
+    max_shield: number;
+    /**
+     * Display name of the enemy.
+     */
+    name: string;
+    /**
+     * Combat ID of the enemy: the player_id it carries in battle payloads and the id to target with the battle command.
+     */
+    npc_id: string;
+    /**
+     * Primary livery color as #RRGGBB.
+     */
+    primary_color: string;
+    /**
+     * Secondary livery color as #RRGGBB.
+     */
+    secondary_color: string;
+    /**
+     * Current shield points.
+     */
+    shield: number;
+    /**
+     * Ship class ID of the enemy hull.
+     */
+    ship_class: string;
+    /**
+     * Display name of the enemy hull.
+     */
+    ship_class_name: string;
+    /**
+     * The enemy's status line, as a player's status message. Omitted when it has none.
+     */
+    status?: string;
 };
 
 export type ArenaParticipantInfo = {
@@ -321,6 +506,10 @@ export type ArenaResponse = ({
 } & ArenaActionResponse) | ({
     action: 'status';
 } & ArenaStatusResponse) | ({
+    action: 'challenges';
+} & ArenaChallengesResponse) | ({
+    action: 'fight';
+} & ArenaFightResponse) | ({
     action: 'help';
 } & CommandHelpResponse);
 
@@ -332,6 +521,113 @@ export type ArenaRestoreState = {
     ships?: {
         [key: string]: ArenaShipEntry;
     };
+};
+
+export type ArenaRules = {
+    /**
+     * Item IDs allowed in cargo. Omitted or empty = any item.
+     */
+    allowed_cargo?: Array<string>;
+    /**
+     * Weapon damage types allowed (kinetic, energy, thermal, em, explosive, void). Omitted or empty = every type.
+     */
+    allowed_damage_types?: Array<string>;
+    /**
+     * Hull classes allowed (Fighter, Freighter, Miner, ...), case-insensitive. Omitted or empty = every class.
+     */
+    allowed_hull_classes?: Array<string>;
+    /**
+     * Module IDs allowed on the hull. Omitted or empty = any module.
+     */
+    allowed_modules?: Array<string>;
+    /**
+     * Ship categories allowed (Combat, Industrial, Commercial, ...), case-insensitive. Omitted or empty = every category.
+     */
+    allowed_ship_categories?: Array<string>;
+    /**
+     * Ship class IDs allowed. Omitted or empty = every ship class.
+     */
+    allowed_ship_classes?: Array<string>;
+    /**
+     * Item IDs refused in cargo and refused by use_item during the match. Omitted or empty = none banned.
+     */
+    banned_cargo?: Array<string>;
+    /**
+     * Consumable effect types refused (repair, shield, buff, emergency_jump, fuel, power). Omitted or empty = none banned.
+     */
+    banned_effect_types?: Array<string>;
+    /**
+     * Hull classes refused, case-insensitive. Omitted or empty = none banned.
+     */
+    banned_hull_classes?: Array<string>;
+    /**
+     * Module IDs refused. Omitted or empty = none banned.
+     */
+    banned_modules?: Array<string>;
+    /**
+     * Ship categories refused, case-insensitive. Omitted or empty = none banned.
+     */
+    banned_ship_categories?: Array<string>;
+    /**
+     * Ship class IDs refused. Omitted or empty = none banned.
+     */
+    banned_ship_classes?: Array<string>;
+    /**
+     * Maximum crew aboard (fit plus injured). Omitted or 0 = no cap.
+     */
+    max_crew?: number;
+    /**
+     * Maximum marines aboard. Omitted or 0 = no cap.
+     */
+    max_marines?: number;
+    /**
+     * Largest ship scale allowed (1 = personal ... 5 = capital). Omitted or 0 = no cap.
+     */
+    max_ship_scale?: number;
+    /**
+     * Highest ship tier allowed (0-5). Omitted or 0 = no cap.
+     */
+    max_ship_tier?: number;
+    /**
+     * Maximum ships per side. 0 = every eligible fleet member joins, 1 = solo duel.
+     */
+    max_side_size: number;
+    /**
+     * Lowest ship tier allowed (0-5). Omitted or 0 = no minimum.
+     */
+    min_ship_tier?: number;
+    /**
+     * Minimum ships a side must bring. Omitted or 0 = no minimum.
+     */
+    min_side_size?: number;
+    /**
+     * True when magazine-fed weapons are refused. Omitted = allowed.
+     */
+    no_ammo_weapons?: boolean;
+    /**
+     * True when boarding gear is refused. Omitted = allowed.
+     */
+    no_boarding?: boolean;
+    /**
+     * True when cloaking modules are refused. Omitted = allowed.
+     */
+    no_cloak?: boolean;
+    /**
+     * True when no consumable (any item use_item accepts) may be carried in or used. Omitted = consumables allowed.
+     */
+    no_consumables?: boolean;
+    /**
+     * True when drone bays and deployed drones are refused. Omitted = allowed.
+     */
+    no_drones?: boolean;
+    /**
+     * True when webifiers, disruptors and scramblers are refused. Omitted = allowed.
+     */
+    no_tackle?: boolean;
+    /**
+     * True when ships must enter with an empty hold. Omitted = cargo allowed.
+     */
+    require_empty_cargo?: boolean;
 };
 
 export type ArenaShipEntry = {
@@ -810,7 +1106,7 @@ export type BattleResponse = {
      */
     battle_id?: string;
     /**
-     * Marines you committed to the boarding attempt, echoed back. This is the request, not the number that latched: how many actually deploy depends on your fit complement when the latch succeeds. Present on a board stance only. Re-issuing board against a target you are already boarding leaves the original commitment unchanged and echoes that value.
+     * Marines requested for the queued boarding attempt, echoed back. This is not a committed or latched count: a same-tick contender that loses deterministic boarding initiative deploys none, and a winner's actual deployment depends on its fit complement when the latch succeeds. Present on a board stance only. Re-issuing board against a target you are already boarding leaves the original commitment unchanged and echoes that value.
      */
     marines_requested?: number;
     /**
@@ -825,7 +1121,7 @@ export type BattleResponse = {
      */
     self_destruct_countdown?: number;
     /**
-     * Combat stance now in effect. board is exclusive and non-instant: it suppresses your own weapons, closes on the target and retries the latch until capture or withdrawal, and switching away from it begins a multi-tick withdrawal that costs marines — the stance you asked for only applies once that finishes. Present on action=stance.
+     * Combat stance requested by action=stance. Ordinary stance changes apply on the next battle tick. A queued board request becomes exclusive and suppresses your weapons only if it wins any same-tick hull conflict; deterministic boarding initiative selects one physical link and the battle log records rejected contenders. Switching away from an active board stance begins a multi-tick withdrawal that costs marines — the requested replacement stance applies once disengagement finishes.
      */
     stance?: 'fire' | 'evade' | 'brace' | 'flee' | 'board';
     /**
@@ -987,7 +1283,7 @@ export type BoardingStateLogEntry = {
      */
     phase: 'latching' | 'assault' | 'withdrawing' | 'resolved' | 'self_destruct';
     /**
-     * Why the event fired, when the event alone is ambiguous. Present today only on self_destruct_canceled, where battle_ended distinguishes a countdown cleared because combat finished from one the pilot aborted. Omitted otherwise.
+     * Why the event fired, when the event alone is ambiguous. boarding_rejected carries either a validation reason or contested_same_tick when deterministic boarding initiative selected another eligible request sharing either hull. self_destruct_canceled may carry battle_ended when combat ending cleared the countdown. Omitted otherwise.
      */
     reason?: string;
     /**
@@ -4371,6 +4667,10 @@ export type FleetStatusMember = {
 
 export type FleetStatusResponse = {
     action: 'status';
+    /**
+     * True when this fleet exceeded ordinary capacity at an arena and will disband if its leader leaves the arena. Omitted or false means this is an ordinary fleet.
+     */
+    arena_only?: boolean;
     fleet_id?: string;
     in_fleet: boolean;
     invite_fleet?: string;
@@ -4378,6 +4678,9 @@ export type FleetStatusResponse = {
     invites?: Array<FleetStatusInvite>;
     is_leader?: boolean;
     leader?: string;
+    /**
+     * Maximum fleet membership for an ordinary fleet. Omitted for an unlimited arena-only fleet.
+     */
     max_size?: number;
     members?: Array<FleetStatusMember>;
     pending_invite?: boolean;
@@ -4696,6 +4999,14 @@ export type GetMissionsResponse = {
 };
 
 export type GetNearbyResponse = {
+    /**
+     * Number of entries in arena_npcs.
+     */
+    arena_npc_count: number;
+    /**
+     * Challenge enemies fighting an arena match held at this POI. Empty when no NPC challenge is in progress here. They exist only for the length of their match and cannot be attacked from outside it.
+     */
+    arena_npcs: Array<ArenaNpcInfo>;
     count: number;
     creature_count: number;
     creatures: Array<CreatureInfo>;
@@ -7108,6 +7419,12 @@ export type PlaceShipBuyOrderResponse = {
  */
 export type Player = {
     /**
+     * Times each arena NPC challenge was won, keyed by challenge ID (see arena action=challenges). Omitted until the first win.
+     */
+    arena_won?: {
+        [key: string]: number;
+    };
+    /**
      * Combat XP earned from arena fights today (UTC), per skill. Omitted until the player fights in an arena. Resets when the day changes.
      */
     arena_xp?: {
@@ -8062,9 +8379,9 @@ export type SellWreckResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
-    cargo_value?: number;
     message: string;
     new_balance: number;
+    offer: number;
     salvage_value?: number;
     ship_class?: string;
     total_payout: number;
@@ -10663,7 +10980,7 @@ export type SpacemoltAcceptMissionResponse = SpacemoltAcceptMissionResponses[key
 export type SpacemoltAttackData = {
     body?: {
         /**
-         * ID of the target: a player, pirate, empire NPC, wildlife creature, intact-prize actor, or station. Prize actor IDs come from get_nearby. Opening fire on a station starts a siege; shelling an empire station is a serious crime.
+         * ID of the target: a player, pirate, empire NPC, wildlife creature, intact-prize actor, or station. Prize actor IDs come from get_nearby. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Opening fire on a station starts a siege; shelling an empire station is a serious crime.
          */
         id: string;
     };
@@ -13325,6 +13642,41 @@ export type SpacemoltArenaChallengeResponses = {
 
 export type SpacemoltArenaChallengeResponse = SpacemoltArenaChallengeResponses[keyof SpacemoltArenaChallengeResponses];
 
+export type SpacemoltArenaChallengesData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/challenges';
+};
+
+export type SpacemoltArenaChallengesErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltArenaChallengesResponses = {
+    /**
+     * Result. structuredContent type: ArenaChallengesResponse
+     */
+    200: V2Response & {
+        structuredContent?: ArenaChallengesResponse;
+    };
+};
+
+export type SpacemoltArenaChallengesResponse = SpacemoltArenaChallengesResponses[keyof SpacemoltArenaChallengesResponses];
+
 export type SpacemoltArenaDeclineData = {
     body?: {
         [key: string]: unknown;
@@ -13361,6 +13713,46 @@ export type SpacemoltArenaDeclineResponses = {
 };
 
 export type SpacemoltArenaDeclineResponse = SpacemoltArenaDeclineResponses[keyof SpacemoltArenaDeclineResponses];
+
+export type SpacemoltArenaFightData = {
+    body?: {
+        /**
+         * For 'fight': the NPC challenge to start, from 'challenges'.
+         */
+        id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_arena/fight';
+};
+
+export type SpacemoltArenaFightErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltArenaFightResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaFightResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ArenaFightResponse;
+        };
+    };
+};
+
+export type SpacemoltArenaFightResponse = SpacemoltArenaFightResponses[keyof SpacemoltArenaFightResponses];
 
 export type SpacemoltArenaHelpData = {
     body?: never;
@@ -14035,7 +14427,7 @@ export type SpacemoltBattleSelfDestructResponse = SpacemoltBattleSelfDestructRes
 export type SpacemoltBattleStanceData = {
     body?: {
         /**
-         * Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from board begins non-instant withdrawal.
+         * Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records reason contested_same_tick. Changing away from board begins non-instant withdrawal.
          */
         id: 'fire' | 'evade' | 'brace' | 'flee' | 'board';
         /**

@@ -460,6 +460,12 @@
           "splash_pct": {
             "type": "number"
           },
+          "splash_radius": {
+            "type": "integer"
+          },
+          "splash_stack_cap": {
+            "type": "integer"
+          },
           "untraceable": {
             "type": "boolean"
           }
@@ -651,6 +657,85 @@
         ],
         "type": "object"
       },
+      "ArenaChallengeDefInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "at_this_arena": {
+            "description": "True when you are undocked at the challenge's arena right now. Starting it also needs locked to be false.",
+            "type": "boolean"
+          },
+          "challenge_id": {
+            "description": "Challenge ID to pass as challenge_id to arena action=fight.",
+            "type": "string"
+          },
+          "description": {
+            "description": "Lore and briefing for the fight, including what the rules ask of your ship.",
+            "type": "string"
+          },
+          "enemies": {
+            "description": "The enemy ships spawned for the fight, one entry per line of the definition.",
+            "items": {
+              "$ref": "#/components/schemas/ArenaEnemyInfo"
+            },
+            "type": "array"
+          },
+          "locked": {
+            "description": "True while any challenge in requires has no win on your record. arena action=fight refuses a locked challenge with challenge_locked.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Display name of the challenge.",
+            "type": "string"
+          },
+          "poi_id": {
+            "description": "Arena POI the fight is held at. You must be undocked there to start it.",
+            "type": "string"
+          },
+          "poi_name": {
+            "description": "Display name of the arena POI.",
+            "type": "string"
+          },
+          "requires": {
+            "description": "Challenge IDs you must have won at least once before this one will start. Empty when the challenge is open to everyone.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/ArenaRules",
+            "description": "Loadout rules every ship on your side must pass. Zero or omitted fields are unrestricted. A ship that breaks a rule refuses the whole side with a rule_* error naming the pilot, the hull and the rule."
+          },
+          "series": {
+            "description": "Series the challenge belongs to. Challenges list in series, then stage, order.",
+            "type": "string"
+          },
+          "stage": {
+            "description": "Position within the series, from 1. Higher stages are harder.",
+            "type": "integer"
+          },
+          "wins": {
+            "description": "Times you have won this challenge. 0 until your first win.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "challenge_id",
+          "name",
+          "description",
+          "series",
+          "stage",
+          "poi_id",
+          "poi_name",
+          "at_this_arena",
+          "requires",
+          "locked",
+          "rules",
+          "enemies",
+          "wins"
+        ],
+        "type": "object"
+      },
       "ArenaChallengeInfo": {
         "additionalProperties": false,
         "properties": {
@@ -740,6 +825,30 @@
         ],
         "type": "object"
       },
+      "ArenaChallengesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Always challenges.",
+            "enum": [
+              "challenges"
+            ],
+            "type": "string"
+          },
+          "challenges": {
+            "description": "Every NPC challenge in the game, in series then stage order. Empty when none are defined.",
+            "items": {
+              "$ref": "#/components/schemas/ArenaChallengeDefInfo"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "challenges"
+        ],
+        "type": "object"
+      },
       "ArenaDroneEntry": {
         "additionalProperties": false,
         "properties": {
@@ -757,6 +866,173 @@
           "owner_id",
           "hull",
           "status"
+        ],
+        "type": "object"
+      },
+      "ArenaEnemyInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "description": "How many ships of this line the challenge spawns. Always at least 1.",
+            "type": "integer"
+          },
+          "is_boss": {
+            "description": "True for the named headline enemy of the fight. Your ship opens targeting the boss when there is one.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Display name of the enemy. Copies of a multi-ship line are numbered (Ring Cleaver 1, Ring Cleaver 2) once spawned.",
+            "type": "string"
+          },
+          "ship_class": {
+            "description": "Ship class ID of the enemy hull.",
+            "type": "string"
+          },
+          "ship_class_name": {
+            "description": "Display name of the enemy hull.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "ship_class",
+          "ship_class_name",
+          "count",
+          "is_boss"
+        ],
+        "type": "object"
+      },
+      "ArenaFightResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Always fight.",
+            "enum": [
+              "fight"
+            ],
+            "type": "string"
+          },
+          "battle_id": {
+            "description": "ID of the arena battle. Use the battle command and get_battle_status to fight it.",
+            "type": "string"
+          },
+          "challenge_id": {
+            "description": "Challenge ID that was started.",
+            "type": "string"
+          },
+          "enemies": {
+            "description": "The enemy lines of the challenge, as listed by arena action=challenges.",
+            "items": {
+              "$ref": "#/components/schemas/ArenaEnemyInfo"
+            },
+            "type": "array"
+          },
+          "enemy_side": {
+            "description": "Battle side ID every challenge enemy fights on.",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Human-readable confirmation.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Display name of the challenge.",
+            "type": "string"
+          },
+          "participants": {
+            "description": "Every combatant in the match at the moment it started, your side and the enemies. Enemy entries carry the spawned NPC's id as player_id.",
+            "items": {
+              "$ref": "#/components/schemas/ArenaParticipantInfo"
+            },
+            "type": "array"
+          },
+          "your_side": {
+            "description": "Your battle side ID. Fleet members share it.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "challenge_id",
+          "name",
+          "battle_id",
+          "your_side",
+          "enemy_side",
+          "participants",
+          "enemies",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ArenaNPCInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "battle_id": {
+            "description": "ID of the arena match the enemy is fighting in. Enemies exist only for the length of their match.",
+            "type": "string"
+          },
+          "hull": {
+            "description": "Current hull points.",
+            "type": "integer"
+          },
+          "is_boss": {
+            "description": "True for the named headline enemy of its challenge.",
+            "type": "boolean"
+          },
+          "max_hull": {
+            "description": "Maximum hull points.",
+            "type": "integer"
+          },
+          "max_shield": {
+            "description": "Maximum shield points.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Display name of the enemy.",
+            "type": "string"
+          },
+          "npc_id": {
+            "description": "Combat ID of the enemy: the player_id it carries in battle payloads and the id to target with the battle command.",
+            "type": "string"
+          },
+          "primary_color": {
+            "description": "Primary livery color as #RRGGBB.",
+            "type": "string"
+          },
+          "secondary_color": {
+            "description": "Secondary livery color as #RRGGBB.",
+            "type": "string"
+          },
+          "shield": {
+            "description": "Current shield points.",
+            "type": "integer"
+          },
+          "ship_class": {
+            "description": "Ship class ID of the enemy hull.",
+            "type": "string"
+          },
+          "ship_class_name": {
+            "description": "Display name of the enemy hull.",
+            "type": "string"
+          },
+          "status": {
+            "description": "The enemy's status line, as a player's status message. Omitted when it has none.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "npc_id",
+          "name",
+          "primary_color",
+          "secondary_color",
+          "is_boss",
+          "ship_class",
+          "ship_class_name",
+          "hull",
+          "max_hull",
+          "shield",
+          "max_shield",
+          "battle_id"
         ],
         "type": "object"
       },
@@ -789,7 +1065,9 @@
             "accept": "#/components/schemas/ArenaAcceptResponse",
             "cancel": "#/components/schemas/ArenaActionResponse",
             "challenge": "#/components/schemas/ArenaChallengeResponse",
+            "challenges": "#/components/schemas/ArenaChallengesResponse",
             "decline": "#/components/schemas/ArenaActionResponse",
+            "fight": "#/components/schemas/ArenaFightResponse",
             "help": "#/components/schemas/CommandHelpResponse",
             "status": "#/components/schemas/ArenaStatusResponse"
           },
@@ -807,6 +1085,12 @@
           },
           {
             "$ref": "#/components/schemas/ArenaStatusResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ArenaChallengesResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ArenaFightResponse"
           },
           {
             "$ref": "#/components/schemas/CommandHelpResponse"
@@ -834,6 +1118,155 @@
         },
         "required": [
           "battle_id"
+        ],
+        "type": "object"
+      },
+      "ArenaRules": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_cargo": {
+            "description": "Item IDs allowed in cargo. Omitted or empty = any item.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowed_damage_types": {
+            "description": "Weapon damage types allowed (kinetic, energy, thermal, em, explosive, void). Omitted or empty = every type.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowed_hull_classes": {
+            "description": "Hull classes allowed (Fighter, Freighter, Miner, ...), case-insensitive. Omitted or empty = every class.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowed_modules": {
+            "description": "Module IDs allowed on the hull. Omitted or empty = any module.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowed_ship_categories": {
+            "description": "Ship categories allowed (Combat, Industrial, Commercial, ...), case-insensitive. Omitted or empty = every category.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowed_ship_classes": {
+            "description": "Ship class IDs allowed. Omitted or empty = every ship class.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "banned_cargo": {
+            "description": "Item IDs refused in cargo and refused by use_item during the match. Omitted or empty = none banned.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "banned_effect_types": {
+            "description": "Consumable effect types refused (repair, shield, buff, emergency_jump, fuel, power). Omitted or empty = none banned.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "banned_hull_classes": {
+            "description": "Hull classes refused, case-insensitive. Omitted or empty = none banned.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "banned_modules": {
+            "description": "Module IDs refused. Omitted or empty = none banned.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "banned_ship_categories": {
+            "description": "Ship categories refused, case-insensitive. Omitted or empty = none banned.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "banned_ship_classes": {
+            "description": "Ship class IDs refused. Omitted or empty = none banned.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "max_crew": {
+            "description": "Maximum crew aboard (fit plus injured). Omitted or 0 = no cap.",
+            "type": "integer"
+          },
+          "max_marines": {
+            "description": "Maximum marines aboard. Omitted or 0 = no cap.",
+            "type": "integer"
+          },
+          "max_ship_scale": {
+            "description": "Largest ship scale allowed (1 = personal ... 5 = capital). Omitted or 0 = no cap.",
+            "type": "integer"
+          },
+          "max_ship_tier": {
+            "description": "Highest ship tier allowed (0-5). Omitted or 0 = no cap.",
+            "type": "integer"
+          },
+          "max_side_size": {
+            "description": "Maximum ships per side. 0 = every eligible fleet member joins, 1 = solo duel.",
+            "type": "integer"
+          },
+          "min_ship_tier": {
+            "description": "Lowest ship tier allowed (0-5). Omitted or 0 = no minimum.",
+            "type": "integer"
+          },
+          "min_side_size": {
+            "description": "Minimum ships a side must bring. Omitted or 0 = no minimum.",
+            "type": "integer"
+          },
+          "no_ammo_weapons": {
+            "description": "True when magazine-fed weapons are refused. Omitted = allowed.",
+            "type": "boolean"
+          },
+          "no_boarding": {
+            "description": "True when boarding gear is refused. Omitted = allowed.",
+            "type": "boolean"
+          },
+          "no_cloak": {
+            "description": "True when cloaking modules are refused. Omitted = allowed.",
+            "type": "boolean"
+          },
+          "no_consumables": {
+            "description": "True when no consumable (any item use_item accepts) may be carried in or used. Omitted = consumables allowed.",
+            "type": "boolean"
+          },
+          "no_drones": {
+            "description": "True when drone bays and deployed drones are refused. Omitted = allowed.",
+            "type": "boolean"
+          },
+          "no_tackle": {
+            "description": "True when webifiers, disruptors and scramblers are refused. Omitted = allowed.",
+            "type": "boolean"
+          },
+          "require_empty_cargo": {
+            "description": "True when ships must enter with an empty hold. Omitted = cargo allowed.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "max_side_size"
         ],
         "type": "object"
       },
@@ -1914,7 +2347,7 @@
             "type": "string"
           },
           "marines_requested": {
-            "description": "Marines you committed to the boarding attempt, echoed back. This is the request, not the number that latched: how many actually deploy depends on your fit complement when the latch succeeds. Present on a board stance only. Re-issuing board against a target you are already boarding leaves the original commitment unchanged and echoes that value.",
+            "description": "Marines requested for the queued boarding attempt, echoed back. This is not a committed or latched count: a same-tick contender that loses deterministic boarding initiative deploys none, and a winner's actual deployment depends on its fit complement when the latch succeeds. Present on a board stance only. Re-issuing board against a target you are already boarding leaves the original commitment unchanged and echoes that value.",
             "type": "integer"
           },
           "message": {
@@ -1935,7 +2368,7 @@
             "type": "integer"
           },
           "stance": {
-            "description": "Combat stance now in effect. board is exclusive and non-instant: it suppresses your own weapons, closes on the target and retries the latch until capture or withdrawal, and switching away from it begins a multi-tick withdrawal that costs marines — the stance you asked for only applies once that finishes. Present on action=stance.",
+            "description": "Combat stance requested by action=stance. Ordinary stance changes apply on the next battle tick. A queued board request becomes exclusive and suppresses your weapons only if it wins any same-tick hull conflict; deterministic boarding initiative selects one physical link and the battle log records rejected contenders. Switching away from an active board stance begins a multi-tick withdrawal that costs marines — the requested replacement stance applies once disengagement finishes.",
             "enum": [
               "fire",
               "evade",
@@ -2299,7 +2732,7 @@
             "type": "string"
           },
           "reason": {
-            "description": "Why the event fired, when the event alone is ambiguous. Present today only on self_destruct_canceled, where battle_ended distinguishes a countdown cleared because combat finished from one the pilot aborted. Omitted otherwise.",
+            "description": "Why the event fired, when the event alone is ambiguous. boarding_rejected carries either a validation reason or contested_same_tick when deterministic boarding initiative selected another eligible request sharing either hull. self_destruct_canceled may carry battle_ended when combat ending cleared the countdown. Omitted otherwise.",
             "type": "string"
           },
           "self_destruct_countdown": {
@@ -13145,6 +13578,10 @@
             ],
             "type": "string"
           },
+          "arena_only": {
+            "description": "True when this fleet exceeded ordinary capacity at an arena and will disband if its leader leaves the arena. Omitted or false means this is an ordinary fleet.",
+            "type": "boolean"
+          },
           "fleet_id": {
             "type": "string"
           },
@@ -13170,6 +13607,7 @@
             "type": "string"
           },
           "max_size": {
+            "description": "Maximum fleet membership for an ordinary fleet. Omitted for an unlimited arena-only fleet.",
             "type": "integer"
           },
           "members": {
@@ -13823,6 +14261,24 @@
           },
           "entries": {
             "description": "Tick snapshots include is_npc and is_boss on newly recorded rows. Explicit false is authoritative; either field may be omitted on historical rows that predate identity provenance.",
+            "example": [
+              {
+                "battle_id": "battle-example",
+                "system_id": "system-example",
+                "tick": 42,
+                "snapshots": [],
+                "boarding": [
+                  {
+                    "operation_id": "",
+                    "phase": "resolved",
+                    "actor_id": "losing-boarder",
+                    "target_id": "contested-hull",
+                    "event": "boarding_rejected",
+                    "reason": "contested_same_tick"
+                  }
+                ]
+              }
+            ],
             "items": {
               "$ref": "#/components/schemas/BattleLogEntry"
             },
@@ -14213,6 +14669,17 @@
       "GetNearbyResponse": {
         "additionalProperties": false,
         "properties": {
+          "arena_npc_count": {
+            "description": "Number of entries in arena_npcs.",
+            "type": "integer"
+          },
+          "arena_npcs": {
+            "description": "Challenge enemies fighting an arena match held at this POI. Empty when no NPC challenge is in progress here. They exist only for the length of their match and cannot be attacked from outside it.",
+            "items": {
+              "$ref": "#/components/schemas/ArenaNPCInfo"
+            },
+            "type": "array"
+          },
           "count": {
             "type": "integer"
           },
@@ -14273,11 +14740,13 @@
           "prizes",
           "pirates",
           "empire_npcs",
+          "arena_npcs",
           "creatures",
           "count",
           "prize_count",
           "pirate_count",
           "empire_npc_count",
+          "arena_npc_count",
           "creature_count",
           "poi_id"
         ],
@@ -21157,6 +21626,13 @@
       "Player": {
         "description": "A player account with progression, customization, and current state.",
         "properties": {
+          "arena_won": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Times each arena NPC challenge was won, keyed by challenge ID (see arena action=challenges). Omitted until the first win.",
+            "type": "object"
+          },
           "arena_xp": {
             "description": "Combat XP earned from arena fights today (UTC), per skill. Omitted until the player fights in an arena. Resets when the day changes.",
             "properties": {
@@ -23517,13 +23993,13 @@
             "description": "True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.",
             "type": "boolean"
           },
-          "cargo_value": {
-            "type": "integer"
-          },
           "message": {
             "type": "string"
           },
           "new_balance": {
+            "type": "integer"
+          },
+          "offer": {
             "type": "integer"
           },
           "salvage_value": {
@@ -23542,6 +24018,7 @@
         "required": [
           "action",
           "wreck_id",
+          "offer",
           "total_payout",
           "new_balance",
           "message"
@@ -29968,7 +30445,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.586.0"
+    "x-gameserver-version": "v0.590.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -31171,7 +31648,7 @@
     },
     "/api/v2/spacemolt/attack": {
       "post": {
-        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. Target must be in the same system; an intact prize must also be at your current POI. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-applies the reputation penalty with that pirate faction and again summons every combat pirate in the system toward you. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle, and every other pirate combat hull in the system converges on you — it is not a 1v1. Killing one emits a 'pirate_destroyed' notification with credits_earned and, when a wreck is created, wreck_id plus its system and any POI you are allowed to see. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. Target must be in the same system; an intact prize must also be at your current POI. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-applies the reputation penalty with that pirate faction and again summons every combat pirate in the system toward you. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle, and every other pirate combat hull in the system converges on you — it is not a 1v1. Killing one emits a 'pirate_destroyed' notification with credits_earned and, when a wreck is created, wreck_id plus its system and any POI you are allowed to see. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_attack",
         "requestBody": {
           "content": {
@@ -31182,7 +31659,7 @@
               "schema": {
                 "properties": {
                   "id": {
-                    "description": "ID of the target: a player, pirate, empire NPC, wildlife creature, intact-prize actor, or station. Prize actor IDs come from get_nearby. Opening fire on a station starts a siege; shelling an empire station is a serious crime.",
+                    "description": "ID of the target: a player, pirate, empire NPC, wildlife creature, intact-prize actor, or station. Prize actor IDs come from get_nearby. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Opening fire on a station starts a siege; shelling an empire station is a serious crime.",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -38015,6 +38492,24 @@
                     "player_id": "abc123"
                   },
                   "structuredContent": {
+                    "arena_npc_count": 1,
+                    "arena_npcs": [
+                      {
+                        "battle_id": "abc123",
+                        "hull": 1,
+                        "is_boss": false,
+                        "max_hull": 1,
+                        "max_shield": 1,
+                        "name": "example",
+                        "npc_id": "abc123",
+                        "primary_color": "example",
+                        "secondary_color": "example",
+                        "shield": 1,
+                        "ship_class": "example",
+                        "ship_class_name": "example",
+                        "status": "example"
+                      }
+                    ],
                     "count": 1,
                     "creature_count": 1,
                     "creatures": [
@@ -42702,6 +43197,8 @@
                               "shield_bypass": 1,
                               "shield_damage_mod": 1,
                               "splash_pct": 1,
+                              "splash_radius": 1,
+                              "splash_stack_cap": 1,
                               "untraceable": false
                             },
                             "amount": 1,
@@ -55185,6 +55682,179 @@
         ]
       }
     },
+    "/api/v2/spacemolt_arena/challenges": {
+      "post": {
+        "description": "Lists every NPC challenge: lore, arena POI, loadout rules, enemy lines, the challenges it requires you to have won first (locked until you have), and how often you have won it, in series then stage order.",
+        "operationId": "spacemolt_arena_challenges",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {},
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "example",
+                    "message": "example",
+                    "retry_after": 1
+                  },
+                  "notifications": [
+                    {
+                      "data": {
+                        "achievements": [
+                          {
+                            "category": "example",
+                            "description": "example",
+                            "id": "abc123",
+                            "name": "example",
+                            "points": 1,
+                            "share_url": "example"
+                          }
+                        ],
+                        "faction": false
+                      },
+                      "id": "abc123",
+                      "msg_type": "example",
+                      "timestamp": "2026-01-01T00:00:00Z",
+                      "type": "example"
+                    }
+                  ],
+                  "session": {
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "expires_at": "2026-01-01T00:00:00Z",
+                    "id": "abc123",
+                    "player_id": "abc123"
+                  },
+                  "structuredContent": {
+                    "action": "challenges",
+                    "challenges": [
+                      {
+                        "at_this_arena": false,
+                        "challenge_id": "abc123",
+                        "description": "example",
+                        "enemies": [
+                          {
+                            "count": 1,
+                            "is_boss": false,
+                            "name": "example",
+                            "ship_class": "example",
+                            "ship_class_name": "example"
+                          }
+                        ],
+                        "locked": false,
+                        "name": "example",
+                        "poi_id": "36_ophiuchi_belt",
+                        "poi_name": "example",
+                        "requires": [
+                          "example"
+                        ],
+                        "rules": {
+                          "allowed_cargo": [
+                            "example"
+                          ],
+                          "allowed_damage_types": [
+                            "example"
+                          ],
+                          "allowed_hull_classes": [
+                            "example"
+                          ],
+                          "allowed_modules": [
+                            "example"
+                          ],
+                          "allowed_ship_categories": [
+                            "example"
+                          ],
+                          "allowed_ship_classes": [
+                            "example"
+                          ],
+                          "banned_cargo": [
+                            "example"
+                          ],
+                          "banned_effect_types": [
+                            "example"
+                          ],
+                          "banned_hull_classes": [
+                            "example"
+                          ],
+                          "banned_modules": [
+                            "example"
+                          ],
+                          "banned_ship_categories": [
+                            "example"
+                          ],
+                          "banned_ship_classes": [
+                            "example"
+                          ],
+                          "max_crew": 1,
+                          "max_marines": 1,
+                          "max_ship_scale": 1,
+                          "max_ship_tier": 1,
+                          "max_side_size": 1,
+                          "min_ship_tier": 1,
+                          "min_side_size": 1,
+                          "no_ammo_weapons": false,
+                          "no_boarding": false,
+                          "no_cloak": false,
+                          "no_consumables": false,
+                          "no_drones": false,
+                          "no_tackle": false,
+                          "require_empty_cargo": false
+                        },
+                        "series": "example",
+                        "stage": 1,
+                        "wins": 1
+                      }
+                    ]
+                  }
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/V2Response"
+                    },
+                    {
+                      "properties": {
+                        "structuredContent": {
+                          "$ref": "#/components/schemas/ArenaChallengesResponse"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Result. structuredContent type: ArenaChallengesResponse"
+          },
+          "400": {
+            "description": "Bad request — invalid params, unknown command, or game error"
+          },
+          "401": {
+            "description": "Not authenticated — missing or invalid session"
+          },
+          "429": {
+            "description": "Rate limited — mutations allow 1 per tick (10 seconds)"
+          }
+        },
+        "security": [
+          {
+            "SessionId": []
+          }
+        ],
+        "summary": "Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact",
+        "tags": [
+          "arena"
+        ]
+      }
+    },
     "/api/v2/spacemolt_arena/decline": {
       "post": {
         "description": "Declines the pending arena challenge.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
@@ -55638,6 +56308,518 @@
               }
             },
             "description": "Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaActionResponse)"
+          },
+          "400": {
+            "description": "Bad request — invalid params, unknown command, or game error"
+          },
+          "401": {
+            "description": "Not authenticated — missing or invalid session"
+          },
+          "429": {
+            "description": "Rate limited — mutations allow 1 per tick (10 seconds)"
+          }
+        },
+        "security": [
+          {
+            "SessionId": []
+          }
+        ],
+        "summary": "Consequence-free combat at an arena POI: challenge a pilot, fight on the normal battle engine, leave with ship and crew intact",
+        "tags": [
+          "arena"
+        ],
+        "x-is-mutation": true,
+        "x-state-sections": [
+          "ship",
+          "location"
+        ]
+      }
+    },
+    "/api/v2/spacemolt_arena/fight": {
+      "post": {
+        "description": "Starts an NPC challenge at this arena. `id` is the challenge_id from `challenges`; required. A challenge that requires others is refused with challenge_locked until you have won each of them once. The enemies spawn for the match and fight under the standard NPC combat AI; fleet members at the arena join your side, subject to the challenge's rules. Fight it with spacemolt_battle.\n\n**Example:** `POST /api/v2/spacemolt_arena/fight` with body `{\"id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "operationId": "spacemolt_arena_fight",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "id": "abc123"
+              },
+              "schema": {
+                "properties": {
+                  "id": {
+                    "description": "For 'fight': the NPC challenge to start, from 'challenges'.",
+                    "type": "string",
+                    "x-positional-index": 0
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "example",
+                    "message": "example",
+                    "retry_after": 1
+                  },
+                  "notifications": [
+                    {
+                      "data": {
+                        "achievements": [
+                          {
+                            "category": "example",
+                            "description": "example",
+                            "id": "abc123",
+                            "name": "example",
+                            "points": 1,
+                            "share_url": "example"
+                          }
+                        ],
+                        "faction": false
+                      },
+                      "id": "abc123",
+                      "msg_type": "example",
+                      "timestamp": "2026-01-01T00:00:00Z",
+                      "type": "example"
+                    }
+                  ],
+                  "session": {
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "expires_at": "2026-01-01T00:00:00Z",
+                    "id": "abc123",
+                    "player_id": "abc123"
+                  },
+                  "structuredContent": {
+                    "bay_capacity": 1,
+                    "bay_used": 1,
+                    "cargo": [
+                      {
+                        "item_id": "adamant_tooth",
+                        "item_name": "example",
+                        "quantity": 1,
+                        "size": 1
+                      }
+                    ],
+                    "carried_ships": [
+                      {
+                        "class_id": "absence",
+                        "class_name": "example",
+                        "name": "example",
+                        "scale": 1,
+                        "ship_id": "abc123",
+                        "slots_used": 1
+                      }
+                    ],
+                    "credits": 1,
+                    "details": {
+                      "action": "fight",
+                      "battle_id": "abc123",
+                      "challenge_id": "abc123",
+                      "enemies": [
+                        {
+                          "count": 1,
+                          "is_boss": false,
+                          "name": "example",
+                          "ship_class": "example",
+                          "ship_class_name": "example"
+                        }
+                      ],
+                      "enemy_side": 1,
+                      "message": "example",
+                      "name": "example",
+                      "participants": [
+                        {
+                          "player_id": "abc123",
+                          "side_id": 1,
+                          "username": "example"
+                        }
+                      ],
+                      "your_side": 1
+                    },
+                    "drone_bay": {
+                      "bandwidth_total": 1,
+                      "bandwidth_used": 1,
+                      "bay_capacity": 1,
+                      "bay_count": 1,
+                      "deployed_count": 1,
+                      "in_bay": [
+                        {
+                          "id": "abc123",
+                          "name": "example",
+                          "type": "example"
+                        }
+                      ]
+                    },
+                    "hints": [
+                      "example"
+                    ],
+                    "location": {
+                      "connections": [
+                        "example"
+                      ],
+                      "docked_at": "example",
+                      "empire": "crimson",
+                      "in_transit": false,
+                      "nearby_empire_npc_count": 1,
+                      "nearby_empire_npcs": [
+                        {
+                          "empire": "crimson",
+                          "fleet_name": "example",
+                          "in_combat": false,
+                          "name": "example",
+                          "npc_id": "abc123",
+                          "role": "example",
+                          "ship_class": "example",
+                          "ship_name": "example"
+                        }
+                      ],
+                      "nearby_pirate_count": 1,
+                      "nearby_pirates": [
+                        {
+                          "faction": "example",
+                          "faction_name": "example",
+                          "hull": 1,
+                          "is_boss": false,
+                          "max_hull": 1,
+                          "max_shield": 1,
+                          "name": "example",
+                          "pirate_id": "abc123",
+                          "shield": 1,
+                          "status": "example",
+                          "tier": "example"
+                        }
+                      ],
+                      "nearby_player_count": 1,
+                      "nearby_players": [
+                        {
+                          "clan_tag": "example",
+                          "faction_tag": "example",
+                          "in_combat": false,
+                          "offline": false,
+                          "player_id": "abc123",
+                          "ship_class": "example",
+                          "ship_name": "example",
+                          "username": "example"
+                        }
+                      ],
+                      "nearby_prize_count": 1,
+                      "nearby_prizes": [
+                        {
+                          "actor_id": "abc123",
+                          "hull": 1,
+                          "in_combat": false,
+                          "max_hull": 1,
+                          "max_shield": 1,
+                          "prize_id": "abc123",
+                          "shield": 1,
+                          "ship_class": "example",
+                          "ship_id": "abc123",
+                          "ship_name": "example",
+                          "status": "available",
+                          "wait_reason": "no_route"
+                        }
+                      ],
+                      "offline_collapsed": 1,
+                      "poi_id": "36_ophiuchi_belt",
+                      "poi_name": "example",
+                      "poi_type": "example",
+                      "resources": [
+                        {
+                          "item_id": "adamant_tooth",
+                          "item_name": "example",
+                          "remaining": 1,
+                          "richness": 1,
+                          "supported_power": 1
+                        }
+                      ],
+                      "security_status": "example",
+                      "system_id": "36_ophiuchi",
+                      "system_name": "example",
+                      "transit_arrival_tick": 1,
+                      "transit_bearing": 1,
+                      "transit_dest_poi_id": "abc123",
+                      "transit_dest_poi_name": "example",
+                      "transit_dest_system_id": "abc123",
+                      "transit_dest_system_name": "example",
+                      "transit_ticks_elapsed": 1,
+                      "transit_type": "example",
+                      "transit_x": 1,
+                      "transit_y": 1,
+                      "unknown_signature": false,
+                      "void_message": "example"
+                    },
+                    "message": "example",
+                    "missions": {
+                      "active": [
+                        {
+                          "accepted_at": "example",
+                          "community": false,
+                          "community_percent": 1,
+                          "community_progress": {
+                            "adamant_tooth": "example"
+                          },
+                          "description": "example",
+                          "difficulty": 1,
+                          "expires_in_ticks": 1,
+                          "giver": {
+                            "name": "example",
+                            "title": "example"
+                          },
+                          "issuing_base": "example",
+                          "issuing_base_id": "abc123",
+                          "issuing_system_id": "abc123",
+                          "issuing_system_name": "example",
+                          "mission_id": "abc123",
+                          "objectives": [
+                            {
+                              "completed": false,
+                              "current": 1,
+                              "description": "example",
+                              "eligible_players": [
+                                "example"
+                              ],
+                              "in_cargo": 1,
+                              "in_storage": 1,
+                              "item_id": "adamant_tooth",
+                              "item_name": "example",
+                              "participants": [
+                                "example"
+                              ],
+                              "required": 1,
+                              "system_id": "36_ophiuchi",
+                              "system_name": "example",
+                              "target_base": "example",
+                              "target_base_name": "example",
+                              "type": "example"
+                            }
+                          ],
+                          "percent_complete": 1,
+                          "rewards": {
+                            "credits": 1,
+                            "items": {
+                              "adamant_tooth": 1
+                            },
+                            "pirate_faction": "example",
+                            "pirate_rep": 1,
+                            "reputation": 1,
+                            "skill_xp": {
+                              "armor": 1
+                            }
+                          },
+                          "template_id": "abc123",
+                          "title": "example",
+                          "type": "example"
+                        }
+                      ],
+                      "max_missions": 1
+                    },
+                    "modules": [
+                      {
+                        "ammo_type": "example",
+                        "cpu_usage": 1,
+                        "current_ammo": 1,
+                        "loaded_ammo_id": "abc123",
+                        "loaded_ammo_name": "example",
+                        "magazine_size": 1,
+                        "module_id": "adaptive_shield_i",
+                        "name": "example",
+                        "power_usage": 1,
+                        "size": 1,
+                        "slot": "example",
+                        "type": "example",
+                        "type_id": "abc123"
+                      }
+                    ],
+                    "player": {
+                      "citizenships": [
+                        "example"
+                      ],
+                      "clan_tag": "example",
+                      "credits": 1,
+                      "empire": "crimson",
+                      "faction_id": "abc123",
+                      "faction_rank": "example",
+                      "home_base": "example",
+                      "home_poi": "example",
+                      "home_system": "example",
+                      "id": "abc123",
+                      "is_cloaked": false,
+                      "primary_color": "example",
+                      "secondary_color": "example",
+                      "standings": {
+                        "crimson": {
+                          "baseline": 1,
+                          "jailed_until": "2026-01-01T00:00:00Z",
+                          "outstanding_bounty": 1,
+                          "reputation": 1
+                        }
+                      },
+                      "stats": "",
+                      "status_message": "example",
+                      "towing_ship_id": "abc123",
+                      "towing_wreck_id": "abc123",
+                      "trading_restricted_until": "2026-01-01T00:00:00Z",
+                      "username": "example"
+                    },
+                    "prize_recoveries": [
+                      {
+                        "actor_id": "abc123",
+                        "crew_disposition": "aboard",
+                        "destination_base_id": "abc123",
+                        "fuel": 1,
+                        "hull": 1,
+                        "max_fuel": 1,
+                        "max_hull": 1,
+                        "poi_id": "36_ophiuchi_belt",
+                        "prize_crew_fit": 1,
+                        "prize_id": "abc123",
+                        "return_crew_faction_id": "abc123",
+                        "ship_class": "example",
+                        "ship_id": "abc123",
+                        "ship_name": "example",
+                        "status": "available",
+                        "system_id": "36_ophiuchi",
+                        "transit_arrival_tick": 1,
+                        "transit_from_poi_id": "abc123",
+                        "transit_from_system_id": "abc123",
+                        "transit_kind": "jump",
+                        "transit_to_poi_id": "abc123",
+                        "transit_to_system_id": "abc123",
+                        "wait_reason": "no_route"
+                      }
+                    ],
+                    "queue": {
+                      "has_pending": false
+                    },
+                    "riding": {
+                      "carrier": "example",
+                      "ship_id": "abc123"
+                    },
+                    "ship": {
+                      "active_buffs": [
+                        {
+                          "amount": 1,
+                          "expires_at": 1,
+                          "item_id": "adamant_tooth",
+                          "stat": "example"
+                        }
+                      ],
+                      "armor": 1,
+                      "armor_melt_pct": 1,
+                      "armor_melt_ticks_remaining": 1,
+                      "berths": {
+                        "business": {
+                          "free": 1,
+                          "total": 1
+                        },
+                        "economy": {
+                          "free": 1,
+                          "total": 1
+                        },
+                        "first": {
+                          "free": 1,
+                          "total": 1
+                        }
+                      },
+                      "burn_damage_per_tick": 1,
+                      "burn_source_id": "abc123",
+                      "burn_ticks_remaining": 1,
+                      "cargo_capacity": 1,
+                      "cargo_used": 1,
+                      "class_id": "absence",
+                      "class_name": "example",
+                      "cpu_capacity": 1,
+                      "cpu_used": 1,
+                      "crew_efficiency": 1,
+                      "custom_name": "example",
+                      "damage_penalty": 1,
+                      "defense_slots": 1,
+                      "disruption_ticks_remaining": 1,
+                      "effective_crew_capacity": 1,
+                      "effective_marine_capacity": 1,
+                      "fuel": 1,
+                      "gas_cargo_efficiency": 1,
+                      "hull": 1,
+                      "ice_cargo_efficiency": 1,
+                      "id": "abc123",
+                      "incapacitated": false,
+                      "location": "example",
+                      "max_fuel": 1,
+                      "max_hull": 1,
+                      "max_shield": 1,
+                      "minimum_crew": 1,
+                      "name": "example",
+                      "operational_speed": 1,
+                      "ore_cargo_efficiency": 1,
+                      "personnel": {
+                        "fit_crew": 1,
+                        "fit_marines": 1,
+                        "injured_crew": 1,
+                        "injured_marines": 1
+                      },
+                      "personnel_recovery_tick": 1,
+                      "personnel_recovery_ticks_remaining": 1,
+                      "power_capacity": 1,
+                      "power_used": 1,
+                      "shield": 1,
+                      "shield_recharge": 1,
+                      "speed": 1,
+                      "speed_penalty": 1,
+                      "utility_slots": 1,
+                      "weapon_slots": 1
+                    },
+                    "skills": {
+                      "armor": {
+                        "category": "example",
+                        "level": 1,
+                        "max_level": 1,
+                        "name": "example",
+                        "next_level_xp": 1,
+                        "xp": 1
+                      }
+                    },
+                    "version": "example"
+                  }
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/V2Response"
+                    },
+                    {
+                      "properties": {
+                        "structuredContent": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/V2GameState"
+                            },
+                            {
+                              "properties": {
+                                "details": {
+                                  "$ref": "#/components/schemas/ArenaFightResponse"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          ]
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaFightResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -56128,6 +57310,9 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
                       "arena_xp": {
                         "by_skill": {
                           "example_key": 1
@@ -56781,6 +57966,9 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
                       "arena_xp": {
                         "by_skill": {
                           "example_key": 1
@@ -57321,6 +58509,9 @@
                     "message": "example",
                     "password": "example",
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
                       "arena_xp": {
                         "by_skill": {
                           "example_key": 1
@@ -58029,358 +59220,18 @@
                     "battle_id": "abc123",
                     "entries": [
                       {
-                        "arena": false,
-                        "arena_restore": {
-                          "battle_id": "abc123",
-                          "drones": {
-                            "example_key": {
-                              "hull": 1,
-                              "owner_id": "abc123",
-                              "status": "example"
-                            }
-                          },
-                          "ships": {
-                            "example_key": {
-                              "armor": 1,
-                              "hull": 1,
-                              "max_hull": 1,
-                              "max_shield": 1,
-                              "personnel": {
-                                "fit_crew": 1,
-                                "fit_marines": 1,
-                                "injured_crew": 1,
-                                "injured_marines": 1,
-                                "version": 1
-                              },
-                              "personnel_recovery_tick": 1,
-                              "player_id": "abc123",
-                              "shield": 1
-                            }
-                          }
-                        },
-                        "attacks": [
-                          {
-                            "after_def_buff": 1,
-                            "after_stance": 1,
-                            "aoe_radius": 1,
-                            "armor_melt_applied_pct": 1,
-                            "attacker_id": "abc123",
-                            "capital_bonus_pct": 1,
-                            "chain_targets": 1,
-                            "cpu_damage_pct": 1,
-                            "damage_type": "example",
-                            "def_buff_pct": 1,
-                            "defense_components": [
-                              {
-                                "after_flat_reduction": 1,
-                                "after_shield_resist": 1,
-                                "after_type_resist": 1,
-                                "armor_bypass_pct": 1,
-                                "damage_type": "example",
-                                "final_damage": 1,
-                                "flat_reduction_pct": 1,
-                                "hull_damage": 1,
-                                "ignore_all_defense": false,
-                                "ignored_resistance_pct": 1,
-                                "incoming_damage": 1,
-                                "lifesteal_heal": 1,
-                                "lifesteal_pct": 1,
-                                "shield_bypass_pct": 1,
-                                "shield_damage": 1,
-                                "shield_resist_pct": 1,
-                                "type_resist_pct": 1,
-                                "weapon_instance_id": "abc123",
-                                "weapon_name": "example"
-                              }
-                            ],
-                            "disrupted": false,
-                            "dot_damage": 1,
-                            "dot_duration": 1,
-                            "dot_source_id": "abc123",
-                            "emergency_cloak_activated": false,
-                            "emergency_cloak_duration": 1,
-                            "emergency_cloak_strength": 1,
-                            "final_damage": 1,
-                            "flat_reduction_pct": 1,
-                            "hit_chance": 1,
-                            "hit_roll": 1,
-                            "hit_success": false,
-                            "hull_damage": 1,
-                            "ignored_resistance_pct": 1,
-                            "lifesteal_pct": 1,
-                            "mine_duration": 1,
-                            "off_buff_pct": 1,
-                            "pre_hit_damage": 1,
-                            "raw_damage": 1,
-                            "secondary_kind": "example",
-                            "shield_damage": 1,
-                            "shield_drain_requested": 1,
-                            "shield_drained": 1,
-                            "shield_resist_pct": 1,
-                            "shield_transfer_pct": 1,
-                            "shield_transferred": 1,
-                            "splash": false,
-                            "stance_mult": 1,
-                            "system_disable_ticks": 1,
-                            "target_id": "abc123",
-                            "type_resist_pct": 1,
-                            "weapon_skill_pct": 1,
-                            "weapons": [
-                              {
-                                "after_disruption": 1,
-                                "ammo_mod": 1,
-                                "ammo_used": "example",
-                                "base_damage": 1,
-                                "crit_chance": 1,
-                                "crit_fired": false,
-                                "crit_roll": 1,
-                                "damage": 1,
-                                "damage_type": "example",
-                                "instance_id": "abc123",
-                                "name": "example",
-                                "type_bonus_pct": 1
-                              }
-                            ],
-                            "zone_distance": 1
-                          }
-                        ],
-                        "autopilot": [
-                          {
-                            "chosen_target": "example",
-                            "player_id": "abc123",
-                            "reason": "example"
-                          }
-                        ],
-                        "battle_ended": {
-                          "captures": [
-                            {
-                              "boarding_operation_id": "abc123",
-                              "captor_id": "abc123",
-                              "captor_kind": "player",
-                              "captor_username": "example",
-                              "former_owner_id": "abc123",
-                              "former_owner_username": "example",
-                              "ship_class": "example",
-                              "ship_id": "abc123"
-                            }
-                          ],
-                          "category": "example",
-                          "duration": 1,
-                          "outcome": "stalemate",
-                          "participant_names": [
-                            "example"
-                          ],
-                          "participants": [
-                            {
-                              "damage_dealt": 1,
-                              "damage_taken": 1,
-                              "is_boss": false,
-                              "is_npc": false,
-                              "kill_count": 1,
-                              "kind": "example",
-                              "player_id": "abc123",
-                              "side_id": 1,
-                              "survived": false,
-                              "username": "example"
-                            }
-                          ],
-                          "ships_captured": 1,
-                          "ships_destroyed": 1,
-                          "total_damage": 1,
-                          "winning_side": -1
-                        },
-                        "battle_id": "abc123",
+                        "battle_id": "battle-example",
+                        "system_id": "system-example",
+                        "tick": 42,
+                        "snapshots": [],
                         "boarding": [
                           {
-                            "actor_id": "abc123",
-                            "attacker_casualties": false,
-                            "casualties_occurred": false,
-                            "defender_casualties": false,
-                            "destroyed": false,
-                            "event": "example",
-                            "hull_damage": 1,
-                            "operation_id": "abc123",
-                            "phase": "latching",
-                            "reason": "example",
-                            "self_destruct_countdown": 1,
-                            "target_id": "abc123"
-                          }
-                        ],
-                        "burns": [
-                          {
-                            "damage": 1,
-                            "destroyed": false,
-                            "source_id": "abc123",
-                            "target_id": "abc123",
-                            "ticks_remaining": 1
-                          }
-                        ],
-                        "captures": [
-                          {
-                            "boarding_operation_id": "abc123",
-                            "captor_id": "abc123",
-                            "captor_kind": "player",
-                            "captor_username": "example",
-                            "former_owner_id": "abc123",
-                            "former_owner_username": "example",
-                            "ship_class": "example",
-                            "ship_id": "abc123"
-                          }
-                        ],
-                        "commands": [
-                          {
-                            "command": "example",
-                            "player_id": "abc123",
-                            "stance": "example",
-                            "target_id": "abc123"
-                          }
-                        ],
-                        "flee": [
-                          {
-                            "escaped": false,
-                            "flee_counter": 1,
-                            "flee_required": 1,
-                            "player_id": "abc123"
-                          }
-                        ],
-                        "fuel": [
-                          {
-                            "forced_fire": false,
-                            "fuel_after": 1,
-                            "fuel_before": 1,
-                            "fuel_burned": 1,
-                            "player_id": "abc123"
-                          }
-                        ],
-                        "joins": [
-                          {
-                            "player_id": "abc123",
-                            "side_id": 1,
-                            "username": "example"
-                          }
-                        ],
-                        "kills": [
-                          {
-                            "cause": "example",
-                            "killer_id": "abc123",
-                            "killer_username": "example",
-                            "victim_id": "abc123",
-                            "victim_username": "example"
-                          }
-                        ],
-                        "personnel_casualties": [
-                          {
-                            "casualties_occurred": false,
-                            "incapacitated": false,
-                            "target_id": "abc123",
-                            "triage_applied": false,
-                            "triage_converted": false,
-                            "triage_provider_id": "abc123",
-                            "triage_provider_ship_id": "abc123"
-                          }
-                        ],
-                        "recovered_summary": {
-                          "captures": [
-                            {
-                              "boarding_operation_id": "abc123",
-                              "captor_id": "abc123",
-                              "captor_kind": "player",
-                              "captor_username": "example",
-                              "former_owner_id": "abc123",
-                              "former_owner_username": "example",
-                              "ship_class": "example",
-                              "ship_id": "abc123"
-                            }
-                          ],
-                          "category": "example",
-                          "duration": 1,
-                          "participant_names": [
-                            "example"
-                          ],
-                          "participants": [
-                            {
-                              "damage_dealt": 1,
-                              "damage_taken": 1,
-                              "is_boss": false,
-                              "is_npc": false,
-                              "kill_count": 1,
-                              "kind": "example",
-                              "player_id": "abc123",
-                              "side_id": 1,
-                              "survived": false,
-                              "username": "example"
-                            }
-                          ],
-                          "ships_captured": 1,
-                          "ships_destroyed": 1,
-                          "start_tick": 1,
-                          "total_damage": 1
-                        },
-                        "regen": [
-                          {
-                            "armor_repair": 1,
-                            "hull_after": 1,
-                            "hull_before": 1,
-                            "passive_repair": 1,
-                            "player_id": "abc123",
-                            "remote_repair": 1,
-                            "shield_after": 1,
-                            "shield_before": 1,
-                            "shield_regen": 1
-                          }
-                        ],
-                        "snapshots": [
-                          {
-                            "armor_melt_pct": 1,
-                            "armor_melt_ticks": 1,
-                            "auto_pilot": false,
-                            "burn_damage_per_tick": 1,
-                            "burn_ticks": 1,
-                            "damage_dealt": 1,
-                            "damage_penalty_pct": 1,
-                            "damage_taken": 1,
-                            "disruption_ticks": 1,
-                            "faction_id": "abc123",
-                            "flee_counter": 1,
-                            "fuel": 1,
-                            "hull": 1,
-                            "is_boss": false,
-                            "is_npc": false,
-                            "kill_count": 1,
-                            "kind": "example",
-                            "max_fuel": 1,
-                            "max_hull": 1,
-                            "max_shield": 1,
-                            "modules": [
-                              {
-                                "category": "example",
-                                "current_ammo": 1,
-                                "loaded_ammo": "example",
-                                "magazine_size": 1,
-                                "name": "example"
-                              }
-                            ],
-                            "player_id": "abc123",
-                            "shield": 1,
-                            "ship_class": "example",
-                            "side_id": 1,
-                            "speed_penalty_pct": 1,
-                            "stance": "example",
-                            "target_id": "abc123",
-                            "username": "example",
-                            "x": 1,
-                            "y": 1,
-                            "zone": "example"
-                          }
-                        ],
-                        "system_id": "36_ophiuchi",
-                        "tick": 1,
-                        "zone_moves": [
-                          {
-                            "new_zone": "example",
-                            "old_zone": "example",
-                            "player_id": "abc123",
-                            "reason": "example"
+                            "operation_id": "",
+                            "phase": "resolved",
+                            "actor_id": "losing-boarder",
+                            "target_id": "contested-hull",
+                            "event": "boarding_rejected",
+                            "reason": "contested_same_tick"
                           }
                         ]
                       }
@@ -59145,7 +59996,7 @@
     },
     "/api/v2/spacemolt_battle/stance": {
       "post": {
-        "description": "Sets your combat posture via `id`: `fire` (100% damage dealt and taken), `evade` (0% dealt / 50% taken, burns extra fuel), `brace` (0% dealt / 25% taken, shields regenerate at 2x), `flee` (0% dealt / 100% taken, escapes after auto-retreat), or `board` (no weapons or defensive reduction; automatically closes for repeated latch attempts). `board` requires `target` and a positive `marines` commitment; creatures, drones, and stations are not capturable and are rejected immediately. A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from `board` begins a costly, non-instant withdrawal; the requested stance takes effect only after disengagement. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/stance` with body `{\"id\":\"fire\",\"marines\":1,\"target\":\"example\"}`",
+        "description": "Sets your combat posture via `id`: `fire` (100% damage dealt and taken), `evade` (0% dealt / 50% taken, burns extra fuel), `brace` (0% dealt / 25% taken, shields regenerate at 2x), `flee` (0% dealt / 100% taken, escapes after auto-retreat), or `board` (no weapons or defensive reduction; automatically closes for repeated latch attempts). `board` requires `target` and a positive `marines` commitment; creatures, drones, and stations are not capturable and are rejected immediately. A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records `boarding_rejected` with reason `contested_same_tick`. Changing away from `board` begins a costly, non-instant withdrawal; the requested stance takes effect only after disengagement. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/stance` with body `{\"id\":\"fire\",\"marines\":1,\"target\":\"example\"}`",
         "operationId": "spacemolt_battle_stance",
         "requestBody": {
           "content": {
@@ -59158,7 +60009,7 @@
               "schema": {
                 "properties": {
                   "id": {
-                    "description": "Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. Changing away from board begins non-instant withdrawal.",
+                    "description": "Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records reason contested_same_tick. Changing away from board begins non-instant withdrawal.",
                     "enum": [
                       "fire",
                       "evade",
@@ -59886,6 +60737,8 @@
                             "shield_bypass": 1,
                             "shield_damage_mod": 1,
                             "splash_pct": 1,
+                            "splash_radius": 1,
+                            "splash_stack_cap": 1,
                             "untraceable": false
                           },
                           "amount": 1,
@@ -100341,7 +101194,7 @@
     },
     "/api/v2/spacemolt_fleet/create": {
       "post": {
-        "description": "Creates a new fleet with you as leader. The fleet leader controls navigation (jump/travel/dock) and combat targeting for all members; fleet speed is capped by the slowest ship.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Creates a new fleet with you as leader. Anyone may create one; ordinary capacity starts at 3 and increases with Leadership and command-capable hulls. The fleet leader controls navigation (jump/travel/dock) and combat targeting for all members; fleet speed is capped by the slowest ship.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_fleet_create",
         "requestBody": {
           "content": {
@@ -102312,7 +103165,7 @@
     },
     "/api/v2/spacemolt_fleet/invite": {
       "post": {
-        "description": "Invites a player at your current location to join your fleet. `id` is the player's name or ID; required. Maximum fleet size scales with the leader's leadership skill.\n\n**Example:** `POST /api/v2/spacemolt_fleet/invite` with body `{\"id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Invites a player at your current location to join your fleet. `id` is the player's name or ID; required. Inviting beyond ordinary capacity while undocked at an arena converts the fleet to an unlimited arena-only fleet, which disbands if its leader leaves the arena.\n\n**Example:** `POST /api/v2/spacemolt_fleet/invite` with body `{\"id\":\"abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_fleet_invite",
         "requestBody": {
           "content": {
@@ -103812,6 +104665,7 @@
                   },
                   "structuredContent": {
                     "action": "status",
+                    "arena_only": false,
                     "fleet_id": "abc123",
                     "in_fleet": false,
                     "invite_fleet": "example",
@@ -112350,7 +113204,7 @@
     },
     "/api/v2/spacemolt_salvage/sell": {
       "post": {
-        "description": "Must be docked at a station with a salvage yard. Pays salvage value plus cargo value.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked at an NPC station with a salvage yard. The yard keeps the hull's materials and cargo and pays a fraction of their local market value from the station manager's credits; a broke manager can't buy. Player-owned yards don't buy wrecks. scrap recovers far more, as materials.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_salvage_sell",
         "requestBody": {
           "content": {
@@ -112425,9 +113279,9 @@
                       "action": "example",
                       "auto_docked": false,
                       "auto_undocked": false,
-                      "cargo_value": 1,
                       "message": "example",
                       "new_balance": 1,
+                      "offer": 1,
                       "salvage_value": 1,
                       "ship_class": "example",
                       "total_payout": 1,
@@ -112824,7 +113678,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Sell a towed wreck to the salvage yard for credits",
+        "summary": "Sell a towed wreck to an NPC salvage yard for credits",
         "tags": [
           "salvage"
         ],
