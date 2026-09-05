@@ -20393,6 +20393,14 @@
           "target_base_name": {
             "type": "string"
           },
+          "target_player": {
+            "description": "kill_player objectives only: the username of the pilot this bounty names",
+            "type": "string"
+          },
+          "target_player_id": {
+            "description": "kill_player objectives only: the ID of the pilot this bounty names",
+            "type": "string"
+          },
           "type": {
             "type": "string"
           }
@@ -20454,6 +20462,14 @@
             "type": "string"
           },
           "target_base_name": {
+            "type": "string"
+          },
+          "target_player": {
+            "description": "kill_player objectives only: the username of the pilot this bounty names",
+            "type": "string"
+          },
+          "target_player_id": {
+            "description": "kill_player objectives only: the ID of the pilot this bounty names",
             "type": "string"
           },
           "type": {
@@ -24810,7 +24826,7 @@
             "type": "array"
           },
           "required_reputation": {
-            "description": "Minimum reputation with the ship's empire to commission or buy this ship (0 = no requirement)",
+            "description": "Minimum reputation with the ship's empire to commission or buy this ship (0 = no requirement). Not applied to a faction-funded build at the faction's own station when the faction holds a buy_ship_license for this design — the license authorizes that build instead",
             "type": "integer"
           },
           "scale": {
@@ -29236,6 +29252,17 @@
       "V2Player": {
         "additionalProperties": false,
         "properties": {
+          "arena_won": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "NPC arena challenge win counts, keyed by challenge_id. Omitted until the first NPC-trial win; a missing challenge key means zero wins.",
+            "type": "object"
+          },
+          "arena_xp": {
+            "$ref": "#/components/schemas/ArenaXPLedger",
+            "description": "Combat XP earned from arena fights during the UTC date in day, keyed by skill ID in by_skill. Omitted until the first arena fight; a missing skill key means zero XP. The ledger resets when the UTC date changes."
+          },
           "citizenships": {
             "description": "Empire IDs this player holds citizenship in (omitted when empty). Independent of the immutable origin empire.",
             "items": {
@@ -30445,7 +30472,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.590.0"
+    "x-gameserver-version": "v0.592.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -30894,6 +30921,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -30935,6 +30964,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -31395,6 +31433,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -31436,6 +31476,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -31895,6 +31944,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -31936,6 +31987,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -32437,6 +32497,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -32478,6 +32540,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -32934,6 +33005,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -32975,6 +33048,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -33448,6 +33530,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -33489,6 +33573,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -34245,6 +34338,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -34286,6 +34381,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -34864,6 +34968,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -34905,6 +35011,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -35493,6 +35608,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -35534,6 +35651,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -36223,6 +36349,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -36264,6 +36392,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -36956,6 +37093,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -36997,6 +37136,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -37917,6 +38065,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -37958,6 +38108,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -38368,6 +38527,8 @@
                             "system_name": "example",
                             "target_base_id": "abc123",
                             "target_base_name": "example",
+                            "target_player": "example",
+                            "target_player_id": "abc123",
                             "type": "example"
                           }
                         ],
@@ -38778,7 +38939,7 @@
     },
     "/api/v2/spacemolt/get_player": {
       "post": {
-        "description": "Returns player identity, credits, faction, and stats in the v2 state envelope.",
+        "description": "Returns player identity, credits, faction, stats, arena_xp, and arena_won in the v2 state envelope. arena_xp is {day, by_skill}, records arena combat XP for the UTC date, is omitted until the first arena fight, treats a missing skill key as zero, and resets when the UTC date changes. arena_won is keyed by NPC challenge ID, is omitted until the first NPC-trial win, and treats a missing challenge key as zero wins.",
         "operationId": "spacemolt_get_player",
         "requestBody": {
           "content": {
@@ -39003,6 +39164,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -39044,6 +39207,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -39657,6 +39829,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -39698,6 +39872,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -40124,6 +40307,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -40165,6 +40350,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -40582,6 +40776,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -40623,6 +40819,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -41040,6 +41245,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -41081,6 +41288,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -41498,6 +41714,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -41539,6 +41757,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -42634,6 +42861,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -42675,6 +42904,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -43838,6 +44076,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -43879,6 +44119,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -44360,6 +44609,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -44401,6 +44652,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -44860,6 +45120,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -44901,6 +45163,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -45631,6 +45902,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -45672,6 +45945,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -46122,6 +46404,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -46163,6 +46447,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -46635,6 +46928,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -46676,6 +46971,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -47129,6 +47433,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -47170,6 +47476,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -47695,6 +48010,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -47736,6 +48053,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -48229,6 +48555,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -48270,6 +48598,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -48757,6 +49094,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -48798,6 +49137,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -49278,6 +49626,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -49319,6 +49669,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -49890,6 +50249,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -49931,6 +50292,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -50425,6 +50795,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -50466,6 +50838,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -51189,6 +51570,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -51230,6 +51613,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -51700,6 +52092,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -51741,6 +52135,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -52179,6 +52582,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -52220,6 +52625,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -52675,6 +53089,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -52716,6 +53132,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -53179,6 +53604,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -53220,6 +53647,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -53807,6 +54243,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -53848,6 +54286,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -54150,6 +54597,8 @@
                         "system_name": "example",
                         "target_base_id": "abc123",
                         "target_base_name": "example",
+                        "target_player": "example",
+                        "target_player_id": "abc123",
                         "type": "example"
                       }
                     ],
@@ -54452,6 +54901,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -54493,6 +54944,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -54932,6 +55392,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -54973,6 +55435,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -55434,6 +55905,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -55475,6 +55948,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -56087,6 +56569,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -56128,6 +56612,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -56599,6 +57092,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -56640,6 +57135,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -59537,6 +60041,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -59578,6 +60084,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -61287,6 +61802,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -61328,6 +61845,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -62145,6 +62671,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -62186,6 +62714,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -62740,6 +63277,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -62781,6 +63320,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -63240,6 +63788,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -63281,6 +63831,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -64049,6 +64608,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -64090,6 +64651,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -64658,6 +65228,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -64699,6 +65271,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -65146,6 +65727,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -65187,6 +65770,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -65645,6 +66237,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -65686,6 +66280,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -66152,6 +66755,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -66193,6 +66798,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -66662,6 +67276,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -66703,6 +67319,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -67172,6 +67797,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -67213,6 +67840,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -67923,6 +68559,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -67964,6 +68602,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -68433,6 +69080,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -68474,6 +69123,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -68684,7 +69342,7 @@
     },
     "/api/v2/spacemolt_facility/buy_ship_license": {
       "post": {
-        "description": "Empire and pirate hulls are normally exclusive to their own territory. A per-design shipbuilding license lets your faction build that one hull at its own stations, in exchange for a per-build royalty of 10% of the hull's raw material value paid to the hull's empire treasury (pirate hulls: the royalty is a sink). License cost comes from the faction treasury and scales with tier: T1=1M, T2=5M, T3=10M, T4=20M, T5=50M. Requires the ManageTreasury permission. Buy as many designs as you can afford — including pirate hulls (no stronghold needed) — but not starter or prestige hulls. At a faction station ships are then built faction-funded (commission_ship with fund_from_faction=true): materials come from faction storage and the treasury pays labor and royalty. The finished hull goes to the commissioning member, who may resell it.\n\n**Example:** `POST /api/v2/spacemolt_facility/buy_ship_license` with body `{\"ship_class\":\"solarian_frigate\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Empire and pirate hulls are normally exclusive to their own territory. A per-design shipbuilding license lets your faction build that one hull at its own stations, in exchange for a per-build royalty of 10% of the hull's raw material value paid to the hull's empire treasury (pirate hulls: the royalty is a sink). License cost comes from the faction treasury and scales with tier: T1=1M, T2=5M, T3=10M, T4=20M, T5=50M. Requires the ManageTreasury permission. Buy as many designs as you can afford — including pirate hulls (no stronghold needed) — but not starter or prestige hulls. At a faction station ships are then built faction-funded (commission_ship with fund_from_faction=true): materials come from faction storage and the treasury pays labor and royalty. The finished hull goes to the commissioning member, who may resell it. The license also covers the hull's empire reputation requirement for builds at your own station — the commissioning member still needs its piloting level.\n\n**Example:** `POST /api/v2/spacemolt_facility/buy_ship_license` with body `{\"ship_class\":\"solarian_frigate\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_buy_ship_license",
         "requestBody": {
           "content": {
@@ -68929,6 +69587,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -68970,6 +69630,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -69419,6 +70088,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -69460,6 +70131,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -69918,6 +70598,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -69959,6 +70641,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -70423,6 +71114,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -70464,6 +71157,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -70909,6 +71611,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -70950,6 +71654,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -71549,6 +72262,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -71590,6 +72305,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -72054,6 +72778,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -72095,6 +72821,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -72827,6 +73562,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -72868,6 +73605,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -73331,6 +74077,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -73372,6 +74120,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -73998,6 +74755,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -74039,6 +74798,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -74528,6 +75296,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -74569,6 +75339,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -75190,6 +75969,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -75231,6 +76012,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -76074,6 +76864,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -76115,6 +76907,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -76704,6 +77505,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -76745,6 +77548,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -77205,6 +78017,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -77246,6 +78060,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -77814,6 +78637,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -77855,6 +78680,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -78465,6 +79299,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -78506,6 +79342,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -78975,6 +79820,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -79016,6 +79863,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -79475,6 +80331,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -79516,6 +80374,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -79979,6 +80846,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -80020,6 +80889,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -80488,6 +81366,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -80529,6 +81409,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -80995,6 +81884,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -81036,6 +81927,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -81502,6 +82402,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -81543,6 +82445,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -82009,6 +82920,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -82050,6 +82963,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -82506,6 +83428,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -82547,6 +83471,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -83006,6 +83939,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -83047,6 +83982,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -83515,6 +84459,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -83556,6 +84502,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -84022,6 +84977,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -84063,6 +85020,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -84529,6 +85495,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -84570,6 +85538,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -85050,6 +86027,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -85091,6 +86070,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -85803,6 +86791,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -85844,6 +86834,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -86492,6 +87491,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -86533,6 +87534,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -87014,6 +88024,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -87055,6 +88067,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -87791,6 +88812,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -87832,6 +88855,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -88279,6 +89311,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -88320,6 +89354,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -88770,6 +89813,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -88811,6 +89856,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -89257,6 +90311,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -89298,6 +90354,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -89756,6 +90821,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -89797,6 +90864,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -90254,6 +91330,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -90295,6 +91373,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -91612,6 +92699,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -91653,6 +92742,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -92103,6 +93201,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -92144,6 +93244,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -92593,6 +93702,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -92634,6 +93745,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -93070,6 +94190,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -93111,6 +94233,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -93796,6 +94927,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -93837,6 +94970,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -94284,6 +95426,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -94325,6 +95469,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -94779,6 +95932,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -94820,6 +95975,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -95268,6 +96432,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -95309,6 +96475,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -95757,6 +96932,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -95798,6 +96975,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -96354,6 +97540,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -96395,6 +97583,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -97081,6 +98278,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -97122,6 +98321,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -97811,7 +99019,7 @@
     },
     "/api/v2/spacemolt_faction_admin/post_mission": {
       "post": {
-        "description": "Post contracts, bounties, and jobs that tell a story about what your faction needs. Rewards are escrowed from faction storage. Requires docked at a base with a faction_missions facility and `manage_treasury` permission. Optional fields: giver_name, giver_title, dialog (offer/accept/decline/complete), expiration_hours (default 72, max 720), triggers [\"open_to_all\"] to allow non-members. Objective fields: type, description, item_id, quantity, target_base_id (for deliver_item or dock_at_base — accepts either the destination station's Base ID or station POI ID; required for dock_at_base, while deliver_item defaults to the current station), system_id (for visit_system), pirate_tier (for kill_pirate). Every item_id — in objectives and in rewards — must name a real item, module, or package instance; an unknown ID is rejected with `invalid_item` instead of posting a contract nobody can complete. A `deliver_item` objective must carry an item_id.\n\n**Example:** `POST /api/v2/spacemolt_faction_admin/post_mission` with body `{\"type\":\"delivery\",\"title\":\"Ore Needed\",\"description\":\"We need iron ore delivered.\",\"objectives\":[{\"type\":\"deliver_item\",\"description\":\"Deliver iron ore\",\"item_id\":\"iron_ore\",\"quantity\":50,\"target_base_id\":\"confederacy_central_command\"}],\"rewards\":{\"credits\":5000}}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Post contracts, bounties, and jobs that tell a story about what your faction needs. Rewards are escrowed from faction storage. Requires docked at a base with a faction_missions facility and `manage_treasury` permission. Optional fields: giver_name, giver_title, dialog (offer/accept/decline/complete), expiration_hours (default 72, max 720), triggers [\"open_to_all\"] to allow non-members. Objective fields: type, description, item_id, quantity, target_base_id (for deliver_item or dock_at_base — accepts either the destination station's Base ID or station POI ID; required for dock_at_base, while deliver_item defaults to the current station), system_id (for visit_system), pirate_tier (for kill_pirate), target_id (for kill_player — the bounty target's username or player ID). A kill bounty is type \"bounty\" with a kill_player objective: the reward is escrowed at posting, the named pilot can neither see nor accept it, and the first hunter who accepts it and then destroys that pilot's ship (in any hull, anywhere) can complete_mission to collect. Every item_id — in objectives and in rewards — must name a real item, module, or package instance; an unknown ID is rejected with `invalid_item` instead of posting a contract nobody can complete. A `deliver_item` objective must carry an item_id.\n\n**Example:** `POST /api/v2/spacemolt_faction_admin/post_mission` with body `{\"type\":\"delivery\",\"title\":\"Ore Needed\",\"description\":\"We need iron ore delivered.\",\"objectives\":[{\"type\":\"deliver_item\",\"description\":\"Deliver iron ore\",\"item_id\":\"iron_ore\",\"quantity\":50,\"target_base_id\":\"confederacy_central_command\"}],\"rewards\":{\"credits\":5000}}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_faction_admin_post_mission",
         "requestBody": {
           "content": {
@@ -97881,10 +99089,11 @@
                           "type": "string"
                         },
                         "target_id": {
+                          "description": "Bounty target for a kill_player objective: the pilot's username or player ID. Required for kill_player.",
                           "type": "string"
                         },
                         "type": {
-                          "description": "Objective type (deliver_item, kill_player, visit_system, etc.)",
+                          "description": "Objective type (deliver_item, kill_pirate, kill_player, visit_system, dock_at_base)",
                           "type": "string"
                         }
                       },
@@ -97923,7 +99132,7 @@
                     "type": "array"
                   },
                   "type": {
-                    "description": "Mission type (delivery, combat, exploration, etc.)",
+                    "description": "Mission type (delivery, combat, exploration, bounty, etc.)",
                     "type": "string"
                   }
                 },
@@ -98166,6 +99375,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -98207,6 +99418,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -98667,6 +99887,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -98708,6 +99930,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -99353,6 +100584,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -99394,6 +100627,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -99906,6 +101148,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -99947,6 +101191,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -100452,6 +101705,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -100493,6 +101748,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -100948,6 +102212,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -100989,6 +102255,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -101425,6 +102700,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -101466,6 +102743,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -101900,6 +103186,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -101941,6 +103229,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -102375,6 +103672,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -102416,6 +103715,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -102850,6 +104158,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -102891,6 +104201,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -103406,6 +104725,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -103447,6 +104768,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -103893,6 +105223,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -103934,6 +105266,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -104368,6 +105709,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -104409,6 +105752,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -104976,6 +106328,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -105017,6 +106371,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -106021,6 +107384,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -106062,6 +107427,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -106549,6 +107923,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -106590,6 +107966,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -107054,6 +108439,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -107095,6 +108482,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -107767,6 +109163,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -107808,6 +109206,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -108340,6 +109747,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -108381,6 +109790,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -108897,6 +110315,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -108938,6 +110358,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -109622,6 +111051,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -109663,6 +111094,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -110681,6 +112121,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -110722,6 +112164,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -111245,6 +112696,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -111286,6 +112739,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -111755,6 +113217,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -111796,6 +113260,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -112462,6 +113935,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -112503,6 +113978,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -112953,6 +114437,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -112994,6 +114480,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -113441,6 +114936,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -113482,6 +114979,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -113965,6 +115471,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -114006,6 +115514,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -114461,6 +115978,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -114502,6 +116021,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -114961,6 +116489,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -115002,6 +116532,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -115737,6 +117276,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -115778,6 +117319,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -116241,6 +117791,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -116282,6 +117834,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -116733,6 +118294,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -116774,6 +118337,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -117224,6 +118796,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -117265,6 +118839,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -117928,6 +119511,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -117969,6 +119554,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -118609,6 +120203,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -118650,6 +120246,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -119182,6 +120787,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -119223,6 +120830,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -119816,6 +121432,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -119857,6 +121475,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -120315,6 +121942,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -120356,6 +121985,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -120801,6 +122439,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -120842,6 +122482,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -121295,6 +122944,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -121336,6 +122987,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -121801,6 +123461,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -121842,6 +123504,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -122302,6 +123973,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -122343,6 +124016,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -122823,6 +124505,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -122864,6 +124548,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -123330,6 +125023,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -123371,6 +125066,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -123849,6 +125553,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -123890,6 +125596,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -124369,6 +126084,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -124410,6 +126127,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -125042,6 +126768,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -125083,6 +126811,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -125783,6 +127520,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -125824,6 +127563,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -126345,6 +128093,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -126386,6 +128136,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -127393,6 +129152,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -127434,6 +129195,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -128054,6 +129824,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -128095,6 +129867,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -129045,6 +130826,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -129086,6 +130869,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -130560,6 +132352,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -130601,6 +132395,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -131047,6 +132850,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -131088,6 +132893,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -131534,6 +133348,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -131575,6 +133391,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -132409,6 +134234,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -132450,6 +134277,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -132902,6 +134738,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -132943,6 +134781,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -135139,6 +136986,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -135180,6 +137029,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -135651,6 +137509,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -135692,6 +137552,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -136384,6 +138253,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -136425,6 +138296,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -137108,6 +138988,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -137149,6 +139031,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],
@@ -137867,6 +139758,8 @@
                               "system_name": "example",
                               "target_base": "example",
                               "target_base_name": "example",
+                              "target_player": "example",
+                              "target_player_id": "abc123",
                               "type": "example"
                             }
                           ],
@@ -137908,6 +139801,15 @@
                       }
                     ],
                     "player": {
+                      "arena_won": {
+                        "example_key": 1
+                      },
+                      "arena_xp": {
+                        "by_skill": {
+                          "example_key": 1
+                        },
+                        "day": "example"
+                      },
                       "citizenships": [
                         "example"
                       ],

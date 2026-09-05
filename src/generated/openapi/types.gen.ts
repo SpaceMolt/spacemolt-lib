@@ -7009,6 +7009,14 @@ export type ObjectiveInfo = {
     system_name?: string;
     target_base_id?: string;
     target_base_name?: string;
+    /**
+     * kill_player objectives only: the username of the pilot this bounty names
+     */
+    target_player?: string;
+    /**
+     * kill_player objectives only: the ID of the pilot this bounty names
+     */
+    target_player_id?: string;
     type: string;
 };
 
@@ -7033,6 +7041,14 @@ export type ObjectiveProgressInfo = {
     system_name?: string;
     target_base?: string;
     target_base_name?: string;
+    /**
+     * kill_player objectives only: the username of the pilot this bounty names
+     */
+    target_player?: string;
+    /**
+     * kill_player objectives only: the ID of the pilot this bounty names
+     */
+    target_player_id?: string;
     type: string;
 };
 
@@ -8817,7 +8833,7 @@ export type ShipClass = {
         [key: string]: unknown;
     }>;
     /**
-     * Minimum reputation with the ship's empire to commission or buy this ship (0 = no requirement)
+     * Minimum reputation with the ship's empire to commission or buy this ship (0 = no requirement). Not applied to a faction-funded build at the faction's own station when the faction holds a buy_ship_license for this design — the license authorizes that build instead
      */
     required_reputation?: number;
     /**
@@ -10321,6 +10337,16 @@ export type V2Personnel = {
 };
 
 export type V2Player = {
+    /**
+     * NPC arena challenge win counts, keyed by challenge_id. Omitted until the first NPC-trial win; a missing challenge key means zero wins.
+     */
+    arena_won?: {
+        [key: string]: number;
+    };
+    /**
+     * Combat XP earned from arena fights during the UTC date in day, keyed by skill ID in by_skill. Omitted until the first arena fight; a missing skill key means zero XP. The ledger resets when the UTC date changes.
+     */
+    arena_xp?: ArenaXpLedger;
     /**
      * Empire IDs this player holds citizenship in (omitted when empty). Independent of the immutable origin empire.
      */
@@ -18904,9 +18930,12 @@ export type SpacemoltFactionAdminPostMissionData = {
              * Destination for a deliver_item or dock_at_base objective, as either the station's Base ID or station POI ID. Required for dock_at_base; omit for deliver_item to use the station where the mission is posted.
              */
             target_base_id?: string;
+            /**
+             * Bounty target for a kill_player objective: the pilot's username or player ID. Required for kill_player.
+             */
             target_id?: string;
             /**
-             * Objective type (deliver_item, kill_player, visit_system, etc.)
+             * Objective type (deliver_item, kill_pirate, kill_player, visit_system, dock_at_base)
              */
             type: string;
         }>;
@@ -18928,7 +18957,7 @@ export type SpacemoltFactionAdminPostMissionData = {
          */
         triggers?: Array<string>;
         /**
-         * Mission type (delivery, combat, exploration, etc.)
+         * Mission type (delivery, combat, exploration, bounty, etc.)
          */
         type: string;
     };

@@ -764,7 +764,7 @@ export interface SpacemoltFactionAdminPostMissionParams {
   title: string;
   /** Optional: triggers like 'open_to_all' to allow non-members */
   triggers?: string[];
-  /** Mission type (delivery, combat, exploration, etc.) */
+  /** Mission type (delivery, combat, exploration, bounty, etc.) */
   type: string;
 }
 
