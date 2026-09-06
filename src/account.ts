@@ -219,6 +219,24 @@ const ARRIVED_IN_NEW_SYSTEM: Partial<V2Location> = {
   security_status: undefined,
 };
 
+/**
+ * Location fields a transit-start push invalidates, mirroring `ARRIVED` in the
+ * other direction. Leaving a POI drops everything POI-scoped, and the server
+ * reports the ship's position as empty strings while it is between POIs — so
+ * clear them the same way it does, or `refresh()` reports a drift that is only
+ * a difference in how the two sides spell "nowhere".
+ *
+ * The transit fields `ARRIVED` clears are re-set by each caller after the
+ * spread, since only the caller knows the destination and arrival tick.
+ */
+const DEPARTED: Partial<V2Location> = { ...ARRIVED, poi_id: '', poi_name: '', poi_type: '' };
+
+/**
+ * Additionally, the system-level fields a jump invalidates. A jump leaves
+ * normal space entirely: the server reports no system at all until arrival.
+ */
+const DEPARTED_SYSTEM: Partial<V2Location> = { ...ARRIVED_IN_NEW_SYSTEM, ...DEPARTED, system_id: '', system_name: '' };
+
 export interface RegisterParams {
   username: string;
   empire: string;
@@ -951,40 +969,44 @@ export class Account {
   }
 
   /**
-   * Fleet followers do not submit the movement mutation themselves, so their
-   * arrival is delivered as a plain `ok` push rather than an `action_result`
-   * carrying a state delta. Bridge the location data present on those pushes
-   * into the cache. Fleet docking is the one exception: its push only contains
-   * the station's display name, not the canonical base ID used by `docked_at`,
-   * so refresh the canonical snapshot instead of caching the wrong identifier.
+   * Movement that the state delta does not cover arrives as a plain `ok` push.
+   * Bridge its location data into the cache.
+   *
+   * Two kinds of movement land here. **Transit start** (`travel`/`jump`, and
+   * their `fleet_` variants) is never delivered as a delta by design: the
+   * server holds one `action_result` back for the arrival so it can settle the
+   * mutation on the same `request_id`, and sends this push in the meantime.
+   * Everything the departure changed is either on the push or implied by it,
+   * so these patch and stop — the one field they cannot carry is `ship.fuel`,
+   * which the arrival delta corrects a transit later. **Fleet follower
+   * arrival** is the other kind: a follower never submitted the mutation, so
+   * on a server that cannot tell their connection speaks v2 there is no delta
+   * at all, and only then is a reconcile worth its round trip.
    *
    * These pushes carry only the few fields the movement itself changed, so
    * they go through `patchSection` — unlike a server delta, which always
-   * carries a complete `location` and is applied with `applyDelta`. Patching
-   * keeps the rest of the section (system, connections, POI details) intact
-   * until `reconcileFleetState` refreshes the authoritative snapshot; the
-   * per-POI fields that the move invalidates are only as stale as that
-   * round trip.
+   * carries a complete `location` and is applied with `applyDelta`.
    */
-  private applyFleetMovementPush(frame: RawFrame): void {
+  private applyMovementPush(frame: RawFrame): void {
     if (frame.type !== 'ok' || !isRecord(frame.payload) || typeof frame.payload.action !== 'string') return;
 
     const payload = frame.payload;
     let changed: StateSection[] = [];
     let reconcile = false;
     switch (payload.action) {
+      case 'jump':
       case 'fleet_jump': {
         if (typeof payload.destination !== 'string' || typeof payload.arrival_tick !== 'number') {
           this.warnMalformedFrame(frame);
           return;
         }
         changed = this.cache.patchSection('location', {
+          ...DEPARTED_SYSTEM,
           in_transit: true,
           transit_arrival_tick: payload.arrival_tick,
           transit_dest_system_id: payload.destination,
           transit_type: 'jump',
         });
-        reconcile = true;
         break;
       }
       case 'jumped':
@@ -1002,18 +1024,19 @@ export class Account {
         reconcile = true;
         break;
       }
+      case 'travel':
       case 'fleet_travel': {
         if (typeof payload.destination !== 'string' || typeof payload.arrival_tick !== 'number') {
           this.warnMalformedFrame(frame);
           return;
         }
         changed = this.cache.patchSection('location', {
+          ...DEPARTED,
           in_transit: true,
           transit_arrival_tick: payload.arrival_tick,
           transit_dest_poi_id: payload.destination,
           transit_type: 'travel',
         });
-        reconcile = true;
         break;
       }
       case 'arrived': {
@@ -1033,7 +1056,13 @@ export class Account {
         changed = this.cache.patchSection('location', { docked_at: null });
         break;
       case 'fleet_dock':
-        reconcile = true;
+        // Older servers send only the station's display name, which is not the
+        // base ID `docked_at` holds — reconcile rather than cache the wrong one.
+        if (typeof payload.base_id === 'string') {
+          changed = this.cache.patchSection('location', { docked_at: payload.base_id });
+        } else {
+          reconcile = true;
+        }
         break;
       default:
         return;
@@ -1046,10 +1075,16 @@ export class Account {
   }
 
   /**
-   * Fleet movement pushes omit follower fuel and skill deltas, while docking
-   * omits the canonical base ID. Reconcile those fields from one authoritative
-   * snapshot. A newer movement push invalidates an older in-flight query so a
-   * delayed dock/arrival snapshot cannot move the cache backwards.
+   * Refill a fleet follower's location from one authoritative snapshot.
+   *
+   * An arrival push carries the destination's name and little else, so the
+   * system-, POI- and presence-scoped fields it invalidates have nothing to
+   * refill them and no formula to derive them. This is the one movement gap a
+   * round trip is the only answer to, and only on a server that does not send
+   * followers a delta — a current one does, and these branches never run.
+   *
+   * A newer movement push invalidates an older in-flight query so a delayed
+   * snapshot cannot move the cache backwards.
    */
   private async reconcileFleetState(revision: number, action: string): Promise<void> {
     try {
@@ -1244,9 +1279,15 @@ export class Account {
           // outcome arriving late, not a truly dropped one — worth knowing
           // about explicitly rather than silently falling through to a
           // notification path nothing listens on.
-          console.warn(
-            `[spacemolt] action_result for ${frame.request_id ?? '?'} arrived with no matching pending mutation (already timed out?)`,
-          );
+          //
+          // A frame with no request_id at all was never anybody's mutation: it
+          // is an unsolicited delta, which is how a fleet follower's arrival
+          // reaches them. Nothing timed out, so say nothing.
+          if (frame.request_id) {
+            console.warn(
+              `[spacemolt] action_result for ${frame.request_id} arrived with no matching pending mutation (already timed out?)`,
+            );
+          }
           this.emitter.emit(frame);
         }
         return;
@@ -1271,7 +1312,7 @@ export class Account {
         return;
       }
       default:
-        this.applyFleetMovementPush(frame);
+        this.applyMovementPush(frame);
         this.emitter.emit(frame);
     }
   }

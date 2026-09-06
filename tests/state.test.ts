@@ -571,3 +571,142 @@ test('currentTick tracks the highest tick observed and never regresses', async (
   socket.serverSend({ type: 'crafting_update', payload: { tick: 900, jobs: [] } });
   expect(account.currentTick).toBe(1600);
 });
+
+// --- transit start pushes (the reported drift) ---
+
+// A solo pilot's departure is announced by a plain `ok` push, never by a delta:
+// the server holds the one action_result back for the arrival so it can settle
+// the mutation on the same request_id. Nothing consumed that push, so the cache
+// went on reporting the ship parked at the POI it had just left, for the whole
+// transit. Automation that asks "am I already at the target?" then skips the
+// travel it needed.
+test('a solo travel start clears the origin POI and records the transit', async () => {
+  const { account, socket } = await seededAccount();
+  let statusCalls = 0;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') statusCalls++;
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'travel', destination: 'earth_orbital_yard', arrival_tick: 42 },
+  });
+
+  expect(account.location?.in_transit).toBe(true);
+  expect(account.location?.transit_type).toBe('travel');
+  expect(account.location?.transit_arrival_tick).toBe(42);
+  expect(account.location?.transit_dest_poi_id).toBe('earth_orbital_yard');
+  // The ship is between POIs. Reporting the origin is what sent it to the
+  // wrong place; the server spells this as an empty string, so match it.
+  expect(account.location?.poi_id).toBe('');
+  expect(account.location?.poi_name).toBe('');
+  // POI-scoped data describes the POI just left.
+  expect(account.location?.nearby_players).toBeUndefined();
+  expect(account.location?.resources).toBeUndefined();
+  // Still in the same system, so system-level fields stand.
+  expect(account.location?.system_id).toBe('sol');
+  expect(account.location?.connections).toEqual(['alpha_centauri']);
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(statusCalls).toBe(0);
+});
+
+test('a solo jump start drops the system too', async () => {
+  const { account, socket } = await seededAccount();
+  let statusCalls = 0;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') statusCalls++;
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'jump', destination: 'markeb', arrival_tick: 60, is_wormhole: false },
+  });
+
+  expect(account.location?.in_transit).toBe(true);
+  expect(account.location?.transit_type).toBe('jump');
+  expect(account.location?.transit_dest_system_id).toBe('markeb');
+  // A jump leaves normal space entirely — the server reports no system at all.
+  expect(account.location?.system_id).toBe('');
+  expect(account.location?.poi_id).toBe('');
+  expect(account.location?.connections).toBeUndefined();
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(statusCalls).toBe(0);
+});
+
+// The fleet variants carry the same fields, so they patch the same way. They
+// used to spend a full get_status on data the push already had.
+test('a fleet transit start no longer costs a get_status', async () => {
+  const { account, socket } = await seededAccount();
+  let statusCalls = 0;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') statusCalls++;
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'fleet_travel',
+      destination: 'earth_orbital_yard',
+      arrival_tick: 42,
+      message: 'Your fleet is traveling.',
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.in_transit).toBe(true);
+  expect(account.location?.transit_dest_poi_id).toBe('earth_orbital_yard');
+  expect(statusCalls).toBe(0);
+});
+
+// A follower's arrival now arrives as an unsolicited action_result. It carries
+// no request_id because the follower never made a request — that is not a
+// timed-out caller, and the cache must take it without a reconcile.
+test('an unsolicited arrival delta seeds the cache without a reconcile', async () => {
+  const { account, socket } = await seededAccount();
+  let statusCalls = 0;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') statusCalls++;
+  };
+
+  socket.serverSend({
+    type: 'action_result',
+    payload: {
+      command: 'travel',
+      tick: 42,
+      result: {
+        ship: ship({ fuel: 88 }),
+        location: location({ system_id: 'sol', poi_id: 'earth_orbital_yard', poi_name: 'Orbital Yard' }),
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.poi_id).toBe('earth_orbital_yard');
+  expect(account.ship?.fuel).toBe(88);
+  expect(statusCalls).toBe(0);
+});
+
+// A server that sends the canonical base ID makes the dock reconcile pointless.
+test('a fleet dock carrying base_id skips the reconcile', async () => {
+  const { account, socket } = await seededAccount();
+  let statusCalls = 0;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') statusCalls++;
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'fleet_dock',
+      base: 'Earth Station',
+      base_id: 'earth_station_base',
+      message: 'Your fleet has docked.',
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.docked_at).toBe('earth_station_base');
+  expect(statusCalls).toBe(0);
+});
