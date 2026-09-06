@@ -710,3 +710,38 @@ test('a fleet dock carrying base_id skips the reconcile', async () => {
   expect(account.location?.docked_at).toBe('earth_station_base');
   expect(statusCalls).toBe(0);
 });
+
+// The Mobile Capital jumps daily and drags everyone docked at it into a new
+// system. That relocation now arrives as an unsolicited action_result, so the
+// library needs no per-action bridge for it: the delta replaces the whole
+// location section, including the connections a jump invalidates.
+test('a mobile capital transit delta replaces the whole location section', async () => {
+  const { account, socket } = await seededAccount();
+  let statusCalls = 0;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') statusCalls++;
+  };
+
+  socket.serverSend({
+    type: 'action_result',
+    payload: {
+      command: 'mobile_capital_transit',
+      tick: 900,
+      result: {
+        location: location({
+          system_id: 'markeb',
+          system_name: 'Markeb',
+          poi_id: 'mobile_capital',
+          poi_name: 'Mobile Capital',
+          connections: ['sol'],
+        }),
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.system_id).toBe('markeb');
+  // Sol's neighbours must not survive under Markeb's system_id.
+  expect(account.location?.connections).toEqual(['sol']);
+  expect(statusCalls).toBe(0);
+});
