@@ -714,15 +714,23 @@ export type AttackLogEntry = {
     emergency_cloak_strength?: number;
     final_damage: number;
     flat_reduction_pct?: number;
+    /**
+     * Ship-level hit chance in [0.05,0.95] that every weapon starts from (separation, skills, modules, stance, speed). Each entry in weapons[] carries its own hit_chance with that weapon's ammo and mine modifiers added.
+     */
     hit_chance: number;
-    hit_roll: number;
+    /**
+     * True when at least one weapon hit. Per-weapon outcomes are in weapons[].
+     */
     hit_success: boolean;
     hull_damage: number;
     ignored_resistance_pct?: number;
+    /**
+     * Sum of the damage of the weapons that hit, after offensive skill and buff bonuses, before the target's stance and defenses. 0 when every weapon missed. Rows recorded before per-weapon rolls report their single-roll volley damage here.
+     */
+    landed_damage: number;
     lifesteal_pct?: number;
     mine_duration?: number;
     off_buff_pct?: number;
-    pre_hit_damage: number;
     raw_damage: number;
     secondary_kind?: string;
     shield_damage: number;
@@ -905,7 +913,7 @@ export type BattleCombatState = {
      */
     disruption_ticks?: number;
     /**
-     * Your ship speed after EM disruption penalties. Webifier penalties are reported separately and affect escape timing.
+     * Your derived combat speed after fitted modules, temporary buffs, pilot skills, EM disruption, and enemy webifiers. This value drives hit chance, maneuvering, escape, and boarding pursuit.
      */
     effective_speed: number;
     /**
@@ -953,11 +961,11 @@ export type BattleCombatState = {
      */
     warp_disrupted: boolean;
     /**
-     * Combined escape-speed penalty from enemy webifiers as a percentage. Webifier penalties add and cap at 75%.
+     * Combined combat-speed penalty from enemy webifiers as a percentage. Webifier penalties add and cap at 75%.
      */
     web_strength_pct?: number;
     /**
-     * An enemy stasis webifier is increasing the time you need to escape.
+     * An enemy stasis webifier is reducing your effective combat speed.
      */
     webbed: boolean;
 };
@@ -5376,6 +5384,14 @@ export type ItemEffect = {
     ammo?: AmmoStats;
     amount?: number;
     duration?: number;
+    /**
+     * Magnitude of the consumable's additional effect. Read together with secondary_stat.
+     */
+    secondary_amount?: number;
+    /**
+     * Stat modified by the consumable's additional effect. Omitted when the item has only one effect.
+     */
+    secondary_stat?: string;
     stat?: string;
     subtype?: string;
     type: string;
@@ -6012,6 +6028,10 @@ export type Module = {
     hull_bonus?: number;
     hull_penalty?: number;
     id: string;
+    /**
+     * Percentage points subtracted from each hostile ECM lock-break roll. Fitted bonuses stack up to the combat resistance cap.
+     */
+    jam_resistance?: number;
     jam_strength?: number;
     latch_resistance?: number;
     latch_strength?: number;
@@ -6037,7 +6057,14 @@ export type Module = {
     reactive_resistance?: number;
     refit_capability?: boolean;
     remote_medical_treatment?: boolean;
+    /**
+     * Hull points repaired per tick on the most-wounded eligible ally.
+     */
     remote_repair_power?: number;
+    /**
+     * Maximum remote-repair range in same-side radial-band distance to an eligible ally.
+     */
+    remote_repair_range?: number;
     required_skills?: {
         [key: string]: number;
     };
@@ -6059,6 +6086,10 @@ export type Module = {
     speed_penalty?: number;
     survey_power?: number;
     targeting_reduction?: number;
+    /**
+     * Percentage points subtracted from hostile sensor-dampener reach reduction. Fitted bonuses stack up to the combat resistance cap.
+     */
+    targeting_resistance?: number;
     tow_speed_penalty?: number;
     tracking_bonus?: number;
     type: string;
@@ -10732,6 +10763,18 @@ export type WeaponFireDetail = {
     crit_roll: number;
     damage: number;
     damage_type: string;
+    /**
+     * This weapon's own hit chance in [0.05,0.95]: the entry's hit_chance plus this weapon's loaded ammo accuracy and mine guidance. Present on every weapon that fired; absent on rows recorded before per-weapon rolls.
+     */
+    hit_chance?: number;
+    /**
+     * This weapon's roll in [0,1). It hit when hit_roll < hit_chance. Present on every weapon that fired; absent on rows recorded before per-weapon rolls.
+     */
+    hit_roll?: number;
+    /**
+     * True when this weapon connected. Omitted when it missed, and on rows recorded before per-weapon rolls (use the entry's hit_success there).
+     */
+    hit_success?: boolean;
     instance_id: string;
     name: string;
     type_bonus_pct: number;

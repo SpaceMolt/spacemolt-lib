@@ -1456,18 +1456,21 @@
             "type": "integer"
           },
           "hit_chance": {
-            "type": "number"
-          },
-          "hit_roll": {
+            "description": "Ship-level hit chance in [0.05,0.95] that every weapon starts from (separation, skills, modules, stance, speed). Each entry in weapons[] carries its own hit_chance with that weapon's ammo and mine modifiers added.",
             "type": "number"
           },
           "hit_success": {
+            "description": "True when at least one weapon hit. Per-weapon outcomes are in weapons[].",
             "type": "boolean"
           },
           "hull_damage": {
             "type": "integer"
           },
           "ignored_resistance_pct": {
+            "type": "integer"
+          },
+          "landed_damage": {
+            "description": "Sum of the damage of the weapons that hit, after offensive skill and buff bonuses, before the target's stance and defenses. 0 when every weapon missed. Rows recorded before per-weapon rolls report their single-roll volley damage here.",
             "type": "integer"
           },
           "lifesteal_pct": {
@@ -1477,9 +1480,6 @@
             "type": "integer"
           },
           "off_buff_pct": {
-            "type": "integer"
-          },
-          "pre_hit_damage": {
             "type": "integer"
           },
           "raw_damage": {
@@ -1541,9 +1541,8 @@
           "weapons",
           "raw_damage",
           "weapon_skill_pct",
-          "pre_hit_damage",
+          "landed_damage",
           "hit_chance",
-          "hit_roll",
           "hit_success",
           "final_damage",
           "shield_damage",
@@ -1872,7 +1871,7 @@
             "type": "integer"
           },
           "effective_speed": {
-            "description": "Your ship speed after EM disruption penalties. Webifier penalties are reported separately and affect escape timing.",
+            "description": "Your derived combat speed after fitted modules, temporary buffs, pilot skills, EM disruption, and enemy webifiers. This value drives hit chance, maneuvering, escape, and boarding pursuit.",
             "type": "integer"
           },
           "em_disrupted": {
@@ -1920,11 +1919,11 @@
             "type": "boolean"
           },
           "web_strength_pct": {
-            "description": "Combined escape-speed penalty from enemy webifiers as a percentage. Webifier penalties add and cap at 75%.",
+            "description": "Combined combat-speed penalty from enemy webifiers as a percentage. Webifier penalties add and cap at 75%.",
             "type": "integer"
           },
           "webbed": {
-            "description": "An enemy stasis webifier is increasing the time you need to escape.",
+            "description": "An enemy stasis webifier is reducing your effective combat speed.",
             "type": "boolean"
           }
         },
@@ -16000,6 +15999,14 @@
           "duration": {
             "type": "integer"
           },
+          "secondary_amount": {
+            "description": "Magnitude of the consumable's additional effect. Read together with secondary_stat.",
+            "type": "integer"
+          },
+          "secondary_stat": {
+            "description": "Stat modified by the consumable's additional effect. Omitted when the item has only one effect.",
+            "type": "string"
+          },
           "stat": {
             "type": "string"
           },
@@ -18028,6 +18035,10 @@
           "id": {
             "type": "string"
           },
+          "jam_resistance": {
+            "description": "Percentage points subtracted from each hostile ECM lock-break roll. Fitted bonuses stack up to the combat resistance cap.",
+            "type": "integer"
+          },
           "jam_strength": {
             "type": "integer"
           },
@@ -18104,6 +18115,11 @@
             "type": "boolean"
           },
           "remote_repair_power": {
+            "description": "Hull points repaired per tick on the most-wounded eligible ally.",
+            "type": "integer"
+          },
+          "remote_repair_range": {
+            "description": "Maximum remote-repair range in same-side radial-band distance to an eligible ally.",
             "type": "integer"
           },
           "required_skills": {
@@ -18161,6 +18177,10 @@
             "type": "integer"
           },
           "targeting_reduction": {
+            "type": "integer"
+          },
+          "targeting_resistance": {
+            "description": "Percentage points subtracted from hostile sensor-dampener reach reduction. Fitted bonuses stack up to the combat resistance cap.",
             "type": "integer"
           },
           "tow_speed_penalty": {
@@ -30254,6 +30274,18 @@
           "damage_type": {
             "type": "string"
           },
+          "hit_chance": {
+            "description": "This weapon's own hit chance in [0.05,0.95]: the entry's hit_chance plus this weapon's loaded ammo accuracy and mine guidance. Present on every weapon that fired; absent on rows recorded before per-weapon rolls.",
+            "type": "number"
+          },
+          "hit_roll": {
+            "description": "This weapon's roll in [0,1). It hit when hit_roll < hit_chance. Present on every weapon that fired; absent on rows recorded before per-weapon rolls.",
+            "type": "number"
+          },
+          "hit_success": {
+            "description": "True when this weapon connected. Omitted when it missed, and on rows recorded before per-weapon rolls (use the entry's hit_success there).",
+            "type": "boolean"
+          },
           "instance_id": {
             "type": "string"
           },
@@ -30472,7 +30504,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.592.2"
+    "x-gameserver-version": "v0.593.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -43441,6 +43473,8 @@
                             },
                             "amount": 1,
                             "duration": 1,
+                            "secondary_amount": 1,
+                            "secondary_stat": "example",
                             "stat": "example",
                             "subtype": "example",
                             "type": "example"
@@ -59787,7 +59821,7 @@
     },
     "/api/v2/spacemolt_battle/reload": {
       "post": {
-        "description": "Consumes 1 ammo item from cargo to fill the weapon's magazine. Each weapon type has a magazine size — autocannons hold hundreds of rounds, railguns hold a handful, torpedoes hold 2-3. Energy weapons (lasers, beams) don't need ammo. Works mid-battle and mid-flight (costs a game tick). Swapping to a different ammo type discards remaining rounds. Weapons auto-load when first installed if compatible ammo is in cargo. Weapons with the ammo_from_cargo special (e.g. the Scrapgun) accept any cargo item as ammo. Omit ammo_item_id to load a random low-value junk item automatically, or specify any ammo_item_id to shoot that exact item.\n\n**Example:** `POST /api/v2/spacemolt_battle/reload` with body `{\"id\":\"abc123\",\"target\":\"standard_rounds_box\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Loads compatible ammunition from cargo into a weapon magazine. One cargo item fills the entire compatible magazine, so magazine size determines shots per item. Swapping ammo discards remaining rounds. Works during battle or flight and costs one tick.\n\n**Example:** `POST /api/v2/spacemolt_battle/reload` with body `{\"id\":\"abc123\",\"target\":\"standard_rounds_box\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_battle_reload",
         "requestBody": {
           "content": {
@@ -60646,7 +60680,7 @@
     },
     "/api/v2/spacemolt_battle/status": {
       "post": {
-        "description": "Returns full battle state including all participants, zones, sides, and your stats. Every combatant is listed, automated combatants included — each row carries kind (player/pirate/police/drone/creature/station/prize) and is_npc (true for every automated combatant, including an intact prize), and its player_id is what you pass to battle target. Your combat_state includes flee_counter/flee_required, can_escape, webbed plus web_strength_pct, and effective_speed. Webifier penalties add and cap at 75% and do not affect hit chance. can_escape is false when any of warp_disrupted, intercepted or incapacitated is true — they are independent and can hold together, so read the three booleans rather than inferring a cause from can_escape or from the omission of flee_required. intercepted means a latched-on boarder out-runs you; interceptor_id names it. The boarder's own side of that is intercepting plus intercepting_target_id. If not in a battle, shows any active battle in your system. Works as a query (no tick cost).",
+        "description": "Returns the full battle state: participants, zones, sides, hull and shield condition, and your tactical state. web_strength_pct is the hostile webifier penalty to effective combat speed, affecting hit chance, maneuvering, escape, and boarding pursuit. can_escape is false when warp_disrupted, intercepted, or incapacitated; read each boolean because blockers can stack.",
         "operationId": "spacemolt_battle_status",
         "requestBody": {
           "content": {
@@ -61258,6 +61292,8 @@
                           },
                           "amount": 1,
                           "duration": 1,
+                          "secondary_amount": 1,
+                          "secondary_stat": "example",
                           "stat": "example",
                           "subtype": "example",
                           "type": "example"
