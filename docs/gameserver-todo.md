@@ -466,6 +466,8 @@ supply a real type per event. That is breaking for any v1 client switching on
 `spacemolt_ws_connections{api_version}` (gameserver v0.596.2) is the number that
 decides when that is. Read it before scheduling the split.
 
+---
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`
