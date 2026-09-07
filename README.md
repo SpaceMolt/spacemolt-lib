@@ -138,7 +138,7 @@ for await (const hit of account.events('battle_damage')) { /* ... */ }
 
 ### Subscriptions
 
-Subscribe to a station's order book or to player presence at your location; the
+Subscribe to a station's order book or to presence at your location; the
 baseline snapshot seeds a local cache that the push stream keeps current:
 
 ```ts
@@ -146,8 +146,18 @@ await account.subscribeMarket();                 // current docked station
 account.market(baseId);                          // cached order book, kept live by `market_update`
 
 await account.subscribeObservation();
-account.observation();                           // cached presence, kept live by `observation_update`
+const view = account.observation();              // kept live by `observation_update`
+view?.nearby;                                    // players at your POI, keyed by player_id
+view?.system;                                    // players system-wide
+view?.pirates;                                   // pirate NPCs, keyed by pirate_id
+view?.empireNpcs;                                // empire NPCs, keyed by npc_id
+view?.creatures;                                 // wildlife, keyed by creature_id
+view?.prizes;                                    // intact captured ships, keyed by prize_id
 ```
+
+The watch is not players only. It covers five of `get_nearby`'s six classes —
+arena NPCs are the one it does not carry — and every class except wildlife is
+also mirrored into `account.state.location`.
 
 ## Multi-account
 
