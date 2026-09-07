@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { ACTIONS } from '../src/generated/actions.gen.ts';
 import { TYPED_NOTIFICATION_TYPES } from '../src/generated/notifications.gen.ts';
 import { requireValue } from './require-value.ts';
-import { STATE_SECTIONS } from '../src/protocol.ts';
+import { isRegisteredFrame, isWelcomeFrame, STATE_SECTIONS } from '../src/protocol.ts';
+import type { FrameField, FieldKind } from '../src/generated/frames.gen.ts';
+import { REGISTERED_PAYLOAD_FIELDS, WELCOME_PAYLOAD_FIELDS } from '../src/generated/frames.gen.ts';
+import type { RawFrame } from '../src/protocol.ts';
 
 test('action catalog is populated and keyed by tool/action', () => {
   const keys = Object.keys(ACTIONS);
@@ -115,4 +118,57 @@ test('STATE_SECTIONS covers every section the spec says deltas carry', () => {
   expect([...declared].filter((s) => !known.has(s)).sort()).toEqual([]);
   // Every section in the cache should also be one the server actually emits.
   expect([...known].filter((s) => !declared.has(s)).sort()).toEqual([]);
+});
+
+/**
+ * Shared by every generated frame guard: the spec schema behind `fields`
+ * really exists and matches it field for field, and the guard itself
+ * requires the spec-required fields while tolerating everything else.
+ */
+function checkFrameGuard(
+  schemaName: string,
+  fields: Readonly<Record<string, FrameField>>,
+  frameType: string,
+  guard: (frame: RawFrame) => boolean,
+): void {
+  const spec = JSON.parse(readFileSync(join(import.meta.dir, '..', 'openapi.json'), 'utf-8'));
+  const schema = spec.components.schemas[schemaName] as { properties: Record<string, unknown>; required: string[] };
+  // Sanity: the spec really does publish what we generate from.
+  expect(Object.keys(schema.properties).length).toBeGreaterThan(0);
+  expect(schema.required.length).toBeGreaterThan(0);
+
+  expect(Object.keys(fields).sort()).toEqual(Object.keys(schema.properties).sort());
+  const required = Object.entries(fields)
+    .filter(([, f]) => f.required)
+    .map(([field]) => field);
+  expect(required.sort()).toEqual([...schema.required].sort());
+
+  const sample: Record<FieldKind, unknown> = {
+    string: 'x',
+    number: 1,
+    boolean: true,
+    'string[]': [],
+    'number[]': [],
+    'boolean[]': [],
+  };
+  const full: Record<string, unknown> = {};
+  for (const [field, { kind }] of Object.entries(fields)) full[field] = sample[kind];
+
+  expect(guard({ type: frameType, payload: full })).toBe(true);
+  // An unknown field the server adds must not break an older client.
+  expect(guard({ type: frameType, payload: { ...full, brand_new_field: 'x' } })).toBe(true);
+
+  for (const [field, { required: isRequired }] of Object.entries(fields)) {
+    const { [field]: _omitted, ...rest } = full;
+    expect(guard({ type: frameType, payload: rest })).toBe(!isRequired);
+    if (isRequired) expect(guard({ type: frameType, payload: { ...full, [field]: Symbol('wrong') } })).toBe(false);
+  }
+}
+
+test('isWelcomeFrame tracks the spec, and is not a hand-written list', () => {
+  checkFrameGuard('WelcomePayload', WELCOME_PAYLOAD_FIELDS, 'welcome', isWelcomeFrame);
+});
+
+test('isRegisteredFrame tracks the spec, and is not a hand-written list', () => {
+  checkFrameGuard('RegisteredPayload', REGISTERED_PAYLOAD_FIELDS, 'registered', isRegisteredFrame);
 });

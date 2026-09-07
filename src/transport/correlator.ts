@@ -42,18 +42,23 @@ export type RequestKind = 'query' | 'mutation';
  * Extracts the pending ack from a mutation's `result` frame structuredContent,
  * checking both known locations the flag has been observed in (see the
  * module doc comment). Returns undefined if neither location flags pending —
- * meaning this frame is the final outcome, not an ack.
+ * meaning this frame is the final outcome, not an ack. The server's
+ * `auto_docked`/`auto_undocked` flags are carried through when present, so a
+ * caller learns at ack time that the server moved its ship.
  */
 function extractPendingAck(structured: Record<string, unknown> | undefined): MutationAck | undefined {
   if (!structured) return undefined;
-  if (structured.pending === true) {
-    return { command: String(structured.command ?? ''), message: String(structured.message ?? '') };
-  }
   const details = structured.details;
-  if (isRecord(details) && details.pending === true) {
-    return { command: String(details.command ?? ''), message: String(details.message ?? '') };
-  }
-  return undefined;
+  const source =
+    structured.pending === true ? structured : isRecord(details) && details.pending === true ? details : undefined;
+  if (!source) return undefined;
+  return {
+    pending: true,
+    command: String(source.command ?? ''),
+    message: String(source.message ?? ''),
+    ...(typeof source.auto_docked === 'boolean' && { auto_docked: source.auto_docked }),
+    ...(typeof source.auto_undocked === 'boolean' && { auto_undocked: source.auto_undocked }),
+  };
 }
 
 interface PendingBase {
@@ -114,7 +119,7 @@ export class Correlator {
         if (!isResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         const payload = frame.payload;
         if (pending.kind === 'query') {
-          this.settle(requestId);
+          this.pending.delete(requestId);
           pending.resolve({ result: payload.result, structuredContent: payload.structuredContent });
           return true;
         }
@@ -126,7 +131,7 @@ export class Correlator {
           // wait for. Settle now with this frame as the whole answer: no
           // state changed, so the only meaningful content is structuredContent
           // itself, carried as delta.details same as a real outcome would.
-          this.settle(requestId);
+          this.pending.delete(requestId);
           pending.resolve({
             command: String(structured?.command ?? ''),
             tick: 0,
@@ -144,7 +149,7 @@ export class Correlator {
         if (pending.kind !== 'mutation') return true;
         if (!isActionResultFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
         const payload = frame.payload;
-        this.settle(requestId);
+        this.pending.delete(requestId);
         pending.resolve({
           command: payload.command,
           tick: payload.tick,
@@ -156,13 +161,13 @@ export class Correlator {
       }
       case 'action_error': {
         if (!isActionErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
-        this.settle(requestId);
+        this.pending.delete(requestId);
         pending.reject(errorFromActionFrame(frame));
         return true;
       }
       case 'error': {
         if (!isErrorFrame(frame)) return this.rejectInvalidResponse(requestId, pending, frame.type);
-        this.settle(requestId);
+        this.pending.delete(requestId);
         pending.reject(errorFromFrame(frame));
         return true;
       }
@@ -177,12 +182,8 @@ export class Correlator {
     this.pending.clear();
   }
 
-  private settle(requestId: string): void {
-    this.pending.delete(requestId);
-  }
-
   private rejectInvalidResponse(requestId: string, pending: Pending, frameType: string): true {
-    this.settle(requestId);
+    this.pending.delete(requestId);
     pending.reject(new SpacemoltError('invalid_response', `Malformed ${frameType} frame for request ${requestId}`));
     return true;
   }

@@ -8,7 +8,21 @@
  */
 
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
-import type { LoggedInPayload, RegisteredPayload, V2GameState, WelcomePayload } from './generated/openapi/types.gen.ts';
+import {
+  type FieldKind,
+  type FrameField,
+  REGISTERED_PAYLOAD_FIELDS,
+  WELCOME_PAYLOAD_FIELDS,
+} from './generated/frames.gen.ts';
+import type {
+  LoggedInPayload,
+  NotificationActionError,
+  NotificationActionResult,
+  PendingActionResponse,
+  RegisteredPayload,
+  V2GameState,
+  WelcomePayload,
+} from './generated/openapi/types.gen.ts';
 import { isRecord } from './validation.ts';
 
 /** Inbound frame: client -> server. `payload` is omitted when an action takes none. */
@@ -32,24 +46,18 @@ export interface ResultFrame {
   };
 }
 
-/** Mutation-ack: a `result` frame whose structuredContent flags `pending: true`. */
-export interface PendingAck {
-  pending: true;
-  command: string;
-  message: string;
-}
-
 /** Outcome push for a queued mutation; echoes the original request_id. */
 export interface ActionResultFrame {
   type: 'action_result';
   request_id?: string;
-  payload: {
-    command: string;
-    tick: number;
+  /**
+   * The server's published `Notification_action_result`, except for `result`:
+   * the spec leaves it untyped because the v1 and v2 shapes differ, and on
+   * `/ws/v2` it is always the delta. Narrow it here rather than lose the type.
+   */
+  payload: Omit<NotificationActionResult, 'result'> & {
     /** A V2GameState delta — only the sections that changed. See StateDelta. */
     result: StateDelta;
-    auto_docked?: boolean;
-    auto_undocked?: boolean;
   };
 }
 
@@ -57,13 +65,7 @@ export interface ActionResultFrame {
 export interface ActionErrorFrame {
   type: 'action_error';
   request_id?: string;
-  payload: {
-    command: string;
-    tick: number;
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-  };
+  payload: NotificationActionError;
 }
 
 /** Generic error frame emitted by the framing layer or a handler. */
@@ -186,23 +188,29 @@ export function isErrorFrame(frame: RawFrame): frame is ErrorFrame {
   );
 }
 
+function matchesKind(value: unknown, kind: FieldKind): boolean {
+  const element = kind.endsWith('[]') ? kind.slice(0, -2) : undefined;
+  if (element) return Array.isArray(value) && value.every((item) => typeof item === element);
+  return typeof value === kind;
+}
+
+/**
+ * Checks a frame payload against a spec-derived field map (`frames.gen.ts`)
+ * rather than a hand-written field list, which drifts the moment the server
+ * adds or requires a field. A required field must be present and match. An
+ * optional one must match only when it is sent. Shared by every frame guard
+ * whose payload has a published schema.
+ */
+function matchesFields(payload: Record<string, unknown>, fields: Readonly<Record<string, FrameField>>): boolean {
+  return Object.entries(fields).every(([field, { kind, required }]) => {
+    const value = payload[field];
+    if (value === undefined) return !required;
+    return matchesKind(value, kind);
+  });
+}
+
 export function isWelcomeFrame(frame: RawFrame): frame is WelcomeFrame {
-  return (
-    frame.type === 'welcome' &&
-    hasPayload(frame) &&
-    typeof frame.payload.version === 'string' &&
-    typeof frame.payload.release_date === 'string' &&
-    Array.isArray(frame.payload.release_notes) &&
-    frame.payload.release_notes.every((note) => typeof note === 'string') &&
-    typeof frame.payload.tick_rate === 'number' &&
-    typeof frame.payload.current_tick === 'number' &&
-    typeof frame.payload.server_time === 'number' &&
-    (frame.payload.motd === undefined || typeof frame.payload.motd === 'string') &&
-    typeof frame.payload.game_info === 'string' &&
-    typeof frame.payload.website === 'string' &&
-    typeof frame.payload.help_text === 'string' &&
-    typeof frame.payload.terms === 'string'
-  );
+  return frame.type === 'welcome' && hasPayload(frame) && matchesFields(frame.payload, WELCOME_PAYLOAD_FIELDS);
 }
 
 export function isLoggedInFrame(frame: RawFrame): frame is LoggedInFrame {
@@ -210,12 +218,7 @@ export function isLoggedInFrame(frame: RawFrame): frame is LoggedInFrame {
 }
 
 export function isRegisteredFrame(frame: RawFrame): frame is RegisteredFrame {
-  return (
-    frame.type === 'registered' &&
-    hasPayload(frame) &&
-    typeof frame.payload.password === 'string' &&
-    typeof frame.payload.player_id === 'string'
-  );
+  return frame.type === 'registered' && hasPayload(frame) && matchesFields(frame.payload, REGISTERED_PAYLOAD_FIELDS);
 }
 
 /**
@@ -262,11 +265,13 @@ export interface QueryResult<T = Record<string, unknown>> {
   structuredContent?: T;
 }
 
-/** The immediate `pending: true` acknowledgement for a queued mutation. */
-export interface MutationAck {
-  command: string;
-  message: string;
-}
+/**
+ * The immediate `pending: true` acknowledgement for a queued mutation. The
+ * server's published `PendingActionResponse`, so the `auto_docked`/
+ * `auto_undocked` flags it carries reach the caller at ack time rather than
+ * only on the final outcome.
+ */
+export type MutationAck = PendingActionResponse;
 
 /**
  * Resolved value of a two-phase mutation, delivered when the action executes.

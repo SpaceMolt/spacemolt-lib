@@ -32,7 +32,7 @@ import {
   retryAfterMsFromClose,
   SpacemoltError,
 } from './errors.ts';
-import { TypedEmitter } from './events/emitter.ts';
+import { notifyListeners, TypedEmitter } from './events/emitter.ts';
 import { MarketCache, type MarketBook } from './state/market.ts';
 import { ObservationCache, type ObservationView } from './state/observation.ts';
 import type {
@@ -602,27 +602,8 @@ export class Account {
     };
   }
 
-  /**
-   * Fan an event out to every registered listener. A throwing listener is
-   * warned and skipped — it must never break the caller (frame routing,
-   * mutation correlation, the reconnect loop) or starve later listeners.
-   */
-  private notifyListeners<A extends unknown[]>(
-    listeners: ReadonlySet<(...args: A) => void>,
-    label: string,
-    ...args: A
-  ): void {
-    for (const listener of listeners) {
-      try {
-        listener(...args);
-      } catch (err) {
-        console.warn(`[spacemolt] ${label} listener threw: ${err}`);
-      }
-    }
-  }
-
   private emitStateChange(changed: StateSection[]): void {
-    this.notifyListeners(this.stateListeners, 'onStateChange', changed);
+    notifyListeners(this.stateListeners, 'onStateChange', changed);
   }
 
   /** Log out, releasing the connection's authenticated session. */
@@ -1300,7 +1281,7 @@ export class Account {
     if (this.shouldReconnect(err)) {
       void this.reconnectLoop(err);
     } else if (!this.userClosing) {
-      this.notifyListeners(this.disconnectedListeners, 'onDisconnected', err);
+      notifyListeners(this.disconnectedListeners, 'onDisconnected', err);
     }
   }
 
@@ -1325,7 +1306,7 @@ export class Account {
     // has actually rolled over and tripping the same limit again.
     const retryAfterMs = retryAfterMsFromClose(err);
     for (let attempt = 1; attempt <= cfg.maxRetries; attempt++) {
-      this.notifyListeners(this.reconnectingListeners, 'onReconnecting', attempt);
+      notifyListeners(this.reconnectingListeners, 'onReconnecting', attempt);
       const backoff =
         attempt === 1 && retryAfterMs !== undefined
           ? retryAfterMs
@@ -1338,14 +1319,14 @@ export class Account {
       try {
         await this.reconnectOnce();
         this.reconnecting = false;
-        this.notifyListeners(this.reconnectedListeners, 'onReconnected');
+        notifyListeners(this.reconnectedListeners, 'onReconnected');
         return;
       } catch {
         // try again until retries are exhausted
       }
     }
     this.reconnecting = false;
-    this.notifyListeners(this.disconnectedListeners, 'onDisconnected', err);
+    notifyListeners(this.disconnectedListeners, 'onDisconnected', err);
   }
 
   /**

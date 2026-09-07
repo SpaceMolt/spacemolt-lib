@@ -33,52 +33,8 @@ export interface WebSocketLike {
 
 export type WebSocketFactory = (url: string) => WebSocketLike;
 
-/** Keeps DOM event classes internal instead of leaking them through the public API. */
-class NativeWebSocketAdapter implements WebSocketLike {
-  private readonly socket: WebSocket;
-
-  constructor(url: string) {
-    this.socket = new WebSocket(url);
-  }
-
-  send(data: string): void {
-    this.socket.send(data);
-  }
-
-  close(code?: number, reason?: string): void {
-    this.socket.close(code, reason);
-  }
-
-  addEventListener(type: 'open', listener: () => void): void;
-  addEventListener(type: 'message', listener: (event: MessageEventLike) => void): void;
-  addEventListener(type: 'close', listener: (event: CloseEventLike) => void): void;
-  addEventListener(type: 'error', listener: (event: unknown) => void): void;
-  addEventListener(
-    ...args:
-      | [type: 'open', listener: () => void]
-      | [type: 'message', listener: (event: MessageEventLike) => void]
-      | [type: 'close', listener: (event: CloseEventLike) => void]
-      | [type: 'error', listener: (event: unknown) => void]
-  ): void {
-    switch (args[0]) {
-      case 'open':
-        this.socket.addEventListener('open', () => args[1]());
-        break;
-      case 'message':
-        this.socket.addEventListener('message', (event) => args[1]({ data: event.data }));
-        break;
-      case 'close':
-        this.socket.addEventListener('close', (event) => args[1]({ code: event.code, reason: event.reason }));
-        break;
-      case 'error':
-        this.socket.addEventListener('error', (event) => args[1](event));
-        break;
-    }
-  }
-}
-
 // `WebSocket` is global in browsers, Bun, and Node 22+.
-const defaultFactory: WebSocketFactory = (url) => new NativeWebSocketAdapter(url);
+const defaultFactory: WebSocketFactory = (url) => new WebSocket(url);
 
 export interface SocketOptions {
   url: string;

@@ -523,6 +523,68 @@ export function emitCommandsDoc(spec: OpenAPISpec, actions: ActionDef[]): string
   return out;
 }
 
+/** Runtime kind of a frame-payload field, for the hand-written frame guards. */
+const FIELD_KINDS: Record<string, string> = {
+  string: 'string',
+  integer: 'number',
+  number: 'number',
+  boolean: 'boolean',
+};
+
+function fieldKind(schemaName: string, field: string, prop: OpenAPIProperty): string {
+  if (prop.type === 'array') {
+    const element = prop.items ? FIELD_KINDS[prop.items.type ?? ''] : undefined;
+    if (element) return `${element}[]`;
+  }
+  const kind = FIELD_KINDS[prop.type ?? ''];
+  if (!kind) {
+    // Silently defaulting would emit a guard that accepts anything for this
+    // field. Fail the generate instead, so the gap is visible.
+    throw new Error(`${schemaName}.${field}: no runtime kind for spec type ${JSON.stringify(prop.type)}`);
+  }
+  return kind;
+}
+
+/** Schemas backing a hand-written frame guard (`isWelcomeFrame`, `isRegisteredFrame`, ...). */
+const FRAME_GUARD_SCHEMAS = ['WelcomePayload', 'RegisteredPayload'];
+
+/** `WelcomePayload` -> `WELCOME_PAYLOAD`, for a generated constant name. */
+function screamingSnake(schemaName: string): string {
+  return schemaName.replace(/[A-Z]/g, (c, i) => (i ? '_' : '') + c).toUpperCase();
+}
+
+/**
+ * Emit the field kind and required-ness behind each schema in
+ * `FRAME_GUARD_SCHEMAS`. A guard used to restate its schema's field list by
+ * hand, which drifts the moment the server adds or requires a field. The
+ * envelope itself stays hand-written — the spec publishes payloads, not
+ * frames.
+ */
+function emitFrames(spec: OpenAPISpec): string {
+  let out =
+    BANNER +
+    `\n/** Runtime kind of a frame-payload field. */\n` +
+    `export type FieldKind = 'string' | 'number' | 'boolean' | 'string[]' | 'number[]' | 'boolean[]';\n` +
+    `\n/** A frame-payload field's runtime kind, and whether the server always sends it. */\n` +
+    `export interface FrameField {\n  kind: FieldKind;\n  required: boolean;\n}\n`;
+
+  for (const name of FRAME_GUARD_SCHEMAS) {
+    const schema = spec.components.schemas[name] as OpenAPIProperty | undefined;
+    if (!schema?.properties) throw new Error(`Spec is missing ${name}.properties`);
+    const required = new Set(schema.required ?? []);
+    if (!required.size) throw new Error(`Spec is missing ${name}.required`);
+    const fields = Object.entries(schema.properties).map(
+      ([field, prop]) => `  ${field}: { kind: '${fieldKind(name, field, prop)}', required: ${required.has(field)} },`,
+    );
+    out +=
+      `\n/** Every field of the server's \`${name}\`, with its runtime kind and required-ness. */\n` +
+      `export const ${screamingSnake(name)}_FIELDS: Readonly<Record<string, FrameField>> = {\n` +
+      fields.join('\n') +
+      `\n};\n`;
+  }
+  return out;
+}
+
 function main() {
   const spec: OpenAPISpec = JSON.parse(readFileSync(SPEC_PATH, 'utf-8'));
   const actions = extractActions(spec);
@@ -530,6 +592,7 @@ function main() {
   writeFileSync(join(OUT_DIR, 'actions.gen.ts'), emitActions(spec, actions));
   writeFileSync(join(OUT_DIR, 'notifications.gen.ts'), emitNotifications(spec));
   writeFileSync(join(OUT_DIR, 'commands.gen.ts'), emitCommands(actions));
+  writeFileSync(join(OUT_DIR, 'frames.gen.ts'), emitFrames(spec));
   writeFileSync(COMMANDS_DOC_PATH, emitCommandsDoc(spec, actions));
 
   const queries = actions.filter((a) => a.kind === 'query').length;
