@@ -230,7 +230,11 @@ test('market() keeps serving the book across a state update that leaves docked_a
 
 // --- observation bridges into location ---
 
-function respondToSubscribeObservation(socket: MockSocket, nearby: SubscribeObservationResponse['nearby']): void {
+function respondToSubscribeObservation(
+  socket: MockSocket,
+  nearby: SubscribeObservationResponse['nearby'],
+  rest: Partial<SubscribeObservationResponse> = {},
+): void {
   socket.onClientSend = (frame, s) => {
     if (frame.action === 'subscribe_observation') {
       s.serverSend({
@@ -247,6 +251,7 @@ function respondToSubscribeObservation(socket: MockSocket, nearby: SubscribeObse
             nearby,
             system_agents: [],
             cloaked_contacts: [],
+            ...rest,
           } satisfies SubscribeObservationResponse,
         },
       });
@@ -363,6 +368,166 @@ test('ObservationCache merges presence changes and departures', () => {
   expect(view?.nearby.has('p1')).toBe(false);
   expect(view?.nearby.get('p2')?.username).toBe('Rex');
   expect(view?.tick).toBe(1700);
+});
+
+test('ObservationCache tracks pirates, empire NPCs, creatures and prizes, not just players', () => {
+  const cache = new ObservationCache();
+  cache.seed({
+    action: 'subscribe_observation',
+    active_scan: false,
+    unknown_signature: false,
+    poi_id: 'earth_station',
+    system_id: 'sol',
+    nearby: [],
+    system_agents: [],
+    cloaked_contacts: [],
+    pirates: [{ pirate_id: 'k1', name: 'Kael Raider', tier: 'raider', is_boss: false, status: 'hostile', hull: 80 }],
+    empire_npcs: [{ npc_id: 'n1', name: 'Patrol Alpha', role: 'patrol', empire: 'solarian', in_combat: false }],
+    creatures: [
+      {
+        creature_id: 'c1',
+        species: 'void_grazer',
+        name: 'Grazer',
+        role: 'passive',
+        hull: 40,
+        max_hull: 40,
+        in_combat: false,
+      },
+    ],
+    prizes: [
+      {
+        prize_id: 'z1',
+        actor_id: 'a1',
+        ship_id: 's1',
+        ship_class: 'hauler',
+        status: 'available',
+        hull: 10,
+        max_hull: 20,
+        shield: 0,
+        max_shield: 5,
+        in_combat: false,
+      },
+    ],
+  } satisfies SubscribeObservationResponse);
+  const seeded = requireValue(cache.current());
+  expect(seeded.pirates.get('k1')?.name).toBe('Kael Raider');
+  expect(seeded.empireNpcs.get('n1')?.role).toBe('patrol');
+  expect(seeded.creatures.get('c1')?.species).toBe('void_grazer');
+  expect(seeded.prizes.get('z1')?.ship_class).toBe('hauler');
+
+  cache.applyUpdate({
+    poi_id: 'earth_station',
+    system_id: 'sol',
+    tick: 1701,
+    unknown_signature: false,
+    pirates_changed: [
+      { pirate_id: 'k1', name: 'Kael Raider', tier: 'raider', is_boss: false, status: 'hostile', hull: 30 },
+    ],
+    empire_npcs_departed: ['n1'],
+    creatures_changed: [
+      {
+        creature_id: 'c2',
+        species: 'rift_drifter',
+        name: 'Drifter',
+        role: 'passive',
+        hull: 60,
+        max_hull: 60,
+        in_combat: true,
+      },
+    ],
+    creatures_departed: ['c1'],
+    prizes_departed: ['z1'],
+  } satisfies NotificationObservationUpdate);
+  const view = requireValue(cache.current());
+  expect(view.pirates.get('k1')?.hull).toBe(30); // state change upserts in place
+  expect(view.empireNpcs.size).toBe(0);
+  expect(view.creatures.has('c1')).toBe(false);
+  expect(view.creatures.get('c2')?.species).toBe('rift_drifter');
+  expect(view.prizes.size).toBe(0);
+});
+
+test('the observation bridge mirrors non-player presence into location too', async () => {
+  const { account, socket } = await connected();
+  socket.serverSend({
+    type: 'action_result',
+    request_id: 'seed',
+    payload: {
+      command: 'dock',
+      tick: 1,
+      result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } },
+    },
+  });
+
+  respondToSubscribeObservation(socket, [], {
+    pirates: [
+      {
+        pirate_id: 'k1',
+        name: 'Kael Raider',
+        tier: 'raider',
+        is_boss: false,
+        status: 'hostile',
+        hull: 80,
+        max_hull: 100,
+        shield: 5,
+        max_shield: 10,
+        primary_color: '#ff0000',
+      },
+    ],
+    empire_npcs: [{ npc_id: 'n1', name: 'Patrol Alpha', role: 'patrol', empire: 'solarian', in_combat: false }],
+    prizes: [
+      {
+        prize_id: 'z1',
+        actor_id: 'a1',
+        ship_id: 's1',
+        ship_class: 'hauler',
+        status: 'available',
+        hull: 10,
+        max_hull: 20,
+        shield: 0,
+        max_shield: 5,
+        in_combat: false,
+      },
+    ],
+    unknown_signature: true,
+  });
+  await account.subscribeObservation();
+
+  const location = requireValue(account.state.location);
+  // livery colors are dropped — `V2NearbyPirate` sets additionalProperties: false
+  expect(location.nearby_pirates).toEqual([
+    {
+      pirate_id: 'k1',
+      name: 'Kael Raider',
+      tier: 'raider',
+      is_boss: false,
+      status: 'hostile',
+      hull: 80,
+      max_hull: 100,
+      shield: 5,
+      max_shield: 10,
+    },
+  ]);
+  expect(location.nearby_pirate_count).toBe(1);
+  expect(location.nearby_empire_npcs?.[0]?.npc_id).toBe('n1');
+  expect(location.nearby_empire_npc_count).toBe(1);
+  expect(location.nearby_prizes?.[0]?.prize_id).toBe('z1');
+  expect(location.nearby_prize_count).toBe(1);
+  expect(location.unknown_signature).toBe(true);
+
+  socket.serverSend({
+    type: 'observation_update',
+    payload: {
+      poi_id: 'earth_station',
+      system_id: 'sol',
+      tick: 5,
+      unknown_signature: false,
+      pirates_departed: ['k1'],
+    } satisfies NotificationObservationUpdate,
+  });
+
+  expect(account.state.location?.nearby_pirates).toEqual([]);
+  expect(account.state.location?.nearby_pirate_count).toBe(0);
+  expect(account.state.location?.unknown_signature).toBe(false);
 });
 
 test('MarketCache.drop removes a base book', () => {

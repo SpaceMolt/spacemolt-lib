@@ -2,12 +2,24 @@
  * Local cache of the subscribed observation watch (current POI + system).
  *
  * Seeded from the `subscribe_observation` baseline and kept current by merging
- * `observation_update` pushes: `*_changed` arrays upsert players (keyed by
- * `player_id`), `*_departed` arrays (player_id strings) remove them, and the
+ * `observation_update` pushes: `*_changed` arrays upsert entities (keyed by
+ * their own id), `*_departed` arrays (id strings) remove them, and the
  * cloaked-contact / signature hints are tracked alongside.
+ *
+ * The watch is a full `get_nearby` replacement, not a players-only feed: the
+ * baseline and every update also carry the pirate, empire-NPC, wildlife and
+ * intact-prize presence at the watched POI, each with the same
+ * changed/departed delta shape as players.
  */
 
-import type { NotificationObservationUpdate, SubscribeObservationResponse } from '../generated/openapi/types.gen.ts';
+import type {
+  CreatureInfo,
+  EmpireNpcInfo,
+  NotificationObservationUpdate,
+  PirateInfo,
+  PrizeInfo,
+  SubscribeObservationResponse,
+} from '../generated/openapi/types.gen.ts';
 
 export type ObservedPlayer = NonNullable<NotificationObservationUpdate['nearby_changed']>[number];
 export type CloakedContact = NonNullable<NotificationObservationUpdate['cloaked_resolved']>[number];
@@ -21,6 +33,14 @@ export interface ObservationView {
   nearby: Map<string, ObservedPlayer>;
   /** Uncloaked players system-wide, keyed by player_id. */
   system: Map<string, ObservedPlayer>;
+  /** Pirate NPCs at the watched POI, keyed by pirate_id. */
+  pirates: Map<string, PirateInfo>;
+  /** Empire NPCs at the watched POI, keyed by npc_id. */
+  empireNpcs: Map<string, EmpireNpcInfo>;
+  /** Wildlife at the watched POI, keyed by creature_id. */
+  creatures: Map<string, CreatureInfo>;
+  /** Intact captured ships at the watched POI, keyed by prize_id. */
+  prizes: Map<string, PrizeInfo>;
   /** Cloaked contacts resolved by an active sensor sweep, keyed by target_id. */
   cloaked: Map<string, CloakedContact>;
   /** A faint cloaked-ship signature is present at the watched POI. */
@@ -38,6 +58,19 @@ function indexBy<T>(items: readonly T[] | undefined, key: (item: T) => string | 
   return map;
 }
 
+function merge<T>(
+  map: Map<string, T>,
+  changed: readonly T[] | undefined,
+  departed: readonly string[] | undefined,
+  key: (item: T) => string | undefined,
+): void {
+  for (const item of changed ?? []) {
+    const k = key(item);
+    if (k) map.set(k, item);
+  }
+  for (const id of departed ?? []) map.delete(id);
+}
+
 export class ObservationCache {
   private view: ObservationView | null = null;
 
@@ -49,6 +82,10 @@ export class ObservationCache {
       tick: 0,
       nearby: indexBy(snapshot.nearby, (p) => p.player_id),
       system: indexBy(snapshot.system_agents, (p) => p.player_id),
+      pirates: indexBy(snapshot.pirates, (p) => p.pirate_id),
+      empireNpcs: indexBy(snapshot.empire_npcs, (n) => n.npc_id),
+      creatures: indexBy(snapshot.creatures, (c) => c.creature_id),
+      prizes: indexBy(snapshot.prizes, (p) => p.prize_id),
       cloaked: indexBy(snapshot.cloaked_contacts, (c) => c.target_id),
       unknownSignature: snapshot.unknown_signature ?? false,
       activeScan: snapshot.active_scan ?? false,
@@ -65,6 +102,10 @@ export class ObservationCache {
         tick: update.tick,
         nearby: new Map(),
         system: new Map(),
+        pirates: new Map(),
+        empireNpcs: new Map(),
+        creatures: new Map(),
+        prizes: new Map(),
         cloaked: new Map(),
         unknownSignature: false,
         activeScan: false,
@@ -72,12 +113,13 @@ export class ObservationCache {
     }
     const v = this.view;
     v.tick = update.tick;
-    for (const p of update.nearby_changed ?? []) if (p.player_id) v.nearby.set(p.player_id, p);
-    for (const id of update.nearby_departed ?? []) v.nearby.delete(id);
-    for (const p of update.system_changed ?? []) if (p.player_id) v.system.set(p.player_id, p);
-    for (const id of update.system_departed ?? []) v.system.delete(id);
-    for (const c of update.cloaked_resolved ?? []) if (c.target_id) v.cloaked.set(c.target_id, c);
-    for (const id of update.cloaked_lost ?? []) v.cloaked.delete(id);
+    merge(v.nearby, update.nearby_changed, update.nearby_departed, (p) => p.player_id);
+    merge(v.system, update.system_changed, update.system_departed, (p) => p.player_id);
+    merge(v.pirates, update.pirates_changed, update.pirates_departed, (p) => p.pirate_id);
+    merge(v.empireNpcs, update.empire_npcs_changed, update.empire_npcs_departed, (n) => n.npc_id);
+    merge(v.creatures, update.creatures_changed, update.creatures_departed, (c) => c.creature_id);
+    merge(v.prizes, update.prizes_changed, update.prizes_departed, (p) => p.prize_id);
+    merge(v.cloaked, update.cloaked_resolved, update.cloaked_lost, (c) => c.target_id);
     if (update.unknown_signature !== undefined) v.unknownSignature = update.unknown_signature;
     if (update.active_scan !== undefined) v.activeScan = update.active_scan;
   }

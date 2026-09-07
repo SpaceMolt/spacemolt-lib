@@ -22,6 +22,8 @@ import type {
   SubscribeMarketResponse,
   SubscribeObservationResponse,
   V2Location,
+  V2NearbyEmpireNpc,
+  V2NearbyPirate,
   V2NearbyPlayer,
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
@@ -848,14 +850,15 @@ export class Account {
   }
 
   /**
-   * Subscribe to a change-feed of player presence at your current POI/system.
+   * Subscribe to a change-feed of presence at your current POI/system: players
+   * (POI and system-wide), plus the pirates, empire NPCs, wildlife and intact
+   * prizes at the POI — a full `get_nearby` replacement, not players only.
    * Returns the baseline and seeds the observation cache; `observation_update`
    * pushes are merged automatically. Read with `account.observation()`. Also
-   * bridges POI-scoped presence into the base state cache's
-   * `location.nearby_players`/`nearby_player_count` (see
-   * `bridgeObservationToLocation`), so `account.state.location` reflects live
-   * data too once subscribed, instead of only refreshing on the next
-   * `get_status`/mutation delta.
+   * bridges the POI-scoped classes into their matching `location` fields in the
+   * base state cache (see `bridgeObservationToLocation`), so
+   * `account.state.location` reflects live data too once subscribed, instead of
+   * only refreshing on the next `get_status`/mutation delta.
    *
    * Scoped to your current POI the same way `subscribeMarket` is scoped to
    * your current dock — see the docked_at note there; the same silent
@@ -883,14 +886,14 @@ export class Account {
   }
 
   /**
-   * Mirrors the observation watch's POI-scoped player presence into
-   * `location.nearby_players`/`nearby_player_count` in the base state cache,
-   * so code reading `account.state.location` (rather than
-   * `account.observation()`) sees live presence data once subscribed. NPC and
-   * pirate presence (`nearby_empire_npcs`/`nearby_pirates`, their counts, and
-   * `offline_collapsed`) have no equivalent in the observation feed — it only
-   * ever carries player presence — so those fields are left untouched by this
-   * bridge and still only refresh on the next `get_status`/mutation delta.
+   * Mirrors the observation watch's POI-scoped presence into the matching
+   * `location` fields in the base state cache, so code reading
+   * `account.state.location` (rather than `account.observation()`) sees live
+   * data once subscribed: players, pirates, empire NPCs, intact prizes, their
+   * counts, and the cloaked-signature hint. Wildlife has no `location` field —
+   * read creatures from `account.observation()`. `offline_collapsed` is a
+   * response cap the feed does not report, so it is left untouched and still
+   * only refreshes on the next `get_status`/mutation delta.
    * No-ops if `location` hasn't been seeded yet or nothing is subscribed.
    */
   private bridgeObservationToLocation(): void {
@@ -912,9 +915,35 @@ export class Account {
       ...(p.ship_name !== undefined && { ship_name: p.ship_name }),
       ...(p.username !== undefined && { username: p.username }),
     }));
+    // `V2NearbyPirate` drops the feed's livery colors and, unlike `PirateInfo`,
+    // always carries the hull/shield numbers — the server itself emits zeros
+    // there for a pirate whose ship record is missing, so default to match.
+    const nearbyPirates: V2NearbyPirate[] = [...view.pirates.values()].map((p) => ({
+      pirate_id: p.pirate_id,
+      name: p.name,
+      tier: p.tier,
+      is_boss: p.is_boss,
+      status: p.status,
+      hull: p.hull ?? 0,
+      max_hull: p.max_hull ?? 0,
+      shield: p.shield ?? 0,
+      max_shield: p.max_shield ?? 0,
+      ...(p.faction !== undefined && { faction: p.faction }),
+      ...(p.faction_name !== undefined && { faction_name: p.faction_name }),
+    }));
+    // `EmpireNpcInfo` and `V2NearbyEmpireNpc` carry the same fields; `PrizeInfo`
+    // is the very schema `location.nearby_prizes` uses. Both pass through.
+    const nearbyEmpireNpcs: V2NearbyEmpireNpc[] = [...view.empireNpcs.values()];
     const changed = this.cache.patchSection('location', {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
+      nearby_pirates: nearbyPirates,
+      nearby_pirate_count: view.pirates.size,
+      nearby_empire_npcs: nearbyEmpireNpcs,
+      nearby_empire_npc_count: view.empireNpcs.size,
+      nearby_prizes: [...view.prizes.values()],
+      nearby_prize_count: view.prizes.size,
+      unknown_signature: view.unknownSignature,
     });
     if (changed.length) this.stateRevision++;
     if (changed.length) this.emitStateChange(changed);
