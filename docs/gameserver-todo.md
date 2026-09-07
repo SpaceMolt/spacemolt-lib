@@ -466,6 +466,59 @@ supply a real type per event. That is breaking for any v1 client switching on
 `spacemolt_ws_connections{api_version}` (gameserver v0.596.2) is the number that
 decides when that is. Read it before scheduling the split.
 
+## 13. The observation watch omits arena NPCs, and its doc comment oversells it
+
+**Status:** todo · **Needed by:** the watch actually replacing `get_nearby` · **Priority:** low
+
+`SubscribeObservationResponse` carries five of `get_nearby`'s six presence
+classes: players, pirates, empire NPCs, creatures and prizes. Arena NPCs are
+missing from both the baseline and `ObservationUpdatePayload`
+(`internal/protocol/messages.go`), though `get_nearby` builds them from
+`state.GetArenaNPCsAtPOI` (`internal/handlers/info.go`). A player in an arena
+match cannot see their opponents through the watch and still has to poll.
+
+The doc comment on `SubscribeObservationResponse` says the watch is "a full
+`get_nearby` replacement, not players-only". That is what the missing sixth
+class makes false, and the lib copied the claim into its own docs before
+checking. Either add `arena_npcs` / `arena_npcs_changed` / `arena_npcs_departed`
+with the same fingerprint-diff the other four classes use, or correct the
+comment.
+
+## 14. `ObservationUpdatePayload.ActiveScan` is `omitempty`, so it can never turn off
+
+**Status:** todo · **Needed by:** `account.observation().activeScan` being trustworthy · **Priority:** medium
+
+``ActiveScan bool `json:"active_scan,omitempty"` `` means the key is dropped
+exactly when the value is `false` — which is the only moment the flag carries
+news. When the active sweep tier shuts itself off (fuel exhausted),
+`flushObservationSubscriptions` sets `activeNow = false`, the field is omitted,
+and a client cannot distinguish "still running" from "just stopped". The lib
+skips the write rather than guess, so `ObservationView.activeScan` stays `true`
+for the rest of the watch, and a reconnect re-arms a costed tier the player let
+lapse.
+
+`UnknownSignature` in the same struct already omits `omitempty` for this exact
+reason. Drop it from `ActiveScan` to match. One-word server fix; no client
+change can substitute for it.
+
+## 15. `ship_name` means different things in the watch and in `V2Location`
+
+**Status:** todo · **Needed by:** the location bridge round-tripping · **Priority:** low
+
+For players and empire NPCs the two paths disagree on one field.
+`buildNearbyPlayerLocked` and `gatherPOIEmpireNPCsLocked`
+(`internal/game/observation_subscriptions.go`) send `ship.DisplayName()`, which
+falls back to the ship class name. `buildV2Location`
+(`internal/handlers/v2state.go`) sends `ship.CustomName` alone, omitting the key
+when there is none. `V2NearbyPlayer.ship_name` is documented as "Custom ship
+name", so the watch's value contradicts the spec text for the same field.
+
+An unnamed Enforcer therefore has no `ship_name` in `get_status` and
+`ship_name: "Enforcer"` in the watch, and a consumer testing presence to detect
+a custom name gets opposite answers depending on which arrived last. Prizes use
+`DisplayName()` on both sides and are consistent. Pick one — `DisplayName()`
+reads better, but then the "Custom ship name" description has to go.
+
 ---
 
 ## Self-maintaining CI (the closing piece)

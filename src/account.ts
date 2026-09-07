@@ -22,6 +22,7 @@ import type {
   SubscribeMarketResponse,
   SubscribeObservationResponse,
   V2Location,
+  V2NearbyEmpireNpc,
   V2NearbyPirate,
   V2NearbyPlayer,
 } from './generated/openapi/types.gen.ts';
@@ -851,7 +852,9 @@ export class Account {
   /**
    * Subscribe to a change-feed of presence at your current POI/system: players
    * (POI and system-wide), plus the pirates, empire NPCs, wildlife and intact
-   * prizes at the POI — a full `get_nearby` replacement, not players only.
+   * prizes at the POI — not players only. That is five of `get_nearby`'s six
+   * classes; arena NPCs are not in the feed, so an arena match still needs
+   * `get_nearby` to see its opponents.
    * Returns the baseline and seeds the observation cache; `observation_update`
    * pushes are merged automatically. Read with `account.observation()`. Also
    * bridges the POI-scoped classes into their matching `location` fields in the
@@ -890,9 +893,25 @@ export class Account {
    * `account.state.location` (rather than `account.observation()`) sees live
    * data once subscribed: players, pirates, empire NPCs, intact prizes, their
    * counts, and the cloaked-signature hint. Wildlife has no `location` field —
-   * read creatures from `account.observation()`. `offline_collapsed` is a
-   * response cap the feed does not report, so it is left untouched and still
-   * only refreshes on the next `get_status`/mutation delta.
+   * read creatures from `account.observation()`.
+   *
+   * Three ways the bridged values differ from what `get_status` would return
+   * for the same POI, none of them fixable from here:
+   * - The arrays are uncapped. `get_status` truncates them (50 players, 20
+   *   each of the rest) while reporting the pre-cap total in the count, so a
+   *   bridged array can be longer than the server would ever send. The counts
+   *   mean the same thing either way.
+   * - `offline_collapsed` is a `get_status` response cap the feed does not
+   *   report, so it is left untouched at whatever the server last said. Above
+   *   the crowding threshold `get_status` drops offline players from
+   *   `nearby_players` and counts them there instead; the feed carries them in
+   *   full, so once bridged the two no longer sum — read the array, not the sum.
+   * - `ship_name` on players and empire NPCs is the ship's display name here
+   *   (its custom name, else the class name) where `get_status` sends the
+   *   custom name alone. Present does not imply custom-named while subscribed.
+   *
+   * `unknown_signature` is written even when false, where `get_status` omits
+   * the key; the bridge has to write it to clear a signature that has gone.
    * No-ops if `location` hasn't been seeded yet or nothing is subscribed.
    */
   private bridgeObservationToLocation(): void {
@@ -930,14 +949,29 @@ export class Account {
       ...(p.faction !== undefined && { faction: p.faction }),
       ...(p.faction_name !== undefined && { faction_name: p.faction_name }),
     }));
-    // `EmpireNpcInfo` and `V2NearbyEmpireNpc` carry the same fields; `PrizeInfo`
-    // is the very schema `location.nearby_prizes` uses. Both pass through.
+    // `EmpireNpcInfo` and `V2NearbyEmpireNpc` carry the same fields today, but
+    // they are separate server structs that have already drifted once (see the
+    // ship_name note above), and `V2NearbyEmpireNpc` sets
+    // additionalProperties: false. Project field by field so a field added to
+    // one alone fails the build here instead of writing an illegal property.
+    const nearbyEmpireNpcs: V2NearbyEmpireNpc[] = [...view.empireNpcs.values()].map((n) => ({
+      npc_id: n.npc_id,
+      name: n.name,
+      role: n.role,
+      empire: n.empire,
+      in_combat: n.in_combat,
+      ...(n.fleet_name !== undefined && { fleet_name: n.fleet_name }),
+      ...(n.ship_class !== undefined && { ship_class: n.ship_class }),
+      ...(n.ship_name !== undefined && { ship_name: n.ship_name }),
+    }));
+    // `PrizeInfo` is the very schema `location.nearby_prizes` uses — one Go
+    // type on both sides, so it passes through.
     const changed = this.cache.patchSection('location', {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
       nearby_pirates: nearbyPirates,
       nearby_pirate_count: view.pirates.size,
-      nearby_empire_npcs: [...view.empireNpcs.values()],
+      nearby_empire_npcs: nearbyEmpireNpcs,
       nearby_empire_npc_count: view.empireNpcs.size,
       nearby_prizes: [...view.prizes.values()],
       nearby_prize_count: view.prizes.size,

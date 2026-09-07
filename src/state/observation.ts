@@ -6,10 +6,12 @@
  * their own id), `*_departed` arrays (id strings) remove them, and the
  * cloaked-contact / signature hints are tracked alongside.
  *
- * The watch is a full `get_nearby` replacement, not a players-only feed: the
- * baseline and every update also carry the pirate, empire-NPC, wildlife and
- * intact-prize presence at the watched POI, each with the same
- * changed/departed delta shape as players.
+ * Not a players-only feed: the baseline and every update also carry the
+ * pirate, empire-NPC, wildlife and intact-prize presence at the watched POI,
+ * each with the same changed/departed delta shape as players. It covers five
+ * of `get_nearby`'s six classes — arena NPCs are the one it does not carry, so
+ * a player in an arena match still has to poll `get_nearby` for their
+ * opponents. `offline_collapsed` has no equivalent here either.
  */
 
 import type {

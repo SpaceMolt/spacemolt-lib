@@ -155,8 +155,9 @@ view?.creatures;                                 // wildlife, keyed by creature_
 view?.prizes;                                    // intact captured ships, keyed by prize_id
 ```
 
-The watch is a full `get_nearby` replacement, not players only. Every class
-except wildlife is also mirrored into `account.state.location`.
+The watch is not players only. It covers five of `get_nearby`'s six classes —
+arena NPCs are the one it does not carry — and every class except wildlife is
+also mirrored into `account.state.location`.
 
 ## Multi-account
 

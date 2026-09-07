@@ -522,12 +522,34 @@ test('the observation bridge mirrors non-player presence into location too', asy
       tick: 5,
       unknown_signature: false,
       pirates_departed: ['k1'],
+      prizes_departed: ['z1'],
+      empire_npcs_changed: [
+        { npc_id: 'n1', name: 'Patrol Alpha', role: 'patrol', empire: 'solarian', in_combat: true },
+      ],
+      creatures_changed: [
+        {
+          creature_id: 'c1',
+          species: 'void_grazer',
+          name: 'Grazer',
+          role: 'passive',
+          hull: 40,
+          max_hull: 40,
+          in_combat: false,
+        },
+      ],
     } satisfies NotificationObservationUpdate,
   });
 
-  expect(account.state.location?.nearby_pirates).toEqual([]);
-  expect(account.state.location?.nearby_pirate_count).toBe(0);
-  expect(account.state.location?.unknown_signature).toBe(false);
+  const after = requireValue(account.state.location);
+  expect(after.nearby_pirates).toEqual([]);
+  expect(after.nearby_pirate_count).toBe(0);
+  expect(after.nearby_prizes).toEqual([]);
+  expect(after.nearby_prize_count).toBe(0);
+  expect(after.nearby_empire_npcs?.[0]?.in_combat).toBe(true); // upsert reaches location too
+  expect(after.unknown_signature).toBe(false);
+  // Wildlife has no location field — it must stay observation-only.
+  expect(account.observation()?.creatures.get('c1')?.species).toBe('void_grazer');
+  expect(Object.keys(after).some((k) => k.includes('creature'))).toBe(false);
 });
 
 test('MarketCache.drop removes a base book', () => {
