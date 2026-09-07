@@ -25,6 +25,7 @@ import type {
   V2NearbyPlayer,
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
+import type { FleetPush, OkPush } from './push-frames.ts';
 import {
   CLOSE_CODE,
   type ConnectionClosedError,
@@ -771,10 +772,14 @@ export class Account {
 
   /**
    * Listen for a specific server push by msg_type. The handler receives the
-   * typed payload for published notification types, or a loosely-typed object
-   * for not-yet-typed pushes. Returns an unsubscribe function.
+   * typed payload for published notification types, and for the `ok` and
+   * `fleet` families from the hand-written unions in `push-frames.ts` (the
+   * server publishes no schema for those two). Anything else is a
+   * loosely-typed object. Returns an unsubscribe function.
    */
   on<K extends TypedNotificationType>(type: K, handler: (payload: NotificationPayloads[K]) => void): () => void;
+  on(type: 'ok', handler: (payload: OkPush) => void): () => void;
+  on(type: 'fleet', handler: (payload: FleetPush) => void): () => void;
   on(type: string, handler: (payload: Record<string, unknown>) => void): () => void;
   on<T>(type: string, handler: (payload: T) => void): () => void {
     return this.emitter.on(type, handler);
@@ -791,6 +796,8 @@ export class Account {
    * Buffered, so a slow consumer won't drop frames; `break` unsubscribes.
    */
   events<K extends TypedNotificationType>(type: K): AsyncIterableIterator<NotificationPayloads[K]>;
+  events(type: 'ok'): AsyncIterableIterator<OkPush>;
+  events(type: 'fleet'): AsyncIterableIterator<FleetPush>;
   events(type: string): AsyncIterableIterator<Record<string, unknown>>;
   events<T>(type: string): AsyncIterableIterator<T> {
     return this.emitter.stream(type) as AsyncIterableIterator<T>;

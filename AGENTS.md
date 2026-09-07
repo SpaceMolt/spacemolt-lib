@@ -84,6 +84,25 @@ account.credits, account.ship, account.location, account.cargo, account.skills;
 account.on('mining_yield', (y) => console.log(y.quantity, y.resource_id));
 ```
 
+Push payloads are typed. Most come from the server's published schema; the `ok`
+and `fleet` families are hand-written unions (the server publishes no schema for
+those two) and narrow the same way. Switch on `action` — or on `type`, which a
+handful of `ok` frames use instead:
+
+```ts
+account.on('ok', (p) => {
+  if ('action' in p && p.action === 'fleet_dock') p.base_id; // canonical base id
+  if ('type' in p && p.type === 'emergency_warp_stabilizer_activated') p.hull;
+});
+account.on('fleet', (p) => {
+  if (p.action === 'fleet_invite') p.fleet_id;
+});
+```
+
+Both unions are closed and were derived from a specific server build, so a frame
+added since reaches `onAny` but is not in them. `OK_PUSH_ACTIONS`,
+`OK_PUSH_TYPES` and `FLEET_PUSH_ACTIONS` are exported if you want to enumerate.
+
 ## Gotchas worth knowing up front
 
 - **Preconditions are real.** A new account starts docked; `mine` needs an
