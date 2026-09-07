@@ -22,7 +22,6 @@ import type {
   SubscribeMarketResponse,
   SubscribeObservationResponse,
   V2Location,
-  V2NearbyEmpireNpc,
   V2NearbyPirate,
   V2NearbyPlayer,
 } from './generated/openapi/types.gen.ts';
@@ -933,13 +932,12 @@ export class Account {
     }));
     // `EmpireNpcInfo` and `V2NearbyEmpireNpc` carry the same fields; `PrizeInfo`
     // is the very schema `location.nearby_prizes` uses. Both pass through.
-    const nearbyEmpireNpcs: V2NearbyEmpireNpc[] = [...view.empireNpcs.values()];
     const changed = this.cache.patchSection('location', {
       nearby_players: nearbyPlayers,
       nearby_player_count: view.nearby.size,
       nearby_pirates: nearbyPirates,
       nearby_pirate_count: view.pirates.size,
-      nearby_empire_npcs: nearbyEmpireNpcs,
+      nearby_empire_npcs: [...view.empireNpcs.values()],
       nearby_empire_npc_count: view.empireNpcs.size,
       nearby_prizes: [...view.prizes.values()],
       nearby_prize_count: view.prizes.size,
