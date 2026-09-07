@@ -440,6 +440,34 @@ the note in `GameState`'s doc comment telling callers to `refresh()` after
 
 ---
 
+## 12. `ok` and `fleet` publish no notification schema at all
+**Status:** todo · **Needed by:** deleting `src/push-frames.ts` · **Priority:** medium
+
+Neither frame family appears in `notificationDataAnyOf()`
+(`internal/openapi/notification_schemas.go`), so neither has a
+`Notification_<msg_type>` schema and codegen has nothing to derive a payload
+type from. They reach a consumer as `Record<string, unknown>`.
+
+`src/push-frames.ts` hand-writes both unions — 18 `ok` variants and 6 `fleet`
+variants, derived from gameserver v0.596.2 — and `tests/push-frames.test.ts`
+fails the day either schema is published, which is the signal to delete the
+file. That is the only drift guard available: with no schema to diff against,
+nothing detects a variant the server adds.
+
+The real fix is not a `Notification_ok` schema. `ok` is the **v1 response
+envelope** — `respondOK` (`internal/server/server.go`) is how every v1 command
+result and pending-ack returns — and only about half its emission sites are
+genuine pushes. Publishing one notification schema for a frame that is mostly
+responses documents the wrong thing. The fix is to split the ~17 push uses into
+distinct `msg_type`s, which gives each its own `Notification_*` and lets codegen
+supply a real type per event. That is breaking for any v1 client switching on
+`type === "ok"`, so it waits on v1 being retired.
+
+`spacemolt_ws_connections{api_version}` (gameserver v0.596.2) is the number that
+decides when that is. Read it before scheduling the split.
+
+---
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`

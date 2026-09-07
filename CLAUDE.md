@@ -186,6 +186,7 @@ src/
   index.ts                public surface (browser-safe — no Node built-ins)
   node.ts                 Node/Bun-only entry (@spacemolt/lib/node)
   protocol.ts             hand-written WS v2 frame envelopes (stable layer)
+  push-frames.ts          hand-written ok/fleet push payloads (no server schema)
   validation.ts           runtime guards for untrusted JSON/protocol data
   errors.ts               SpacemoltError / ConnectionClosedError
   client.ts               SpacemoltClient — multi-account manager (M4)

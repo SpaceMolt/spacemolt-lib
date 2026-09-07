@@ -84,3 +84,12 @@ export type {
   NotificationPayloads,
   TypedNotificationType,
 } from './generated/notifications.gen.ts';
+
+/**
+ * Payload types for the `ok` and `fleet` push families, plus the discriminator
+ * lists. Hand-written rather than generated: the server publishes no
+ * `Notification_ok` or `Notification_fleet` schema, so codegen has nothing to
+ * derive them from. Re-exported wholesale so a variant added to the unions does
+ * not also have to be remembered here.
+ */
+export * from './push-frames.ts';

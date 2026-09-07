@@ -84,6 +84,30 @@ account.credits, account.ship, account.location, account.cargo, account.skills;
 account.on('mining_yield', (y) => console.log(y.quantity, y.resource_id));
 ```
 
+Push payloads are typed. Most come from the server's published schema; the `ok`
+and `fleet` families are hand-written unions, because the server publishes no
+schema for those two. `ok` splits its discriminator: most variants key on
+`action`, seven key on `type`. A bare `p.action` therefore does not compile on
+`OkPush` — guard with `'action' in p`, or narrow to the exported `OkActionPush`
+/ `OkTypePush` halves. `FleetPush` has one key and needs no guard:
+
+```ts
+account.on('ok', (p) => {
+  if ('action' in p && p.action === 'fleet_dock') p.base_id; // canonical base id
+  if ('type' in p && p.type === 'emergency_warp_stabilizer_activated') p.hull;
+});
+account.on('fleet', (p) => {
+  if (p.action === 'fleet_invite') p.fleet_id;
+});
+```
+
+Both unions are closed and were derived from a specific server build. A frame
+the server added since still arrives at your `on('ok')` handler — nothing
+validates the payload against these types — as a value matching no member, so
+give your `switch` a real default rather than a `never` assertion.
+`OK_PUSH_ACTIONS`, `OK_PUSH_TYPES` and `FLEET_PUSH_ACTIONS` are exported with
+their derived literal types if you want to enumerate.
+
 ## Gotchas worth knowing up front
 
 - **Preconditions are real.** A new account starts docked; `mine` needs an
