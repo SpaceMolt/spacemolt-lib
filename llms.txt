@@ -11,6 +11,7 @@ parameter as a compile error rather than a runtime surprise.
 
 - [AGENTS.md](./AGENTS.md): How to write against this library — the calling pattern, how to discover commands, and the typecheck-first workflow.
 - [COMMANDS.md](./COMMANDS.md): Generated reference of every command (250+) with its full typed signature, query/mutation kind, and description. Greppable.
+- [RECIPES.md](./RECIPES.md): Generated reference of every crafting recipe and every item used in one, grouped by category. Greppable for "what makes X" / "what uses X".
 
 ## Docs
 
