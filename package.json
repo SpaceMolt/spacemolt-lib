@@ -18,6 +18,7 @@
   "files": [
     "dist",
     "COMMANDS.md",
+    "RECIPES.md",
     "AGENTS.md",
     "llms.txt"
   ],
@@ -25,6 +26,7 @@
     "fetch-spec": "bun run scripts/fetch-spec.ts",
     "generate": "bun run openapi-ts && bun run scripts/generate.ts",
     "generate:check": "bun run scripts/check-generated.ts",
+    "generate:recipes": "bun run scripts/generate-recipes.ts",
     "check": "bun run format:check && bun run lint && bun run generate:check && bun run typecheck && bun test && bun run build:browser-check && bun run build && bun run build:smoke",
     "format": "biome format --write .",
     "format:check": "biome format .",

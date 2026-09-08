@@ -30,6 +30,10 @@ Do not guess command names. The full surface is enumerated for you:
   one-line description. Generated from the live server spec, so it is never
   stale. **Grep it** (`rg 'jump|travel' COMMANDS.md`) or read the tool section
   you need.
+- **[`RECIPES.md`](./RECIPES.md)** — every crafting recipe and every item that
+  appears in one, grouped by category, with inputs/outputs and craft time.
+  **Grep it** to trace "what makes X" / "what uses X" without fetching the
+  catalog yourself.
 - **`ACTIONS`** (exported) — the same catalog at runtime, keyed by
   `"tool/action"`, if you'd rather enumerate in code:
   ```ts
