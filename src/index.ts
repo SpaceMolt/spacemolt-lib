@@ -78,6 +78,19 @@ export { MapCache, fetchMap, httpBaseFromWs, type GalaxyMap, type MapSystem } fr
 export { fetchStations, type StationEmpire, type StationList, type StationSummary } from './data/stations.ts';
 export { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';
 export {
+  bestBid,
+  bestAsk,
+  bidDepth,
+  walkBook,
+  valueBasket,
+  type BookLevel,
+  type OrderBook,
+  type BookWalk,
+  type BasketLine,
+  type BasketValue,
+} from './data/market-value.ts';
+export { mergeInventory, heldQuantity, type InventoryLine } from './state/inventory.ts';
+export {
   Socket,
   type SocketOptions,
   type WebSocketLike,
