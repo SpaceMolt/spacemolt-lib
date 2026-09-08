@@ -521,6 +521,20 @@ reads better, but then the "Custom ship name" description has to go.
 
 ---
 
+## 16. Publish crafting gates (skills, facilities) on `Recipe` in the catalog dump
+**Status:** todo · **Needed by:** recipe discovery (`RecipeGraph.craftableWith`) · **Priority:** medium
+
+`Recipe` (`internal/models/crafting.go`) carries no skill requirement — `required_skills`
+lives only on `Module` (`internal/models/item.go`) and gates *installing*, not crafting.
+And `produced_by_facilities` is computed per recipe in `recipeDetailResponse`
+(`internal/handlers/catalog.go`), so it is only reachable one recipe per call. A client
+filtering 850 recipes to "what can this pilot craft here" therefore has to either issue
+850 `craft dry_run` calls or guess. If crafting *is* skill-gated anywhere (check
+`internal/handlers/crafting.go`), publish the gate on the `Recipe` schema; either way,
+add `facilities: [definition_id]` to each recipe in `/api/catalog.json` so the venue
+filter can run locally. Lib side: `RecipeGraph.isCraftable`/`craftableWith` grow a
+`skills`/`facilities` option once the fields exist.
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`

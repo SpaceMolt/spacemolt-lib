@@ -97,7 +97,7 @@ export function generateRecipesDoc(catalog: Catalog): string {
   );
   lines.push("- Find what makes an item: `rg '→ outputs:.*item_id' RECIPES.md` or just `rg 'item_id' RECIPES.md`.");
   lines.push(
-    '- Flags appended after the time: `[facility-only]`, `[hidden]`, `[ship-passive]`, `[package:pack]`/`[package:unpack]`, `[no-recycle]`.',
+    '- Flags appended after the crafting time (in ticks): `[facility-only]`, `[hidden]`, `[ship-passive]`, `[package:pack]`/`[package:unpack]`, `[no-recycle]`.',
   );
   lines.push(
     '- The final `## Items` section lists every item referenced by a recipe, with counts of recipes that make/use it.',
@@ -112,7 +112,7 @@ export function generateRecipesDoc(catalog: Catalog): string {
       const inputs = r.inputs.map((i) => formatQty(i.item_id, i.quantity)).join(' + ');
       const outputs = r.outputs.map((o) => formatQty(o.item_id, o.quantity)).join(' + ');
       lines.push(
-        `- \`${r.id}\` — ${r.name} · inputs: ${inputs} → outputs: ${outputs} · ${r.crafting_time}s${recipeFlags(r)}`,
+        `- \`${r.id}\` — ${r.name} · inputs: ${inputs} → outputs: ${outputs} · ${r.crafting_time} ticks${recipeFlags(r)}`,
       );
     }
     lines.push('');
