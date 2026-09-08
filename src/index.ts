@@ -61,6 +61,19 @@ export {
   type CatalogShip,
   type CatalogSkill,
 } from './data/catalog.ts';
+export {
+  RecipeGraph,
+  collectRawTotals,
+  traceTree,
+  type Coverage,
+  type ItemSource,
+  type Path,
+  type RawLine,
+  type TraceError,
+  type TraceNode,
+  type TraceResult,
+  type TraceSuccess,
+} from './data/recipes.ts';
 export { MapCache, fetchMap, httpBaseFromWs, type GalaxyMap, type MapSystem } from './data/map.ts';
 export { fetchStations, type StationEmpire, type StationList, type StationSummary } from './data/stations.ts';
 export { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';
