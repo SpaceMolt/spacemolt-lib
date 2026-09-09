@@ -63,13 +63,13 @@ describe('lookups', () => {
   });
 
   test('source resolves extraction, then craftability', () => {
-    expect(g.source('ore_iron')).toBe('mined');
+    expect(g.source('ore_iron')).toBe('mining');
     expect(g.source('iron')).toBe('crafted');
     expect(g.source('plate')).toBe('crafted');
     expect(g.source('mystery')).toBe('unknown');
   });
 
-  test('source maps every extraction kind', () => {
+  test('source passes any extraction kind through verbatim', () => {
     const eg = new RecipeGraph(
       [],
       [
@@ -82,7 +82,8 @@ describe('lookups', () => {
     expect(eg.source('g')).toBe('gas');
     expect(eg.source('i')).toBe('ice');
     expect(eg.source('rd')).toBe('rad');
-    expect(eg.source('weird')).toBe('unknown');
+    // Not mapped through a local union, so a method the server adds survives.
+    expect(eg.source('weird')).toBe('something_new');
   });
 });
 
@@ -119,7 +120,7 @@ describe('coverage', () => {
     expect(cov.complete).toBe(false);
     expect(cov.missing).toEqual([
       { item_id: 'iron', quantity: 2, source: 'unknown' },
-      { item_id: 'ore_iron', quantity: 1, source: 'mined' },
+      { item_id: 'ore_iron', quantity: 1, source: 'mining' },
     ]);
   });
 
@@ -133,7 +134,7 @@ describe('coverage', () => {
     expect(cov.covered).toBe(0.5);
     expect(cov.missing).toEqual([
       { item_id: 'iron', quantity: 3, source: 'unknown' },
-      { item_id: 'ore_iron', quantity: 1, source: 'mined' },
+      { item_id: 'ore_iron', quantity: 1, source: 'mining' },
     ]);
   });
 
