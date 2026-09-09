@@ -5,7 +5,7 @@
  * with plain fixtures.
  */
 
-import type { MarketListingItem } from '../generated/openapi/types.gen.ts';
+import type { CargoItem, MarketListingItem, OrderLevel } from '../generated/openapi/types.gen.ts';
 
 /** Price a buyer here will pay us per unit (0 when nobody is bidding). */
 export function bestBid(rows: readonly MarketListingItem[], itemId: string): number {
@@ -32,21 +32,6 @@ export function bidDepth(rows: readonly MarketListingItem[], itemId: string): nu
   return rows.find((r) => r.item_id === itemId)?.best_buy_qty ?? 0;
 }
 
-export interface BookLevel {
-  price: number;
-  quantity: number;
-}
-
-export interface OrderBook {
-  itemId: string;
-  /** Bids, best first. */
-  bids: BookLevel[];
-  /** Total units wanted across every level. */
-  bidQuantity: number;
-  asks: BookLevel[];
-  askQuantity: number;
-}
-
 export interface BookWalk {
   /** Units actually filled. */
   filled: number;
@@ -61,26 +46,24 @@ export interface BookWalk {
 /**
  * What `quantity` really fetches, consuming levels in order.
  *
+ * Takes the server's own levels — a `MarketListingItem`'s `buy_orders` /
+ * `sell_orders` go straight in, best-first, no reshaping.
+ *
  * Multiplying quantity by the best price overstates any order big enough to eat
  * through the top level — the second unit may be worth less than the first.
  * Pure, so the arithmetic is testable without a market.
  */
-export function walkBook(levels: readonly BookLevel[], quantity: number): BookWalk {
+export function walkBook(levels: readonly OrderLevel[], quantity: number): BookWalk {
   let left = quantity;
   let gross = 0;
   for (const level of levels) {
     if (left <= 0) break;
     const take = Math.min(left, level.quantity);
-    gross += take * level.price;
+    gross += take * level.price_each;
     left -= take;
   }
   const filled = quantity - left;
   return { filled, gross, average: filled > 0 ? gross / filled : 0, unfilled: left };
-}
-
-export interface BasketLine {
-  item_id: string;
-  quantity: number;
 }
 
 export interface BasketValue {
@@ -103,7 +86,7 @@ export interface BasketValue {
  */
 export function valueBasket(
   rows: readonly MarketListingItem[],
-  basket: readonly BasketLine[],
+  basket: readonly CargoItem[],
   side: 'bid' | 'ask',
 ): BasketValue {
   const priceOf = side === 'bid' ? bestBid : bestAsk;

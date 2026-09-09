@@ -535,6 +535,16 @@ add `facilities: [definition_id]` to each recipe in `/api/catalog.json` so the v
 filter can run locally. Lib side: `RecipeGraph.isCraftable`/`craftableWith` grow a
 `skills`/`facilities` option once the fields exist.
 
+**Also publish `hand_craftable: bool` on `Recipe`.** The server already computes it —
+`handCraftable := !recipe.FacilityOnly && recipe.Category != "Facility Only" &&
+recipe.Category != "Ship Passive"` in `internal/game/facility_jobs_query.go`, and again
+(plus `Hidden`) in `internal/handlers/catalog.go`. `facility_only` alone is *not*
+sufficient, so every client has to re-implement that string comparison against two
+category values the spec types only as `string` with no enum. A rename or split of
+either category silently makes every client recommend recipes the workshop will refuse,
+with no typecheck or test to catch it. `RecipeGraph.isCraftable` currently mirrors the
+Go line verbatim and is annotated to be deleted when the flag lands.
+
 ## Self-maintaining CI (the closing piece)
 
 **Status:** done — `.github/workflows/sync-spec.yml`

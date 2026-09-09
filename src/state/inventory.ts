@@ -1,17 +1,14 @@
 /**
  * Pure inventory selectors — no `Account`, no I/O. Cargo (`account.cargo`)
  * and station/faction storage (`spacemolt_storage.view()`) both come back as
- * lists of `{ item_id, quantity }` (the generated `CargoItem` shape), so one
- * merge covers both without an adapter.
+ * lists of the generated `CargoItem`, so one merge covers both without an
+ * adapter.
  */
 
-export interface InventoryLine {
-  item_id: string;
-  quantity: number;
-}
+import type { CargoItem } from '../generated/openapi/types.gen.ts';
 
 /** Sum quantities for the same item_id across any number of cargo/storage lists. */
-export function mergeInventory(...lists: readonly (readonly InventoryLine[])[]): Map<string, number> {
+export function mergeInventory(...lists: readonly (readonly CargoItem[])[]): Map<string, number> {
   const totals = new Map<string, number>();
   for (const list of lists) {
     for (const line of list) {

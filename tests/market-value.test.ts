@@ -41,9 +41,9 @@ test('bestAsk reads the top of the sell book, 0 when nothing is offered', () => 
 
 test('walkBook consumes levels in order rather than assuming the best price', () => {
   const bids = [
-    { price: 3119, quantity: 126 },
-    { price: 3103, quantity: 56 },
-    { price: 3084, quantity: 17 },
+    { price_each: 3119, quantity: 126 },
+    { price_each: 3103, quantity: 56 },
+    { price_each: 3084, quantity: 17 },
   ];
   // Inside the top level, best price holds.
   expect(walkBook(bids, 100)).toEqual({ filled: 100, gross: 311_900, average: 3119, unfilled: 0 });

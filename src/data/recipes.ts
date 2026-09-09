@@ -14,25 +14,15 @@
 
 import type { CatalogCache, CatalogItem, CatalogRecipe } from './catalog.ts';
 
-/** How an item enters the economy. */
-export type ItemSource = 'mined' | 'gas' | 'ice' | 'rad' | 'crafted' | 'unknown';
-
 /** How much of a recipe's inputs a given inventory covers. */
 export interface Coverage {
   recipe: CatalogRecipe;
   runs: number;
   /** 0..1 fraction of the required input quantity that is on hand. */
   covered: number;
-  missing: { item_id: string; quantity: number; source: ItemSource }[];
+  missing: { item_id: string; quantity: number; source: string }[];
   complete: boolean;
 }
-
-const EXTRACTION_SOURCES: Record<string, ItemSource> = {
-  mining: 'mined',
-  gas: 'gas',
-  ice: 'ice',
-  rad: 'rad',
-};
 
 function toMap(have: ReadonlyMap<string, number> | Record<string, number>): ReadonlyMap<string, number> {
   return have instanceof Map ? have : new Map(Object.entries(have));
@@ -87,16 +77,31 @@ export class RecipeGraph {
     return this.recipes.filter((r) => r.category === category);
   }
 
-  source(itemId: string): ItemSource {
+  /**
+   * How an item enters the economy: the catalog's `extracted_by` verbatim
+   * (`'mining'`, `'gas'`, ...) when the server publishes one, else `'crafted'`
+   * if some recipe outputs it, else `'unknown'`. Passed through rather than
+   * mapped to a local union so a new extraction method the server adds shows
+   * up as itself instead of `'unknown'`.
+   */
+  source(itemId: string): string {
     // `CatalogItem` is `Item | Module`; only `Item` carries `extracted_by`.
     const entry = this.itemsById.get(itemId);
     const extracted = entry && 'extracted_by' in entry ? entry.extracted_by : undefined;
-    const mapped = extracted ? EXTRACTION_SOURCES[extracted] : undefined;
-    if (mapped) return mapped;
+    if (extracted) return extracted;
     return this.byOutput.has(itemId) ? 'crafted' : 'unknown';
   }
 
-  /** True when a player can run this recipe themselves (not hidden, not facility-gated, not a package op). */
+  /**
+   * True when a player can hand-craft this recipe at the Station Workshop.
+   *
+   * Mirrors the server's own `handCraftable` rule
+   * (`internal/game/facility_jobs_query.go`), which the catalog does not
+   * publish — the `'Facility Only'` / `'Ship Passive'` category strings are
+   * matched literally because `facility_only` alone is not sufficient there
+   * either. Delete this in favour of the server's flag once `Recipe` carries
+   * `hand_craftable` (docs/gameserver-todo.md #16).
+   */
   isCraftable(recipe: CatalogRecipe): boolean {
     return (
       !recipe.hidden &&
