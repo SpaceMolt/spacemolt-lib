@@ -53,7 +53,7 @@ describe('lookups', () => {
   ];
   const g = new RecipeGraph(recipes, [item('ore_iron', { extracted_by: 'mining' }), item('iron')]);
 
-  test('recipe / recipesFor / usesOf / byCategory', () => {
+  test('recipe / recipesFor / usesOf', () => {
     expect(requireValue(g.recipe('plate')).name).toBe('plate');
     expect(g.recipe('nope')).toBeUndefined();
     expect(g.recipesFor('iron').map((x) => x.id)).toEqual(['refine_iron']);
