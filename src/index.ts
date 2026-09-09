@@ -65,16 +65,7 @@ export { RecipeGraph, type Coverage } from './data/recipes.ts';
 export { MapCache, fetchMap, httpBaseFromWs, type GalaxyMap, type MapSystem } from './data/map.ts';
 export { fetchStations, type StationEmpire, type StationList, type StationSummary } from './data/stations.ts';
 export { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';
-export {
-  bestBid,
-  bestAsk,
-  bidDepth,
-  walkBook,
-  valueBasket,
-  type BookWalk,
-  type BasketValue,
-} from './data/market-value.ts';
-export { mergeInventory, heldQuantity } from './state/inventory.ts';
+export { walkBook, type BookWalk } from './data/order-book.ts';
 export {
   Socket,
   type SocketOptions,

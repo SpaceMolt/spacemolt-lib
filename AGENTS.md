@@ -117,6 +117,12 @@ their derived literal types if you want to enumerate.
   not `target_system`. `COMMANDS.md` (and the types) are authoritative.
 - **Don't hand-edit anything generated** (`src/generated/`, `COMMANDS.md`); it's
   regenerated from the spec.
+- **`best_buy_qty` is not total demand.** It's the units wanted at the top price
+  level only; `buy_quantity` is the total across every level (`sell_*` likewise).
+  At `frontier_station`, fuel cells showed `best_buy_qty` 126 against a
+  `buy_quantity` of 993 — sizing a trade off the former understates the market
+  roughly eightfold. For what an order actually fetches once it eats past the top
+  level, walk the levels: `walkBook(row.buy_orders, qty)`.
 
 ## Command results are typed
 

@@ -59,7 +59,6 @@ describe('lookups', () => {
     expect(g.recipesFor('iron').map((x) => x.id)).toEqual(['refine_iron']);
     expect(g.recipesFor('unknown_item')).toEqual([]);
     expect(g.usesOf('ore_iron').map((x) => x.id)).toEqual(['refine_iron', 'plate']);
-    expect(g.byCategory('Refining').map((x) => x.id)).toEqual(['refine_iron']);
   });
 
   test('source resolves extraction, then craftability', () => {

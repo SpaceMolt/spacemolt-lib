@@ -72,11 +72,6 @@ export class RecipeGraph {
     return [...(this.byInput.get(itemId) ?? [])];
   }
 
-  /** Recipes in a `Recipe.category` (Title Case, e.g. 'Refining'). */
-  byCategory(category: string): CatalogRecipe[] {
-    return this.recipes.filter((r) => r.category === category);
-  }
-
   /**
    * How an item enters the economy: the catalog's `extracted_by` verbatim
    * (`'mining'`, `'gas'`, ...) when the server publishes one, else `'crafted'`
