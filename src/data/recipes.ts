@@ -87,26 +87,6 @@ export class RecipeGraph {
     return this.byOutput.has(itemId) ? 'crafted' : 'unknown';
   }
 
-  /**
-   * True when a player can hand-craft this recipe at the Station Workshop.
-   *
-   * Mirrors the server's own `handCraftable` rule
-   * (`internal/game/facility_jobs_query.go`), which the catalog does not
-   * publish — the `'Facility Only'` / `'Ship Passive'` category strings are
-   * matched literally because `facility_only` alone is not sufficient there
-   * either. Delete this in favour of the server's flag once `Recipe` carries
-   * `hand_craftable` (docs/gameserver-todo.md #16).
-   */
-  isCraftable(recipe: CatalogRecipe): boolean {
-    return (
-      !recipe.hidden &&
-      !recipe.facility_only &&
-      recipe.category !== 'Facility Only' &&
-      recipe.category !== 'Ship Passive' &&
-      !recipe.package_operation
-    );
-  }
-
   /** How much of `recipe`'s inputs (for `runs` runs) the given inventory covers. */
   coverage(recipe: CatalogRecipe, have: ReadonlyMap<string, number> | Record<string, number>, runs = 1): Coverage {
     const stock = toMap(have);
@@ -149,10 +129,13 @@ export class RecipeGraph {
 
     for (const recipe of this.recipes) {
       if (categories && !categories.has(recipe.category)) continue;
-      const allowed = opts.includeFacilityOnly
-        ? !recipe.hidden && !recipe.package_operation && recipe.category !== 'Ship Passive'
-        : this.isCraftable(recipe);
-      if (!allowed) continue;
+      if (recipe.hidden || recipe.package_operation || recipe.category === 'Ship Passive') continue;
+      // Mirrors the server's unpublished `handCraftable` rule
+      // (`internal/game/facility_jobs_query.go`): `facility_only` alone is not
+      // sufficient, the category string is matched literally too. Replace with
+      // the server's flag once `Recipe` carries `hand_craftable`
+      // (docs/gameserver-todo.md #16).
+      if (!opts.includeFacilityOnly && (recipe.facility_only || recipe.category === 'Facility Only')) continue;
       const cov = this.coverage(recipe, stock);
       if (cov.covered > 0) out.push(cov);
     }

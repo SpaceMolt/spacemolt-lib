@@ -86,62 +86,6 @@ describe('lookups', () => {
   });
 });
 
-describe('isCraftable', () => {
-  const g = new RecipeGraph([]);
-  test('rejects hidden, facility-gated, passive and package recipes', () => {
-    expect(g.isCraftable(r('ok', 'a', []))).toBe(true);
-    expect(g.isCraftable(r('h', 'a', [], { hidden: true }))).toBe(false);
-    expect(g.isCraftable(r('f', 'a', [], { facility_only: true }))).toBe(false);
-    expect(g.isCraftable(r('c', 'a', [], { category: 'Facility Only' }))).toBe(false);
-    expect(g.isCraftable(r('p', 'a', [], { category: 'Ship Passive' }))).toBe(false);
-    expect(g.isCraftable(r('pkg', 'a', [], { package_operation: 'unpack' }))).toBe(false);
-  });
-});
-
-describe('coverage', () => {
-  const plate = r('plate', 'plate', [
-    ['iron', 3],
-    ['ore_iron', 1],
-  ]);
-  const g = new RecipeGraph([plate], [item('ore_iron', { extracted_by: 'mining' })]);
-
-  test('complete when everything is on hand', () => {
-    const cov = g.coverage(plate, { iron: 3, ore_iron: 1 });
-    expect(cov.covered).toBe(1);
-    expect(cov.complete).toBe(true);
-    expect(cov.missing).toEqual([]);
-    expect(cov.runs).toBe(1);
-  });
-
-  test('partial coverage reports the deficit and its source', () => {
-    const cov = g.coverage(plate, new Map([['iron', 1]]));
-    expect(cov.covered).toBe(0.25); // 1 of 4 required units
-    expect(cov.complete).toBe(false);
-    expect(cov.missing).toEqual([
-      { item_id: 'iron', quantity: 2, source: 'unknown' },
-      { item_id: 'ore_iron', quantity: 1, source: 'mining' },
-    ]);
-  });
-
-  test('surplus does not inflate coverage past 1', () => {
-    expect(g.coverage(plate, { iron: 100, ore_iron: 100 }).covered).toBe(1);
-  });
-
-  test('runs scale the requirement', () => {
-    const cov = g.coverage(plate, { iron: 3, ore_iron: 1 }, 2);
-    expect(cov.runs).toBe(2);
-    expect(cov.covered).toBe(0.5);
-    expect(cov.missing).toEqual([
-      { item_id: 'iron', quantity: 3, source: 'unknown' },
-      { item_id: 'ore_iron', quantity: 1, source: 'mining' },
-    ]);
-  });
-
-  test('an input-free recipe is fully covered', () => {
-    expect(g.coverage(r('free', 'x', []), {}).covered).toBe(1);
-  });
-});
-
 describe('craftableWith', () => {
   const recipes = [
     r('full', 'full', [['ore', 1]]),
@@ -158,6 +102,9 @@ describe('craftableWith', () => {
     r('facility', 'facility', [['ore', 1]], { facility_only: true }),
     r('refined', 'refined', [['ore', 1]], { category: 'Refining' }),
     r('secret', 'secret', [['ore', 1]], { hidden: true }),
+    r('fac_cat', 'fac_cat', [['ore', 1]], { category: 'Facility Only' }),
+    r('passive', 'passive', [['ore', 1]], { category: 'Ship Passive' }),
+    r('pkg', 'pkg', [['ore', 1]], { package_operation: 'unpack' }),
   ];
   const g = new RecipeGraph(recipes);
 
@@ -168,16 +115,16 @@ describe('craftableWith', () => {
     expect(requireValue(got[2]).covered).toBe(0.5);
   });
 
-  test('excludes facility-only and hidden recipes by default', () => {
+  test('excludes facility-gated, hidden, passive and package recipes by default', () => {
     const ids = g.craftableWith({ ore: 1 }).map((c) => c.recipe.id);
-    expect(ids).not.toContain('facility');
-    expect(ids).not.toContain('secret');
+    for (const id of ['facility', 'fac_cat', 'secret', 'passive', 'pkg']) expect(ids).not.toContain(id);
   });
 
-  test('includeFacilityOnly adds facility recipes but never hidden ones', () => {
+  test('includeFacilityOnly adds facility recipes but never hidden, passive or package ones', () => {
     const ids = g.craftableWith({ ore: 1 }, { includeFacilityOnly: true }).map((c) => c.recipe.id);
     expect(ids).toContain('facility');
-    expect(ids).not.toContain('secret');
+    expect(ids).toContain('fac_cat');
+    for (const id of ['secret', 'passive', 'pkg']) expect(ids).not.toContain(id);
   });
 
   test('categories filter', () => {

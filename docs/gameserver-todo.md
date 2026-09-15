@@ -532,7 +532,7 @@ filtering 850 recipes to "what can this pilot craft here" therefore has to eithe
 850 `craft dry_run` calls or guess. If crafting *is* skill-gated anywhere (check
 `internal/handlers/crafting.go`), publish the gate on the `Recipe` schema; either way,
 add `facilities: [definition_id]` to each recipe in `/api/catalog.json` so the venue
-filter can run locally. Lib side: `RecipeGraph.isCraftable`/`craftableWith` grow a
+filter can run locally. Lib side: `RecipeGraph.craftableWith` grows a
 `skills`/`facilities` option once the fields exist.
 
 **Also publish `hand_craftable: bool` on `Recipe`.** The server already computes it —
@@ -542,8 +542,8 @@ recipe.Category != "Ship Passive"` in `internal/game/facility_jobs_query.go`, an
 sufficient, so every client has to re-implement that string comparison against two
 category values the spec types only as `string` with no enum. A rename or split of
 either category silently makes every client recommend recipes the workshop will refuse,
-with no typecheck or test to catch it. `RecipeGraph.isCraftable` currently mirrors the
-Go line verbatim and is annotated to be deleted when the flag lands.
+with no typecheck or test to catch it. `RecipeGraph.craftableWith` currently mirrors the
+Go line verbatim and is annotated to switch to the flag when it lands.
 
 ## Self-maintaining CI (the closing piece)
 
