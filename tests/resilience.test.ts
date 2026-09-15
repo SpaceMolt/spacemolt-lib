@@ -3,7 +3,8 @@ import { Account } from '../src/account.ts';
 import type { AuthCredentials } from '../src/auth/credentials.ts';
 import { ConnectionClosedError, retryAfterMsFromClose, SpacemoltError } from '../src/errors.ts';
 import type { WelcomeFrame } from '../src/protocol.ts';
-import { mockFactory, type MockSocket } from './mock-socket.ts';
+import type { WebSocketFactory } from '../src/transport/socket.ts';
+import { mockFactory, MockSocket } from './mock-socket.ts';
 import { requireValue } from './require-value.ts';
 import { cargoItem } from './fixtures.ts';
 
@@ -744,4 +745,132 @@ test('query on a closed socket rejects and frees its request_id', async () => {
   const account = await connectedThenClosed();
   await expect(account.query('spacemolt_ship', 'get_status', undefined, 'q-1')).rejects.toThrow(ConnectionClosedError);
   await expect(account.query('spacemolt_ship', 'get_status', undefined, 'q-1')).rejects.toThrow(ConnectionClosedError);
+});
+
+// --- onDisconnected is terminal-only during a reconnect loop (dc#686296) ---
+//
+// Each reconnect attempt opens a fresh socket wired to the same handleClose.
+// A failed attempt closes that socket, which must NOT be reported as a final
+// disconnect while the loop still has retries left: `onDisconnected` means
+// gone for good.
+
+/** A factory whose first socket connects normally and whose reconnect attempts all fail to open. */
+function failingReconnectFactory(): { factory: WebSocketFactory; sockets: MockSocket[] } {
+  const sockets: MockSocket[] = [];
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url, { failToOpen: sockets.length > 0 });
+    sockets.push(s);
+    return s;
+  };
+  return { factory, sockets };
+}
+
+function reconnectingAccount(factory: WebSocketFactory, maxRetries: number): Account {
+  return new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+    reconnect: { baseDelayMs: 1, maxRetries },
+  });
+}
+
+test('fires onDisconnected once at the end, not once per failed reconnect attempt', async () => {
+  const { factory, sockets } = failingReconnectFactory();
+  const account = reconnectingAccount(factory, 3);
+  const cp = account.connect();
+  serveAuth(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  const codes: Array<number | undefined> = [];
+  const gone = new Promise<void>((resolve) => {
+    account.onDisconnected((e) => {
+      codes.push(e.code);
+      resolve();
+    });
+  });
+  requireValue(sockets[0]).close(1006); // abnormal close -> reconnect loop
+  await gone;
+  await new Promise((r) => setTimeout(r, 30)); // catch any extra fires
+
+  expect(codes).toEqual([1006]); // exactly one final disconnect, carrying the original close
+  expect(sockets.length).toBe(4); // original + 3 failed attempts
+});
+
+test('a session_replaced (4001) close during a reconnect attempt is still terminal', async () => {
+  const sockets: MockSocket[] = [];
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url);
+    sockets.push(s);
+    if (sockets.length > 1) {
+      // The attempt connects and authenticates, then the server replaces the
+      // session before the attempt is finished — inside `reconnectOnce`, so
+      // the close never surfaces as a rejection the loop could see.
+      queueMicrotask(() => s.serverSend({ type: 'welcome', payload: welcomePayload() }));
+      s.onClientSend = (frame, sock) => {
+        if (frame.action === 'login') {
+          sock.serverSend({
+            type: 'logged_in',
+            request_id: frame.request_id,
+            payload: { player: { username: 'Nova' } },
+          });
+          sock.close(4001, 'session_replaced');
+        }
+      };
+    }
+    return s;
+  };
+  const account = reconnectingAccount(factory, 5);
+  const cp = account.connect();
+  serveAuth(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  const codes: Array<number | undefined> = [];
+  let reconnected = false;
+  account.onReconnected(() => {
+    reconnected = true;
+  });
+  const gone = new Promise<void>((resolve) => {
+    account.onDisconnected((e) => {
+      codes.push(e.code);
+      resolve();
+    });
+  });
+  requireValue(sockets[0]).close(1006);
+  await gone;
+  await new Promise((r) => setTimeout(r, 30));
+
+  expect(codes).toEqual([4001]); // reported once, with the terminal code
+  expect(reconnected).toBe(false); // never claimed success over the dead socket
+  expect(sockets.length).toBe(2); // gave up after the first attempt, not all 5
+});
+
+test('a deliberate close() during a reconnect loop stays silent', async () => {
+  const { factory, sockets } = failingReconnectFactory();
+  // A long backoff so close() lands squarely inside the first wait.
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+    reconnect: { baseDelayMs: 200, maxRetries: 2 },
+  });
+  const cp = account.connect();
+  serveAuth(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  let fired = 0;
+  account.onDisconnected(() => {
+    fired++;
+  });
+  requireValue(sockets[0]).close(1006);
+  await new Promise((r) => setTimeout(r, 20)); // the loop is now waiting out its backoff
+  account.close();
+  await new Promise((r) => setTimeout(r, 400)); // outlast every remaining retry
+
+  expect(fired).toBe(0);
+  expect(sockets.length).toBe(1); // abandoned before it even opened an attempt
 });

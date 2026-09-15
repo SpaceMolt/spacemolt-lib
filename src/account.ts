@@ -295,6 +295,16 @@ function normalizeReconnect(opt: AccountOptions['reconnect']): Required<Reconnec
   };
 }
 
+/**
+ * Closes no reconnect can recover from. session_replaced: another connection
+ * took our slot — reconnecting would just fight it. auth_timeout: we failed to
+ * auth in time. Unlike those two, connection_rate_limited (4003) IS worth
+ * reconnecting after — `reconnectLoop` honors its retry_after hint.
+ */
+function isTerminalClose(err: ConnectionClosedError): boolean {
+  return err.code === CLOSE_CODE.SESSION_REPLACED || err.code === CLOSE_CODE.AUTH_TIMEOUT;
+}
+
 /** Parse a retry interval from a `rate_limited` error (ms). */
 function retryAfterMs(err: SpacemoltError): number {
   const retryAfter = err.details?.retry_after;
@@ -344,6 +354,8 @@ export class Account {
   // resilience state
   private userClosing = false;
   private reconnecting = false;
+  /** The close seen on the current reconnect attempt's socket, if any — the loop reads it to decide whether the attempt really succeeded. */
+  private attemptClose: ConnectionClosedError | null = null;
   private mutationLane: Promise<unknown> = Promise.resolve();
   private marketSubscribedState = false;
   private subscribedMarketBaseId: string | undefined;
@@ -1387,6 +1399,16 @@ export class Account {
       this.pendingAuth = null;
       auth.onError(err);
     }
+    // A reconnect loop is running: each of its attempts wires a fresh socket
+    // back here, so an attempt's close lands in this handler. The loop owns
+    // the terminal decision — reporting it here would fire `onDisconnected`
+    // once per attempt while retries remain. Hand the close to the loop
+    // instead; it decides whether to retry, give up, or discard a
+    // "successful" attempt whose socket died on the way up.
+    if (this.reconnecting) {
+      this.attemptClose = err;
+      return;
+    }
     if (this.shouldReconnect(err)) {
       void this.reconnectLoop(err);
     } else if (!this.userClosing) {
@@ -1397,12 +1419,7 @@ export class Account {
   private shouldReconnect(err: ConnectionClosedError): boolean {
     if (!this.reconnectConfig || this.userClosing || this.reconnecting) return false;
     if (!this.credentialsProvider) return false;
-    // session_replaced: another connection took our slot — reconnecting would
-    // just fight it. auth_timeout: we failed to auth in time. Unlike those
-    // two, connection_rate_limited (4003) IS worth reconnecting after —
-    // reconnectLoop honors its retry_after hint below.
-    if (err.code === CLOSE_CODE.SESSION_REPLACED || err.code === CLOSE_CODE.AUTH_TIMEOUT) return false;
-    return true;
+    return !isTerminalClose(err);
   }
 
   private async reconnectLoop(err: ConnectionClosedError): Promise<void> {
@@ -1415,6 +1432,10 @@ export class Account {
     // has actually rolled over and tripping the same limit again.
     const retryAfterMs = retryAfterMsFromClose(err);
     for (let attempt = 1; attempt <= cfg.maxRetries; attempt++) {
+      if (this.userClosing) {
+        this.reconnecting = false;
+        return;
+      }
       notifyListeners(this.reconnectingListeners, 'onReconnecting', attempt);
       const backoff =
         attempt === 1 && retryAfterMs !== undefined
@@ -1425,17 +1446,27 @@ export class Account {
         this.reconnecting = false;
         return;
       }
+      this.attemptClose = null;
       try {
         await this.reconnectOnce();
-        this.reconnecting = false;
-        notifyListeners(this.reconnectedListeners, 'onReconnected');
-        return;
+        // `reconnectOnce` can resolve over a socket that already died —
+        // `resubscribe` is best-effort, so a close during it is not thrown.
+        // A recorded close means the attempt did not actually hold.
+        if (!this.attemptClose) {
+          this.reconnecting = false;
+          notifyListeners(this.reconnectedListeners, 'onReconnected');
+          return;
+        }
       } catch {
-        // try again until retries are exhausted
+        // fall through: retry, or give up on a terminal close below
       }
+      if (this.attemptClose && isTerminalClose(this.attemptClose)) break;
     }
+    const finalErr = this.attemptClose && isTerminalClose(this.attemptClose) ? this.attemptClose : err;
     this.reconnecting = false;
-    notifyListeners(this.disconnectedListeners, 'onDisconnected', err);
+    // A deliberate `close()` is terminal but silent — same as the
+    // non-reconnecting path in `handleClose`.
+    if (!this.userClosing) notifyListeners(this.disconnectedListeners, 'onDisconnected', finalErr);
   }
 
   /**
