@@ -293,6 +293,7 @@ test('subscribeObservation bridges nearby-player presence into location.nearby_p
       system_id: 'sol',
       tick: 5,
       unknown_signature: false,
+      active_scan: false,
       nearby_changed: [{ player_id: 'p2', username: 'Rex', in_combat: true }],
       nearby_departed: ['p1'],
     } satisfies NotificationObservationUpdate,
@@ -361,6 +362,7 @@ test('ObservationCache merges presence changes and departures', () => {
     system_id: 'sol',
     tick: 1700,
     unknown_signature: false,
+    active_scan: false,
     nearby_changed: [{ player_id: 'p2', username: 'Rex', in_combat: true }],
     nearby_departed: ['p1'],
   } satisfies NotificationObservationUpdate);
@@ -420,6 +422,7 @@ test('ObservationCache tracks pirates, empire NPCs, creatures and prizes, not ju
     system_id: 'sol',
     tick: 1701,
     unknown_signature: false,
+    active_scan: false,
     pirates_changed: [
       { pirate_id: 'k1', name: 'Kael Raider', tier: 'raider', is_boss: false, status: 'hostile', hull: 30 },
     ],
@@ -521,6 +524,7 @@ test('the observation bridge mirrors non-player presence into location too', asy
       system_id: 'sol',
       tick: 5,
       unknown_signature: false,
+      active_scan: false,
       pirates_departed: ['k1'],
       prizes_departed: ['z1'],
       empire_npcs_changed: [

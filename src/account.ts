@@ -788,8 +788,8 @@ export class Account {
    * Listen for a specific server push by msg_type. The handler receives the
    * typed payload for published notification types, and for the `ok` and
    * `fleet` families from the hand-written unions in `push-frames.ts` (the
-   * server publishes no schema for those two). Anything else is a
-   * loosely-typed object. Returns an unsubscribe function.
+   * server publishes those two only as flat objects, not per-event unions).
+   * Anything else is a loosely-typed object. Returns an unsubscribe function.
    */
   on<K extends TypedNotificationType>(type: K, handler: (payload: NotificationPayloads[K]) => void): () => void;
   on(type: 'ok', handler: (payload: OkPush) => void): () => void;

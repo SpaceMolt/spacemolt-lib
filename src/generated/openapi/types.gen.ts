@@ -245,7 +245,7 @@ export type ArenaChallengeDefInfo = {
      */
     description: string;
     /**
-     * The enemy ships spawned for the fight, one entry per line of the definition.
+     * The enemy ships spawned when the fight starts, one entry per line of the definition. Reinforcement waves are listed separately in waves.
      */
     enemies: Array<ArenaEnemyInfo>;
     /**
@@ -256,6 +256,10 @@ export type ArenaChallengeDefInfo = {
      * Display name of the challenge.
      */
     name: string;
+    /**
+     * How the fight is won beyond knocking out every enemy. Every zero or omitted field is off, so an all-zero objective means the last side standing wins.
+     */
+    objective: ArenaObjective;
     /**
      * Arena POI the fight is held at. You must be undocked there to start it.
      */
@@ -280,6 +284,10 @@ export type ArenaChallengeDefInfo = {
      * Position within the series, from 1. Higher stages are harder.
      */
     stage: number;
+    /**
+     * Reinforcements that join the enemy side mid-match, in arrival order. Empty when the opening enemies are the whole fight.
+     */
+    waves: Array<ArenaWaveInfo>;
     /**
      * Times you have won this challenge. 0 until your first win.
      */
@@ -371,6 +379,10 @@ export type ArenaEnemyInfo = {
      */
     count: number;
     /**
+     * True when this line runs for the ring beacons instead of fighting. It takes the flee stance from its first tick, and a challenge whose objective sets no_enemy_escape is lost the moment one gets away — stop it with damage or warp tackle.
+     */
+    flees: boolean;
+    /**
      * True for the named headline enemy of the fight. Your ship opens targeting the boss when there is one.
      */
     is_boss: boolean;
@@ -402,7 +414,7 @@ export type ArenaFightResponse = {
      */
     challenge_id: string;
     /**
-     * The enemy lines of the challenge, as listed by arena action=challenges.
+     * The enemy lines the challenge opens with, as listed by arena action=challenges. Reinforcement waves are not spawned yet and are listed in waves.
      */
     enemies: Array<ArenaEnemyInfo>;
     /**
@@ -418,13 +430,52 @@ export type ArenaFightResponse = {
      */
     name: string;
     /**
+     * How this fight is won beyond knocking out every enemy. Every zero or omitted field is off. Track it live with arena action=status.
+     */
+    objective: ArenaObjective;
+    /**
      * Every combatant in the match at the moment it started, your side and the enemies. Enemy entries carry the spawned NPC's id as player_id.
      */
     participants: Array<ArenaParticipantInfo>;
     /**
+     * Reinforcements that will join the enemy side later in this match, in arrival order. Empty when the opening enemies are the whole fight.
+     */
+    waves: Array<ArenaWaveInfo>;
+    /**
      * Your battle side ID. Fleet members share it.
      */
     your_side: number;
+};
+
+export type ArenaMatchInfo = {
+    /**
+     * ID of the NPC challenge being fought.
+     */
+    challenge_id: string;
+    /**
+     * Ticks since the match started. 0 on the tick it began.
+     */
+    elapsed_ticks: number;
+    /**
+     * Challenge enemies still in the fight. Reinforcement waves that have not arrived yet are not counted.
+     */
+    enemies_remaining: number;
+    /**
+     * Display name of the challenge.
+     */
+    name: string;
+    /**
+     * The challenge's win condition, as listed by arena action=challenges. Every zero or omitted field is off.
+     */
+    objective: ArenaObjective;
+    /**
+     * Ticks left before the objective's survive_ticks or time_limit_ticks deadline resolves the match. Omitted when the challenge sets neither; 0 means the deadline falls this tick.
+     */
+    ticks_remaining?: number;
+    /**
+     * Reinforcement waves that have not arrived yet. The match cannot end while one is still due and your side is still standing.
+     */
+    waves_remaining: number;
 };
 
 export type ArenaNpcInfo = {
@@ -432,6 +483,10 @@ export type ArenaNpcInfo = {
      * ID of the arena match the enemy is fighting in. Enemies exist only for the length of their match.
      */
     battle_id: string;
+    /**
+     * True when the enemy is running for the ring beacons instead of fighting. Its challenge is lost the moment it gets away.
+     */
+    flees: boolean;
     /**
      * Current hull points.
      */
@@ -480,6 +535,40 @@ export type ArenaNpcInfo = {
      * The enemy's status line, as a player's status message. Omitted when it has none.
      */
     status?: string;
+};
+
+export type ArenaObjective = {
+    /**
+     * True when an enemy that escapes the ring loses you the match. Challenges that set it spawn at least one enemy that runs from the first tick (flees on its enemy line); stop it with damage or warp tackle. Omitted = an enemy that breaks contact is simply out of the fight.
+     */
+    no_enemy_escape?: boolean;
+    /**
+     * Ticks your side must last to win, counted from the first tick of the match. The match ends the moment you reach it and any enemy still standing is called off. Omitted or 0 = you win by knocking out every enemy instead.
+     */
+    survive_ticks?: number;
+    /**
+     * Ticks you have to knock out every enemy. The match is lost the moment you reach it with one still standing. Omitted or 0 = no time limit.
+     */
+    time_limit_ticks?: number;
+};
+
+export type ArenaObjectiveEnemy = {
+    /**
+     * True when this enemy runs for the ring beacons instead of fighting. Letting one escape loses a challenge whose objective sets no_enemy_escape.
+     */
+    flees: boolean;
+    /**
+     * Display name of the enemy. Copies of a multi-ship line are numbered (Ring Cleaver 1, Ring Cleaver 2).
+     */
+    name: string;
+    /**
+     * Combat ID of the enemy: the player_id it carries in battle payloads and the id to pass to the battle command as a target.
+     */
+    npc_id: string;
+    /**
+     * Ship class ID of the enemy hull.
+     */
+    ship_class: string;
 };
 
 export type ArenaParticipantInfo = {
@@ -671,6 +760,10 @@ export type ArenaStatusResponse = {
      */
     incoming?: ArenaChallengeInfo;
     /**
+     * Live objective state of the NPC challenge you are fighting. Omitted when you are not in a challenge match — a player duel has no objective.
+     */
+    match?: ArenaMatchInfo;
+    /**
      * A challenge you issued that is still unanswered. Omitted when none is pending.
      */
     outgoing?: ArenaChallengeInfo;
@@ -684,6 +777,25 @@ export type ArenaStatusResponse = {
     xp_used_today: {
         [key: string]: number;
     };
+};
+
+export type ArenaWaveInfo = {
+    /**
+     * Ticks into the match before the wave can arrive. Omitted or 0 = no time trigger.
+     */
+    after_ticks?: number;
+    /**
+     * The enemy ships the wave brings, one entry per line of the definition.
+     */
+    enemies: Array<ArenaEnemyInfo>;
+    /**
+     * Display name of the wave, announced in the arena_objective push frame when it arrives.
+     */
+    name: string;
+    /**
+     * Enemies that must be left standing before the wave can arrive. Omitted = no count trigger; 0 = only once you have cleared the ring.
+     */
+    when_enemies_remaining?: number;
 };
 
 export type ArenaXpLedger = {
@@ -925,7 +1037,7 @@ export type BattleCombatState = {
      */
     flee_counter: number;
     /**
-     * Flee ticks needed to escape under current conditions (slower-than-pursuer and webbing raise it). Omitted while escape progress is blocked — by warp disruption or by a boarding intercept alike — so its absence does not identify which. Read warp_disrupted and intercepted for that.
+     * Flee ticks needed to escape under current conditions. 3 ticks is the baseline, and the combat-speed gap to the fastest enemy ship moves it either way: being slower (or webbed) raises it, being faster lowers it, with a floor of 1. Omitted while escape progress is blocked — by warp disruption or by a boarding intercept alike — so its absence does not identify which. Read warp_disrupted and intercepted for that.
      */
     flee_required?: number;
     /**
@@ -948,6 +1060,10 @@ export type BattleCombatState = {
      * player_id of the boarder intercepting you, matching a participant row in the same get_battle_status response. Present exactly when intercepted is true. At most one hull can intercept you: a ship already in a boarding link cannot open a second one.
      */
     interceptor_id?: string;
+    /**
+     * Whether your own boarding latch is gaining ground, and what is stopping it when it is not. accruing: you hold point-blank contact with the target's shields suppressed, so latch progress accrues this tick. shields_holding: the target's shields have regenerated back above the suppression line, so the latch reverts instead of advancing — keep its shields down to reopen the gate. out_of_range: you are not in point-blank contact, so the latch reverts — close the gap first, because suppressing shields does nothing at range. Present only while you are latching onto a target; omitted once marines are aboard, and omitted for the ship being boarded.
+     */
+    latch_status?: 'accruing' | 'shields_holding' | 'out_of_range';
     /**
      * Largest zone distance any fitted weapon can fire against your selected target after its targeting-range reductions. A target whose zone_distance exceeds this is out of range.
      */
@@ -1063,6 +1179,9 @@ export type BattleParticipant = {
      */
     shield_pct?: number;
     ship_class?: string;
+    /**
+     * Display name of whatever this combatant is flying: a ship reports its custom name when one is set and otherwise its class display name, a drone reports its drone type, and a creature reports its species role. Omitted for stations, which have no hull, and when the combatant ship cannot be resolved.
+     */
     ship_name?: string;
     side_id: number;
     /**
@@ -1097,6 +1216,9 @@ export type BattleParticipantInfo = {
     player_id: string;
     shield_pct?: number;
     ship_class?: string;
+    /**
+     * Display name of the ship this combatant is flying: its custom name when one is set, otherwise the ship class display name. Omitted for combatants that are not flying a resolvable ship, such as stations, drones, and creatures.
+     */
     ship_name?: string;
     side_id: number;
     stance?: string;
@@ -1275,7 +1397,7 @@ export type BoardingStateLogEntry = {
      */
     destroyed?: boolean;
     /**
-     * Observable boarding transition. Terminal values include capture_ready; plundered; withdrawn; attacker_destroyed; attacker_incapacitated; target_destroyed; target_self_destructed; and restart_canceled. plundered means pirates removed eligible cargo and then disengaged without taking the hull.
+     * Observable boarding transition. Terminal values include capture_ready; plundered; withdrawn; closing_stalled; attacker_destroyed; attacker_incapacitated; target_destroyed; target_self_destructed; and restart_canceled. plundered means pirates removed eligible cargo and then disengaged without taking the hull. closing_stalled means a latch with zero progress was withdrawn after the battle sat idle for the whole stalemate window.
      */
     event: string;
     /**
@@ -1570,6 +1692,23 @@ export type BulkModifyOrdersResponse = {
     summary: BulkSummary;
 };
 
+export type BulkReloadResponse = {
+    action: 'reload';
+    message?: string;
+    mode: 'bulk';
+    results: Array<BulkReloadResult>;
+    summary: BulkSummary;
+};
+
+export type BulkReloadResult = {
+    error?: string;
+    error_code?: string;
+    index: number;
+    result?: ReloadResponse;
+    success: boolean;
+    weapon_id: string;
+};
+
 export type BulkSellOrderResult = {
     consolidated?: boolean;
     error?: string;
@@ -1803,6 +1942,26 @@ export type CaptureLogEntry = {
     captor_username: string;
     former_owner_id: string;
     former_owner_username: string;
+    /**
+     * Prize created for the captured hull. Omitted on historical rows recorded before prize location was carried and on arena captures, which create no prize.
+     */
+    prize_id?: string;
+    /**
+     * POI where the prize sits (the battle origin, which can differ from the captor's POI). Omitted when there is no prize, the POI is hidden, or the battle began in transit.
+     */
+    prize_poi_id?: string;
+    /**
+     * Display name of the prize POI. Omitted when unknown or hidden.
+     */
+    prize_poi_name?: string;
+    /**
+     * System where the prize sits. Omitted when there is no prize.
+     */
+    prize_system_id?: string;
+    /**
+     * Display name of the prize system. Omitted when unknown.
+     */
+    prize_system_name?: string;
     ship_class: string;
     ship_id: string;
 };
@@ -1892,10 +2051,70 @@ export type CatalogDump = {
      * Regular items and modules merged into one list, sorted by ID.
      */
     items: Array<Item | Module>;
-    recipes: Array<Recipe>;
+    mining: MiningConstants;
+    recipes: Array<CatalogRecipe>;
     ships: Array<ShipClass>;
     skills: Array<SkillDefinition>;
     version: string;
+};
+
+export type CatalogRecipe = {
+    /**
+     * Grouping label used by the catalog type=recipes category filter. Two values are load-bearing rather than cosmetic: 'Facility Only' and 'Ship Passive' each make the recipe impossible to hand-craft. Prefer hand_craftable, which folds both of those strings together, over comparing this field yourself.
+     */
+    category: string;
+    /**
+     * Base ticks for one production run before venue and skill modifiers. Fractional values are allowed. At the Station Workshop this is divided by a Crafting/Refining skill factor running from 1.0 at level 0 to 5.0 at level 100; a facility applies its own throughput instead and ignores skill.
+     */
+    crafting_time: number;
+    /**
+     * Prose summary of what the recipe does. Guidance for the reader only — no mechanic reads it, and it may be empty.
+     */
+    description: string;
+    /**
+     * True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. It is one of the two inputs to hand_craftable; category is the other. Do not test it alone — a 'Facility Only' or 'Ship Passive' category recipe is equally un-hand-craftable with this field absent.
+     */
+    facility_only?: boolean;
+    /**
+     * Units of fuel added straight to the processing ship's tank (not to cargo) per run, when this recipe runs as a Ship Passive recipe aboard a fuel-synthesis module. Absent or zero on every recipe that delivers cargo instead.
+     */
+    fuel_output?: number;
+    /**
+     * Whether a docked pilot can run this recipe by hand at their Station Workshop, with no facility of any kind. Derived exactly as: facility_only is false AND category is not 'Facility Only' AND category is not 'Ship Passive'. Always present. False means the recipe needs a venue — a 'Ship Passive' recipe runs itself aboard a ship built for it and can never be queued at all, while any other false value must be queued at one of produced_by_facility_ids. True is a venue answer only: inputs, credits and workshop queue space are still checked when you actually craft.
+     */
+    hand_craftable: boolean;
+    /**
+     * True when the recipe is withheld from the catalog and cannot be crafted. Catalog surfaces omit hidden recipes entirely, so this is absent (false) on every recipe you can actually see.
+     */
+    hidden?: boolean;
+    /**
+     * Stable recipe identifier. Pass it as recipe_id to craft or to facility action=job_add, and it is what catalog type=recipes id={id} looks up.
+     */
+    id: string;
+    /**
+     * Materials consumed per production run. Empty on a package operation, whose real manifest is chosen at craft time, and on a labour-only recipe that consumes nothing at all.
+     */
+    inputs: Array<RecipeInput>;
+    /**
+     * Human-readable recipe name, shown in catalog listings and craft messages. Display only; never pass it as recipe_id.
+     */
+    name: string;
+    /**
+     * True when the process is irreversible and a recycling facility cannot run it backwards. Absent (false) means a recycler can reverse it to recover the inputs.
+     */
+    no_recycle?: boolean;
+    /**
+     * Items produced per production run. The first entry's quantity is the run size: a craft count is rounded up to whole runs against it, so asking for 3 of a recipe that yields 2 queues 2 runs and produces 4.
+     */
+    outputs: Array<RecipeOutput>;
+    /**
+     * Set to pack or unpack on the two dynamic package recipes, whose inputs and outputs are the player-selected manifest rather than the static lists here. Absent on every ordinary recipe.
+     */
+    package_operation?: string;
+    /**
+     * Ids of the facility definitions that can run this recipe forward, each matching an entry in this dump's facilities list. Sorted by facility level then name. Always present, never omitted: an empty list means no facility definition runs it, which for a hand_craftable recipe is normal (the Station Workshop is then the only venue) and for a recipe with hand_craftable false means it has no player-reachable venue at all. Owning or renting one of these facilities is what craft auto-routes to.
+     */
+    produced_by_facility_ids: Array<string>;
 };
 
 export type CatalogResponse = {
@@ -1982,6 +2201,10 @@ export type ChatHistoryMessage = {
     system_id?: string;
     target_id?: string;
     target_name?: string;
+    /**
+     * Structured weekly tax statement when this message is a tax assessment. Omitted for other messages and older notices.
+     */
+    tax_statement?: TaxStatement;
     timestamp_utc: string;
 };
 
@@ -2752,6 +2975,9 @@ export type DismantleOutpostResponse = {
 };
 
 export type DistressSignalResponse = {
+    /**
+     * Always "distress_signal". Echoes the command that produced this response.
+     */
     action: string;
     /**
      * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
@@ -2761,13 +2987,41 @@ export type DistressSignalResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
+    /**
+     * The kind of emergency broadcast: "fuel" (stranded without fuel), "repair" (hull critically damaged) or "combat" (under attack). Echoes the requested distress_type, or "fuel" when the request omitted it.
+     */
     distress_type: string;
+    /**
+     * Seconds until the posted rescue mission expires, measured from when the call was sent. 10800 (3 hours) for a player call. An unclaimed mission is removed at expiry, and is also removed early if you travel away under your own power.
+     */
     expires_seconds: number;
+    /**
+     * The broadcast text sent to the emergency chat channel, for example "MAYDAY: Phoenix is stranded at Sol Asteroid Belt in Sol with 0/120 fuel! Any pilots nearby, please help!". Wording depends on distress_type.
+     */
     message: string;
-    missions_sent: number;
+    /**
+     * ID of the claimable rescue mission this call posted, for example "a3f9c21e8b04". Nobody is assigned it: any pilot who heard the broadcast can take it by calling accept_mission with this ID, docked or not, and the first claim wins. Empty when responders_reached is 0, because no mission is posted when nobody is in range to hear it.
+     */
+    mission_id: string;
+    /**
+     * ID of the point of interest the call was sent from, for example "sol_asteroid_belt". Responders must reach this POI, not merely the system.
+     */
     poi: string;
+    /**
+     * Display name of the POI in "poi", for example "Sol Asteroid Belt". Falls back to the POI ID when the POI is unknown to the server.
+     */
     poi_name: string;
+    /**
+     * Number of online pilots within 5 jumps who received the broadcast. This is how many heard you, not how many are coming: the mission is an offer and nobody is assigned to it. 0 means nobody was in range, and then mission_id is empty because no mission was posted.
+     */
+    responders_reached: number;
+    /**
+     * ID of the system the call was sent from, for example "sol". This is where you were when the call was queued, which is the wreck site rather than your respawn hub if you died in the same tick.
+     */
     system: string;
+    /**
+     * Display name of the system in "system", for example "Sol". Falls back to the system ID when the system is unknown to the server.
+     */
     system_name: string;
 };
 
@@ -2897,6 +3151,9 @@ export type EmpireNpcInfo = {
     npc_id: string;
     role: string;
     ship_class?: string;
+    /**
+     * Display name of the ship this NPC is flying: its custom name when one is set, otherwise the ship class display name (an unnamed enforcer reads as Enforcer). Presence of this field does not mean the hull is named. Omitted only when the NPC has no resolvable ship.
+     */
     ship_name?: string;
 };
 
@@ -2977,6 +3234,9 @@ export type EnrichedWreck = {
     poi_id: string;
     salvage_value: number;
     ship_class: string;
+    /**
+     * Custom name the pilot gave this hull, and only that. Unlike ship_name everywhere else in the API it does not fall back to the ship class display name, because the value is a persisted column written when the wreck was created. Omitted when the hull was never named and on wrecks that were never a named ship (jettison containers, creature carcasses, ambient derelicts). Read ship_class for the hull type.
+     */
     ship_name?: string;
     system_id: string;
     towed_by_player_id?: string;
@@ -3309,25 +3569,23 @@ export type FacilityFactionListResponse = {
     base_id: string;
     faction_facilities: Array<FacilityFactionEntry>;
     faction_id: string;
+    /**
+     * Current recurring rent and existing arrears for faction_facilities at this station. Omitted when your faction owns none here; present with zero recurring rent when all of them have paused billing.
+     */
+    faction_rent?: FacilityRentSummary;
     faction_storage?: FacilityFactionStorage;
     hint: string;
 };
 
 export type FacilityFactionOwnedResponse = {
     action: 'faction_owned';
-    /**
-     * Credits owed across all facilities: sum rent_per_cycle multiplied by missed_rent_cycles including paused facilities. Pausing billing does not erase existing arrears. Omitted means zero.
-     */
-    arrears_owed?: number;
     facilities: Array<FactionOwnedFacilityEntry>;
     faction_id: string;
-    grace_cycles?: number;
-    hint?: string;
-    note?: string;
     /**
-     * Current faction rent in credits per facility cycle (100 ticks): sum rent_per_cycle for facilities where damaged and under_construction and dismantling are all false. Missing pause flags mean false. Zero means no current recurring rent; excludes existing arrears. Legacy inactive facilities remain billable.
+     * Current recurring rent and existing arrears for every faction facility across all stations.
      */
-    total_rent_per_cycle: number;
+    faction_rent: FacilityRentSummary;
+    hint?: string;
 };
 
 export type FacilityFactionStorage = {
@@ -3511,6 +3769,9 @@ export type FacilityRentSummary = {
      * Number of owned facilities in this summary including facilities whose billing is paused.
      */
     facilities: number;
+    /**
+     * Consecutive unpayable rent cycles allowed before the station repossesses the facility. Arrears still accrue during the grace window. Omitted means the station sets no grace window.
+     */
     grace_cycles?: number;
     note?: string;
     /**
@@ -4082,6 +4343,10 @@ export type FactionMember = {
 export type FactionMissionEntry = {
     active_instances: number;
     difficulty: number;
+    /**
+     * Objectives from the posted mission template in template order using the get_missions shape. Always present; an empty array means no objectives. These are requirements rather than per-player progress. Bounty objectives include the stored target_player_id even if the player cannot be resolved; target_player is the username and is omitted when the player cannot be resolved.
+     */
+    objectives: Array<ObjectiveInfo>;
     posted_by?: string;
     reward_credits: number;
     template_id: string;
@@ -4422,6 +4687,9 @@ export type FactionTaxEstimateResponse = {
     last_assessed_at?: number;
     loss_carryforward_applied?: number;
     net_taxable_profit: number;
+    /**
+     * Approximate seconds until the next weekly tick boundary: remaining ticks times configured tick duration rounded down to seconds. Paused ticks and later tick-rate changes alter the actual time.
+     */
     next_assessment_approx_seconds: number;
     note?: string;
     tax_collection_active: boolean;
@@ -4868,6 +5136,10 @@ export type GetBaseResponse = {
     power?: StationPowerStatus;
     repairs?: StationRepairResponse;
     services: Array<string>;
+    /**
+     * Explains an input or internal production-stage blockage at this station's empire-backed trade-authenticator mint. Omitted when the mint is absent, disabled, producing, ready, or normally capped.
+     */
+    sovereign_mint?: SovereignMintStatus;
 };
 
 export type GetBattleLogResponse = {
@@ -5199,6 +5471,14 @@ export type HuntResponse = {
     pending: boolean;
 };
 
+export type IncomeTaxBracketBreakdown = {
+    income_in_bracket: number;
+    lower_bound: number;
+    rate_bps: number;
+    tax_from_bracket: number;
+    upper_bound?: number;
+};
+
 export type InherentCapability = {
     flag?: string;
     type: string;
@@ -5343,6 +5623,10 @@ export type IntelPoi = {
     base_id?: string;
     base_name?: string;
     class?: string;
+    /**
+     * True when this is a hidden deep core POI holding deposits. Access there needs a deep_core_access extractor that a pilot cannot refit below so the too-sparse cutoff never applies and these deposits always work down to zero. It is the one input to the mining lock formula that you cannot derive from a deposit's own numbers. Omitted (false) for every ordinary POI and for a hidden POI with no resources such as a wormhole mouth.
+     */
+    deep_core?: boolean;
     description?: string;
     id: string;
     name: string;
@@ -5371,6 +5655,10 @@ export type Item = {
     hazardous?: boolean;
     hidden?: boolean;
     id: string;
+    /**
+     * Family of deposits that a specialized extractor targets. Present only on a mined item that belongs to one — currently the value crystal (energy/fury/trade/phase crystal) which the crystal_bonus module special pays its yield bonus out on. Omitted means no specialized-extractor bonus applies to this item.
+     */
+    mining_group?: string;
     name: string;
     quest_item?: boolean;
     rarity?: string;
@@ -5745,12 +6033,12 @@ export type LoungeCheckInResponse = {
 
 export type McpNotification = {
     /**
-     * Frame payload. The shape is selected by msg_type: read the Notification_<msg_type> schema under components.schemas. The notifications array on every v2 response carries the same payloads as an explicit anyOf.
+     * Frame payload selected by msg_type: see Notification_<msg_type>. The same NotificationPayload union is used by polling and inline delivery; null means no payload. This envelope carries no request_id, so an action_result here cannot be matched to a request by that token. Tell a delayed command completion from an unsolicited event by data.command; Notification_action_result explains how.
      */
-    data: unknown;
+    data: NotificationPayload;
     id: string;
     /**
-     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / server_restart_warning. A types=combat filter does not carry them.
+     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / error / server_restart_warning. A types=combat filter does not carry them.
      */
     msg_type: string;
     timestamp: string;
@@ -5873,8 +6161,17 @@ export type MineFilteredResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
+    /**
+     * Always true on this shape. The action consumed its tick and mined nothing, because a fitted extraction filter rejects every deposit this ship can work at this POI. A filter that rejects only some of the deposits re-targets the cycle instead and returns the yield shape, so this shape never means a partial loss.
+     */
     filtered: boolean;
+    /**
+     * Always the literal value filtered. It marks this member of the mine response union as the no-yield shape, so a client can tell it apart from the yield shape without inspecting any other field.
+     */
     kind: 'filtered';
+    /**
+     * Human-readable explanation of the empty cycle. It names the fitted-filter cause and the two ways out: unfit the filter, or move to a field carrying an ore the filter accepts.
+     */
     message: string;
 };
 
@@ -5883,6 +6180,25 @@ export type MineResponse = ({
 } & MiningYieldPayload) | ({
     kind: 'filtered';
 } & MineFilteredResponse);
+
+export type MiningConstants = {
+    /**
+     * Fraction of capacity below which a deposit counts as depleted and the overkill cutoff can apply. A deposit at or above this fraction of max_remaining is always workable however thin, so naturally tiny veins stay mineable by the gear built for them.
+     */
+    depletion_floor: number;
+    /**
+     * How many times a deposit's supported power your array may apply before it loses its lock entirely instead of tapering. Only bites on a deposit already below depletion_floor, and only for an array whose power times its precision factor exceeds precision_k.
+     */
+    overkill_ratio: number;
+    /**
+     * Units of remaining stock required per point of applied beam power for full-rate extraction, before your array's precision factor is applied. A deposit supports remaining divided by this (times your precision factor) worth of power; power above that is capped down to it rather than wasted.
+     */
+    precision_k: number;
+    /**
+     * Weight multiplier per Mining skill level that biases which deposit a mining cycle selects toward rarer ore. A deposit's selection weight is its richness times (1 + this * your Mining level * its rarity rank) where rarity rank is 0 for common 1 uncommon 2 rare 3 exotic and 4 legendary. At Mining level 0 the term vanishes and selection is weighted by richness alone. Selection only; it changes which deposit a cycle picks at a POI holding several and never changes yield.
+     */
+    rare_ore_rarity_weight_per_level: number;
+};
 
 export type MiningYieldPayload = {
     auto_docked?: boolean;
@@ -5897,6 +6213,19 @@ export type MiningYieldPayload = {
     resource_id: string;
     resource_name?: string;
     xp_gained?: {
+        [key: string]: number;
+    };
+};
+
+export type MissionAutoCompleteRewards = {
+    /**
+     * Nominal mission credit reward. Zero means no credit reward. The wallet cap can reduce the credits actually added; this field is not the resulting balance.
+     */
+    credits: number;
+    /**
+     * Skill XP actually awarded keyed by skill ID. Always present; an empty object means no XP was awarded. Missing skill keys mean zero XP.
+     */
+    skill_xp: {
         [key: string]: number;
     };
 };
@@ -6051,6 +6380,9 @@ export type Module = {
     passive_repair?: number;
     power_bonus?: number;
     power_usage: number;
+    /**
+     * Vein-density multiplier on how dense a deposit this beam needs. Above 1 is coarser and needs denser deposits; below 1 is finer and works thinner ones; omitted or 0 means the standard 1.0. Multiply it into the catalog mining.precision_k when computing a deposit's supported power or your lock threshold. A rig with several extractors uses the power-weighted average across them.
+     */
     precision_factor?: number;
     quest_item?: boolean;
     reach?: number;
@@ -6108,28 +6440,58 @@ export type NameShipResponse = {
  * A player visible at the current POI.
  */
 export type NearbyPlayer = {
+    /**
+     * Self-assigned clan tag of up to 4 characters. It is cosmetic and unrelated to faction membership - faction_id and faction_tag carry the real affiliation. Omitted when the player has not set one.
+     */
     clan_tag?: string;
     /**
      * True when the player is docked at a base. Docked players are listed but cannot be attacked, scanned, or traded with until they undock.
      */
     docked?: boolean;
+    /**
+     * Id of the faction the player belongs to. Omitted when the player is unaffiliated.
+     */
     faction_id?: string;
+    /**
+     * Short display tag of that faction. Present whenever faction_id is and the faction record still resolves.
+     */
     faction_tag?: string;
-    in_combat?: boolean;
+    /**
+     * True while the player is in an active battle. Always emitted: false means not in combat.
+     */
+    in_combat: boolean;
     /**
      * True when the player has no active connection and no recent activity. Offline players are still listed when the POI total is small; otherwise summarised in the response's offline_collapsed count.
      */
     offline?: boolean;
-    player_id?: string;
+    /**
+     * Unique id of the player. It is the target id for attack and scan. Always present on a listed player.
+     */
+    player_id: string;
+    /**
+     * Cosmetic profile colour the player set with set_colors, as a 7-character #RRGGBB hex string (new pilots start at #FFFFFF). Decorative only - it drives no game mechanic. Omitted when the player has cleared their colours.
+     */
     primary_color?: string;
+    /**
+     * Cosmetic secondary profile colour in the same 7-character #RRGGBB form as primary_color (new pilots start at #000000). Decorative only. Omitted when the player has cleared their colours.
+     */
     secondary_color?: string;
+    /**
+     * Class id of the hull the player is currently flying (for example enforcer). Omitted only when the player has no resolvable current ship.
+     */
     ship_class?: string;
     /**
-     * Custom ship name if set
+     * Display name of the ship this player is flying: their custom name when they have set one, otherwise the ship class display name (an unnamed enforcer reads as Enforcer). Presence of this field does not mean the hull is named. Omitted only when the player has no resolvable current ship.
      */
     ship_name?: string;
+    /**
+     * Free-text status line the player set with set_status. Omitted when they have not set one.
+     */
     status_message?: string;
-    username?: string;
+    /**
+     * Pilot name the player registered under. Always present on a listed player.
+     */
+    username: string;
 };
 
 export type NoteInfo = {
@@ -6147,6 +6509,11 @@ export type NotificationChannelInfo = {
     message_types: Array<string>;
     muted: boolean;
 };
+
+/**
+ * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
+ */
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -6205,7 +6572,7 @@ export type NotificationActionError = {
 };
 
 /**
- * Result of a queued action that completed on a later tick. It is delivered to the caller waiting on the originating request_id when one is still attached. Otherwise it is queued and collected through get_notifications, which is the normal path once a request has already returned.
+ * A state update from the server. Two producers send it. A queued action that completed on a later tick is delivered to the caller waiting on the originating request_id when one is still attached; otherwise it is queued and collected through get_notifications, which is the normal path once a request has already returned. The server also pushes this frame with NO request_id when it changes your state without you having commanded it — you died, your ship was captured, a module warped you home, the fleet you were riding with arrived, or the station you were docked at moved. Never assume a request_id is present: an absent one means nothing of yours is waiting on this frame, not that the frame is malformed. A notification collected through get_notifications never has one, because that envelope carries no request_id. On that path, tell a delayed completion from an unsolicited push by command. A registered command name (mine, dock, buy) is a completion. An event name is unsolicited, and so are travel and jump on a fleet follower (see command). A death or a capture arrives as two notifications. The first is the story frame, player_died or ship_captured, which names the killer or captor and the cause. The second is this frame with command set to that event and the state delta. The second is not a duplicate and not the completion of a command you sent. Apply the delta. Read the story frame for the cause. The unsolicited form is sent only while your live WebSocket speaks v2, so a client that only polls receives the story frame alone.
  */
 export type NotificationActionResult = {
     /**
@@ -6217,11 +6584,11 @@ export type NotificationActionResult = {
      */
     auto_undocked?: boolean;
     /**
-     * Name of the command that ran.
+     * Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, or mobile_capital_transit. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.
      */
     command: string;
     /**
-     * Payload of the completed command. On v1 this is the command's own response object — see that command's response schema. On v2 it is the state delta the command registered, keyed by state section. Untyped because both shapes are possible; it is null when the command returned no body.
+     * Payload of the completed command. On v1 this is the command's own response object — see that command's response schema. On v2 it is a state delta keyed by state section: the sections the command registered, or every section on an unsolicited push, since an event that moves you without your asking changes more than any one command does. A section that is absent is unchanged. Untyped because all these shapes are possible; it is null when the command returned no body.
      */
     result: unknown;
     /**
@@ -6271,6 +6638,37 @@ export type NotificationArenaChallenge = {
      * Arena POI the match is fought at.
      */
     poi_id: string;
+};
+
+export type NotificationArenaObjective = {
+    /**
+     * ID of the arena battle.
+     */
+    battle_id: string;
+    /**
+     * ID of the NPC challenge being fought, as listed by arena action=challenges.
+     */
+    challenge_id: string;
+    /**
+     * The enemy ships the wave brought. Present only when event is wave_arrived.
+     */
+    enemies?: Array<ArenaObjectiveEnemy>;
+    /**
+     * What happened: wave_arrived (reinforcements joined the enemy side), objective_won (the objective handed your side the match), objective_lost (the objective handed the enemy side the match). The match itself ends on the same tick as objective_won or objective_lost, followed by battle_ended.
+     */
+    event: 'wave_arrived' | 'objective_won' | 'objective_lost';
+    /**
+     * Human-readable summary of the event.
+     */
+    message: string;
+    /**
+     * Which objective decided the match: survive_ticks (your side lasted the required ticks), time_limit (an enemy was still standing at the deadline), enemy_escaped (an enemy cleared the ring). Present only when event is objective_won or objective_lost.
+     */
+    objective?: 'survive_ticks' | 'time_limit' | 'enemy_escaped';
+    /**
+     * Name of the wave that arrived. Present only when event is wave_arrived.
+     */
+    wave_name?: string;
 };
 
 export type NotificationBaseDestroyed = {
@@ -6381,6 +6779,10 @@ export type NotificationChatMessage = {
     channel?: string;
     content?: string;
     /**
+     * Kind of emergency: fuel, repair or combat. Set on the emergency channel only.
+     */
+    distress_type?: string;
+    /**
      * True when the server originated the message through the admin empire-leadership pipeline or an empire-NPC code path. Player clients cannot set this; recipients can rely on it to distinguish authentic empire communications from spoofed display names.
      */
     empire_official?: boolean;
@@ -6389,6 +6791,10 @@ export type NotificationChatMessage = {
      */
     faction_id?: string;
     id?: string;
+    /**
+     * ID of the rescue mission this broadcast posted. Set on the emergency channel only. Nobody is assigned the mission: pass this id to accept_mission to claim it, from anywhere and docked or not, and the first claim wins.
+     */
+    mission_id?: string;
     /**
      * Set on local channel.
      */
@@ -6399,6 +6805,10 @@ export type NotificationChatMessage = {
     sender?: string;
     sender_id?: string;
     /**
+     * Display name of the system the call came from. Set on the emergency channel only.
+     */
+    system?: string;
+    /**
      * Set on system / local channels.
      */
     system_id?: string;
@@ -6408,6 +6818,44 @@ export type NotificationChatMessage = {
     target_id?: string;
     target_name?: string;
     timestamp?: string;
+};
+
+/**
+ * Automatic cloak state change: fuel exhaustion, a missing cloaking device, or emergency cloak expiry disables the cloak; an emergency cloak can enable it after shield failure. Carried as msg_type=cloak without a client request.
+ */
+export type NotificationCloak = {
+    auto_docked?: boolean;
+    auto_undocked?: boolean;
+    /**
+     * Current cloak strength; zero when disabled.
+     */
+    cloak_strength: number;
+    /**
+     * Whether the player is cloaked after this event.
+     */
+    enabled: boolean;
+    /**
+     * Human-readable explanation of the automatic cloak change.
+     */
+    message: string;
+};
+
+/**
+ * Distress mission auto-completion pushed as msg_type=complete_mission without a client command. This is not the response shape of a manually submitted complete_mission action.
+ */
+export type NotificationCompleteMission = {
+    /**
+     * ID of the completed mission instance.
+     */
+    mission_id: string;
+    /**
+     * Display title of the completed mission.
+     */
+    mission_title: string;
+    /**
+     * Nominal credit reward and skill XP actually awarded for completion.
+     */
+    rewards: MissionAutoCompleteRewards;
 };
 
 export type NotificationCraftingUpdate = {
@@ -6491,6 +6939,12 @@ export type NotificationDroneUpdate = {
     owner_id: string;
     target_id: string;
     tick: number;
+};
+
+export type NotificationError = {
+    code: string;
+    message: string;
+    pending_command?: string;
 };
 
 /**
@@ -6588,6 +7042,28 @@ export type NotificationFactionWarDeclared = {
     reason?: string;
 };
 
+/**
+ * Fleet lifecycle notification, including death, succession, and arena disbanding. action is fleet_leader_promoted, fleet_disbanded, or fleet_member_died. Delivered without an originating request_id to affected fleet members.
+ */
+export type NotificationFleet = {
+    /**
+     * Fleet event: fleet_leader_promoted, fleet_disbanded, or fleet_member_died. Tolerate future event names.
+     */
+    action: string;
+    /**
+     * Human-readable event explanation.
+     */
+    message: string;
+    /**
+     * Promoted leader username, falling back to player ID if unresolved; only present for fleet_leader_promoted.
+     */
+    new_leader?: string;
+    /**
+     * Destroyed member username; only present for fleet_member_died.
+     */
+    player_name?: string;
+};
+
 export type NotificationMarketUpdate = {
     base_id: string;
     base_name?: string;
@@ -6613,7 +7089,15 @@ export type NotificationMiningYield = {
 };
 
 export type NotificationObservationUpdate = {
-    active_scan?: boolean;
+    active_scan: boolean;
+    /**
+     * Arena challenge enemies that joined the match at the watched POI or whose visible state (hull, shield, status, flees) changed this tick. A knockout surfaces here as hull reaching 0 — not as a departure. Omitted when none changed. Expect one on most updates while a match runs, because hull and shield move every tick.
+     */
+    arena_npcs_changed?: Array<ArenaNpcInfo>;
+    /**
+     * IDs of arena challenge enemies removed from the watched POI. Enemies are removed only when their match ends, so a knocked-out enemy stays in the feed at hull 0 until then — a missing departure does not mean it is still fighting. Omitted when none departed.
+     */
+    arena_npcs_departed?: Array<string>;
     cloaked_lost?: Array<string>;
     cloaked_resolved?: Array<ScanContact>;
     creatures_changed?: Array<CreatureInfo>;
@@ -6632,6 +7116,40 @@ export type NotificationObservationUpdate = {
     system_id: string;
     tick: number;
     unknown_signature: boolean;
+};
+
+/**
+ * Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID and arrival_tick), or fleet_jump (destination system ID and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.
+ */
+export type NotificationOk = {
+    /**
+     * Event or completed command name. For coordinated docking this is fleet_dock.
+     */
+    action?: string;
+    /**
+     * Scheduled arrival game tick for fleet_travel or fleet_jump; omitted for fleet_dock and fleet_undock.
+     */
+    arrival_tick?: number;
+    /**
+     * Station display name string for fleet_dock. Other OK responses may carry a base object or null.
+     */
+    base?: {
+        [key: string]: unknown;
+    } | {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Station Base ID, always present for fleet_dock; distinct from its POI ID. Omitted for fleet_undock, fleet_travel and fleet_jump.
+     */
+    base_id?: string;
+    /**
+     * Destination POI ID for fleet_travel or system ID for fleet_jump; omitted for fleet_dock and fleet_undock.
+     */
+    destination?: string;
+    /**
+     * Human-readable event explanation.
+     */
+    message?: string;
 };
 
 export type NotificationPersonnelUpdate = {
@@ -6815,6 +7333,9 @@ export type NotificationPirateRadio = {
     speaker_id: string;
 };
 
+/**
+ * Your ship was destroyed. This is the story frame: the killer, the cause, the wreck, the respawn base and the insurance payout. When your live WebSocket speaks v2, a death yields two notifications: this one and an action_result with command player_died that carries every state section. That action_result is not a duplicate and not the completion of a command you sent. Apply its delta. Read this frame for the cause. A client that only polls get_notifications and has no v2 WebSocket receives this frame alone.
+ */
 export type NotificationPlayerDied = {
     cause?: string;
     clone_cost: number;
@@ -6890,6 +7411,9 @@ export type NotificationPrizeUpdate = {
     prize_id: string;
     ship_class: string;
     ship_id: string;
+    /**
+     * Display name of the captured ship: the custom name its pilot set when there is one, otherwise the ship class display name (an unnamed enforcer reads as Enforcer). Presence of this field does not mean the hull is named. Omitted only when the captured hull no longer resolves in server state.
+     */
     ship_name?: string;
     /**
      * Recovery state of the prize. delivered / destroyed / expired / recaptured are terminal.
@@ -6923,6 +7447,22 @@ export type NotificationReconnected = {
     was_pilotless: boolean;
 };
 
+export type NotificationRefueledBy = {
+    fuel: number;
+    fuel_max: number;
+    fuel_now: number;
+    source_player_id: string;
+    source_username: string;
+};
+
+export type NotificationRepairedBy = {
+    hull: number;
+    max_hull: number;
+    repaired: number;
+    source_player_id: string;
+    source_username: string;
+};
+
 export type NotificationScanDetected = {
     message: string;
     revealed_info: Array<string>;
@@ -6937,6 +7477,9 @@ export type NotificationServerRestartWarning = {
     target_version?: string;
 };
 
+/**
+ * A boarding capture succeeded. This is the story frame: the captor, the former owner and the ship. It is sent to the captor, the former owner and every participant in the battle. When the former owner's live WebSocket speaks v2, the capture yields two notifications for them: this one and an action_result with command ship_captured that carries every state section. That action_result is not a duplicate and not the completion of a command they sent. Apply its delta. Read this frame for the cause. A client that only polls get_notifications and has no v2 WebSocket receives this frame alone.
+ */
 export type NotificationShipCaptured = {
     battle_id: string;
     boarding_operation_id: string;
@@ -6948,6 +7491,26 @@ export type NotificationShipCaptured = {
     captor_username: string;
     former_owner_id: string;
     former_owner_username: string;
+    /**
+     * Prize created for the captured hull. Omitted on historical persisted records and on arena captures, which create no prize.
+     */
+    prize_id?: string;
+    /**
+     * POI where the prize sits (the battle origin, which can differ from your POI). Omitted when there is no prize, the POI is hidden, or the battle began in transit.
+     */
+    prize_poi_id?: string;
+    /**
+     * Display name of the prize POI. Omitted when unknown or hidden.
+     */
+    prize_poi_name?: string;
+    /**
+     * System where the prize sits. Omitted when there is no prize.
+     */
+    prize_system_id?: string;
+    /**
+     * Display name of the prize system. Omitted when unknown.
+     */
+    prize_system_name?: string;
     ship_class: string;
     ship_id: string;
     tick: number;
@@ -7705,6 +8268,14 @@ export type PlayerStats = {
      * Unix timestamp of the most recent property-tax assessment
      */
     last_property_tax_assessed_at?: number;
+    /**
+     * UTC start of the latest weekly assessment, including an exempt period. Zero time means no tracked weekly boundary; the first assessment remains eligible.
+     */
+    last_weekly_tax_assessed_at?: string;
+    /**
+     * Latest completed personal weekly statement, also returned as latest_statement by get_tax_estimate. Omitted before the first statement. Later debt payments do not change this historical statement.
+     */
+    latest_tax_statement?: TaxStatement;
     marine_deaths?: number;
     marine_injuries?: number;
     marine_injuries_healed?: number;
@@ -7776,6 +8347,10 @@ export type PlayerStats = {
      * Times a Pathfinder course was plotted into open space
      */
     void_drifts?: number;
+    /**
+     * Gameplay or economic activity recorded since the latest weekly boundary. Omitted means false. This flag alone does not determine eligibility: unassessed income or purchases and an untracked first period also prevent inactivity exemption.
+     */
+    weekly_tax_active?: boolean;
     wormholes_traversed?: number;
     wreck_items_looted?: number;
     wrecks_scrapped?: number;
@@ -8018,17 +8593,53 @@ export type RecallDroneResponse = {
 };
 
 export type Recipe = {
+    /**
+     * Grouping label used by the catalog type=recipes category filter. Two values are load-bearing rather than cosmetic: 'Facility Only' and 'Ship Passive' each make the recipe impossible to hand-craft. Prefer hand_craftable, which folds both of those strings together, over comparing this field yourself.
+     */
     category: string;
+    /**
+     * Base ticks for one production run before venue and skill modifiers. Fractional values are allowed. At the Station Workshop this is divided by a Crafting/Refining skill factor running from 1.0 at level 0 to 5.0 at level 100; a facility applies its own throughput instead and ignores skill.
+     */
     crafting_time: number;
+    /**
+     * Prose summary of what the recipe does. Guidance for the reader only — no mechanic reads it, and it may be empty.
+     */
     description: string;
+    /**
+     * True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. It is one of the two inputs to hand_craftable; category is the other. Do not test it alone — a 'Facility Only' or 'Ship Passive' category recipe is equally un-hand-craftable with this field absent.
+     */
     facility_only?: boolean;
+    /**
+     * Units of fuel added straight to the processing ship's tank (not to cargo) per run, when this recipe runs as a Ship Passive recipe aboard a fuel-synthesis module. Absent or zero on every recipe that delivers cargo instead.
+     */
     fuel_output?: number;
+    /**
+     * True when the recipe is withheld from the catalog and cannot be crafted. Catalog surfaces omit hidden recipes entirely, so this is absent (false) on every recipe you can actually see.
+     */
     hidden?: boolean;
+    /**
+     * Stable recipe identifier. Pass it as recipe_id to craft or to facility action=job_add, and it is what catalog type=recipes id={id} looks up.
+     */
     id: string;
+    /**
+     * Materials consumed per production run. Empty on a package operation, whose real manifest is chosen at craft time, and on a labour-only recipe that consumes nothing at all.
+     */
     inputs: Array<RecipeInput>;
+    /**
+     * Human-readable recipe name, shown in catalog listings and craft messages. Display only; never pass it as recipe_id.
+     */
     name: string;
+    /**
+     * True when the process is irreversible and a recycling facility cannot run it backwards. Absent (false) means a recycler can reverse it to recover the inputs.
+     */
     no_recycle?: boolean;
+    /**
+     * Items produced per production run. The first entry's quantity is the run size: a craft count is rounded up to whole runs against it, so asking for 3 of a recipe that yields 2 queues 2 runs and produces 4.
+     */
     outputs: Array<RecipeOutput>;
+    /**
+     * Set to pack or unpack on the two dynamic package recipes, whose inputs and outputs are the player-selected manifest rather than the static lists here. Absent on every ordinary recipe.
+     */
     package_operation?: string;
 };
 
@@ -8203,6 +8814,8 @@ export type ReleaseTowResponse = {
     wreck_id: string;
 };
 
+export type ReloadCommandResponse = ReloadResponse | BulkReloadResponse;
+
 export type ReloadResponse = {
     action: string;
     ammo_id: string;
@@ -8236,14 +8849,46 @@ export type RepairResponse = {
 };
 
 export type ResourceInfo = {
+    /**
+     * How far this deposit is drawn down, as a percentage of max_remaining. Below 25 percent a deposit is depleted enough for lock_minimum_stock to take effect. Omitted when max_remaining is.
+     */
     depletion_percent?: number;
+    /**
+     * Stock this deposit must hold for your fitted array to keep a lock on it once the deposit falls below a quarter of capacity. Below both thresholds at once the beam disperses the remaining fragments and extraction fails with deposit_too_sparse. Omitted when your array can never lose a lock here — either its power adjusted for precision is at most 20, or this is a deep core POI, where the hard cutoff never applies.
+     */
+    lock_minimum_stock?: number;
+    /**
+     * Capacity this deposit regenerates back toward, seeded from its starting stock. Omitted for unlimited deposits, which have no capacity and never lock.
+     */
     max_remaining?: number;
+    /**
+     * Display name of the resource. Falls back to the raw item id when the catalog has no entry for it.
+     */
     name: string;
+    /**
+     * Units of stock left. -1 means an unlimited deposit that never depletes and never regenerates; 0 means fully depleted. A finite deposit below capacity regenerates at least 1 unit per minute.
+     */
     remaining: number;
+    /**
+     * Human-readable form of remaining: the string unlimited, the string depleted, or a unit count such as 4000 units.
+     */
     remaining_display: string;
+    /**
+     * Item id of the ore, gas, ice or radioactive material in this deposit — for example iron_ore or fury_crystal. Look it up in the catalog for its rarity and which extractor works it.
+     */
     resource_id: string;
+    /**
+     * Percentage multiplier on extraction yield: yield is applied beam power times richness divided by 100, floored at 1 unit per action. It also weights random deposit selection when a POI holds several, so a richer deposit is picked more often.
+     */
     richness: number;
+    /**
+     * Beam power this deposit accepts at full extraction rate, computed for the extraction hardware you have fitted right now — remaining stock divided by 20 and by your array's precision factor. Applying more than this is not wasted: power above it is capped down to it and extraction continues at the reduced rate. Omitted when the deposit is depleted or unlimited.
+     */
     supported_power?: number;
+    /**
+     * True when your currently fitted array cannot work this deposit at all right now. Fit a lower-power or finer-precision extractor, or mine a richer deposit. Omitted (false) whenever the deposit is workable.
+     */
+    too_sparse?: boolean;
 };
 
 export type ResourceNode = {
@@ -8285,6 +8930,9 @@ export type ScanContact = {
     revealed_info: Array<string>;
     shield?: number;
     ship_class?: string;
+    /**
+     * Display name of the scanned ship: the custom name its pilot set when there is one, otherwise the ship class display name. Presence of this field does not mean the hull is named. Omitted when the scan did not reach the ship_class reveal tier.
+     */
     ship_name?: string;
     target_id: string;
     username?: string;
@@ -8301,6 +8949,9 @@ export type ScanResponse = {
     revealed_info: Array<string>;
     shield?: number;
     ship_class?: string;
+    /**
+     * Display name of the scanned ship: the custom name its pilot set when there is one, otherwise the ship class display name. Presence of this field does not mean the hull is named. Omitted when the scan did not reach the ship_class reveal tier.
+     */
     ship_name?: string;
     signature_detected?: boolean;
     success: boolean;
@@ -8427,6 +9078,7 @@ export type SellWreckResponse = {
      */
     auto_undocked?: boolean;
     message: string;
+    modules_stored?: Array<SoldModuleItem>;
     new_balance: number;
     offer: number;
     salvage_value?: number;
@@ -9200,6 +9852,91 @@ export type SoldModuleItem = {
     name: string;
 };
 
+export type SovereignMintInputShortage = {
+    /**
+     * Always present. True exactly when this station manager has a public non-commission buy order for this item with remaining quantity greater than zero. False means no such order is available. Availability is a snapshot and does not guarantee enough order depth to cover quantity_missing.
+     */
+    buy_order_available: boolean;
+    /**
+     * Stable item ID of the externally procurable root input. At the Grand Exchange this normally identifies minable Trade Crystals rather than the internally produced Trade Cipher intermediate.
+     */
+    item_id: string;
+    /**
+     * Display name of item_id. Falls back to item_id when the item definition is unavailable.
+     */
+    name?: string;
+    /**
+     * Units currently present in station-manager storage and available to that recipe run.
+     */
+    quantity_in_storage: number;
+    /**
+     * Additional units needed, equal to max(quantity_required minus quantity_in_storage, 0). This entry is present only when the result is greater than zero.
+     */
+    quantity_missing: number;
+    /**
+     * Units required in station-manager storage to queue the next relevant mint-chain recipe run.
+     */
+    quantity_required: number;
+};
+
+export type SovereignMintInternalBlocker = {
+    /**
+     * Installed station facility instance responsible for this stage. Omitted when the required stage is not installed.
+     */
+    facility_id?: string;
+    /**
+     * Display name of facility_id.
+     */
+    facility_name?: string;
+    /**
+     * Stable item ID produced by this required stage.
+     */
+    item_id: string;
+    /**
+     * Display name of item_id.
+     */
+    name?: string;
+    /**
+     * Explains that station repair, construction, or restoration must return this production stage to service. For internal intermediates, the output is not a normal player supply request.
+     */
+    remediation: string;
+    /**
+     * Classification of this blocker.
+     */
+    stage: 'internal_intermediate' | 'sovereign_mint';
+    /**
+     * Why the required station production stage cannot currently run.
+     */
+    status: 'damaged' | 'under_construction' | 'unavailable';
+};
+
+export type SovereignMintStatus = {
+    /**
+     * Required station-owned production stages that are missing or cannot currently run, including the final sovereign mint. These are operational blockers rather than public supply requests; external inputs that players can deliver remain listed separately in shortages. Omitted when all required stages are available and operational.
+     */
+    internal_blockers?: Array<SovereignMintInternalBlocker>;
+    /**
+     * Stable item ID produced by this sovereign mint.
+     */
+    output_item_id: string;
+    /**
+     * Display name of output_item_id. Falls back to output_item_id when the item definition is unavailable.
+     */
+    output_name?: string;
+    /**
+     * Supply guidance present whenever shortages is non-empty. Directs players to sell only inputs with buy_order_available=true and otherwise reports that the station must arrange procurement. Check ordinary market listings for current prices and order depth. Internal Trade Ciphers are not normal player procurement.
+     */
+    remediation?: string;
+    /**
+     * Externally procurable root inputs insufficient to queue the next relevant mint-chain recipe run. Trade Crystals appear first when present. An intermediate made by an installed station feeder is expanded into that feeder's inputs rather than presented as a separate conjunctive bill. Omitted when no root input is short.
+     */
+    shortages?: Array<SovereignMintInputShortage>;
+    /**
+     * Why authenticator production is offline: blocked_inputs when one or more external root inputs are short, or blocked_internal when a required station-owned production stage — including the final sovereign mint — is missing or cannot run.
+     */
+    status: 'blocked_inputs' | 'blocked_internal';
+};
+
 export type StationConfigResponse = {
     action: string;
     allow_outsider_facilities: boolean;
@@ -9425,6 +10162,10 @@ export type SubscribeMarketResponse = {
 export type SubscribeObservationResponse = {
     action: string;
     active_scan: boolean;
+    /**
+     * Challenge enemies fighting an arena match held at the watched POI, the same set get_nearby returns there. Omitted when no NPC challenge is in progress at this POI, which is the usual case: enemies exist only for the length of one match. While a match runs their hull and shield move every tick, so expect an arena_npcs_changed entry in most observation_update messages until it ends.
+     */
+    arena_npcs?: Array<ArenaNpcInfo>;
     cloaked_contacts?: Array<ScanContact>;
     creatures?: Array<CreatureInfo>;
     empire_npcs?: Array<EmpireNpcInfo>;
@@ -9600,10 +10341,25 @@ export type TaxEstimateIncomeRow = {
 };
 
 export type TaxEstimatePropertyRow = {
+    /**
+     * Owned hull and fitted module value in credits assessed independently by this empire.
+     */
     assessed_value: number;
+    /**
+     * Progressive assessment detail when applicable. Omitted for flat rates and when inactivity_exempt is true.
+     */
     brackets?: Array<TaxEstimateBracketRow>;
+    /**
+     * Citizenship empire assessing this property.
+     */
     empire: string;
+    /**
+     * Projected property tax in credits; zero when inactivity_exempt is true even if the normal rate is positive.
+     */
     owed: number;
+    /**
+     * Normal property rate in basis points or effective rate for a progressive schedule before any inactivity exemption. 100 basis points is one percent.
+     */
     rate_bps: number;
 };
 
@@ -9613,25 +10369,101 @@ export type TaxEstimatePropertyShipRow = {
 };
 
 export type TaxEstimateResponse = {
+    /**
+     * Command name: get_tax_estimate.
+     */
     action: string;
+    /**
+     * Current value in credits per owned ship; an empty list means no assessed ships.
+     */
     assessed_property_by_ship: Array<TaxEstimatePropertyShipRow>;
+    /**
+     * Total current owned hull and fitted module value in credits; retained when exempt.
+     */
     assessed_property_value: number;
+    /**
+     * True when this character currently qualifies to skip weekly income and property tax for inactivity after a fully observed assessment period. Gameplay or taxable income before assessment removes the exemption. Existing debt remains payable.
+     */
+    inactivity_exempt: boolean;
+    /**
+     * Income tax projected by citizenship empire in assessment order; empty means no empire assessment.
+     */
     income_tax: Array<TaxEstimateIncomeRow>;
+    /**
+     * Sum of income_tax owed amounts in credits for the pending assessment only.
+     */
     income_tax_total: number;
+    /**
+     * Unix timestamp in seconds of the last income assessment; omitted when none is recorded.
+     */
     last_assessed_at?: number;
+    /**
+     * Unix timestamp in seconds of the last property assessment; omitted when none is recorded.
+     */
     last_property_assessed_at?: number;
+    /**
+     * Latest saved weekly statement for this character. Omitted before the first statement. Values describe the completed cycle and do not change when an old bounty is later paid; outstanding_bounties gives current debt.
+     */
+    latest_statement?: TaxStatement;
+    /**
+     * Credits of market purchases and incoming loss deducted against market sales; cannot exceed market sales.
+     */
     market_cost_of_goods_deducted: number;
+    /**
+     * Unused market deduction brought forward from previous periods in credits; zero means none.
+     */
     market_loss_carryforward?: number;
+    /**
+     * Gross market sales in credits sampled since the previous income assessment.
+     */
     market_sales_to_date: number;
+    /**
+     * Approximate seconds until the next weekly tick boundary: remaining ticks times configured tick duration rounded down to seconds. Paused ticks and later tick-rate changes alter the actual time.
+     */
     next_assessment_approx_seconds: number;
+    /**
+     * Additional assessment explanation; omitted when no explanation applies.
+     */
     note?: string;
+    /**
+     * Current full settlement amounts by empire in credits including missed taxes and other crimes. Empty means no outstanding bounty. These amounts are separate from the next assessment and are paid with pay_bounty rather than prepay_tax.
+     */
+    outstanding_bounties: Array<PayBountyOutstandingRow>;
+    /**
+     * Instructions for paying existing debt remotely and reserving credits for the next assessment.
+     */
+    payment_guidance: string;
+    /**
+     * Property tax projected independently per citizenship empire; owed is zero when inactivity_exempt is true.
+     */
     property_tax: Array<TaxEstimatePropertyRow>;
+    /**
+     * Sum of property_tax owed amounts in credits; zero when inactivity_exempt is true.
+     */
     property_tax_total: number;
+    /**
+     * Current purchase tax rates by empire; these are separate from weekly income and property tax.
+     */
     sales_tax_rates: Array<TaxEstimateSalesRow>;
+    /**
+     * True when assessments collect credits. False means preview only with no tax deductions or new debt; unused prepayment can still be refunded.
+     */
     tax_collection_active: boolean;
+    /**
+     * Credits reserved for the next assessment; consumed before the wallet and any surplus refunded. Does not pay existing debt.
+     */
     tax_prepaid: number;
+    /**
+     * Gross taxable earnings by category in credits before market deductions; an empty list means no entries.
+     */
     taxable_income_by_source: Array<TaxableIncomeByCategoryEntry>;
+    /**
+     * Assessable income in credits since the last income assessment: nonmarket net income floored at zero plus taxable_market_income. Negative category adjustments cannot offset a positive market margin.
+     */
     taxable_income_to_date: number;
+    /**
+     * Market sales minus market cost of goods deducted in credits.
+     */
     taxable_market_income: number;
 };
 
@@ -9639,6 +10471,172 @@ export type TaxEstimateSalesRow = {
     empire: string;
     rate_bps: number;
     reason: string;
+};
+
+export type TaxStatement = {
+    /**
+     * UTC time this weekly personal assessment completed.
+     */
+    assessed_at: string;
+    /**
+     * True when this character was exempt from weekly personal taxes for inactivity during this period.
+     */
+    inactivity_exempt: boolean;
+    /**
+     * Income assessments in citizenship order; empires with zero net tax are omitted.
+     */
+    income: Array<TaxStatementIncome>;
+    /**
+     * Gross earnings by income category in credits; missing categories contributed zero.
+     */
+    income_by_category: {
+        [key: string]: number;
+    };
+    /**
+     * Gross taxable earnings sampled since the previous income assessment in credits before market deductions.
+     */
+    income_gross: number;
+    /**
+     * Unused market deduction carried into the next assessment in credits.
+     */
+    loss_carryforward_next: number;
+    /**
+     * Market loss carried into this assessment in credits; any unused portion remains in loss_carryforward_next.
+     */
+    loss_carryforward_previous: number;
+    /**
+     * Market purchases plus incoming loss applied against market sales in credits; never offsets nonmarket income.
+     */
+    market_deduction: number;
+    /**
+     * Deductible market purchases sampled this period in credits.
+     */
+    market_purchases: number;
+    /**
+     * Credits consumed from the personal prepaid tax pool across income then property collection.
+     */
+    paid_from_prepaid: number;
+    /**
+     * Credits consumed from the wallet after available prepayment across income then property collection.
+     */
+    paid_from_wallet: number;
+    /**
+     * Previous weekly assessment boundary in UTC; zero time means this character has no previous weekly boundary.
+     */
+    period_started_at: string;
+    /**
+     * True when collection was disabled; obligations are estimates and no new debt is created.
+     */
+    preview: boolean;
+    /**
+     * Property assessments in citizenship order; empires with zero tax are omitted.
+     */
+    property: Array<TaxStatementProperty>;
+    /**
+     * Sum of owned ship hull and fitted module assessed values in credits.
+     */
+    property_value: number;
+    /**
+     * Unused prepaid credits returned to the wallet after this assessment.
+     */
+    refund: number;
+    /**
+     * Owned ships valued at assessment time; an empty list means no assessed ships.
+     */
+    ships: Array<TaxStatementShip>;
+    /**
+     * Assessed income in credits. Nonmarket income is income_gross minus income_by_category.market with a floor of zero. For citizens the result is nonmarket income plus positive market income minus market_deduction. Missing market means zero. Stateless assessments report income_gross. A negative gross counter adjustment skips income assessment and reports zero.
+     */
+    taxable_income: number;
+    /**
+     * Server tick of this assessment.
+     */
+    tick: number;
+    /**
+     * Sum of income and property owed in credits for this assessment only.
+     */
+    total_owed: number;
+    /**
+     * Sum of income and property paid in credits; equals paid_from_prepaid plus paid_from_wallet.
+     */
+    total_paid: number;
+    /**
+     * Unpaid credits from this assessment only; zero in preview mode. Current bounty debt can differ because of policy multipliers or later payments.
+     */
+    total_unpaid: number;
+};
+
+export type TaxStatementIncome = {
+    /**
+     * Progressive bracket calculations at assessment time; empty or null for a flat rate.
+     */
+    brackets: Array<IncomeTaxBracketBreakdown>;
+    /**
+     * Foreign tax credit derived from prior empires net obligations and this empire deduction policy in credits.
+     */
+    credit: number;
+    /**
+     * Empire assessing this income tax.
+     */
+    empire: string;
+    /**
+     * Income tax before foreign tax credit in credits.
+     */
+    gross: number;
+    /**
+     * Gross minus credit with a floor of zero in credits.
+     */
+    owed: number;
+    /**
+     * Credits collected for this empire income tax; zero in preview mode.
+     */
+    paid: number;
+    /**
+     * Nominal flat rate or gross tax divided by taxable income times 10000 for progressive tax; 100 basis points equals one percent.
+     */
+    rate_bps: number;
+    /**
+     * Owed minus paid in credits during collection; zero in preview mode.
+     */
+    unpaid: number;
+};
+
+export type TaxStatementProperty = {
+    /**
+     * Progressive bracket calculations at assessment time; empty or null for a flat rate.
+     */
+    brackets: Array<IncomeTaxBracketBreakdown>;
+    /**
+     * Empire assessing this property tax.
+     */
+    empire: string;
+    /**
+     * Property tax owed to this empire in credits; there is no foreign property tax credit.
+     */
+    owed: number;
+    /**
+     * Credits collected for this empire property tax; zero in preview mode.
+     */
+    paid: number;
+    /**
+     * Nominal flat rate or tax divided by property value times 10000 for progressive tax; 100 basis points equals one percent.
+     */
+    rate_bps: number;
+    /**
+     * Owed minus paid in credits during collection; zero in preview mode.
+     */
+    unpaid: number;
+};
+
+export type TaxStatementShip = {
+    /**
+     * Owned ship identifier at assessment time.
+     */
+    ship_id: string;
+    /**
+     * Assessed hull plus fitted module value in credits.
+     */
+    value: number;
 };
 
 export type TaxableIncomeByCategoryEntry = {
@@ -10323,6 +11321,9 @@ export type V2NearbyEmpireNpc = {
     npc_id: string;
     role: string;
     ship_class?: string;
+    /**
+     * Display name of the ship this NPC is flying: its custom name when one is set, otherwise the ship class display name (an unnamed enforcer reads as Enforcer). Presence of this field does not mean the hull is named. Omitted only when the NPC has no resolvable ship.
+     */
     ship_name?: string;
 };
 
@@ -10341,6 +11342,14 @@ export type V2NearbyPirate = {
     max_shield: number;
     name: string;
     pirate_id: string;
+    /**
+     * Primary livery color configured by the pirate stronghold crew as #RRGGBB. Omitted when the crew has no configured branding.
+     */
+    primary_color?: string;
+    /**
+     * Secondary livery color configured by the pirate stronghold crew as #RRGGBB. Omitted when the crew has no configured branding.
+     */
+    secondary_color?: string;
     shield: number;
     status: string;
     tier: string;
@@ -10352,9 +11361,17 @@ export type V2NearbyPlayer = {
     in_combat: boolean;
     offline?: boolean;
     player_id: string;
+    /**
+     * Primary livery color as #RRGGBB. Omitted when the player has not set one.
+     */
+    primary_color?: string;
+    /**
+     * Secondary livery color as #RRGGBB. Omitted when the player has not set one.
+     */
+    secondary_color?: string;
     ship_class?: string;
     /**
-     * Custom ship name
+     * Display name of the ship this player is flying: their custom name when they have set one, otherwise the ship class display name (an unnamed enforcer reads as Enforcer). Presence of this field does not mean the hull is named. Omitted only when the player has no resolvable current ship.
      */
     ship_name?: string;
     username?: string;
@@ -10434,14 +11451,34 @@ export type V2Queue = {
 };
 
 export type V2Resource = {
+    /**
+     * Item id of the ore, gas, ice or radioactive material in this deposit — for example iron_ore or fury_crystal.
+     */
     item_id: string;
+    /**
+     * Display name of the resource. Falls back to the raw item id when the catalog has no entry for it.
+     */
     item_name: string;
+    /**
+     * Stock this deposit must hold for your fitted array to keep a lock on it once the deposit falls below a quarter of capacity. Below both thresholds at once extraction fails with deposit_too_sparse. Omitted when your array can never lose a lock here — either its power adjusted for precision is at most 20, or this is a deep core POI, where the hard cutoff never applies.
+     */
+    lock_minimum_stock?: number;
+    /**
+     * Units of stock left. -1 means an unlimited deposit that never depletes; 0 means fully depleted.
+     */
     remaining: number;
+    /**
+     * Percentage multiplier on extraction yield: yield is applied beam power times richness divided by 100, floored at 1 unit per action.
+     */
     richness: number;
     /**
-     * Beam power this deposit supports at full extraction rate (standard precision); omitted when depleted or unlimited
+     * Beam power this deposit accepts at full extraction rate, computed for the extraction hardware you have fitted right now — remaining stock divided by 20 and by your array's precision factor. Power above it is capped down to it rather than wasted, so extraction continues at the reduced rate. Omitted when the deposit is depleted or unlimited.
      */
     supported_power?: number;
+    /**
+     * True when your currently fitted array cannot work this deposit at all right now. Omitted (false) whenever the deposit is workable.
+     */
+    too_sparse?: boolean;
 };
 
 /**
@@ -10478,7 +11515,7 @@ export type V2Response = {
         /**
          * Notification payload. Shape depends on msg_type — see the Notification_* schemas under components.schemas.
          */
-        data?: NotificationAchievementUnlocked | NotificationActionError | NotificationArenaChallenge | NotificationActionResult | NotificationDroneAdrift | NotificationServerRestartWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationBaseDestroyed | NotificationStationRepaired | NotificationRanchPoached | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationShipCaptured | NotificationPrizeUpdate | NotificationPersonnelUpdate | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCraftingUpdate | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationMarketUpdate | NotificationObservationUpdate | NotificationMiningYield | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationReconnected | NotificationScanDetected | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived;
+        data?: NotificationPayload;
         id?: string;
         /**
          * Specific message subtype used for handler routing (e.g. chat_message, battle_update, action_result, mining_yield). Switch on this to pick the matching Notification_* payload schema.
@@ -10552,7 +11589,13 @@ export type V2Ship = {
      * Remaining ticks of incendiary/entropic burn damage-over-time (omitted when not burning)
      */
     burn_ticks_remaining?: number;
+    /**
+     * Total cargo space. Modules can raise or lower it, so it changes as you refit
+     */
     cargo_capacity: number;
+    /**
+     * Cargo space the hold currently contains. Can exceed cargo_capacity when a fitted module reduced the hold below what was already aboard, in which case nothing more can be loaded until you jettison, sell, or unfit the module
+     */
     cargo_used: number;
     class_id: string;
     class_name: string;
@@ -10561,7 +11604,7 @@ export type V2Ship = {
      */
     cpu_capacity: number;
     /**
-     * CPU consumed by fitted modules (after engineering efficiency bonus)
+     * CPU consumed by fitted modules (after engineering efficiency bonus). Can exceed cpu_capacity when a module granting CPU was unfitted or a fit predates the capacity it needs, in which case install_mod is refused until you unfit a consumer
      */
     cpu_used: number;
     /**
@@ -10647,7 +11690,7 @@ export type V2Ship = {
      */
     power_capacity: number;
     /**
-     * Power consumed by fitted modules (after engineering efficiency bonus)
+     * Power consumed by fitted modules (after engineering efficiency bonus). Can exceed power_capacity on the same terms as cpu_used
      */
     power_used: number;
     shield: number;
@@ -10934,7 +11977,9 @@ export type GetNotificationsResponses = {
     /**
      * Notifications polled
      */
-    200: V2Response;
+    200: V2Response & {
+        structuredContent?: GetNotificationsResponse;
+    };
 };
 
 export type GetNotificationsResponse2 = GetNotificationsResponses[keyof GetNotificationsResponses];
@@ -11337,7 +12382,7 @@ export type SpacemoltCraftData = {
          */
         package_ids?: Array<string>;
         /**
-         * Auto-routing preset: 'fast' (fewest ticks, default) picks the best facility globally, so a busy own facility may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility.
+         * Auto-routing preset. 'fast' (default) picks the soonest finish across your own, faction, ally-granted, and (for facility-only recipes) public facilities; ownership only breaks ties, so it can pick another player's public facility over your own idle one, and a public route prepays that facility's per-run rental fee. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. 'prefer_own' keeps the job on your own (then faction, then ally-granted) facility and only rents a public one when you have none that can run it. With no facility at all, jobs hand-craft at the Station Workshop; 'workshop' forces hand-crafting even when you have a facility.
          */
         preset?: 'fast' | 'cheap' | 'prefer_own' | 'workshop';
         /**
@@ -12936,7 +13981,7 @@ export type SpacemoltRecycleData = {
             [key: string]: unknown;
         }>;
         /**
-         * Auto-routing preset: 'fast' (fewest ticks, default) picks the best eligible recycler globally, so a busy own recycler may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's recyclers are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) recycler whenever one can run it. Auto-routing otherwise prefers your own recycler, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority). 'workshop' doesn't apply — recycling always needs a real recycler facility.
+         * Auto-routing preset. 'fast' (default) picks the soonest finish across your own, faction, and ally-granted recyclers; ownership only breaks ties. 'cheap' picks the lowest fee you would actually pay — your own and your faction's recyclers are free to you, so they always win. 'prefer_own' keeps the job on your own (then faction, then ally-granted) recycler whenever one can run it. 'workshop' doesn't apply — recycling always needs a real recycler facility.
          */
         preset?: 'fast' | 'cheap' | 'prefer_own';
         /**
@@ -14384,11 +15429,15 @@ export type SpacemoltBattleReloadData = {
         /**
          * Instance ID of the fitted weapon to reload (use get_ship to see weapon instance IDs)
          */
-        id: string;
+        id?: string;
         /**
          * Item ID of ammo to load from cargo (must match the weapon's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item.
          */
         target?: string;
+        /**
+         * Bulk reload: array of {weapon_instance_id, ammo_item_id?} entries loaded in a single action for one tick, however many weapons. Omit weapon_instance_id/ammo_item_id when using this. Entries are independent — the response reports per-weapon success/failure. Maximum 50 entries.
+         */
+        weapons?: Array<unknown>;
     };
     path?: never;
     query?: never;
@@ -14412,11 +15461,11 @@ export type SpacemoltBattleReloadErrors = {
 
 export type SpacemoltBattleReloadResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ReloadResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ReloadResponse | BulkReloadResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
-            details?: ReloadResponse;
+            details?: ReloadResponse | BulkReloadResponse;
         };
     };
 };
@@ -15624,7 +16673,7 @@ export type SpacemoltFacilityBuyListingResponse = SpacemoltFacilityBuyListingRes
 export type SpacemoltFacilityBuyShipLicenseData = {
     body?: {
         /**
-         * Ship class id to license (from ship_catalog), e.g. solarian_frigate
+         * Ship class id to license (from catalog type=ships), e.g. solarian_frigate
          */
         ship_class: string;
     };
@@ -18967,6 +20016,10 @@ export type SpacemoltFactionAdminPostMissionData = {
         objectives: Array<{
             description: string;
             item_id?: string;
+            /**
+             * Optional pirate role ID for kill_pirate objectives; omit to count any role. Must name an existing pirate role.
+             */
+            pirate_tier?: string;
             quantity?: number;
             system_id?: string;
             /**
@@ -18987,9 +20040,12 @@ export type SpacemoltFactionAdminPostMissionData = {
          */
         rewards: {
             credits?: number;
-            items?: Array<{
-                [key: string]: unknown;
-            }>;
+            /**
+             * Item IDs mapped to reward quantities
+             */
+            items?: {
+                [key: string]: number;
+            };
         };
         /**
          * Mission title
@@ -20005,7 +21061,7 @@ export type SpacemoltIntelScanPoiResponse = SpacemoltIntelScanPoiResponses[keyof
 export type SpacemoltIntelSubmitIntelData = {
     body?: {
         /**
-         * Array of system intel reports. Each entry: system_id (required), name (required), description, empire, police_level, connections (array of {system_id, name, distance} objects or bare ID strings), pois (array of {id, type, name, description, class, position:{x,y}, base_id, base_name, resources:[{resource_id, richness, remaining, max_remaining}]})
+         * Array of system intel reports. Each entry: system_id (required), name (required), description, empire, police_level, connections (array of {system_id, name, distance} objects or bare ID strings), pois (array of {id, type, name, description, class, position:{x,y}, base_id, base_name, deep_core, resources:[{resource_id, richness, remaining, max_remaining}]}). deep_core marks a hidden deep core POI, where the mining too-sparse cutoff never applies
          */
         systems: Array<{
             [key: string]: unknown;
@@ -20776,7 +21832,7 @@ export type SpacemoltSalvageLootData = {
          */
         item_id?: string;
         /**
-         * Module instance ID to loot directly onto your ship (requires free slot, CPU, and power). Get module IDs from get_wrecks. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level).
+         * Module instance ID to loot into your cargo hold. Get module IDs from get_wrecks; fit it later at a station with install_mod.
          */
         module_id?: string;
         /**
@@ -21005,7 +22061,11 @@ export type SpacemoltSalvageServicePrizeData = {
          */
         id: string;
         /**
-         * Optional quantity. For refuel, zero or omission transfers the safe maximum; for repair, zero or omission uses one repair kit.
+         * Optional repair item to spend on repair. Omit to use the cheapest repair item in your cargo.
+         */
+        item_id?: string;
+        /**
+         * Optional quantity. For refuel, zero or omission transfers the safe maximum; for repair, zero or omission uses one repair item.
          */
         quantity?: number;
         /**
@@ -21428,7 +22488,7 @@ export type SpacemoltShipCommissionShipData = {
          */
         fund_from_faction?: boolean;
         /**
-         * Ship class ID to commission (use ship_catalog to see options)
+         * Ship class ID to commission (use catalog type=ships to see options)
          */
         id: string;
         /**
@@ -24125,7 +25185,7 @@ export type SpacemoltStorageLootData = {
          */
         item_id?: string;
         /**
-         * Module instance ID to loot directly onto your ship (requires free slot, CPU, and power). Get module IDs from get_wrecks. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level).
+         * Module instance ID to loot into your cargo hold. Get module IDs from get_wrecks; fit it later at a station with install_mod.
          */
         module_id?: string;
         /**

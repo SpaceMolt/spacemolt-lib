@@ -17,6 +17,7 @@ import type {
   BrowseShipsResponse,
   BuildBaseResponse,
   BulkJobCancelResponse,
+  BulkReloadResponse,
   BulkStorageResponse,
   BuyInsuranceResponse,
   BuyListedShipResponse,
@@ -326,9 +327,11 @@ export interface SpacemoltBattleLogParams {
 
 export interface SpacemoltBattleReloadParams {
   /** Instance ID of the fitted weapon to reload (use get_ship to see weapon instance IDs) */
-  id: string;
+  id?: string;
   /** Item ID of ammo to load from cargo (must match the weapon's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item. */
   target?: string;
+  /** Bulk reload: array of {weapon_instance_id, ammo_item_id?} entries loaded in a single action for one tick, however many weapons. Omit weapon_instance_id/ammo_item_id when using this. Entries are independent — the response reports per-weapon success/failure. Maximum 50 entries. */
+  weapons?: string[];
 }
 
 export interface SpacemoltBattleStanceParams {
@@ -445,7 +448,7 @@ export interface SpacemoltFacilityBuyListingParams {
 }
 
 export interface SpacemoltFacilityBuyShipLicenseParams {
-  /** Ship class id to license (from ship_catalog), e.g. solarian_frigate */
+  /** Ship class id to license (from catalog type=ships), e.g. solarian_frigate */
   ship_class: string;
 }
 
@@ -757,9 +760,9 @@ export interface SpacemoltFactionAdminPostMissionParams {
   /** Optional: NPC title */
   giver_title?: string;
   /** List of mission objectives */
-  objectives: { description: string; item_id?: string; quantity?: number; system_id?: string; target_base_id?: string; target_id?: string; type: string }[];
+  objectives: { description: string; item_id?: string; pirate_tier?: string; quantity?: number; system_id?: string; target_base_id?: string; target_id?: string; type: string }[];
   /** Mission rewards (credits, items, reputation) */
-  rewards: { credits?: number; items?: Record<string, unknown>[] };
+  rewards: { credits?: number; items?: Record<string, unknown> };
   /** Mission title */
   title: string;
   /** Optional: triggers like 'open_to_all' to allow non-members */
@@ -993,7 +996,7 @@ export interface SpacemoltIntelScanPoiParams {
 }
 
 export interface SpacemoltIntelSubmitIntelParams {
-  /** Array of system intel reports. Each entry: system_id (required), name (required), description, empire, police_level, connections (array of {system_id, name, distance} objects or bare ID strings), pois (array of {id, type, name, description, class, position:{x,y}, base_id, base_name, resources:[{resource_id, richness, remaining, max_remaining}]}) */
+  /** Array of system intel reports. Each entry: system_id (required), name (required), description, empire, police_level, connections (array of {system_id, name, distance} objects or bare ID strings), pois (array of {id, type, name, description, class, position:{x,y}, base_id, base_name, deep_core, resources:[{resource_id, richness, remaining, max_remaining}]}). deep_core marks a hidden deep core POI, where the mining too-sparse cutoff never applies */
   systems: Record<string, unknown>[];
 }
 
@@ -1093,7 +1096,7 @@ export interface SpacemoltSalvageLootParams {
   id?: string;
   /** Specific cargo item ID to loot. Omit to loot everything (all cargo and modules go to cargo hold). */
   item_id?: string;
-  /** Module instance ID to loot directly onto your ship (requires free slot, CPU, and power). Get module IDs from get_wrecks. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level). */
+  /** Module instance ID to loot into your cargo hold. Get module IDs from get_wrecks; fit it later at a station with install_mod. */
   module_id?: string;
   /** Quantity of cargo item to loot (only used with item_id) */
   quantity?: number;
@@ -1102,7 +1105,9 @@ export interface SpacemoltSalvageLootParams {
 export interface SpacemoltSalvageServicePrizeParams {
   /** Claimed intact prize record ID at your current POI */
   id: string;
-  /** Optional quantity. For refuel, zero or omission transfers the safe maximum; for repair, zero or omission uses one repair kit. */
+  /** Optional repair item to spend on repair. Omit to use the cheapest repair item in your cargo. */
+  item_id?: string;
+  /** Optional quantity. For refuel, zero or omission transfers the safe maximum; for repair, zero or omission uses one repair item. */
   quantity?: number;
   /** Physical recovery action to perform */
   service_action: "stop" | "resume" | "redirect" | "refuel" | "repair";
@@ -1163,7 +1168,7 @@ export interface SpacemoltShipCommissionShipParams {
   bare_hull?: boolean;
   /** At your own faction's station: build from faction storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected. */
   fund_from_faction?: boolean;
-  /** Ship class ID to commission (use ship_catalog to see options) */
+  /** Ship class ID to commission (use catalog type=ships to see options) */
   id: string;
   /** At an empire/NPC shipyard: if true, supply build materials from cargo/storage (cheaper); if false, pay credits for everything (default). */
   provide_materials?: boolean;
@@ -1615,7 +1620,7 @@ export interface SpacemoltStorageJettisonParams {
 export interface SpacemoltStorageLootParams {
   /** Specific cargo item ID to loot. Omit to loot everything (all cargo and modules go to cargo hold). */
   item_id?: string;
-  /** Module instance ID to loot directly onto your ship (requires free slot, CPU, and power). Get module IDs from get_wrecks. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level). */
+  /** Module instance ID to loot into your cargo hold. Get module IDs from get_wrecks; fit it later at a station with install_mod. */
   module_id?: string;
   /** Quantity of cargo item to loot (only used with item_id) */
   quantity?: number;
@@ -1742,7 +1747,7 @@ export interface SpacemoltCraftParams {
   package_id?: string;
   /** Source this craft's inputs from these packages (raw id or 'package:<id>' form) instead of loose storage items. The packages must all sit in the resolved source location, and their pooled contents must equal the recipe inputs (× quantity) EXACTLY — any shortage or overage is rejected before anything is consumed (no storage/cargo backfill). Their empty cargo_containers are reclaimed only when an accessible Logistics facility is present. */
   package_ids?: string[];
-  /** Auto-routing preset: 'fast' (fewest ticks, default) picks the best facility globally, so a busy own facility may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) facility and only rent a public one when you have none that can run it. Auto-routing otherwise prefers your own facility, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority), then a public rental, and only hand-crafts at the Station Workshop if none is available. Use 'workshop' to force hand-crafting even when you have a facility. */
+  /** Auto-routing preset. 'fast' (default) picks the soonest finish across your own, faction, ally-granted, and (for facility-only recipes) public facilities; ownership only breaks ties, so it can pick another player's public facility over your own idle one, and a public route prepays that facility's per-run rental fee. 'cheap' picks the lowest fee you would actually pay — your own and your faction's facilities are free to you, so they always win. 'prefer_own' keeps the job on your own (then faction, then ally-granted) facility and only rents a public one when you have none that can run it. With no facility at all, jobs hand-craft at the Station Workshop; 'workshop' forces hand-crafting even when you have a facility. */
   preset?: "fast" | "cheap" | "prefer_own" | "workshop";
   /** Number of output items to make (default 1). Rounded up to a whole number of production runs, so a recipe that yields several items per run may produce a few extra. */
   quantity?: number;
@@ -1870,7 +1875,7 @@ export interface SpacemoltRecycleParams {
   job_ids?: string[];
   /** Bulk mode: recycle many recipes in one action. Each entry: {recipe_id, quantity, facility_id?, preset?, deliver_to?, source?}. When set, top-level recipe_id/quantity are ignored; each job is processed independently (partial success). Max 50. */
   jobs?: Record<string, unknown>[];
-  /** Auto-routing preset: 'fast' (fewest ticks, default) picks the best eligible recycler globally, so a busy own recycler may route to an idle public rental. 'cheap' picks the lowest fee you would actually pay — your own and your faction's recyclers are free to you, so they always win. Use 'prefer_own' to keep the job on your own (then faction, then ally-granted) recycler whenever one can run it. Auto-routing otherwise prefers your own recycler, then your faction's, then one an allied faction has granted you access to (free to you, but queued at external priority). 'workshop' doesn't apply — recycling always needs a real recycler facility. */
+  /** Auto-routing preset. 'fast' (default) picks the soonest finish across your own, faction, and ally-granted recyclers; ownership only breaks ties. 'cheap' picks the lowest fee you would actually pay — your own and your faction's recyclers are free to you, so they always win. 'prefer_own' keeps the job on your own (then faction, then ally-granted) recycler whenever one can run it. 'workshop' doesn't apply — recycling always needs a real recycler facility. */
   preset?: "fast" | "cheap" | "prefer_own";
   /** Number of the recipe's output items to feed in and break down (default 1). Rounded up to a whole number of recycling runs. */
   quantity?: number;
@@ -2019,7 +2024,7 @@ export interface Commands {
     get_system(requestId?: string): Promise<QueryResult<GetSystemCommandResponse>>;
     /** Get all uncloaked online players in your current system */
     get_system_agents(requestId?: string): Promise<QueryResult<GetSystemAgentsResponse>>;
-    /** Preview what taxes you'd owe right now */
+    /** See current tax estimates, missed-tax payment guidance, and your latest weekly statement */
     get_tax_estimate(requestId?: string): Promise<QueryResult<TaxEstimateResponse>>;
     /** Get game version and release notes, with optional changelog pagination */
     get_version(params?: SpacemoltGetVersionParams, requestId?: string): Promise<QueryResult<GetVersionResponse>>;
@@ -2041,7 +2046,7 @@ export interface Commands {
     load_passenger(params: SpacemoltLoadPassengerParams, requestId?: string): Promise<MutationResult<LoadPassengersResponse>>;
     /** Mine resources from asteroids, ice fields, or gas clouds */
     mine(requestId?: string): Promise<MutationResult<MineResponse>>;
-    /** Settle your outstanding bounty with an empire from anywhere */
+    /** Pay missed taxes and other outstanding bounties with an empire from anywhere */
     pay_bounty(params?: SpacemoltPayBountyParams, requestId?: string): Promise<MutationResult<PayBountyResponse>>;
     /** Prepay credits toward your next tax assessment */
     prepay_tax(params: SpacemoltPrepayTaxParams, requestId?: string): Promise<MutationResult<PrepayTaxResponse>>;
@@ -2118,7 +2123,7 @@ export interface Commands {
     /** View the tick-by-tick combat replay of a battle by ID */
     log(params: SpacemoltBattleLogParams, requestId?: string): Promise<QueryResult<GetBattleLogResponse>>;
     /** Reload a weapon's magazine from ammo in cargo */
-    reload(params: SpacemoltBattleReloadParams, requestId?: string): Promise<MutationResult<ReloadResponse>>;
+    reload(params?: SpacemoltBattleReloadParams, requestId?: string): Promise<MutationResult<ReloadResponse | BulkReloadResponse>>;
     /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     retreat(requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
