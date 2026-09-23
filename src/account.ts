@@ -624,8 +624,13 @@ export class Account {
    * cached state. Called automatically after auth unless `seedState` is false.
    */
   async refresh(): Promise<Readonly<GameState>> {
+    const revision = this.stateRevision;
     const result = await this.commands.spacemolt.get_status();
     const snapshot = requireStructuredContent(result, 'spacemolt/get_status');
+    // The server takes the snapshot before writing it, and a tick can push a
+    // newer delta in between. If one landed, this snapshot may be the older
+    // state — keep the cache rather than roll it back.
+    if (revision !== this.stateRevision) return this.cache.snapshot();
     const changed = this.cache.seed(snapshot);
     if (changed.length) this.stateRevision++;
     if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();

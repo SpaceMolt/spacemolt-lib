@@ -745,3 +745,29 @@ test('a mobile capital transit delta replaces the whole location section', async
   expect(account.location?.connections).toEqual(['sol']);
   expect(statusCalls).toBe(0);
 });
+
+test('refresh does not roll the cache back when a newer delta lands before its snapshot', async () => {
+  const { account, socket } = await seededAccount();
+  // The server takes the get_status snapshot (cargo 10), then a tick executes
+  // a queued mine and pushes its delta (cargo 160) before the reply is written.
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({
+        type: 'action_result',
+        request_id: 'r-from-before-reconnect',
+        payload: {
+          command: 'mine',
+          tick: 1523,
+          result: { cargo: [cargoItem({ item_id: 'iron_ore', quantity: 160 })] },
+        },
+      });
+      s.serverSend({
+        type: 'result',
+        request_id: frame.request_id,
+        payload: { result: 'ok', structuredContent: SNAPSHOT },
+      });
+    }
+  };
+  await account.refresh();
+  expect(account.cargo?.[0]?.quantity).toBe(160);
+});
