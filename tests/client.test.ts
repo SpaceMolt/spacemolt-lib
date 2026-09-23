@@ -680,3 +680,27 @@ test('a throwing onAccountReconnected listener does not drop the account it repo
   expect(disconnects).toEqual([]);
   expect(client.account('Nova')).toBe(account);
 }, 5000);
+
+test('closeAll during a pending reconnect leaves the account closed', async () => {
+  const sockets: MockSocket[] = [];
+  const factory = (url: string) => {
+    const s = new MockSocket(url);
+    sockets.push(s);
+    if (sockets.length > 1) queueMicrotask(() => autoServe(s, 'Nova'));
+    return s;
+  };
+  const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0 });
+  await client.addLogin('Nova', 'pw');
+  const connectP = client.connect('Nova');
+  await Promise.resolve();
+  autoServe(requireValue(sockets[0]), 'Nova');
+  const account = await connectP;
+
+  requireValue(sockets[0]).close(1006, 'abnormal'); // queues a reconnect
+  client.closeAll(); // the user shuts down before it runs
+  await new Promise((r) => setTimeout(r, 50));
+
+  // A closed account must not log back in behind the caller's back: the
+  // zombie session would replace any later connect() for the same player.
+  expect(account.authenticated).toBe(false);
+});

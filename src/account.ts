@@ -28,13 +28,7 @@ import type {
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import type { FleetPush, OkPush } from './push-frames.ts';
-import {
-  CLOSE_CODE,
-  type ConnectionClosedError,
-  errorFromFrame,
-  retryAfterMsFromClose,
-  SpacemoltError,
-} from './errors.ts';
+import { CLOSE_CODE, ConnectionClosedError, errorFromFrame, retryAfterMsFromClose, SpacemoltError } from './errors.ts';
 import { notifyListeners, TypedEmitter } from './events/emitter.ts';
 import { MarketCache, type MarketBook } from './state/market.ts';
 import { ObservationCache, type ObservationView } from './state/observation.ts';
@@ -1499,10 +1493,21 @@ export class Account {
    */
   async reconnectOnce(): Promise<void> {
     if (!this.credentialsProvider) throw new Error('reconnectOnce requires credentials');
+    // A caller may run this long after it was scheduled (SpacemoltClient's
+    // queue), and close() may land mid-way. A closed account must not log
+    // back in: that session would replace any newer one for the player.
+    const stopIfClosed = (): void => {
+      if (!this.userClosing) return;
+      this.socket.close();
+      throw new ConnectionClosedError('account was closed');
+    };
+    stopIfClosed();
     this.socket.close();
     this.makeSocket();
     await this.open();
+    stopIfClosed();
     await this.authenticate(await this.credentialsProvider());
+    stopIfClosed();
     await this.resubscribe();
   }
 
