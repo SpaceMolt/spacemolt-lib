@@ -393,9 +393,18 @@ export class Account {
   }
 
   private makeSocket(): void {
-    this.socket = new Socket({ url: this.url, webSocketFactory: this.webSocketFactory });
-    this.socket.onFrame = (frame) => this.routeFrame(frame);
-    this.socket.onClose = (err) => this.handleClose(err);
+    // A replaced socket can still fire events: a ws.close() against an
+    // unresponsive peer reports its close event late, after reconnectOnce has
+    // moved on. Only the current socket may touch account state, or that late
+    // close fails the live connection's requests and tears it down.
+    const socket = new Socket({ url: this.url, webSocketFactory: this.webSocketFactory });
+    socket.onFrame = (frame) => {
+      if (this.socket === socket) this.routeFrame(frame);
+    };
+    socket.onClose = (err) => {
+      if (this.socket === socket) this.handleClose(err);
+    };
+    this.socket = socket;
   }
 
   /** Live view of the cached game state. Treat as read-only. */
