@@ -9,6 +9,7 @@ import type {
   NotificationActionError,
   NotificationActionResult,
   NotificationArenaChallenge,
+  NotificationArenaObjective,
   NotificationBaseDestroyed,
   NotificationBaseRaidUpdate,
   NotificationBattleAlert,
@@ -19,12 +20,15 @@ import type {
   NotificationBattleStarted,
   NotificationBattleUpdate,
   NotificationChatMessage,
+  NotificationCloak,
+  NotificationCompleteMission,
   NotificationCraftingUpdate,
   NotificationDroneAdrift,
   NotificationDroneDestroyed,
   NotificationDroneScan,
   NotificationDroneSurvey,
   NotificationDroneUpdate,
+  NotificationError,
   NotificationFacilityReclaimed,
   NotificationFacilityRentWarning,
   NotificationFactionAllianceBroken,
@@ -33,9 +37,11 @@ import type {
   NotificationFactionPeaceAccepted,
   NotificationFactionPeaceProposal,
   NotificationFactionWarDeclared,
+  NotificationFleet,
   NotificationMarketUpdate,
   NotificationMiningYield,
   NotificationObservationUpdate,
+  NotificationOk,
   NotificationPersonnelUpdate,
   NotificationPilotlessShip,
   NotificationPirateDestroyed,
@@ -45,6 +51,8 @@ import type {
   NotificationPrizeUpdate,
   NotificationRanchPoached,
   NotificationReconnected,
+  NotificationRefueledBy,
+  NotificationRepairedBy,
   NotificationScanDetected,
   NotificationServerRestartWarning,
   NotificationShipCaptured,
@@ -63,6 +71,7 @@ export type TypedNotificationType =
   | "action_error"
   | "action_result"
   | "arena_challenge"
+  | "arena_objective"
   | "base_destroyed"
   | "base_raid_update"
   | "battle_alert"
@@ -73,12 +82,15 @@ export type TypedNotificationType =
   | "battle_started"
   | "battle_update"
   | "chat_message"
+  | "cloak"
+  | "complete_mission"
   | "crafting_update"
   | "drone_adrift"
   | "drone_destroyed"
   | "drone_scan"
   | "drone_survey"
   | "drone_update"
+  | "error"
   | "facility_reclaimed"
   | "facility_rent_warning"
   | "faction_alliance_broken"
@@ -87,9 +99,11 @@ export type TypedNotificationType =
   | "faction_peace_accepted"
   | "faction_peace_proposal"
   | "faction_war_declared"
+  | "fleet"
   | "market_update"
   | "mining_yield"
   | "observation_update"
+  | "ok"
   | "personnel_update"
   | "pilotless_ship"
   | "pirate_destroyed"
@@ -99,6 +113,8 @@ export type TypedNotificationType =
   | "prize_update"
   | "ranch_poached"
   | "reconnected"
+  | "refueled_by"
+  | "repaired_by"
   | "scan_detected"
   | "server_restart_warning"
   | "ship_captured"
@@ -116,6 +132,7 @@ export interface NotificationPayloads {
   "action_error": NotificationActionError;
   "action_result": NotificationActionResult;
   "arena_challenge": NotificationArenaChallenge;
+  "arena_objective": NotificationArenaObjective;
   "base_destroyed": NotificationBaseDestroyed;
   "base_raid_update": NotificationBaseRaidUpdate;
   "battle_alert": NotificationBattleAlert;
@@ -126,12 +143,15 @@ export interface NotificationPayloads {
   "battle_started": NotificationBattleStarted;
   "battle_update": NotificationBattleUpdate;
   "chat_message": NotificationChatMessage;
+  "cloak": NotificationCloak;
+  "complete_mission": NotificationCompleteMission;
   "crafting_update": NotificationCraftingUpdate;
   "drone_adrift": NotificationDroneAdrift;
   "drone_destroyed": NotificationDroneDestroyed;
   "drone_scan": NotificationDroneScan;
   "drone_survey": NotificationDroneSurvey;
   "drone_update": NotificationDroneUpdate;
+  "error": NotificationError;
   "facility_reclaimed": NotificationFacilityReclaimed;
   "facility_rent_warning": NotificationFacilityRentWarning;
   "faction_alliance_broken": NotificationFactionAllianceBroken;
@@ -140,9 +160,11 @@ export interface NotificationPayloads {
   "faction_peace_accepted": NotificationFactionPeaceAccepted;
   "faction_peace_proposal": NotificationFactionPeaceProposal;
   "faction_war_declared": NotificationFactionWarDeclared;
+  "fleet": NotificationFleet;
   "market_update": NotificationMarketUpdate;
   "mining_yield": NotificationMiningYield;
   "observation_update": NotificationObservationUpdate;
+  "ok": NotificationOk;
   "personnel_update": NotificationPersonnelUpdate;
   "pilotless_ship": NotificationPilotlessShip;
   "pirate_destroyed": NotificationPirateDestroyed;
@@ -152,6 +174,8 @@ export interface NotificationPayloads {
   "prize_update": NotificationPrizeUpdate;
   "ranch_poached": NotificationRanchPoached;
   "reconnected": NotificationReconnected;
+  "refueled_by": NotificationRefueledBy;
+  "repaired_by": NotificationRepairedBy;
   "scan_detected": NotificationScanDetected;
   "server_restart_warning": NotificationServerRestartWarning;
   "ship_captured": NotificationShipCaptured;
@@ -170,6 +194,7 @@ export const TYPED_NOTIFICATION_TYPES = [
   "action_error",
   "action_result",
   "arena_challenge",
+  "arena_objective",
   "base_destroyed",
   "base_raid_update",
   "battle_alert",
@@ -180,12 +205,15 @@ export const TYPED_NOTIFICATION_TYPES = [
   "battle_started",
   "battle_update",
   "chat_message",
+  "cloak",
+  "complete_mission",
   "crafting_update",
   "drone_adrift",
   "drone_destroyed",
   "drone_scan",
   "drone_survey",
   "drone_update",
+  "error",
   "facility_reclaimed",
   "facility_rent_warning",
   "faction_alliance_broken",
@@ -194,9 +222,11 @@ export const TYPED_NOTIFICATION_TYPES = [
   "faction_peace_accepted",
   "faction_peace_proposal",
   "faction_war_declared",
+  "fleet",
   "market_update",
   "mining_yield",
   "observation_update",
+  "ok",
   "personnel_update",
   "pilotless_ship",
   "pirate_destroyed",
@@ -206,6 +236,8 @@ export const TYPED_NOTIFICATION_TYPES = [
   "prize_update",
   "ranch_poached",
   "reconnected",
+  "refueled_by",
+  "repaired_by",
   "scan_detected",
   "server_restart_warning",
   "ship_captured",

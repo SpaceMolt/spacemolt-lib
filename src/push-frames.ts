@@ -3,15 +3,16 @@
  *
  * Every other push frame is typed from the server's published
  * `Notification_<msg_type>` schema, and the generated `NotificationPayloads`
- * map carries it. These two families publish no schema at all — neither
- * appears in the spec's notification union — so without this file they reach a
- * consumer as `Record<string, unknown>`.
+ * map carries it. These two families publish only a single flat object each —
+ * optional fields and a free-form `action` string, covering a few variants — so
+ * the generated type cannot narrow to a variant's fields.
  *
  * They are hand-written rather than published because splitting them into
  * distinct `msg_type`s is the fix, and that breaks any v1 client switching on
  * `type === "ok"`. Until v1 is retired the shapes live here.
- * `tests/push-frames.test.ts` fails the moment the server does publish either
- * schema, which is the signal to delete this file and let codegen take over.
+ * `tests/push-frames.test.ts` fails the moment the server publishes either
+ * schema as a union, which is the signal to delete this file and let codegen
+ * take over.
  *
  * **Two discriminators.** Most `ok` variants key on `action`; seven key on
  * `type` instead. That split is the server's, not ours, so a bare `p.action`

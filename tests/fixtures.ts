@@ -154,6 +154,7 @@ export function mapSystem(overrides: Partial<MapSystem> = {}): MapSystem {
 export function catalog(overrides: Partial<Catalog> = {}): Catalog {
   return {
     version: '0.573.1',
+    mining: { depletion_floor: 0, overkill_ratio: 0, precision_k: 0, rare_ore_rarity_weight_per_level: 0 },
     ships: [],
     items: [],
     recipes: [],

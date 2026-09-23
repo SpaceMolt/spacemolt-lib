@@ -85,8 +85,8 @@ account.on('mining_yield', (y) => console.log(y.quantity, y.resource_id));
 ```
 
 Push payloads are typed. Most come from the server's published schema; the `ok`
-and `fleet` families are hand-written unions, because the server publishes no
-schema for those two. `ok` splits its discriminator: most variants key on
+and `fleet` families are hand-written unions, because the server publishes those
+two only as flat objects that cannot narrow to a variant. `ok` splits its discriminator: most variants key on
 `action`, seven key on `type`. A bare `p.action` therefore does not compile on
 `OkPush` — guard with `'action' in p`, or narrow to the exported `OkActionPush`
 / `OkTypePush` halves. `FleetPush` has one key and needs no guard:

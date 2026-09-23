@@ -440,19 +440,20 @@ the note in `GameState`'s doc comment telling callers to `refresh()` after
 
 ---
 
-## 12. `ok` and `fleet` publish no notification schema at all
+## 12. `ok` and `fleet` publish only flat notification schemas
 **Status:** todo · **Needed by:** deleting `src/push-frames.ts` · **Priority:** medium
 
-Neither frame family appears in `notificationDataAnyOf()`
-(`internal/openapi/notification_schemas.go`), so neither has a
-`Notification_<msg_type>` schema and codegen has nothing to derive a payload
-type from. They reach a consumer as `Record<string, unknown>`.
+Since gameserver v0.609.x, `Notification_ok` and `Notification_fleet` exist,
+but each is one flat object: optional fields and a free-form `action` string.
+`Notification_ok` describes only the fleet movement pushes, and
+`Notification_fleet` names three of the ten fleet actions. Codegen therefore
+emits a type that cannot narrow to any variant's fields.
 
 `src/push-frames.ts` hand-writes both unions — 18 `ok` variants and 6 `fleet`
 variants, derived from gameserver v0.596.2 — and `tests/push-frames.test.ts`
-fails the day either schema is published, which is the signal to delete the
-file. That is the only drift guard available: with no schema to diff against,
-nothing detects a variant the server adds.
+fails the day either schema is published as a union (`oneOf`/`anyOf`), which
+is the signal to delete the file. The flat schemas do not detect a variant the
+server adds, so the unions still have no drift guard.
 
 The real fix is not a `Notification_ok` schema. `ok` is the **v1 response
 envelope** — `respondOK` (`internal/server/server.go`) is how every v1 command

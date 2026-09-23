@@ -3,6 +3,7 @@ import type {
   CatalogDump,
   FacilityDefinition,
   Item,
+  MiningConstants,
   Module,
   Recipe,
   ShipClass,
@@ -70,6 +71,7 @@ function normalizeCatalog(value: unknown): Catalog {
   const data = requireRecord(value, 'catalog response');
   return {
     version: typeof data.version === 'string' ? data.version : '',
+    mining: (isRecord(data.mining) ? data.mining : {}) as MiningConstants,
     ships: catalogEntries<CatalogShip>(data.ships),
     items: catalogEntries<CatalogItem>(data.items),
     recipes: catalogEntries<CatalogRecipe>(data.recipes),

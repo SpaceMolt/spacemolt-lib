@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { Account } from '../src/account.ts';
 import {
   FLEET_PUSH_ACTIONS,
   OK_PUSH_ACTIONS,
@@ -26,18 +27,38 @@ function specSchemas(): Record<string, unknown> {
 }
 
 // This is the whole reason src/push-frames.ts is hand-written: the server
-// publishes no schema for these two families, so codegen has nothing to derive
-// them from. The day it does publish one, the generated type is authoritative
-// and the hand-written union becomes a second, silently-drifting source of
-// truth. Fail then, so the file gets deleted rather than left to rot.
-test('ok and fleet still publish no schema, so hand-written types are still needed', () => {
+// publishes each of these two families as one flat object at most (optional
+// fields, a free-form `action` string), not as a union of variants, so codegen
+// has no per-event shape to derive. The day either schema becomes a real union
+// (`oneOf`/`anyOf` variants), the generated type is authoritative and the
+// hand-written union becomes a second, silently-drifting source of truth. Fail
+// then, so the file gets deleted rather than left to rot.
+test('ok and fleet publish no union schema, so hand-written types are still needed', () => {
   const schemas = specSchemas();
   for (const name of ['Notification_ok', 'Notification_fleet']) {
+    const schema = (schemas[name] ?? {}) as Record<string, unknown>;
     expect(
-      schemas[name],
-      `${name} is now published. Delete src/push-frames.ts, drop its on()/events() overloads and index exports, and let codegen supply the payload type instead.`,
+      schema.oneOf ?? schema.anyOf,
+      `${name} is now published as a union. Delete src/push-frames.ts, drop its on()/events() overloads and index exports, and let codegen supply the payload type instead.`,
     ).toBeUndefined();
   }
+});
+
+// The server publishes flat `Notification_ok`/`Notification_fleet` schemas, so
+// `ok` and `fleet` are also generated notification types. The hand-written
+// overloads must still win, or an inferred handler silently gets the flat type
+// and every narrowing below stops compiling. Type-only: never called.
+test('on() and events() infer the hand-written unions for ok and fleet', () => {
+  async function typesOnly(account: Account): Promise<void> {
+    account.on('ok', (p) => {
+      if ('type' in p && p.type === 'emergency_warp_stabilizer_activated') p.hull;
+    });
+    account.on('fleet', (p) => {
+      if (p.action === 'fleet_invite') p.fleet_id;
+    });
+    for await (const p of account.events('fleet')) if (p.action === 'fleet_invite') p.leader_id;
+  }
+  expect(typesOnly).toBeInstanceOf(Function);
 });
 
 // The exported lists are the runtime mirror of the unions, and each half looks
