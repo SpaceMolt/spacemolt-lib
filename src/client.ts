@@ -611,9 +611,17 @@ export class SpacemoltClient {
     }
 
     this.reconnectingIds.add(id);
-    void this.enqueueRateLimited(() => this.withConnectRetry(() => account.reconnectOnce()))
-      .then(() => this.notifyAccountReconnected(account))
+    // remove()/closeAll() can drop the account while this waits in the queue
+    // or retries; from then on there is nothing to reconnect or report.
+    const wanted = (): boolean => this.connected.get(id) === account;
+    void this.enqueueRateLimited(() =>
+      this.withConnectRetry(async () => (wanted() ? account.reconnectOnce() : undefined)),
+    )
+      .then(() => {
+        if (wanted()) this.notifyAccountReconnected(account);
+      })
       .catch((reconnectErr: unknown) => {
+        if (!wanted()) return;
         console.warn(`[spacemolt] failed to reconnect "${id}": ${reconnectErr}`);
         this.connected.delete(id);
         this.notifyAccountDisconnected(id, err);

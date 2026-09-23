@@ -28,13 +28,7 @@ import type {
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import type { FleetPush, OkPush } from './push-frames.ts';
-import {
-  CLOSE_CODE,
-  type ConnectionClosedError,
-  errorFromFrame,
-  retryAfterMsFromClose,
-  SpacemoltError,
-} from './errors.ts';
+import { CLOSE_CODE, ConnectionClosedError, errorFromFrame, retryAfterMsFromClose, SpacemoltError } from './errors.ts';
 import { notifyListeners, TypedEmitter } from './events/emitter.ts';
 import { MarketCache, type MarketBook } from './state/market.ts';
 import { ObservationCache, type ObservationView } from './state/observation.ts';
@@ -393,9 +387,18 @@ export class Account {
   }
 
   private makeSocket(): void {
-    this.socket = new Socket({ url: this.url, webSocketFactory: this.webSocketFactory });
-    this.socket.onFrame = (frame) => this.routeFrame(frame);
-    this.socket.onClose = (err) => this.handleClose(err);
+    // A replaced socket can still fire events: a ws.close() against an
+    // unresponsive peer reports its close event late, after reconnectOnce has
+    // moved on. Only the current socket may touch account state, or that late
+    // close fails the live connection's requests and tears it down.
+    const socket = new Socket({ url: this.url, webSocketFactory: this.webSocketFactory });
+    socket.onFrame = (frame) => {
+      if (this.socket === socket) this.routeFrame(frame);
+    };
+    socket.onClose = (err) => {
+      if (this.socket === socket) this.handleClose(err);
+    };
+    this.socket = socket;
   }
 
   /** Live view of the cached game state. Treat as read-only. */
@@ -615,8 +618,13 @@ export class Account {
    * cached state. Called automatically after auth unless `seedState` is false.
    */
   async refresh(): Promise<Readonly<GameState>> {
+    const revision = this.stateRevision;
     const result = await this.commands.spacemolt.get_status();
     const snapshot = requireStructuredContent(result, 'spacemolt/get_status');
+    // The server takes the snapshot before writing it, and a tick can push a
+    // newer delta in between. If one landed, this snapshot may be the older
+    // state — keep the cache rather than roll it back.
+    if (revision !== this.stateRevision) return this.cache.snapshot();
     const changed = this.cache.seed(snapshot);
     if (changed.length) this.stateRevision++;
     if (changed.includes('location')) this.checkSubscriptionsAgainstLocation();
@@ -1485,10 +1493,21 @@ export class Account {
    */
   async reconnectOnce(): Promise<void> {
     if (!this.credentialsProvider) throw new Error('reconnectOnce requires credentials');
+    // A caller may run this long after it was scheduled (SpacemoltClient's
+    // queue), and close() may land mid-way. A closed account must not log
+    // back in: that session would replace any newer one for the player.
+    const stopIfClosed = (): void => {
+      if (!this.userClosing) return;
+      this.socket.close();
+      throw new ConnectionClosedError('account was closed');
+    };
+    stopIfClosed();
     this.socket.close();
     this.makeSocket();
     await this.open();
+    stopIfClosed();
     await this.authenticate(await this.credentialsProvider());
+    stopIfClosed();
     await this.resubscribe();
   }
 

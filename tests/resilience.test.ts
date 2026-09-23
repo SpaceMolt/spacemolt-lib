@@ -874,3 +874,66 @@ test('a deliberate close() during a reconnect loop stays silent', async () => {
   expect(fired).toBe(0);
   expect(sockets.length).toBe(1); // abandoned before it even opened an attempt
 });
+
+// A socket whose close handshake finishes only when the test says so, like a
+// real ws.close() against an unresponsive peer.
+class SlowCloseSocket extends MockSocket {
+  private pendingClose: { code: number; reason: string } | null = null;
+  override close(code = 1000, reason = ''): void {
+    this.pendingClose = { code, reason };
+  }
+  finishClose(): void {
+    const pending = requireValue(this.pendingClose);
+    super.close(pending.code, pending.reason);
+  }
+}
+
+test('a late close event from an abandoned reconnect attempt does not disturb the live connection', async () => {
+  const sockets: MockSocket[] = [];
+  const factory: WebSocketFactory = (url) => {
+    // Attempt 1 connects but never sends welcome; attempt 2 is healthy.
+    const s = sockets.length === 1 ? new SlowCloseSocket(url) : new MockSocket(url);
+    sockets.push(s);
+    if (sockets.length === 3) queueMicrotask(() => serveAuth(s));
+    return s;
+  };
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+    connectTimeoutMs: 20,
+    reconnect: { baseDelayMs: 1, maxRetries: 5 },
+  });
+  const cp = account.connect();
+  serveAuth(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  const reconnected = new Promise<void>((resolve) => account.onReconnected(resolve));
+  requireValue(sockets[0]).close(1006);
+  await reconnected;
+  expect(sockets.length).toBe(3);
+  expect(account.authenticated).toBe(true);
+
+  const live = requireValue(sockets[2]);
+  live.onClientSend = undefined; // hold the reply so the query stays in flight
+  const q = account.query('spacemolt', 'get_status');
+  let settled: 'resolved' | 'rejected' | null = null;
+  q.then(
+    () => (settled = 'resolved'),
+    () => (settled = 'rejected'),
+  );
+  await tick();
+
+  // The abandoned attempt's close handshake finally completes.
+  (requireValue(sockets[1]) as SlowCloseSocket).finishClose();
+  await new Promise((r) => setTimeout(r, 30));
+
+  expect(settled).toBeNull(); // the in-flight query on the live socket is untouched
+  expect(account.authenticated).toBe(true);
+  expect(sockets.length).toBe(3); // no reconnect storm over a healthy connection
+
+  live.serverSend({ type: 'result', request_id: live.lastRequestId(), payload: { result: 'ok' } });
+  expect((await q).result).toBe('ok');
+});
