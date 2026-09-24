@@ -6038,7 +6038,7 @@ export type McpNotification = {
     data: NotificationPayload;
     id: string;
     /**
-     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / error / server_restart_warning. A types=combat filter does not carry them.
+     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled / gift_received -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / error / server_restart_warning. A types=combat filter does not carry them.
      */
     msg_type: string;
     timestamp: string;
@@ -6513,7 +6513,7 @@ export type NotificationChannelInfo = {
 /**
  * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
  */
-export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -7062,6 +7062,44 @@ export type NotificationFleet = {
      * Destroyed member username; only present for fleet_member_died.
      */
     player_name?: string;
+};
+
+/**
+ * Another player's gift has just committed to you. Sent when send_gift delivers items, credits or a ship to you. A ship gift can land at a station other than the one you are docked at; base_id names it. Never mutable. It is the same entry that storage view and dock return in gifts[], plus base_id. That entry stays in storage as the durable copy, so a client that was offline still sees the gift there. items, ships and credits are each omitted when the gift did not include them. base_id is omitted on a credit-only gift.
+ */
+export type NotificationGiftReceived = {
+    /**
+     * Station where the items or ships wait in your personal storage. Omitted on a credit-only gift: the credits are already in your wallet.
+     */
+    base_id?: string;
+    /**
+     * Credits added to your wallet (not to storage). Omitted when the gift carried no credits.
+     */
+    credits?: number;
+    /**
+     * Items deposited into your storage. Omitted when the gift carried no items.
+     */
+    items?: Array<StorageGiftItem>;
+    /**
+     * Sender's note. Omitted when empty.
+     */
+    message?: string;
+    /**
+     * Sender username.
+     */
+    sender: string;
+    /**
+     * Sender player ID.
+     */
+    sender_id: string;
+    /**
+     * Ships transferred to you. Omitted when the gift carried no ship.
+     */
+    ships?: Array<StorageGiftShip>;
+    /**
+     * When the gift was delivered.
+     */
+    timestamp: string;
 };
 
 export type NotificationMarketUpdate = {
@@ -9588,6 +9626,9 @@ export type ShipmentContract = {
     breached_at?: string;
     carrier_payout?: number;
     claim_paid?: number;
+    /**
+     * Player or faction carrier that accepted the contract. Absent while the listing is still posted and on a listing canceled or expired before anyone accepted it.
+     */
     contractor?: ShipmentActor;
     covered_value?: number;
     deadline_tick?: number;
@@ -9596,7 +9637,13 @@ export type ShipmentContract = {
     failure_debt: number;
     id: string;
     insurable: boolean;
+    /**
+     * Station that insures the cargo: the origin station. It keeps the premium and pays any claim. Absent when the shipment is uninsured.
+     */
     insurer?: ShipmentActor;
+    /**
+     * The only player or faction carrier allowed to see and accept this listing. Present only when visibility is invited; absent for public, faction and allies listings.
+     */
     invited_carrier?: ShipmentActor;
     latest_beacon_at?: string;
     latest_beacon_fingerprint?: string;
@@ -9614,6 +9661,9 @@ export type ShipmentContract = {
     reward_escrow: number;
     risk_band: 'probationary' | 'licensed' | 'trusted' | 'prime' | 'unpriced';
     route_hops?: number;
+    /**
+     * Salvage claimant recorded for the package: the insurer station, set when an insured contract posts. No current game action reads it. Absent when the shipment is uninsured.
+     */
     salvage_owner?: ShipmentActor;
     service_fee: number;
     service_level: 'standard' | 'priority';
@@ -9631,6 +9681,9 @@ export type ShipmentContract = {
 export type ShipmentTrackingEvent = {
     base_id?: string;
     class: 'shipping_house_escrow' | 'ship' | 'player_storage' | 'faction_storage' | 'faction_bucket' | 'wreck' | 'unpack_job_escrow' | 'destroyed' | 'unknown';
+    /**
+     * Who held the package at this sample: the storage owner, the owner of the carrying ship, or the recipient or shipper at hand-over or return. Absent when the location names no holder (shipping-house escrow, a wreck or an unknown location).
+     */
     custodian?: ShipmentActor;
     fingerprint: string;
     id: string;
@@ -9728,6 +9781,9 @@ export type ShippingQuote = {
     failure_debt: number;
     insurable: boolean;
     insurance_selected: boolean;
+    /**
+     * The only player or faction carrier allowed to see and accept this listing. Present only when visibility is invited; absent for public, faction and allies listings.
+     */
     invited_carrier?: ShipmentActor;
     max_speed_bonus: number;
     origin_base_id: string;
@@ -9772,12 +9828,29 @@ export type ShippingResponse = ({
 } & ShippingSettlementResponse);
 
 export type ShippingSettlementResponse = {
+    /**
+     * Which shipping action settled the contract: deliver (the carrier handed the package over at the destination station), return (the carrier surrendered it at the origin station) or cancel (the shipper withdrew a posting no carrier had accepted).
+     */
     action: 'deliver' | 'return' | 'cancel';
+    /**
+     * Credits paid to the carrier (the contractor) for an on-time deliver: base_reward plus the speed bonus earned at the delivery tick. The bonus is the full max_speed_bonus at or before target_tick and decays linearly (rounded down) to 0 at deadline_tick. Same value as contract.carrier_payout. Omitted (0) for a late deliver, for return and for cancel.
+     */
     carrier_payout?: number;
-    claim_paid?: number;
+    /**
+     * The contract after settlement. status is delivered, returned or canceled and reward_escrow and speed_bonus_escrow are now 0; after cancel premium is also 0 because it was refunded. The sealed manifest (appraisal_lines) is always omitted.
+     */
     contract: ShipmentContract;
+    /**
+     * Late fee in credits now owed by the carrier as freight debt to the insurer station (or to the shipping house station when the contract is uninsured). Only a late deliver or a late return creates it: 10% of (base_reward plus max_speed_bonus) with a minimum of 100 and a maximum of 2500 and never more than half of the contract's failure_debt. Omitted when 0: always for an on-time settlement and for cancel.
+     */
     debt_created?: number;
+    /**
+     * True when the deliver or return happened after deadline_tick but inside the recovery window: the reward goes back to the shipper and the carrier owes the late fee in debt_created. Omitted (false) when on time and for cancel.
+     */
     late?: boolean;
+    /**
+     * Credits returned to the shipper from escrow. On-time deliver: the unearned part of the speed bonus (max_speed_bonus minus the bonus paid). Late deliver and return: base_reward plus max_speed_bonus. Cancel: base_reward plus max_speed_bonus plus the insurance premium; the service_fee is not refunded. On deliver and return the insurer station keeps the premium. Omitted when 0.
+     */
     shipper_refund?: number;
 };
 
@@ -10097,25 +10170,67 @@ export type StationServicePools = {
 };
 
 export type StorageGift = {
+    /**
+     * Credits added to your wallet (not to storage). Omitted when the gift carried no credits.
+     */
     credits?: number;
+    /**
+     * Items deposited into your storage. Omitted when the gift carried no items.
+     */
     items?: Array<StorageGiftItem>;
+    /**
+     * Sender's note. Omitted when empty.
+     */
     message?: string;
+    /**
+     * Sender username.
+     */
     sender: string;
+    /**
+     * Sender player ID.
+     */
     sender_id: string;
+    /**
+     * Ships transferred to you. Omitted when the gift carried no ship.
+     */
     ships?: Array<StorageGiftShip>;
+    /**
+     * When the gift was delivered.
+     */
     timestamp: string;
 };
 
 export type StorageGiftItem = {
+    /**
+     * Item ID now in your storage at the gift's station.
+     */
     item_id: string;
+    /**
+     * Item display name.
+     */
     name: string;
+    /**
+     * Units received.
+     */
     quantity: number;
 };
 
 export type StorageGiftShip = {
+    /**
+     * Ship class ID.
+     */
     class_id: string;
+    /**
+     * Ship class display name. Empty when the class no longer resolves.
+     */
     class_name: string;
+    /**
+     * Name the sender gave the ship with rename_ship; omitted when it has none.
+     */
     custom_name?: string;
+    /**
+     * Ship you now own. It is parked at the gift's station; use switch_ship there to fly it.
+     */
     ship_id: string;
 };
 

@@ -38,6 +38,7 @@ import type {
   NotificationFactionPeaceProposal,
   NotificationFactionWarDeclared,
   NotificationFleet,
+  NotificationGiftReceived,
   NotificationMarketUpdate,
   NotificationMiningYield,
   NotificationObservationUpdate,
@@ -100,6 +101,7 @@ export type TypedNotificationType =
   | "faction_peace_proposal"
   | "faction_war_declared"
   | "fleet"
+  | "gift_received"
   | "market_update"
   | "mining_yield"
   | "observation_update"
@@ -161,6 +163,7 @@ export interface NotificationPayloads {
   "faction_peace_proposal": NotificationFactionPeaceProposal;
   "faction_war_declared": NotificationFactionWarDeclared;
   "fleet": NotificationFleet;
+  "gift_received": NotificationGiftReceived;
   "market_update": NotificationMarketUpdate;
   "mining_yield": NotificationMiningYield;
   "observation_update": NotificationObservationUpdate;
@@ -223,6 +226,7 @@ export const TYPED_NOTIFICATION_TYPES = [
   "faction_peace_proposal",
   "faction_war_declared",
   "fleet",
+  "gift_received",
   "market_update",
   "mining_yield",
   "observation_update",
