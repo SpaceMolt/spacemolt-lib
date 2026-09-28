@@ -299,6 +299,41 @@ test('reconnects after connection_rate_limited (4003), honoring the retry_after 
   expect(elapsed).toBeLessThan(3000); // ...not the 5000ms fallback
 }, 6000);
 
+test('reconnectOnce rejects a query still pending on the old socket, and new-socket queries still work', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+  });
+  const cp = account.connect();
+  serveAuth(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  // Never answered by the old socket -- stays pending until reconnectOnce
+  // replaces it (the old socket's own close event is ignored by makeSocket's
+  // identity guard, so nothing else would ever settle this).
+  const stranded = account.query('spacemolt', 'get_status');
+
+  const reconnectP = account.reconnectOnce();
+  serveAuth(requireValue(sockets[1]));
+  await reconnectP;
+
+  await expect(stranded).rejects.toThrow(ConnectionClosedError);
+
+  // The new socket is fully usable: a query sent after reconnectOnce
+  // resolves normally, and isn't caught up in the old socket's rejection.
+  requireValue(sockets[1]).onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+    }
+  };
+  const res = await account.query('spacemolt', 'get_status');
+  expect(res.result).toBe('ok');
+});
+
 // --- connect/auth timeout ---
 //
 // Without a bounded timeout, a connection the server accepts at the WS/TCP

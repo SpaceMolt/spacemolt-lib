@@ -1561,6 +1561,12 @@ export class Account {
     };
     stopIfClosed();
     this.socket.close();
+    // The old socket's close event is ignored once makeSocket below replaces
+    // `this.socket` (the identity guard in makeSocket), so handleClose never
+    // runs for it and anything still in flight on it would otherwise hang
+    // until its own timeout. Reject those now, before the new socket exists,
+    // so nothing sent on it is caught up in this.
+    this.correlator.rejectAll(new ConnectionClosedError('account is reconnecting'));
     this.makeSocket();
     await this.open();
     stopIfClosed();
