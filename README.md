@@ -303,6 +303,14 @@ const { stations } = await fetchStations('https://game.spacemolt.com');
 const { system } = await fetchMobileBase('https://game.spacemolt.com'); // the moving capital
 ```
 
+Every one of these fetches is bounded by a timeout, retries a transient
+`429`/`503` a few times (honoring `Retry-After`), and throws a typed
+`HttpError` (`status`/`url`/`attempts`/`retryAfterMs`) on failure. Pass
+`fetchImpl` — either per-call (`{ fetchImpl }` as the last argument /
+`CatalogCache.load`'s second argument) or once via
+`SpacemoltClientOptions.fetchImpl` (used by `client.catalog()`/`client.map()`)
+— to observe status/bytes/timing/retries with your own `fetch` wrapper.
+
 ## Examples
 
 Runnable scripts in [`examples/`](./examples), run with `bun run examples/<name>.ts`:

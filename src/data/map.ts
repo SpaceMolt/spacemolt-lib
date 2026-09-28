@@ -1,4 +1,5 @@
 import type { MapData, MapDataSystem } from '../generated/openapi/types.gen.ts';
+import { httpGet } from './http.ts';
 import { isRecord, requireRecord } from '../validation.ts';
 
 /**
@@ -20,10 +21,9 @@ export type MapSystem = MapDataSystem;
 
 export type GalaxyMap = MapData;
 
-export async function fetchMap(httpBaseUrl: string): Promise<GalaxyMap> {
+export async function fetchMap(httpBaseUrl: string, opts: { fetchImpl?: typeof fetch } = {}): Promise<GalaxyMap> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/api/map`;
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
+  const res = await httpGet(url, { headers: { accept: 'application/json' }, fetchImpl: opts.fetchImpl });
   const data = requireRecord(await res.json(), 'map response');
   const systems = Array.isArray(data.systems)
     ? data.systems.filter((system): system is MapSystem => isRecord(system))
@@ -48,8 +48,8 @@ export class MapCache {
   }
 
   /** Fetch the galaxy map and wrap it in a cache. */
-  static async load(httpBaseUrl: string): Promise<MapCache> {
-    return new MapCache(await fetchMap(httpBaseUrl));
+  static async load(httpBaseUrl: string, opts: { fetchImpl?: typeof fetch } = {}): Promise<MapCache> {
+    return new MapCache(await fetchMap(httpBaseUrl, opts));
   }
 
   system(id: string): MapSystem | undefined {

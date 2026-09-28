@@ -1,0 +1,64 @@
+import { HttpError } from '../errors.ts';
+
+/**
+ * Shared HTTP GET for the library's bulk/live data fetches (catalog, map,
+ * stations, mobile-base). Bounds every request with a timeout, retries a
+ * transient `429`/`503` a few times (honoring `Retry-After` when the server
+ * sends one), and reports a failure as a typed `HttpError` instead of a bare
+ * `Error`.
+ */
+
+const MAX_RETRIES = 3;
+const BASE_BACKOFF_MS = 500;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Parses `Retry-After` as delta-seconds or an HTTP-date. Returns ms to wait, or undefined if unparseable. */
+function parseRetryAfterMs(header: string | null): number | undefined {
+  if (!header) return undefined;
+  const seconds = Number(header);
+  if (!Number.isNaN(seconds)) return Math.max(0, seconds * 1000);
+  const dateMs = Date.parse(header);
+  return Number.isNaN(dateMs) ? undefined : Math.max(0, dateMs - Date.now());
+}
+
+export interface HttpGetOptions {
+  headers?: Record<string, string>;
+  /** Abort the request after this many ms (`AbortSignal.timeout`). Default 30000. */
+  timeoutMs?: number;
+  /**
+   * Inject a `fetch` implementation — tests, custom runtimes, or an
+   * observability wrapper (status/bytes/timing/retries) a consumer supplies
+   * via `SpacemoltClientOptions.fetchImpl` / the per-call `fetchImpl` option.
+   * Defaults to global `fetch`.
+   */
+  fetchImpl?: typeof fetch;
+  /** Response statuses besides 2xx to return rather than treat as a failure (e.g. 304). */
+  okStatuses?: readonly number[];
+}
+
+/**
+ * `GET url`, bounded by `timeoutMs` and retried up to `MAX_RETRIES` times on
+ * `429`/`503` (waiting `Retry-After` when present, else a short backoff).
+ * A timeout or network error is not retried — it throws as-is. Any other
+ * non-ok, non-`okStatuses` response throws an `HttpError`.
+ */
+export async function httpGet(url: string, opts: HttpGetOptions = {}): Promise<Response> {
+  const { headers, timeoutMs = 30_000, fetchImpl = fetch, okStatuses = [] } = opts;
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    if (res.ok || okStatuses.includes(res.status)) return res;
+    const retryable = res.status === 429 || res.status === 503;
+    if (retryable && attempt <= MAX_RETRIES) {
+      const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
+      await delay(retryAfterMs ?? BASE_BACKOFF_MS * 2 ** (attempt - 1));
+      continue;
+    }
+    throw new HttpError(`GET ${url} -> ${res.status} ${res.statusText}`, {
+      status: res.status,
+      url,
+      attempts: attempt,
+      retryAfterMs: parseRetryAfterMs(res.headers.get('retry-after')),
+    });
+  }
+}

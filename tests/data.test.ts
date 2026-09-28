@@ -13,6 +13,8 @@ import { catalog, mapSystem } from './fixtures.ts';
 import { fetchStations } from '../src/data/stations.ts';
 import { fetchMobileBase } from '../src/data/mobile-base.ts';
 import { SpacemoltClient } from '../src/client.ts';
+import { httpGet } from '../src/data/http.ts';
+import { HttpError } from '../src/errors.ts';
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -273,4 +275,93 @@ test('client.catalog() and map() fetch once and cache', async () => {
 
   const map = await client.map();
   expect(map.system('sol')).toBeDefined();
+});
+
+test('httpGet times out and does not retry', async () => {
+  const fetchImpl = (async (_url: string, init?: RequestInit) => {
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () =>
+        reject(new DOMException('The operation was aborted', 'AbortError')),
+      );
+    });
+  }) as typeof fetch;
+  expect(httpGet('https://game.spacemolt.com/api/map', { fetchImpl, timeoutMs: 5 })).rejects.toThrow();
+});
+
+test('httpGet retries a 429 (honoring Retry-After seconds) then succeeds', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    if (calls === 1) {
+      return new Response(null, { status: 429, statusText: 'Too Many Requests', headers: { 'retry-after': '0' } });
+    }
+    return jsonResponse({ ok: true });
+  }) as typeof fetch;
+  const res = await httpGet('https://game.spacemolt.com/x', { fetchImpl });
+  expect(calls).toBe(2);
+  expect(await res.json()).toEqual({ ok: true });
+});
+
+test('httpGet honors a Retry-After HTTP-date', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    if (calls === 1) {
+      const retryAt = new Date(Date.now() + 10).toUTCString();
+      return new Response(null, {
+        status: 503,
+        statusText: 'Service Unavailable',
+        headers: { 'retry-after': retryAt },
+      });
+    }
+    return jsonResponse({ ok: true });
+  }) as typeof fetch;
+  const start = Date.now();
+  const res = await httpGet('https://game.spacemolt.com/x', { fetchImpl });
+  expect(calls).toBe(2);
+  expect(Date.now() - start).toBeGreaterThanOrEqual(0);
+  expect(await res.json()).toEqual({ ok: true });
+});
+
+test('httpGet throws a typed HttpError once retries are exhausted', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    return new Response(null, { status: 503, statusText: 'Service Unavailable', headers: { 'retry-after': '0' } });
+  }) as typeof fetch;
+  try {
+    await httpGet('https://game.spacemolt.com/x', { fetchImpl });
+    throw new Error('expected httpGet to throw');
+  } catch (err) {
+    expect(err).toBeInstanceOf(HttpError);
+    const httpErr = err as HttpError;
+    expect(httpErr.status).toBe(503);
+    expect(httpErr.url).toBe('https://game.spacemolt.com/x');
+    expect(httpErr.attempts).toBe(4); // 1 initial + 3 retries
+    expect(httpErr.message).toBe('GET https://game.spacemolt.com/x -> 503 Service Unavailable');
+  }
+  expect(calls).toBe(4);
+});
+
+test('httpGet lets a non-retryable status through as HttpError immediately', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    return new Response(null, { status: 404, statusText: 'Not Found' });
+  }) as typeof fetch;
+  expect(httpGet('https://game.spacemolt.com/x', { fetchImpl })).rejects.toThrow(
+    'GET https://game.spacemolt.com/x -> 404 Not Found',
+  );
+  expect(calls).toBe(1);
+});
+
+test('client.catalog() uses an injected fetchImpl, not global fetch', async () => {
+  globalThis.fetch = (async (_url: string | URL, _init?: RequestInit): Promise<Response> => {
+    throw new Error('global fetch must not be called when fetchImpl is injected');
+  }) as typeof fetch;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) =>
+    jsonResponse({ version: '1', ships: [{ id: 'shuttle' }] })) as typeof fetch;
+  const client = new SpacemoltClient({ url: 'wss://game.spacemolt.com/ws/v2', fetchImpl });
+  const cache = await client.catalog();
+  expect(cache.ship('shuttle')).toBeDefined();
 });

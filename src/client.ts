@@ -257,15 +257,16 @@ export class SpacemoltClient {
 
     this.catalogCache =
       !this.catalogCache || force
-        ? await CatalogCache.load(this.httpBaseUrl)
-        : await this.catalogCache.revalidate(this.httpBaseUrl);
+        ? await CatalogCache.load(this.httpBaseUrl, { fetchImpl: this.opts.fetchImpl })
+        : await this.catalogCache.revalidate(this.httpBaseUrl, { fetchImpl: this.opts.fetchImpl });
     this.catalogFetchedAt = Date.now();
     return this.catalogCache;
   }
 
   /** The static galaxy map, fetched once and cached. Pass `force` to refetch. */
   async map(force = false): Promise<MapCache> {
-    if (force || !this.mapCache) this.mapCache = await MapCache.load(this.httpBaseUrl);
+    if (force || !this.mapCache)
+      this.mapCache = await MapCache.load(this.httpBaseUrl, { fetchImpl: this.opts.fetchImpl });
     return this.mapCache;
   }
 

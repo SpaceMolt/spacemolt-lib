@@ -9,6 +9,7 @@ import type {
   ShipClass,
   SkillDefinition,
 } from '../generated/openapi/types.gen.ts';
+import { httpGet } from './http.ts';
 import { isRecord, requireRecord } from '../validation.ts';
 
 /**
@@ -90,14 +91,21 @@ function normalizeCatalog(value: unknown): Catalog {
  * `etag` is passed and the server confirms the catalog is unchanged, this
  * returns `{ notModified: true }` after a ~0-byte `304` — no multi-MB download
  * or re-parse. Otherwise it returns the fresh catalog and its new `ETag`.
+ *
+ * Bounded by a request timeout and retried on a transient `429`/`503`; a
+ * failure that isn't a 304 throws `HttpError`. Pass `fetchImpl` to inject a
+ * `fetch` (tests, or an observability wrapper — see `httpGet`).
  */
-export async function fetchCatalogConditional(httpBaseUrl: string, etag?: string): Promise<CatalogFetchResult> {
+export async function fetchCatalogConditional(
+  httpBaseUrl: string,
+  etag?: string,
+  opts: { fetchImpl?: typeof fetch } = {},
+): Promise<CatalogFetchResult> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/api/catalog.json`;
   const headers: Record<string, string> = { accept: 'application/json' };
   if (etag) headers['if-none-match'] = etag;
-  const res = await fetch(url, { headers });
+  const res = await httpGet(url, { headers, fetchImpl: opts.fetchImpl, okStatuses: [304] });
   if (res.status === 304) return { notModified: true, etag };
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
   const data: unknown = await res.json();
   return {
     notModified: false,
@@ -106,9 +114,9 @@ export async function fetchCatalogConditional(httpBaseUrl: string, etag?: string
   };
 }
 
-/** Unconditionally fetch and normalize the catalog. */
-export async function fetchCatalog(httpBaseUrl: string): Promise<Catalog> {
-  const { catalog } = await fetchCatalogConditional(httpBaseUrl);
+/** Unconditionally fetch and normalize the catalog. See `fetchCatalogConditional` for `fetchImpl`. */
+export async function fetchCatalog(httpBaseUrl: string, opts: { fetchImpl?: typeof fetch } = {}): Promise<Catalog> {
+  const { catalog } = await fetchCatalogConditional(httpBaseUrl, undefined, opts);
   if (!catalog) throw new Error('unconditional catalog fetch returned no catalog');
   return catalog;
 }
@@ -135,8 +143,8 @@ export class CatalogCache {
   }
 
   /** Fetch the catalog and wrap it in a cache. */
-  static async load(httpBaseUrl: string): Promise<CatalogCache> {
-    const { catalog, etag } = await fetchCatalogConditional(httpBaseUrl);
+  static async load(httpBaseUrl: string, opts: { fetchImpl?: typeof fetch } = {}): Promise<CatalogCache> {
+    const { catalog, etag } = await fetchCatalogConditional(httpBaseUrl, undefined, opts);
     if (!catalog) throw new Error('unconditional catalog fetch returned no catalog');
     return new CatalogCache(catalog, etag);
   }
@@ -146,8 +154,8 @@ export class CatalogCache {
    * server confirms the catalog is still current (a cheap `304`), or a new
    * `CatalogCache` when the catalog has changed.
    */
-  async revalidate(httpBaseUrl: string): Promise<CatalogCache> {
-    const result = await fetchCatalogConditional(httpBaseUrl, this.etag);
+  async revalidate(httpBaseUrl: string, opts: { fetchImpl?: typeof fetch } = {}): Promise<CatalogCache> {
+    const result = await fetchCatalogConditional(httpBaseUrl, this.etag, opts);
     if (result.notModified) return this;
     if (!result.catalog) throw new Error('modified catalog response returned no catalog');
     return new CatalogCache(result.catalog, result.etag);
