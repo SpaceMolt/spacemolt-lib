@@ -37,6 +37,7 @@ import type {
   MutationAck,
   MutationResult,
   QueryResult,
+  InboundFrame,
   RawFrame,
   RegisteredFrame,
   StateSection,
@@ -88,6 +89,10 @@ export interface AccountOptions {
   url?: string;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
   webSocketFactory?: WebSocketFactory;
+  /** Observe every outbound frame (logging/review). Fires before it is sent. */
+  onSend?: (frame: InboundFrame) => void;
+  /** Observe every parsed inbound frame (logging/review). Fires before routing. */
+  onReceive?: (frame: RawFrame) => void;
   /**
    * After authenticating, issue a `get_status` query to seed the local state
    * cache with the canonical full state. Default `true`. Disable to avoid the
@@ -344,6 +349,8 @@ export class Account {
   private readonly seedState: boolean;
   private readonly url: string;
   private readonly webSocketFactory?: WebSocketFactory;
+  private readonly onSend?: (frame: InboundFrame) => void;
+  private readonly onReceive?: (frame: RawFrame) => void;
   private readonly reconnectConfig: Required<ReconnectOptions> | null;
   private readonly credentialsProvider?: () => AuthCredentials | Promise<AuthCredentials>;
   private readonly fetchImpl?: typeof fetch;
@@ -386,6 +393,8 @@ export class Account {
     this.seedState = opts.seedState ?? true;
     this.url = opts.url ?? DEFAULT_URL;
     this.webSocketFactory = opts.webSocketFactory;
+    this.onSend = opts.onSend;
+    this.onReceive = opts.onReceive;
     this.credentialsProvider = opts.credentials;
     this.fetchImpl = opts.fetchImpl;
     this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
@@ -1292,7 +1301,9 @@ export class Account {
     payload: Record<string, unknown> | undefined,
     requestId: string,
   ): void {
-    this.socket.send({ tool, action, ...(payload ? { payload } : {}), request_id: requestId });
+    const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
+    this.onSend?.(frame);
+    this.socket.send(frame);
   }
 
   private nextRequestId(): string {
@@ -1323,6 +1334,7 @@ export class Account {
   }
 
   private routeFrame(frame: RawFrame): void {
+    this.onReceive?.(frame);
     // Any frame carrying a numeric `tick` advances the observed game clock.
     if (isRecord(frame.payload)) this.observeTick(frame.payload.tick);
     switch (frame.type) {

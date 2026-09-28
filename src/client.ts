@@ -16,6 +16,7 @@ import {
   type StoredAccount,
 } from './auth/credentials.ts';
 import type { WebSocketFactory } from './transport/socket.ts';
+import type { InboundFrame, RawFrame } from './protocol.ts';
 import type { ReconnectOptions, RegisterParams, RegisterResult } from './account.ts';
 import { CatalogCache } from './data/catalog.ts';
 import { notifyListeners } from './events/emitter.ts';
@@ -32,6 +33,10 @@ export interface SpacemoltClientOptions {
   store?: CredentialStore;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
   webSocketFactory?: WebSocketFactory;
+  /** Observe every outbound frame on every managed account (see Account). */
+  onSend?: (accountId: string, frame: InboundFrame) => void;
+  /** Observe every inbound frame on every managed account (see Account). */
+  onReceive?: (accountId: string, frame: RawFrame) => void;
   /** Seed each account's state cache after auth (see Account). Default true. */
   seedState?: boolean;
   /**
@@ -635,6 +640,8 @@ export class SpacemoltClient {
       id,
       url: this.opts.url,
       webSocketFactory: this.opts.webSocketFactory,
+      onSend: this.opts.onSend && ((f) => this.opts.onSend?.(id, f)),
+      onReceive: this.opts.onReceive && ((f) => this.opts.onReceive?.(id, f)),
       seedState: this.opts.seedState,
       // The client owns reconnection for its managed accounts (see
       // handleAccountDisconnected) instead of each Account reconnecting

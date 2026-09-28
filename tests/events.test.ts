@@ -568,3 +568,28 @@ test('MarketCache.drop removes a base book', () => {
   cache.drop('b1');
   expect(cache.book('b1')).toBeUndefined();
 });
+
+// --- wire hooks ---
+
+test('onSend/onReceive observe every frame on the wire', async () => {
+  const { factory, sockets } = mockFactory();
+  const sent: string[] = [];
+  const received: string[] = [];
+  const account = new Account({
+    url: 'ws://m/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    onSend: (f) => sent.push(`${f.tool}.${f.action}`),
+    onReceive: (f) => received.push(f.type),
+  });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+  const q = account.query('spacemolt', 'get_status');
+  const req = requireValue(socket.sent[0], 'expected a sent frame');
+  socket.serverSend({ type: 'result', request_id: req.request_id, payload: { result: 'ok', structuredContent: {} } });
+  await q;
+  expect(sent).toEqual(['spacemolt.get_status']);
+  expect(received).toEqual(['welcome', 'result']);
+});
