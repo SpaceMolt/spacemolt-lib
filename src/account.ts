@@ -73,6 +73,16 @@ export interface ReconnectOptions {
   maxDelayMs?: number;
 }
 
+/** Info reported to an `onRateLimited` listener — see `Account.onRateLimited`. */
+export interface RateLimitedInfo {
+  /** The call being retried: `tool.action` for `query`/`mutate`, `'authenticate'` for auth. */
+  command: string;
+  /** 1-based retry attempt number. */
+  attempt: number;
+  /** How long this retry is waiting before resending, including jitter. */
+  delayMs: number;
+}
+
 export interface AccountOptions {
   /** WebSocket URL of the v2 endpoint. Defaults to the production server. */
   url?: string;
@@ -308,6 +318,15 @@ function retryAfterMs(err: SpacemoltError): number {
   return Math.max(250, (seconds ?? 1) * 1000);
 }
 
+/**
+ * Adds random jitter to a rate-limit retry delay, so accounts rate-limited
+ * together (e.g. a fleet sharing a per-IP budget) don't all wake up and retry
+ * in the same instant. Extra is uniform in `[0, max(25% of base, 250ms))`.
+ */
+function jitteredDelayMs(baseMs: number): number {
+  return baseMs + Math.random() * Math.max(baseMs * 0.25, 250);
+}
+
 function requireStructuredContent<T>(result: QueryResult<T>, command: string): T {
   if (result.structuredContent === undefined) {
     throw new SpacemoltError('invalid_response', `${command} returned no structured content`);
@@ -361,6 +380,7 @@ export class Account {
   private readonly reconnectedListeners = new Set<() => void>();
   private readonly reconnectingListeners = new Set<(attempt: number) => void>();
   private readonly disconnectedListeners = new Set<(err: ConnectionClosedError) => void>();
+  private readonly rateLimitedListeners = new Set<(info: RateLimitedInfo) => void>();
 
   constructor(opts: AccountOptions = {}) {
     this.seedState = opts.seedState ?? true;
@@ -579,7 +599,7 @@ export class Account {
    * rejection doesn't waste a single-use token.
    */
   authenticate(creds: AuthCredentials): Promise<void> {
-    return this.withRateLimitRetry(() => this.authenticateOnce(creds));
+    return this.withRateLimitRetry('authenticate', () => this.authenticateOnce(creds));
   }
 
   private async authenticateOnce(creds: AuthCredentials): Promise<void> {
@@ -661,7 +681,7 @@ export class Account {
    * drops it rather than erroring) fails cleanly instead of hanging forever.
    */
   query(tool: string, action: string, payload?: Record<string, unknown>, requestId?: string): Promise<QueryResult> {
-    return this.withRateLimitRetry(async () => {
+    return this.withRateLimitRetry(`${tool}.${action}`, async () => {
       const id = this.claimRequestId(requestId);
       const promise = this.correlator.awaitQuery(id);
       try {
@@ -707,7 +727,7 @@ export class Account {
       ? this.mutationTimeoutMs
       : this.fastMutationTimeoutMs;
     return this.enqueueMutation(() =>
-      this.withRateLimitRetry(() => {
+      this.withRateLimitRetry(`${tool}.${action}`, () => {
         const id = this.claimRequestId(requestId);
         return this.awaitMutationWithTimeout(
           id,
@@ -1192,6 +1212,18 @@ export class Account {
     };
   }
   /**
+   * Fired before each rate-limit retry sleep (`query`/`mutate`/`authenticate`
+   * auto-retrying a `rate_limited` error) — the delay includes jitter, so
+   * accounts rate-limited together don't retry in lockstep; this is what a
+   * caller sees per attempt. Returns an unsubscribe function.
+   */
+  onRateLimited(listener: (info: RateLimitedInfo) => void): () => void {
+    this.rateLimitedListeners.add(listener);
+    return () => {
+      this.rateLimitedListeners.delete(listener);
+    };
+  }
+  /**
    * Fired when the connection is gone for good (non-reconnectable or retries
    * exhausted). Returns an unsubscribe function.
    */
@@ -1528,13 +1560,22 @@ export class Account {
     }
   }
 
-  private async withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+  /**
+   * Runs `fn`, retrying on a `rate_limited` `SpacemoltError` up to
+   * `maxRateLimitRetries` times. The wait is jittered (see `jitteredDelayMs`)
+   * so accounts rate-limited together don't all retry in lockstep, and fires
+   * `onRateLimited` before each sleep. `command` identifies the call for that
+   * listener (`tool.action`, or `'authenticate'`).
+   */
+  private async withRateLimitRetry<T>(command: string, fn: () => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
         return await fn();
       } catch (err) {
         if (err instanceof SpacemoltError && err.code === 'rate_limited' && attempt < this.maxRateLimitRetries) {
-          await delay(retryAfterMs(err));
+          const delayMs = jitteredDelayMs(retryAfterMs(err));
+          notifyListeners(this.rateLimitedListeners, 'onRateLimited', { command, attempt: attempt + 1, delayMs });
+          await delay(delayMs);
           continue;
         }
         throw err;

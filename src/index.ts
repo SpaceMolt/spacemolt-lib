@@ -18,6 +18,7 @@ export {
   type RegisterParams,
   type RegisterResult,
   type LoggedInPayload,
+  type RateLimitedInfo,
 } from './account.ts';
 export { SpacemoltClient, type SpacemoltClientOptions } from './client.ts';
 export {

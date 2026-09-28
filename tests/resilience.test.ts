@@ -104,6 +104,64 @@ test('authenticate auto-retries a login after a rate_limited error', async () =>
   expect(attempts).toBe(2);
 });
 
+test('onRateLimited fires per retry with increasing attempt and jittered delayMs, and unsubscribes', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, maxRateLimitRetries: 3 });
+  const cp = account.connect();
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  const events: Array<{ command: string; attempt: number; delayMs: number }> = [];
+  const unsubscribe = account.onRateLimited((info) => events.push(info));
+
+  let attempts = 0;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      attempts++;
+      if (attempts <= 2) {
+        s.serverSend({
+          type: 'error',
+          request_id: frame.request_id,
+          payload: { code: 'rate_limited', message: 'Too many requests. Retry in 0 seconds.' },
+        });
+      } else {
+        s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+      }
+    }
+  };
+  await account.query('spacemolt', 'get_status');
+
+  expect(events.length).toBe(2);
+  expect(events[0]?.command).toBe('spacemolt.get_status');
+  expect(events[0]?.attempt).toBe(1);
+  expect(events[1]?.attempt).toBe(2);
+  // base is the 250ms floor; jitter adds [0, 250ms) on top.
+  for (const e of events) {
+    expect(e.delayMs).toBeGreaterThanOrEqual(250);
+    expect(e.delayMs).toBeLessThan(500);
+  }
+
+  unsubscribe();
+  attempts = 0;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      attempts++;
+      if (attempts === 1) {
+        s.serverSend({
+          type: 'error',
+          request_id: frame.request_id,
+          payload: { code: 'rate_limited', message: 'Too many requests. Retry in 0 seconds.' },
+        });
+      } else {
+        s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+      }
+    }
+  };
+  await account.query('spacemolt', 'get_status');
+  expect(events.length).toBe(2); // unchanged after unsubscribe
+});
+
 // --- mutation serialization ---
 
 test('mutations are serialized: the second sends only after the first resolves', async () => {
