@@ -136,6 +136,17 @@ account.onAny((frame) => console.log('push:', frame.type));
 for await (const hit of account.events('battle_damage')) { /* ... */ }
 ```
 
+`onAny` sees only unsolicited pushes. To log every frame on the wire, including
+your own query/mutation replies, pass `onSend`/`onReceive` (the client variants
+also receive the account id):
+
+```ts
+new SpacemoltClient({
+  onSend: (id, frame) => console.log(id, '→', frame.tool, frame.action, frame.request_id),
+  onReceive: (id, frame) => console.log(id, '←', frame.type, frame.request_id),
+});
+```
+
 ### Subscriptions
 
 Subscribe to a station's order book or to presence at your location; the
