@@ -343,6 +343,19 @@ test('httpGet throws a typed HttpError once retries are exhausted', async () => 
   expect(calls).toBe(4);
 });
 
+test('httpGet throws instead of sleeping through a long Retry-After', async () => {
+  let calls = 0;
+  const fetchImpl = (async () => {
+    calls++;
+    return new Response(null, { status: 429, statusText: 'Too Many Requests', headers: { 'retry-after': '3600' } });
+  }) as unknown as typeof fetch;
+  const err = await httpGet('https://game.spacemolt.com/x', { fetchImpl }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(HttpError);
+  expect((err as HttpError).retryAfterMs).toBe(3_600_000);
+  expect((err as HttpError).attempts).toBe(1);
+  expect(calls).toBe(1);
+});
+
 test('httpGet lets a non-retryable status through as HttpError immediately', async () => {
   let calls = 0;
   const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {

@@ -10,6 +10,7 @@ import { HttpError } from '../errors.ts';
 
 const MAX_RETRIES = 3;
 const BASE_BACKOFF_MS = 500;
+const MAX_RETRY_WAIT_MS = 60_000;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -48,17 +49,20 @@ export async function httpGet(url: string, opts: HttpGetOptions = {}): Promise<R
   for (let attempt = 1; ; attempt++) {
     const res = await fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
     if (res.ok || okStatuses.includes(res.status)) return res;
-    const retryable = res.status === 429 || res.status === 503;
+    const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
+    const waitMs = retryAfterMs ?? BASE_BACKOFF_MS * 2 ** (attempt - 1);
+    // A long Retry-After is the caller's call to wait out, not ours to sleep through.
+    const retryable = (res.status === 429 || res.status === 503) && waitMs <= MAX_RETRY_WAIT_MS;
     if (retryable && attempt <= MAX_RETRIES) {
-      const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
-      await delay(retryAfterMs ?? BASE_BACKOFF_MS * 2 ** (attempt - 1));
+      await res.body?.cancel();
+      await delay(waitMs);
       continue;
     }
     throw new HttpError(`GET ${url} -> ${res.status} ${res.statusText}`, {
       status: res.status,
       url,
       attempts: attempt,
-      retryAfterMs: parseRetryAfterMs(res.headers.get('retry-after')),
+      retryAfterMs,
     });
   }
 }
