@@ -1302,8 +1302,22 @@ export class Account {
     requestId: string,
   ): void {
     const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
-    this.onSend?.(frame);
+    this.callHook(this.onSend, 'onSend', frame);
     this.socket.send(frame);
+  }
+
+  /**
+   * Calls an optional single-callback hook (`onSend`/`onReceive`), swallowing
+   * a throw so a broken observer can't stop the frame being sent or routed —
+   * same handling as `notifyListeners` for a `Set` of listeners.
+   */
+  private callHook<A extends unknown[]>(hook: ((...args: A) => void) | undefined, label: string, ...args: A): void {
+    if (!hook) return;
+    try {
+      hook(...args);
+    } catch (err) {
+      console.warn(`[spacemolt] ${label} hook threw: ${err}`);
+    }
   }
 
   private nextRequestId(): string {
@@ -1334,7 +1348,7 @@ export class Account {
   }
 
   private routeFrame(frame: RawFrame): void {
-    this.onReceive?.(frame);
+    this.callHook(this.onReceive, 'onReceive', frame);
     // Any frame carrying a numeric `tick` advances the observed game clock.
     if (isRecord(frame.payload)) this.observeTick(frame.payload.tick);
     switch (frame.type) {

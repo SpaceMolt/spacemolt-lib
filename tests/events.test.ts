@@ -593,3 +593,30 @@ test('onSend/onReceive observe every frame on the wire', async () => {
   expect(sent).toEqual(['spacemolt.get_status']);
   expect(received).toEqual(['welcome', 'result']);
 });
+
+test('a throwing onSend/onReceive hook does not stop the frame being sent or routed', async () => {
+  const { factory, sockets } = mockFactory();
+  const received: string[] = [];
+  const account = new Account({
+    url: 'ws://m/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    onSend: () => {
+      throw new Error('boom: onSend');
+    },
+    onReceive: (f) => {
+      received.push(f.type);
+      throw new Error('boom: onReceive');
+    },
+  });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+  const q = account.query('spacemolt', 'get_status');
+  const req = requireValue(socket.sent[0], 'expected a sent frame — a throwing onSend must not block the send');
+  socket.serverSend({ type: 'result', request_id: req.request_id, payload: { result: 'ok', structuredContent: {} } });
+  const res = await q;
+  expect(res.result).toBe('ok'); // routing (correlator.handle) still ran despite onReceive throwing
+  expect(received).toEqual(['welcome', 'result']);
+});
