@@ -378,3 +378,20 @@ test('client.catalog() uses an injected fetchImpl, not global fetch', async () =
   const cache = await client.catalog();
   expect(cache.ship('shuttle')).toBeDefined();
 });
+
+test('client.stations() and client.mobileBase() use the client-level fetchImpl', async () => {
+  globalThis.fetch = (async (_url: string | URL, _init?: RequestInit): Promise<Response> => {
+    throw new Error('global fetch must not be called when fetchImpl is injected');
+  }) as typeof fetch;
+  const seen: string[] = [];
+  const fetchImpl = (async (url: string | URL, _init?: RequestInit) => {
+    seen.push(String(url));
+    return String(url).endsWith('/wheres-mobile-base')
+      ? jsonResponse({ system: 'sol' })
+      : jsonResponse({ stations: [], empires: [] });
+  }) as typeof fetch;
+  const client = new SpacemoltClient({ url: 'wss://game.spacemolt.com/ws/v2', fetchImpl });
+  expect((await client.mobileBase()).system).toBe('sol');
+  expect((await client.stations()).stations).toEqual([]);
+  expect(seen).toEqual(['https://game.spacemolt.com/wheres-mobile-base', 'https://game.spacemolt.com/api/stations']);
+});

@@ -21,6 +21,8 @@ import type { ReconnectOptions, RegisterParams, RegisterResult } from './account
 import { CatalogCache } from './data/catalog.ts';
 import { notifyListeners } from './events/emitter.ts';
 import { MapCache, httpBaseFromWs } from './data/map.ts';
+import { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';
+import { fetchStations, type StationList } from './data/stations.ts';
 import { ClerkSource, type ClerkPlayer } from './auth/clerk.ts';
 import { CLOSE_CODE, type ConnectionClosedError, retryAfterMsFromClose } from './errors.ts';
 
@@ -273,6 +275,16 @@ export class SpacemoltClient {
     if (force || !this.mapCache)
       this.mapCache = await MapCache.load(this.httpBaseUrl, { fetchImpl: this.opts.fetchImpl });
     return this.mapCache;
+  }
+
+  /** The live station directory. Not cached — it changes as the game runs. */
+  stations(): Promise<StationList> {
+    return fetchStations(this.httpBaseUrl, { fetchImpl: this.opts.fetchImpl });
+  }
+
+  /** The mobile base's current system. Not cached — it moves. */
+  mobileBase(): Promise<MobileBaseLocation> {
+    return fetchMobileBase(this.httpBaseUrl, { fetchImpl: this.opts.fetchImpl });
   }
 
   /** The credential store backing this client. */

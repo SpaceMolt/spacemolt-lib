@@ -316,11 +316,26 @@ const { system } = await fetchMobileBase('https://game.spacemolt.com'); // the m
 
 Every one of these fetches is bounded by a timeout, retries a transient
 `429`/`503` a few times (honoring `Retry-After`), and throws a typed
-`HttpError` (`status`/`url`/`attempts`/`retryAfterMs`) on failure. Pass
-`fetchImpl` — either per-call (`{ fetchImpl }` as the last argument /
-`CatalogCache.load`'s second argument) or once via
-`SpacemoltClientOptions.fetchImpl` (used by `client.catalog()`/`client.map()`)
-— to observe status/bytes/timing/retries with your own `fetch` wrapper.
+`HttpError` (`status`/`url`/`attempts`/`retryAfterMs`) on failure.
+
+With a client, the same data is `client.catalog()`, `client.map()`,
+`client.stations()` and `client.mobileBase()`. To observe HTTP traffic
+(status/bytes/timing/retries), set `fetchImpl` once on the client — every
+HTTP call it makes, including Clerk, goes through it:
+
+```ts
+const client = new SpacemoltClient({
+  fetchImpl: async (input, init) => {
+    const started = Date.now();
+    const res = await fetch(input, init);
+    console.log(res.status, String(input), `${Date.now() - started}ms`);
+    return res;
+  },
+});
+```
+
+The standalone functions above take the same option as a trailing
+`{ fetchImpl }` for use without a client.
 
 ## Examples
 
