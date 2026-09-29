@@ -24,7 +24,7 @@ export class MockSocket implements WebSocketLike {
 
   constructor(
     readonly url: string,
-    private readonly opts: { failToOpen?: boolean } = {},
+    private readonly opts: { failToOpen?: boolean; deferClose?: boolean } = {},
   ) {
     // Open asynchronously so the Socket can register listeners first.
     queueMicrotask(() => {
@@ -85,6 +85,15 @@ export class MockSocket implements WebSocketLike {
   close(code = 1000, reason = ''): void {
     if (!this.open) return;
     this.open = false;
+    // `deferClose` simulates a peer whose close event arrives late (e.g. an
+    // unresponsive socket) — the caller must explicitly fire it later via
+    // `fireDeferredClose`, instead of it landing synchronously here.
+    if (this.opts.deferClose) return;
+    for (const cb of this.listeners.close) cb({ code, reason });
+  }
+
+  /** Fires a close previously suppressed by `deferClose`, once the caller wants it to land. */
+  fireDeferredClose(code = 1000, reason = ''): void {
     for (const cb of this.listeners.close) cb({ code, reason });
   }
 

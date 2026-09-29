@@ -364,6 +364,8 @@ export class Account {
 
   private _welcome: WelcomeFrame['payload'] | null = null;
   private _authenticated = false;
+  // True only for `reconnectOnce`'s socket-swap-to-re-auth window — see there.
+  private reconnectPending = false;
   private _loginPayload: LoggedInPayload | null = null;
   private _currentTick = 0;
   private _commands: Commands | null = null;
@@ -1301,6 +1303,17 @@ export class Account {
     payload: Record<string, unknown> | undefined,
     requestId: string,
   ): void {
+    // While `reconnectOnce` is mid-swap (old socket rejected, new one not yet
+    // authenticated), block everything except the auth handshake itself —
+    // otherwise a mutation freed by that rejection can land on the fresh,
+    // not-yet-authenticated socket and hang until it times out instead of
+    // failing immediately. Scoped to that window specifically (not a general
+    // "must be authenticated" rule) so it doesn't reject a query/mutation
+    // sent on a connection `reconnectOnce` never touched.
+    const isAuthHandshake = tool === 'spacemolt_auth' && action !== 'logout';
+    if (this.reconnectPending && !isAuthHandshake) {
+      throw new ConnectionClosedError('cannot send: account is reconnecting');
+    }
     const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
     this.callHook(this.onSend, 'onSend', frame);
     this.socket.send(frame);
@@ -1566,12 +1579,30 @@ export class Account {
     // runs for it and anything still in flight on it would otherwise hang
     // until its own timeout. Reject those now, before the new socket exists,
     // so nothing sent on it is caught up in this.
+    //
+    // Clear `_authenticated` first: rejecting a mutation's correlator entry
+    // frees `enqueueMutation`'s lane, so a queued mutation's task can run on
+    // the very next microtask — before `makeSocket`/`authenticate` below have
+    // run. `sendFrame`'s authenticated guard is what stops it from reaching
+    // the new, not-yet-authenticated socket instead of hanging on it.
+    //
+    // `reconnectPending` is a narrower guard than "not authenticated" — it's
+    // only true for this window, so it can't reject a query/mutation any
+    // other caller (including tests that drive query/mutate directly,
+    // without a full auth handshake) legitimately sends on a connection this
+    // method never touched.
+    this._authenticated = false;
+    this.reconnectPending = true;
     this.correlator.rejectAll(new ConnectionClosedError('account is reconnecting'));
-    this.makeSocket();
-    await this.open();
-    stopIfClosed();
-    await this.authenticate(await this.credentialsProvider());
-    stopIfClosed();
+    try {
+      this.makeSocket();
+      await this.open();
+      stopIfClosed();
+      await this.authenticate(await this.credentialsProvider());
+      stopIfClosed();
+    } finally {
+      this.reconnectPending = false;
+    }
     await this.resubscribe();
   }
 

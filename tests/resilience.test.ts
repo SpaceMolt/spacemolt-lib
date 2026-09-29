@@ -299,8 +299,23 @@ test('reconnects after connection_rate_limited (4003), honoring the retry_after 
   expect(elapsed).toBeLessThan(3000); // ...not the 5000ms fallback
 }, 6000);
 
-test('reconnectOnce rejects a query still pending on the old socket, and new-socket queries still work', async () => {
-  const { factory, sockets } = mockFactory();
+test('reconnectOnce rejects in-flight work and holds a queued mutation until re-auth, then new-socket queries still work', async () => {
+  // The old socket's close event must arrive LATE, not synchronously inside
+  // reconnectOnce's own `this.socket.close()` call -- otherwise `handleClose`
+  // (a separate, pre-existing code path) does all the rejecting/
+  // de-authenticating itself, and this test would pass even with
+  // reconnectOnce's own fix deleted. `deferClose` suppresses that callback
+  // until explicitly fired (which, once the socket has been replaced, the
+  // identity guard in makeSocket ignores anyway) so only reconnectOnce's own
+  // logic is under test here.
+  const sockets: MockSocket[] = [];
+  let first = true;
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url, first ? { deferClose: true } : {});
+    first = false;
+    sockets.push(s);
+    return s;
+  };
   const account = new Account({
     url: 'ws://m',
     webSocketFactory: factory,
@@ -312,18 +327,40 @@ test('reconnectOnce rejects a query still pending on the old socket, and new-soc
   await cp;
   await account.login({ username: 'Nova', password: 'pw' });
 
-  // Never answered by the old socket -- stays pending until reconnectOnce
-  // replaces it (the old socket's own close event is ignored by makeSocket's
-  // identity guard, so nothing else would ever settle this).
-  const stranded = account.query('spacemolt', 'get_status');
+  // (a) In flight on the old socket, never answered -- stays pending until
+  // reconnectOnce rejects it.
+  const strandedQuery = account.query('spacemolt', 'get_status');
+
+  // (b) A mutation in flight (occupies the mutation lane) plus one queued
+  // behind it. Neither is ever answered by the old socket.
+  const inFlightMutation = account.mutate('spacemolt', 'mine');
+  const queuedMutation = account.mutate('spacemolt', 'mine');
+  // Suppress the spurious "unhandled rejection" noise between these settling
+  // (several ticks below) and the `expect(...).rejects` assertions further
+  // down -- both attach their own consumer to the same promise later.
+  strandedQuery.catch(() => {});
+  inFlightMutation.catch(() => {});
+  queuedMutation.catch(() => {});
 
   const reconnectP = account.reconnectOnce();
+
+  // Let the mutation lane's freed continuation (from rejectAll) run its
+  // microtask(s) before the new socket has authenticated.
+  await tick();
+  await tick();
+
+  expect(requireValue(sockets[1]).sent.some((f) => f.action === 'mine')).toBe(false);
+
   serveAuth(requireValue(sockets[1]));
   await reconnectP;
 
-  await expect(stranded).rejects.toThrow(ConnectionClosedError);
+  await expect(strandedQuery).rejects.toThrow(ConnectionClosedError);
+  await expect(inFlightMutation).rejects.toThrow(ConnectionClosedError);
+  // (b) rejects immediately rather than being sent once re-authenticated --
+  // the caller finds out right away instead of the frame silently waiting.
+  await expect(queuedMutation).rejects.toThrow(ConnectionClosedError);
 
-  // The new socket is fully usable: a query sent after reconnectOnce
+  // (c) The new socket is fully usable: a query sent after reconnectOnce
   // resolves normally, and isn't caught up in the old socket's rejection.
   requireValue(sockets[1]).onClientSend = (frame, s) => {
     if (frame.action === 'get_status') {
