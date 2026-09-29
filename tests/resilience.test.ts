@@ -466,6 +466,43 @@ test('reconnectOnce still re-seeds the state cache on the new socket', async () 
   expect(next.sent.some((f) => f.action === 'get_status')).toBe(true);
 });
 
+test('reconnectOnce does not close its own new socket via a stranded connect() left waiting for welcome', async () => {
+  // Regression: open()'s catch used to do `this.welcomeWaiter = null;
+  // this.socket.close();` unconditionally. When reconnectOnce() runs while a
+  // connect() is still waiting for welcome, failPendingWork rejects that
+  // waiter, reconnectOnce synchronously swaps in a new socket (makeSocket),
+  // and the stranded open()'s catch then ran -- by then `this.socket` was
+  // the NEW socket, still connecting. A real WebSocket closed while
+  // connecting fails the connection instead of completing it.
+  const sockets: MockSocket[] = [];
+  let first = true;
+  const factory: WebSocketFactory = (url) => {
+    // deferClose on the first socket only: its close() must not synchronously
+    // fire handleClose (a separate, pre-existing code path) or this test
+    // would pass even with the fix reverted -- see the matching note on the
+    // reconnectOnce tests above.
+    const s = new MockSocket(url, first ? { deferClose: true } : {});
+    first = false;
+    sockets.push(s);
+    return s;
+  };
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, credentials: creds() });
+
+  // connect() is left waiting for welcome on socket 0 -- never served.
+  const connectP = account.connect();
+  connectP.catch(() => {});
+  await tick(); // let socket 0 open and connect()'s open() start its welcome wait
+
+  const reconnectP = account.reconnectOnce();
+  const socket1 = requireValue(sockets[1]);
+  serveAuth(socket1);
+  await reconnectP;
+
+  expect(socket1.closedWhileConnecting).toBe(false);
+  expect(account.authenticated).toBe(true);
+  await expect(connectP).rejects.toThrow(ConnectionClosedError);
+});
+
 // --- connect/auth timeout ---
 //
 // Without a bounded timeout, a connection the server accepts at the WS/TCP

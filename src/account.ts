@@ -579,11 +579,21 @@ export class Account {
   }
 
   private async open(): Promise<WelcomeFrame['payload']> {
+    // Capture the socket this attempt belongs to — `reconnectOnce` can swap
+    // in a new one (`makeSocket`) while this call is still waiting for
+    // welcome (its waiter gets rejected by `failPendingWork`, which runs
+    // before the swap resolves). The catch below must only ever touch state
+    // that still belongs to this attempt, or it closes the NEW socket while
+    // it's mid-connect — a real WebSocket closed while connecting fails the
+    // connection outright.
+    const socket = this.socket;
     this._welcome = null;
-    await this.socket.connect();
+    await socket.connect();
     if (this._welcome) return this._welcome;
+    let waiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | undefined;
     const waitForWelcome = new Promise<WelcomeFrame['payload']>((resolve, reject) => {
-      this.welcomeWaiter = { resolve, reject };
+      waiter = { resolve, reject };
+      this.welcomeWaiter = waiter;
     });
     try {
       return await withTimeout(
@@ -593,24 +603,31 @@ export class Account {
       );
     } catch (err) {
       // Give up on this connection attempt rather than leaving a socket open
-      // that's never going to complete the handshake.
-      this.welcomeWaiter = null;
-      this.socket.close();
+      // that's never going to complete the handshake — but only if `socket`
+      // and `waiter` are still the live ones; a newer attempt may already
+      // have replaced both.
+      if (waiter && this.welcomeWaiter === waiter) this.welcomeWaiter = null;
+      if (this.socket === socket) socket.close();
       throw err;
     }
   }
 
   /** Register a new account; resolves with the generated credentials + state. */
   async register(params: RegisterParams): Promise<RegisterResult> {
-    let accepted = false;
+    let authEntry: PendingAuth | undefined;
     const registerPromise = new Promise<RegisterResult>((resolve, reject) => {
-      accepted = this.beginAuth((state, registered) => {
+      const accepted = this.beginAuth((state, registered) => {
         if (!registered) {
           reject(new SpacemoltError('missing_credentials', 'register succeeded but no credentials frame was received'));
           return;
         }
         resolve({ password: registered.password, player_id: registered.player_id, state });
       }, reject);
+      // Capture the exact entry `beginAuth` created — identity, not just
+      // "accepted" — so the catch below can't clobber a newer exchange's
+      // entry (e.g. one `reconnectOnce` started) that happens to occupy
+      // `pendingAuth` by the time this call's timeout/error fires.
+      if (accepted) authEntry = this.pendingAuth ?? undefined;
       if (accepted) this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
     });
     let result: RegisterResult;
@@ -621,11 +638,10 @@ export class Account {
         `No register response received within ${this.connectTimeoutMs}ms`,
       );
     } catch (err) {
-      // Only clear `pendingAuth` if this call is the one that claimed it — a
-      // rejected `beginAuth` (another exchange already in flight) never
-      // touched it, and clearing it here would strand that other exchange's
-      // own resolution.
-      if (accepted) this.pendingAuth = null;
+      // Only clear `pendingAuth` if it's still the entry this call created —
+      // a rejected `beginAuth` (another exchange already in flight) never
+      // touched it, and a newer exchange may have replaced it since.
+      if (authEntry && this.pendingAuth === authEntry) this.pendingAuth = null;
       throw err;
     }
     this._loginPayload = result.state;
@@ -1291,9 +1307,12 @@ export class Account {
     action: 'login' | 'login_token',
     payload: Record<string, unknown>,
   ): Promise<LoggedInPayload> {
-    let accepted = false;
+    let authEntry: PendingAuth | undefined;
     const authPromise = new Promise<LoggedInPayload>((resolve, reject) => {
-      accepted = this.beginAuth(resolve, reject);
+      const accepted = this.beginAuth(resolve, reject);
+      // See the matching comment in `register()` — identity, not just
+      // "accepted", so this call's catch can't clobber a newer exchange.
+      if (accepted) authEntry = this.pendingAuth ?? undefined;
       if (accepted) this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
     });
     let state: LoggedInPayload;
@@ -1304,11 +1323,10 @@ export class Account {
         `No auth response received within ${this.connectTimeoutMs}ms`,
       );
     } catch (err) {
-      // Only clear `pendingAuth` if this call is the one that claimed it — a
-      // rejected `beginAuth` (another exchange already in flight) never
-      // touched it, and clearing it here would strand that other exchange's
-      // own resolution.
-      if (accepted) this.pendingAuth = null;
+      // Only clear `pendingAuth` if it's still the entry this call created —
+      // a rejected `beginAuth` (another exchange already in flight) never
+      // touched it, and a newer exchange may have replaced it since.
+      if (authEntry && this.pendingAuth === authEntry) this.pendingAuth = null;
       throw err;
     }
     this._loginPayload = state;

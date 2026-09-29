@@ -21,6 +21,14 @@ export class MockSocket implements WebSocketLike {
   onClientSend?: (frame: InboundFrame, socket: MockSocket) => void;
   private readonly listeners: Listeners = { open: [], message: [], close: [], error: [] };
   private open = false;
+  /**
+   * True if `close()` was ever called before the socket's async `open`
+   * fired. `close()` stays a no-op in that case (a real WebSocket closed
+   * mid-handshake fails the connection instead of erroring synchronously),
+   * so this flag is the only way a test can observe that it happened —
+   * otherwise a stray close while still connecting is invisible.
+   */
+  closedWhileConnecting = false;
 
   constructor(
     readonly url: string,
@@ -83,7 +91,10 @@ export class MockSocket implements WebSocketLike {
   }
 
   close(code = 1000, reason = ''): void {
-    if (!this.open) return;
+    if (!this.open) {
+      this.closedWhileConnecting = true;
+      return;
+    }
     this.open = false;
     // `deferClose` simulates a peer whose close event arrives late (e.g. an
     // unresponsive socket) — the caller must explicitly fire it later via
