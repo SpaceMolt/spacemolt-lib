@@ -130,17 +130,20 @@ test('onRateLimited fires per retry with increasing attempt and jittered delayMs
       }
     }
   };
-  await account.query('spacemolt', 'get_status');
+  // Pin the jitter so the delay proves it was applied: 250ms floor + 0.5 * 250ms.
+  const realRandom = Math.random;
+  Math.random = () => 0.5;
+  try {
+    await account.query('spacemolt', 'get_status');
+  } finally {
+    Math.random = realRandom;
+  }
 
   expect(events.length).toBe(2);
   expect(events[0]?.command).toBe('spacemolt.get_status');
   expect(events[0]?.attempt).toBe(1);
   expect(events[1]?.attempt).toBe(2);
-  // base is the 250ms floor; jitter adds [0, 250ms) on top.
-  for (const e of events) {
-    expect(e.delayMs).toBeGreaterThanOrEqual(250);
-    expect(e.delayMs).toBeLessThan(500);
-  }
+  for (const e of events) expect(e.delayMs).toBe(375);
 
   unsubscribe();
   attempts = 0;
@@ -299,7 +302,7 @@ test('reconnects after connection_rate_limited (4003), honoring the retry_after 
   expect(elapsed).toBeLessThan(3000); // ...not the 5000ms fallback
 }, 6000);
 
-test('reconnectOnce rejects in-flight work and holds a queued mutation until re-auth, then new-socket queries still work', async () => {
+test('reconnectOnce rejects in-flight work and a mutation queued before re-auth, then new-socket queries still work', async () => {
   // The old socket's close event must arrive LATE, not synchronously inside
   // reconnectOnce's own `this.socket.close()` call -- otherwise `handleClose`
   // (a separate, pre-existing code path) does all the rejecting/
