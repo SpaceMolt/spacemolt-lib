@@ -371,6 +371,67 @@ test('reconnectOnce rejects in-flight work and holds a queued mutation until re-
   expect(res.result).toBe('ok');
 });
 
+test('reconnectOnce fails a stranded login left unanswered on the old socket, then re-authenticates cleanly on the new one', async () => {
+  // Regression: reconnectOnce only rejected the correlator, not the
+  // welcomeWaiter/pendingAuth waiting on the old socket. A stranded login
+  // (never answered by the peer) left `pendingAuth` occupied, so
+  // reconnectOnce's own login attempt on the new socket found `beginAuth`
+  // already claimed and rejected with `auth_in_progress` -- while the old,
+  // stranded login promise resolved instead, off the new socket's reply.
+  const sockets: MockSocket[] = [];
+  let first = true;
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url, first ? { deferClose: true } : {});
+    first = false;
+    sockets.push(s);
+    return s;
+  };
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+  });
+  const cp = account.connect();
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  // Never answered on the old (deferClose) socket.
+  const strandedLogin = account.login({ username: 'Nova', password: 'pw' });
+  strandedLogin.catch(() => {});
+
+  const reconnectP = account.reconnectOnce();
+  await tick();
+  serveAuth(requireValue(sockets[1]));
+  await reconnectP;
+
+  await expect(strandedLogin).rejects.toThrow(ConnectionClosedError);
+  expect(account.authenticated).toBe(true);
+});
+
+test('a second concurrent login() rejects with auth_in_progress and sends no frame', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false });
+  const cp = account.connect();
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  // No onClientSend handler -- the first login is left unanswered/in-flight.
+  const firstLogin = account.login({ username: 'Nova', password: 'pw' });
+  firstLogin.catch(() => {});
+
+  const sentBefore = socket.sent.length;
+  try {
+    await account.login({ username: 'Nova', password: 'pw2' });
+    throw new Error('expected login() to reject');
+  } catch (err) {
+    expect(err).toBeInstanceOf(SpacemoltError);
+    expect((err as SpacemoltError).code).toBe('auth_in_progress');
+  }
+  expect(socket.sent.length).toBe(sentBefore); // the rejected attempt sent no frame
+});
+
 test('reconnectOnce still re-seeds the state cache on the new socket', async () => {
   // The post-auth get_status seed runs inside authenticate(), i.e. inside the
   // reconnect window. The reconnect send guard must let it through once the

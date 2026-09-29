@@ -602,15 +602,16 @@ export class Account {
 
   /** Register a new account; resolves with the generated credentials + state. */
   async register(params: RegisterParams): Promise<RegisterResult> {
+    let accepted = false;
     const registerPromise = new Promise<RegisterResult>((resolve, reject) => {
-      this.beginAuth((state, registered) => {
+      accepted = this.beginAuth((state, registered) => {
         if (!registered) {
           reject(new SpacemoltError('missing_credentials', 'register succeeded but no credentials frame was received'));
           return;
         }
         resolve({ password: registered.password, player_id: registered.player_id, state });
       }, reject);
-      this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
+      if (accepted) this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
     });
     let result: RegisterResult;
     try {
@@ -620,7 +621,11 @@ export class Account {
         `No register response received within ${this.connectTimeoutMs}ms`,
       );
     } catch (err) {
-      this.pendingAuth = null;
+      // Only clear `pendingAuth` if this call is the one that claimed it — a
+      // rejected `beginAuth` (another exchange already in flight) never
+      // touched it, and clearing it here would strand that other exchange's
+      // own resolution.
+      if (accepted) this.pendingAuth = null;
       throw err;
     }
     this._loginPayload = result.state;
@@ -1286,9 +1291,10 @@ export class Account {
     action: 'login' | 'login_token',
     payload: Record<string, unknown>,
   ): Promise<LoggedInPayload> {
+    let accepted = false;
     const authPromise = new Promise<LoggedInPayload>((resolve, reject) => {
-      this.beginAuth(resolve, reject);
-      this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
+      accepted = this.beginAuth(resolve, reject);
+      if (accepted) this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
     });
     let state: LoggedInPayload;
     try {
@@ -1298,7 +1304,11 @@ export class Account {
         `No auth response received within ${this.connectTimeoutMs}ms`,
       );
     } catch (err) {
-      this.pendingAuth = null;
+      // Only clear `pendingAuth` if this call is the one that claimed it — a
+      // rejected `beginAuth` (another exchange already in flight) never
+      // touched it, and clearing it here would strand that other exchange's
+      // own resolution.
+      if (accepted) this.pendingAuth = null;
       throw err;
     }
     this._loginPayload = state;
@@ -1317,19 +1327,21 @@ export class Account {
     }
   }
 
+  /** Returns whether the auth exchange was accepted — a caller must not send its frame when it wasn't. */
   private beginAuth(
     onLoggedIn: (state: LoggedInPayload, registered?: RegisteredFrame['payload']) => void,
     onError: (err: Error) => void,
-  ): void {
+  ): boolean {
     if (this.pendingAuth) {
       onError(new SpacemoltError('auth_in_progress', 'another auth exchange is already in flight'));
-      return;
+      return false;
     }
     if (this._authenticated) {
       onError(new SpacemoltError('already_authenticated', 'this connection is already authenticated'));
-      return;
+      return false;
     }
     this.pendingAuth = { onLoggedIn, onError };
+    return true;
   }
 
   private sendFrame(
@@ -1497,13 +1509,18 @@ export class Account {
     console.warn(`[spacemolt] dropped malformed ${frame.type} frame`);
   }
 
-  private handleClose(err: ConnectionClosedError): void {
+  /**
+   * Fails everything waiting on the current socket: in-flight correlator
+   * entries (query/mutate), a pending `welcome` wait, and a pending auth
+   * exchange (`login`/`register`/`loginToken`). Deliberately excludes
+   * `emitter.closeStreams()` — a player's event async iterators must survive
+   * a reconnect, so only `handleClose` (a real, final close) tears those
+   * down. Shared by `handleClose` and `reconnectOnce`, which both strand
+   * work on a socket that's going away.
+   */
+  private failPendingWork(err: ConnectionClosedError): void {
     this._authenticated = false;
     this.correlator.rejectAll(err);
-    this.emitter.closeStreams();
-    // Reject with the original err (not a wrapped SpacemoltError) so its
-    // code/reason survive — e.g. a 4003 connection_rate_limited close's
-    // retry_after hint, which reconnectLoop/client.connect() honor.
     if (this.welcomeWaiter) {
       const waiter = this.welcomeWaiter;
       this.welcomeWaiter = null;
@@ -1514,6 +1531,14 @@ export class Account {
       this.pendingAuth = null;
       auth.onError(err);
     }
+  }
+
+  private handleClose(err: ConnectionClosedError): void {
+    // Reject with the original err (not a wrapped SpacemoltError) so its
+    // code/reason survive — e.g. a 4003 connection_rate_limited close's
+    // retry_after hint, which reconnectLoop/client.connect() honor.
+    this.failPendingWork(err);
+    this.emitter.closeStreams();
     // A reconnect loop is running: each of its attempts wires a fresh socket
     // back here, so an attempt's close lands in this handler. The loop owns
     // the terminal decision — reporting it here would fire `onDisconnected`
@@ -1612,25 +1637,31 @@ export class Account {
     this.socket.close();
     // The old socket's close event is ignored once makeSocket below replaces
     // `this.socket` (the identity guard in makeSocket), so handleClose never
-    // runs for it and anything still in flight on it would otherwise hang
-    // until its own timeout. Reject those now, before the new socket exists,
-    // so nothing sent on it is caught up in this.
+    // runs for it and anything still in flight on it -- a query/mutation, a
+    // stranded `welcome` wait, a stranded login/register -- would otherwise
+    // hang until its own timeout. `failPendingWork` (shared with handleClose)
+    // rejects all of it now, before the new socket exists, so nothing sent on
+    // it is caught up in this and, critically, `pendingAuth` is free before
+    // `authenticate` below tries to claim it -- otherwise that call finds
+    // `beginAuth` already occupied by the stranded attempt and rejects with
+    // `auth_in_progress` while the stranded promise resolves later off the
+    // new socket's reply instead.
     //
-    // Clear `_authenticated` first: rejecting a mutation's correlator entry
-    // frees `enqueueMutation`'s lane, so a queued mutation's task can run on
-    // the very next microtask — before `makeSocket`/`authenticate` below have
-    // run. `sendFrame`'s guard (reconnectPending && !_authenticated) is what
-    // stops it from reaching the new, not-yet-authenticated socket instead of
-    // hanging on it; the guard lifts at logged_in, so the post-auth seed runs.
+    // `failPendingWork` clears `_authenticated` first: rejecting a mutation's
+    // correlator entry frees `enqueueMutation`'s lane, so a queued mutation's
+    // task can run on the very next microtask -- before `makeSocket`/
+    // `authenticate` below have run. `sendFrame`'s guard (reconnectPending &&
+    // !_authenticated) is what stops it from reaching the new, not-yet-
+    // authenticated socket instead of hanging on it; the guard lifts at
+    // logged_in, so the post-auth seed runs.
     //
     // `reconnectPending` is a narrower guard than "not authenticated" — it's
     // only true for this window, so it can't reject a query/mutation any
     // other caller (including tests that drive query/mutate directly,
     // without a full auth handshake) legitimately sends on a connection this
     // method never touched.
-    this._authenticated = false;
     this.reconnectPending = true;
-    this.correlator.rejectAll(new ConnectionClosedError('account is reconnecting'));
+    this.failPendingWork(new ConnectionClosedError('account is reconnecting'));
     try {
       this.makeSocket();
       await this.open();
