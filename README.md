@@ -316,9 +316,12 @@ const { stations } = await fetchStations('https://game.spacemolt.com');
 const { system } = await fetchMobileBase('https://game.spacemolt.com'); // the moving capital
 ```
 
-Every one of these fetches is bounded by a timeout, retries a transient
-`429`/`503` a few times (honoring `Retry-After`), and throws a typed
-`HttpError` (`status`/`url`/`attempts`/`retryAfterMs`) on failure.
+Every one of these fetches is bounded by a timeout (covering the response
+body, not just the headers), retries a transient `429`/`503` a few times
+(honoring `Retry-After`, jittered), and throws a typed `HttpError`
+(`status`/`url`/`attempts`/`retryAfterMs`) on a retry-exhausted or otherwise
+non-ok response. A timeout or network error throws the native error
+(`DOMException`/`TypeError`) instead — it's not an `HttpError`.
 
 With a client, the same data is `client.catalog()`, `client.map()`,
 `client.stations()` and `client.mobileBase()`. To observe HTTP traffic

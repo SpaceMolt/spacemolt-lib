@@ -45,6 +45,7 @@ import type {
 } from './protocol.ts';
 import { isActionResultFrame, isErrorFrame, isLoggedInFrame, isRegisteredFrame, isWelcomeFrame } from './protocol.ts';
 import { isRecord } from './validation.ts';
+import { jitteredDelayMs } from './jitter.ts';
 import { StateCache } from './state/cache.ts';
 import { Correlator } from './transport/correlator.ts';
 import { Socket, type WebSocketFactory } from './transport/socket.ts';
@@ -326,15 +327,6 @@ function retryAfterMs(err: SpacemoltError): number {
   const match = err.message.match(/retry in (\d+)\s*second/i);
   const seconds = fromDetails ?? (match ? Number(match[1]) : undefined);
   return Math.max(250, (seconds ?? 1) * 1000);
-}
-
-/**
- * Adds random jitter to a rate-limit retry delay, so accounts rate-limited
- * together (e.g. a fleet sharing a per-IP budget) don't all wake up and retry
- * in the same instant. Extra is uniform in `[0, max(25% of base, 250ms))`.
- */
-function jitteredDelayMs(baseMs: number): number {
-  return baseMs + Math.random() * Math.max(baseMs * 0.25, 250);
 }
 
 /** Payload field names carrying a secret in a `spacemolt_auth` frame — never handed to `onSend` unredacted. */

@@ -285,7 +285,7 @@ test('httpGet times out and does not retry', async () => {
       );
     });
   }) as typeof fetch;
-  expect(httpGet('https://game.spacemolt.com/api/map', { fetchImpl, timeoutMs: 5 })).rejects.toThrow();
+  await expect(httpGet('https://game.spacemolt.com/api/map', { fetchImpl, timeoutMs: 5 })).rejects.toThrow();
 });
 
 test('httpGet retries a 429 (honoring Retry-After seconds) then succeeds', async () => {
@@ -304,10 +304,19 @@ test('httpGet retries a 429 (honoring Retry-After seconds) then succeeds', async
 
 test('httpGet honors a Retry-After HTTP-date', async () => {
   let calls = 0;
+  let expectedWaitMs = 0;
   const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
     calls++;
     if (calls === 1) {
-      const retryAt = new Date(Date.now() + 10).toUTCString();
+      // A little in the future, not just 10ms -- with an assertion of
+      // `>= 0` (the previous version of this test) always passing even with
+      // no wait at all, this needs an actual gap to prove the wait was
+      // honored, not skipped.
+      const retryAt = new Date(Date.now() + 1200).toUTCString();
+      // HTTP-date has 1-second resolution, so what httpGet actually parses
+      // back out can be up to ~1s short of the 1200ms requested here —
+      // compute the same way it does, and assert against that.
+      expectedWaitMs = Math.max(0, Date.parse(retryAt) - Date.now());
       return new Response(null, {
         status: 503,
         statusText: 'Service Unavailable',
@@ -319,9 +328,12 @@ test('httpGet honors a Retry-After HTTP-date', async () => {
   const start = Date.now();
   const res = await httpGet('https://game.spacemolt.com/x', { fetchImpl });
   expect(calls).toBe(2);
-  expect(Date.now() - start).toBeGreaterThanOrEqual(0);
+  // Jitter only adds to the wait, never subtracts, so the elapsed time
+  // should be at least the parsed Retry-After (small tolerance for
+  // measurement overhead).
+  expect(Date.now() - start).toBeGreaterThanOrEqual(expectedWaitMs - 20);
   expect(await res.json()).toEqual({ ok: true });
-});
+}, 3000);
 
 test('httpGet throws a typed HttpError once retries are exhausted', async () => {
   let calls = 0;
@@ -362,7 +374,7 @@ test('httpGet lets a non-retryable status through as HttpError immediately', asy
     calls++;
     return new Response(null, { status: 404, statusText: 'Not Found' });
   }) as typeof fetch;
-  expect(httpGet('https://game.spacemolt.com/x', { fetchImpl })).rejects.toThrow(
+  await expect(httpGet('https://game.spacemolt.com/x', { fetchImpl })).rejects.toThrow(
     'GET https://game.spacemolt.com/x -> 404 Not Found',
   );
   expect(calls).toBe(1);
