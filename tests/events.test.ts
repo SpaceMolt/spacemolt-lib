@@ -620,3 +620,30 @@ test('a throwing onSend/onReceive hook does not stop the frame being sent or rou
   expect(res.result).toBe('ok'); // routing (correlator.handle) still ran despite onReceive throwing
   expect(received).toEqual(['welcome', 'result']);
 });
+
+test('onSend redacts password/token from a spacemolt_auth frame, but the frame actually sent is untouched', async () => {
+  const { factory, sockets } = mockFactory();
+  const seenPayloads: Array<Record<string, unknown> | undefined> = [];
+  const account = new Account({
+    url: 'ws://m/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    onSend: (f) => seenPayloads.push(f.payload),
+  });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'login') {
+      s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+    }
+  };
+  await account.login({ username: 'Nova', password: 'super-secret' });
+
+  // The hook sees the password redacted...
+  expect(seenPayloads).toEqual([{ username: 'Nova', password: '[redacted]' }]);
+  // ...but the frame actually sent over the wire still carries it.
+  expect(socket.sent[0]?.payload).toEqual({ username: 'Nova', password: 'super-secret' });
+});

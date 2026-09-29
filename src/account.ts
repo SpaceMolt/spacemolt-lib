@@ -89,7 +89,12 @@ export interface AccountOptions {
   url?: string;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
   webSocketFactory?: WebSocketFactory;
-  /** Observe every outbound frame (logging/review). Fires before it is sent. */
+  /**
+   * Observe every outbound frame (logging/review). Fires before it is sent.
+   * A `spacemolt_auth` register/login/login_token frame's password, token,
+   * or registration_code is replaced with `'[redacted]'` before this fires —
+   * the frame actually sent to the server is unaffected.
+   */
   onSend?: (frame: InboundFrame) => void;
   /** Observe every parsed inbound frame (logging/review). Fires before routing. */
   onReceive?: (frame: RawFrame) => void;
@@ -330,6 +335,28 @@ function retryAfterMs(err: SpacemoltError): number {
  */
 function jitteredDelayMs(baseMs: number): number {
   return baseMs + Math.random() * Math.max(baseMs * 0.25, 250);
+}
+
+/** Payload field names carrying a secret in a `spacemolt_auth` frame — never handed to `onSend` unredacted. */
+const AUTH_SECRET_PAYLOAD_FIELDS = new Set(['password', 'token', 'registration_code']);
+
+/**
+ * Redacts secret fields from a `spacemolt_auth` frame before it reaches
+ * `onSend` — `register`/`login`/`login_token` payloads carry a password,
+ * token, or registration code. Other fields (e.g. `username`) are left as-is
+ * so a log is still useful. Frames for every other tool pass through
+ * untouched; the frame actually sent to the socket is never modified.
+ */
+function redactForOnSend(frame: InboundFrame): InboundFrame {
+  if (frame.tool !== 'spacemolt_auth' || !isRecord(frame.payload)) return frame;
+  let redacted: Record<string, unknown> | undefined;
+  for (const field of AUTH_SECRET_PAYLOAD_FIELDS) {
+    if (field in frame.payload) {
+      redacted ??= { ...frame.payload };
+      redacted[field] = '[redacted]';
+    }
+  }
+  return redacted ? { ...frame, payload: redacted } : frame;
 }
 
 function requireStructuredContent<T>(result: QueryResult<T>, command: string): T {
@@ -1315,7 +1342,7 @@ export class Account {
       throw new ConnectionClosedError('cannot send: account is reconnecting');
     }
     const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
-    this.callHook(this.onSend, 'onSend', frame);
+    this.callHook(this.onSend, 'onSend', redactForOnSend(frame));
     this.socket.send(frame);
   }
 
