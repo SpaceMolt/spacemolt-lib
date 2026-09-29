@@ -430,6 +430,17 @@ test('a second concurrent login() rejects with auth_in_progress and sends no fra
     expect((err as SpacemoltError).code).toBe('auth_in_progress');
   }
   expect(socket.sent.length).toBe(sentBefore); // the rejected attempt sent no frame
+
+  // The rejected attempt must not have cleared the first login's pending state:
+  // its logged_in still resolves it.
+  const loginFrame = requireValue(socket.sent.find((f) => f.action === 'login'));
+  socket.serverSend({
+    type: 'logged_in',
+    request_id: loginFrame.request_id,
+    payload: { player: { username: 'Nova' } },
+  });
+  await firstLogin;
+  expect(account.authenticated).toBe(true);
 });
 
 test('reconnectOnce still re-seeds the state cache on the new socket', async () => {
