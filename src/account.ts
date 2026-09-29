@@ -377,7 +377,11 @@ function redactForOnReceive(frame: RawFrame): RawFrame {
   }
   if (frame.type === 'result' && isRecord(frame.payload)) {
     const { structuredContent } = frame.payload;
-    if (isRecord(structuredContent) && typeof structuredContent.device_code === 'string') {
+    if (
+      isRecord(structuredContent) &&
+      typeof structuredContent.device_code === 'string' &&
+      structuredContent.device_code
+    ) {
       const code = structuredContent.device_code;
       const result =
         typeof frame.payload.result === 'string' && frame.payload.result.includes(code)
@@ -425,7 +429,8 @@ export class Account {
   private _welcome: WelcomeFrame['payload'] | null = null;
   private _authenticated = false;
   // True only for `reconnectOnce`'s socket-swap-to-re-auth window — see there.
-  private reconnectPending = false;
+  /** How many `reconnectOnce` calls are mid-swap; a count, so overlapping calls can't lift each other's guard. */
+  private reconnectsPending = 0;
   private _loginPayload: LoggedInPayload | null = null;
   private _currentTick = 0;
   private _commands: Commands | null = null;
@@ -1402,7 +1407,7 @@ export class Account {
     // sent on a connection `reconnectOnce` never touched. Lifts as soon as the
     // new socket logs in, so the post-auth `get_status` seed still goes out.
     const isAuthHandshake = tool === 'spacemolt_auth' && action !== 'logout';
-    if (this.reconnectPending && !this._authenticated && !isAuthHandshake) {
+    if (this.reconnectsPending > 0 && !this._authenticated && !isAuthHandshake) {
       throw new ConnectionClosedError('cannot send: account is reconnecting');
     }
     const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
@@ -1693,17 +1698,17 @@ export class Account {
     // `failPendingWork` clears `_authenticated` first: rejecting a mutation's
     // correlator entry frees `enqueueMutation`'s lane, so a queued mutation's
     // task can run on the very next microtask -- before `makeSocket`/
-    // `authenticate` below have run. `sendFrame`'s guard (reconnectPending &&
+    // `authenticate` below have run. `sendFrame`'s guard (reconnectsPending &&
     // !_authenticated) is what stops it from reaching the new, not-yet-
     // authenticated socket instead of hanging on it; the guard lifts at
     // logged_in, so the post-auth seed runs.
     //
-    // `reconnectPending` is a narrower guard than "not authenticated" — it's
+    // `reconnectsPending` is a narrower guard than "not authenticated" — it's
     // only true for this window, so it can't reject a query/mutation any
     // other caller (including tests that drive query/mutate directly,
     // without a full auth handshake) legitimately sends on a connection this
     // method never touched.
-    this.reconnectPending = true;
+    this.reconnectsPending++;
     this.failPendingWork(new ConnectionClosedError('account is reconnecting'));
     try {
       this.makeSocket();
@@ -1712,7 +1717,7 @@ export class Account {
       await this.authenticate(await this.credentialsProvider());
       stopIfClosed();
     } finally {
-      this.reconnectPending = false;
+      this.reconnectsPending--;
     }
     await this.resubscribe();
   }

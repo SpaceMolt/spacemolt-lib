@@ -74,11 +74,11 @@ export async function httpGet(url: string, opts: HttpGetOptions = {}): Promise<R
     const retryable = (res.status === 429 || res.status === 503) && totalBaseWaitMs + baseWaitMs <= maxRetryWaitMs;
     if (retryable && attempt <= MAX_RETRIES) {
       totalBaseWaitMs += baseWaitMs;
-      await res.body?.cancel();
+      await res.body?.cancel().catch(() => {});
       await delay(jitteredDelayMs(baseWaitMs));
       continue;
     }
-    await res.body?.cancel();
+    await res.body?.cancel().catch(() => {});
     throw new HttpError(`GET ${url} -> ${res.status} ${res.statusText}`, {
       status: res.status,
       url,

@@ -441,3 +441,13 @@ test('client.stations() and client.mobileBase() use the client-level fetchImpl',
   expect((await client.stations()).stations).toEqual([]);
   expect(seen).toEqual(['https://game.spacemolt.com/wheres-mobile-base', 'https://game.spacemolt.com/api/stations']);
 });
+
+test('an HttpError still surfaces when a fetchImpl wrapper already read the body', async () => {
+  const fetchImpl = (async () => {
+    const res = new Response('nope', { status: 404, statusText: 'Not Found' });
+    await res.text(); // e.g. a wrapper measuring bytes without clone()
+    return res;
+  }) as unknown as typeof fetch;
+  const err = await httpGet('https://game.spacemolt.com/x', { fetchImpl }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(HttpError);
+});

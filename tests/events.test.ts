@@ -759,3 +759,27 @@ test('onReceive redacts device_code from a login_link result frame (both structu
   // ...but the actually-resolved query result still carries the real code.
   expect(res.structuredContent?.device_code).toBe('FRESH-CODE-123');
 });
+
+test('onReceive leaves the result text alone when device_code is empty', async () => {
+  const { factory, sockets } = mockFactory();
+  const receivedPayloads: unknown[] = [];
+  const account = new Account({
+    url: 'ws://m/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    onReceive: (f) => {
+      if (f.type === 'result') receivedPayloads.push(f.payload);
+    },
+  });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+
+  const req = account.query('spacemolt_auth', 'login_link');
+  const sent = requireValue(socket.sent[0], 'expected a sent frame');
+  const payload = { result: 'Open https://ex/link', structuredContent: { device_code: '' } };
+  socket.serverSend({ type: 'result', request_id: sent.request_id, payload });
+  await req;
+  expect(receivedPayloads).toEqual([payload]);
+});
