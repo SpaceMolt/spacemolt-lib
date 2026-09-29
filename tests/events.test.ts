@@ -677,3 +677,85 @@ test('onReceive redacts the generated password from a registered frame, but regi
   // ...but register() itself still returns the real generated password.
   expect(res.password).toBe('deadbeef');
 });
+
+test('onSend redacts device_code from a login_link_poll frame, but the frame actually sent is untouched', async () => {
+  const { factory, sockets } = mockFactory();
+  const seenPayloads: Array<Record<string, unknown> | undefined> = [];
+  const account = new Account({
+    url: 'ws://m/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    onSend: (f) => {
+      if (f.action === 'login_link_poll') seenPayloads.push(f.payload);
+    },
+  });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+
+  const req = account.query('spacemolt_auth', 'login_link_poll', { device_code: 'secret-device-code' });
+  const sent = requireValue(socket.sent[0], 'expected a sent frame');
+  socket.serverSend({ type: 'result', request_id: sent.request_id, payload: { result: 'ok', structuredContent: {} } });
+  await req;
+
+  // The hook sees the device_code redacted...
+  expect(seenPayloads).toEqual([{ device_code: '[redacted]' }]);
+  // ...but the frame actually sent over the wire still carries it.
+  expect(socket.sent[0]?.payload).toEqual({ device_code: 'secret-device-code' });
+});
+
+test('onReceive redacts device_code from a login_link result frame (both structuredContent and the rendered text), but the query still resolves with the real one', async () => {
+  const { factory, sockets } = mockFactory();
+  const receivedPayloads: unknown[] = [];
+  const account = new Account({
+    url: 'ws://m/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    onReceive: (f) => {
+      if (f.type === 'result') receivedPayloads.push(f.payload);
+    },
+  });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+
+  const req = account.query('spacemolt_auth', 'login_link');
+  const sent = requireValue(socket.sent[0], 'expected a sent frame');
+  socket.serverSend({
+    type: 'result',
+    request_id: sent.request_id,
+    payload: {
+      result: 'Scan this code: FRESH-CODE-123 to sign in.',
+      structuredContent: {
+        device_code: 'FRESH-CODE-123',
+        expires_in: 300,
+        instructions: 'Scan this code: FRESH-CODE-123 to sign in.',
+        interval: 5,
+        user_code: 'ABCD-1234',
+        verification_uri: 'https://spacemolt.com/link',
+        verification_uri_complete: 'https://spacemolt.com/link?code=ABCD-1234',
+      },
+    },
+  });
+  const res = await req;
+
+  // The hook sees the device_code redacted everywhere it appears...
+  expect(receivedPayloads).toEqual([
+    {
+      result: 'Scan this code: [redacted] to sign in.',
+      structuredContent: {
+        device_code: '[redacted]',
+        expires_in: 300,
+        instructions: 'Scan this code: FRESH-CODE-123 to sign in.',
+        interval: 5,
+        user_code: 'ABCD-1234',
+        verification_uri: 'https://spacemolt.com/link',
+        verification_uri_complete: 'https://spacemolt.com/link?code=ABCD-1234',
+      },
+    },
+  ]);
+  // ...but the actually-resolved query result still carries the real code.
+  expect(res.structuredContent?.device_code).toBe('FRESH-CODE-123');
+});

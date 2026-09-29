@@ -92,16 +92,18 @@ export interface AccountOptions {
   webSocketFactory?: WebSocketFactory;
   /**
    * Observe every outbound frame (logging/review). Fires before it is sent.
-   * A `spacemolt_auth` register/login/login_token frame's password, token,
-   * or registration_code is replaced with `'[redacted]'` before this fires —
-   * the frame actually sent to the server is unaffected.
+   * A `spacemolt_auth` frame's `password`, `token`, `registration_code`, or
+   * `device_code` (from `login_link_poll`) is replaced with `'[redacted]'`
+   * before this fires — the frame actually sent to the server is unaffected.
    */
   onSend?: (frame: InboundFrame) => void;
   /**
    * Observe every parsed inbound frame (logging/review). Fires before
    * routing. A `registered` push's `password` (the account's generated
-   * credential) is replaced with `'[redacted]'` before this fires — the
-   * frame that reaches `register()`'s own resolution is unaffected.
+   * credential), and a `result` frame's `device_code` (`login_link`'s
+   * response), are replaced with `'[redacted]'` before this fires — the
+   * frame that reaches `register()`'s/the correlator's own resolution is
+   * unaffected.
    */
   onReceive?: (frame: RawFrame) => void;
   /**
@@ -335,14 +337,16 @@ function retryAfterMs(err: SpacemoltError): number {
 }
 
 /** Payload field names carrying a secret in a `spacemolt_auth` frame — never handed to `onSend` unredacted. */
-const AUTH_SECRET_PAYLOAD_FIELDS = new Set(['password', 'token', 'registration_code']);
+const AUTH_SECRET_PAYLOAD_FIELDS = new Set(['password', 'token', 'registration_code', 'device_code']);
 
 /**
  * Redacts secret fields from a `spacemolt_auth` frame before it reaches
  * `onSend` — `register`/`login`/`login_token` payloads carry a password,
- * token, or registration code. Other fields (e.g. `username`) are left as-is
- * so a log is still useful. Frames for every other tool pass through
- * untouched; the frame actually sent to the socket is never modified.
+ * token, or registration code, and `login_link_poll` carries the device code
+ * (whoever holds it gets the session once the human approves, so it's a
+ * credential too). Other fields (e.g. `username`) are left as-is so a log is
+ * still useful. Frames for every other tool pass through untouched; the
+ * frame actually sent to the socket is never modified.
  */
 function redactForOnSend(frame: InboundFrame): InboundFrame {
   if (frame.tool !== 'spacemolt_auth' || !isRecord(frame.payload)) return frame;
@@ -357,14 +361,35 @@ function redactForOnSend(frame: InboundFrame): InboundFrame {
 }
 
 /**
- * Redacts the generated password from a `registered` frame before it reaches
- * `onReceive` — mirrors `redactForOnSend`, but for the one push that carries
- * a secret inbound. The real frame (with the real password) is still what
- * routes to `pendingAuth`/`register()`.
+ * Redacts secrets from an inbound frame before it reaches `onReceive` —
+ * mirrors `redactForOnSend`, but for the two pushes that carry a secret
+ * inbound: the `registered` frame's generated `password`, and a `result`
+ * frame's `device_code` (`login_link`'s response carries a fresh one, in both
+ * `structuredContent.device_code` and, when present, the same value inlined
+ * in the rendered `result` text). Keyed off the field name rather than the
+ * command, so it applies to any `result` frame that happens to carry one,
+ * not a hand-maintained command list. The real frame (with the real secret)
+ * is still what routes to `pendingAuth`/`register()`/the correlator.
  */
 function redactForOnReceive(frame: RawFrame): RawFrame {
-  if (frame.type !== 'registered' || !isRecord(frame.payload) || !('password' in frame.payload)) return frame;
-  return { ...frame, payload: { ...frame.payload, password: '[redacted]' } };
+  if (frame.type === 'registered' && isRecord(frame.payload) && 'password' in frame.payload) {
+    return { ...frame, payload: { ...frame.payload, password: '[redacted]' } };
+  }
+  if (frame.type === 'result' && isRecord(frame.payload)) {
+    const { structuredContent } = frame.payload;
+    if (isRecord(structuredContent) && typeof structuredContent.device_code === 'string') {
+      const code = structuredContent.device_code;
+      const result =
+        typeof frame.payload.result === 'string' && frame.payload.result.includes(code)
+          ? frame.payload.result.split(code).join('[redacted]')
+          : frame.payload.result;
+      return {
+        ...frame,
+        payload: { ...frame.payload, result, structuredContent: { ...structuredContent, device_code: '[redacted]' } },
+      };
+    }
+  }
+  return frame;
 }
 
 function requireStructuredContent<T>(result: QueryResult<T>, command: string): T {
