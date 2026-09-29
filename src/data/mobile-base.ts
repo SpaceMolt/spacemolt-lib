@@ -1,5 +1,5 @@
 import type { MobileBaseLocation } from '../generated/openapi/types.gen.ts';
-import { httpGet } from './http.ts';
+import { type FetchOptions, httpGet } from './http.ts';
 import { requireRecord } from '../validation.ts';
 
 /**
@@ -13,12 +13,13 @@ import { requireRecord } from '../validation.ts';
  */
 
 /** Fetch the mobile base's current system id. Pass `fetchImpl` to inject a `fetch` (tests, observability). */
-export async function fetchMobileBase(
-  httpBaseUrl: string,
-  opts: { fetchImpl?: typeof fetch } = {},
-): Promise<MobileBaseLocation> {
+export async function fetchMobileBase(httpBaseUrl: string, opts: FetchOptions = {}): Promise<MobileBaseLocation> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/wheres-mobile-base`;
-  const res = await httpGet(url, { headers: { accept: 'application/json' }, fetchImpl: opts.fetchImpl });
+  const res = await httpGet(url, {
+    headers: { accept: 'application/json' },
+    fetchImpl: opts.fetchImpl,
+    timeoutMs: opts.timeoutMs,
+  });
   const data = requireRecord(await res.json(), 'mobile base response');
   if (typeof data.system !== 'string') throw new Error('mobile base response is missing a system id');
   return { system: data.system };

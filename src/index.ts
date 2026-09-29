@@ -62,6 +62,7 @@ export {
   type CatalogShip,
   type CatalogSkill,
 } from './data/catalog.ts';
+export type { FetchOptions } from './data/http.ts';
 export { MapCache, fetchMap, httpBaseFromWs, type GalaxyMap, type MapSystem } from './data/map.ts';
 export { fetchStations, type StationEmpire, type StationList, type StationSummary } from './data/stations.ts';
 export { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';

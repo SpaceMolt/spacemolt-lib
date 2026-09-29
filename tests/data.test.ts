@@ -451,3 +451,20 @@ test('an HttpError still surfaces when a fetchImpl wrapper already read the body
   const err = await httpGet('https://game.spacemolt.com/x', { fetchImpl }).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(HttpError);
 });
+
+test('client httpTimeoutMs reaches the data fetches', async () => {
+  const fetchImpl = (async (_url: string | URL, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'TimeoutError')));
+    })) as typeof fetch;
+  const client = new SpacemoltClient({ url: 'wss://game.spacemolt.com/ws/v2', fetchImpl, httpTimeoutMs: 20 });
+  const started = Date.now();
+  let err: unknown;
+  try {
+    await client.stations();
+  } catch (e) {
+    err = e;
+  }
+  expect(err).toBeInstanceOf(DOMException);
+  expect(Date.now() - started).toBeLessThan(1000);
+}, 2000);

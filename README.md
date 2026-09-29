@@ -320,8 +320,9 @@ const { stations } = await fetchStations('https://game.spacemolt.com');
 const { system } = await fetchMobileBase('https://game.spacemolt.com'); // the moving capital
 ```
 
-Every one of these fetches is bounded by a timeout (covering the response
-body, not just the headers), retries a transient `429`/`503` a few times
+Every one of these fetches is bounded by a timeout (30s by default, covering the
+response body, not just the headers; pass `{ timeoutMs }`, or `httpTimeoutMs` on
+the client, to change it — the catalog is several MB), retries a transient `429`/`503` a few times
 (honoring `Retry-After`, jittered), and throws a typed `HttpError`
 (`status`/`url`/`attempts`/`retryAfterMs`) on a retry-exhausted or otherwise
 non-ok response. A timeout or network error throws the native error

@@ -29,6 +29,14 @@ function parseRetryAfterMs(header: string | null): number | undefined {
   return Number.isNaN(dateMs) ? undefined : Math.max(0, dateMs - Date.now());
 }
 
+/** Options every public data fetcher accepts. */
+export interface FetchOptions {
+  /** Inject a `fetch` implementation (tests, observability). Defaults to global `fetch`. */
+  fetchImpl?: typeof fetch;
+  /** Abort each request after this many ms, body included. Default 30000. */
+  timeoutMs?: number;
+}
+
 export interface HttpGetOptions {
   headers?: Record<string, string>;
   /** Abort the request after this many ms (`AbortSignal.timeout`). Default 30000. */
