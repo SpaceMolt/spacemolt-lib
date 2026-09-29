@@ -368,6 +368,25 @@ test('httpGet throws instead of sleeping through a long Retry-After', async () =
   expect(calls).toBe(1);
 });
 
+test('httpGet caps the total (cumulative) base retry wait, not just each attempt individually', async () => {
+  // Each Retry-After (1s) is well under maxRetryWaitMs (1.5s) on its own, so
+  // a per-attempt-only cap would keep retrying (up to MAX_RETRIES=3, 4
+  // calls). The cumulative cap must stop once the running total would
+  // exceed maxRetryWaitMs: attempt 1's wait (0 + 1000 <= 1500) is allowed,
+  // but attempt 2's (1000 + 1000 = 2000 > 1500) is not -- 2 calls, not 4.
+  let calls = 0;
+  const fetchImpl = (async () => {
+    calls++;
+    return new Response(null, { status: 429, statusText: 'Too Many Requests', headers: { 'retry-after': '1' } });
+  }) as unknown as typeof fetch;
+  const err = await httpGet('https://game.spacemolt.com/x', { fetchImpl, maxRetryWaitMs: 1500 }).catch(
+    (e: unknown) => e,
+  );
+  expect(err).toBeInstanceOf(HttpError);
+  expect((err as HttpError).attempts).toBe(2);
+  expect(calls).toBe(2);
+}, 3000);
+
 test('httpGet lets a non-retryable status through as HttpError immediately', async () => {
   let calls = 0;
   const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {

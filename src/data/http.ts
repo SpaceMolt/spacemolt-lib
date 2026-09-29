@@ -10,6 +10,8 @@ import { jitteredDelayMs } from '../jitter.ts';
  * `jitteredDelayMs`), and reports a retry-exhausted or otherwise non-ok
  * response as a typed `HttpError`. A timeout or network error is not an
  * `HttpError` — it throws the native `DOMException`/`TypeError` as-is.
+ * `MAX_RETRY_WAIT_MS` caps the *total* base wait across every attempt, not
+ * each attempt checked in isolation.
  */
 
 const MAX_RETRIES = 3;
@@ -40,6 +42,13 @@ export interface HttpGetOptions {
   fetchImpl?: typeof fetch;
   /** Response statuses besides 2xx to return rather than treat as a failure (e.g. 304). */
   okStatuses?: readonly number[];
+  /**
+   * Total (un-jittered) base retry wait allowed across every attempt before
+   * giving up — not re-checked per attempt in isolation. Default
+   * `MAX_RETRY_WAIT_MS` (60000). Mainly for tests that need a small cap to
+   * exercise this without waiting real seconds.
+   */
+  maxRetryWaitMs?: number;
 }
 
 /**
@@ -50,17 +59,21 @@ export interface HttpGetOptions {
  * other non-ok, non-`okStatuses` response throws an `HttpError`.
  */
 export async function httpGet(url: string, opts: HttpGetOptions = {}): Promise<Response> {
-  const { headers, timeoutMs = 30_000, fetchImpl = fetch, okStatuses = [] } = opts;
+  const { headers, timeoutMs = 30_000, fetchImpl = fetch, okStatuses = [], maxRetryWaitMs = MAX_RETRY_WAIT_MS } = opts;
+  let totalBaseWaitMs = 0;
   for (let attempt = 1; ; attempt++) {
     const res = await fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
     if (res.ok || okStatuses.includes(res.status)) return res;
     const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
     const baseWaitMs = retryAfterMs ?? BASE_BACKOFF_MS * 2 ** (attempt - 1);
-    // A long Retry-After is the caller's call to wait out, not ours to sleep
-    // through — checked against the un-jittered base so jitter can't push a
-    // wait just under the limit over it (or vice versa).
-    const retryable = (res.status === 429 || res.status === 503) && baseWaitMs <= MAX_RETRY_WAIT_MS;
+    // The cap is on the total (un-jittered) base wait across every attempt,
+    // not each attempt in isolation — 3 retries of a 60s Retry-After would
+    // otherwise sleep ~3x the cap in total. Checked against the un-jittered
+    // base so jitter can't push a wait just under the limit over it (or vice
+    // versa).
+    const retryable = (res.status === 429 || res.status === 503) && totalBaseWaitMs + baseWaitMs <= maxRetryWaitMs;
     if (retryable && attempt <= MAX_RETRIES) {
+      totalBaseWaitMs += baseWaitMs;
       await res.body?.cancel();
       await delay(jitteredDelayMs(baseWaitMs));
       continue;

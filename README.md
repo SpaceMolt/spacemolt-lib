@@ -324,7 +324,10 @@ body, not just the headers), retries a transient `429`/`503` a few times
 (honoring `Retry-After`, jittered), and throws a typed `HttpError`
 (`status`/`url`/`attempts`/`retryAfterMs`) on a retry-exhausted or otherwise
 non-ok response. A timeout or network error throws the native error
-(`DOMException`/`TypeError`) instead — it's not an `HttpError`.
+(`DOMException`/`TypeError`) instead — it's not an `HttpError`. The 60s
+retry-wait cap is on the *total* base wait summed across every attempt, not
+each attempt checked in isolation — so three retries of a near-the-cap
+`Retry-After` can't add up to several times the cap.
 
 With a client, the same data is `client.catalog()`, `client.map()`,
 `client.stations()` and `client.mobileBase()`. To observe HTTP traffic
