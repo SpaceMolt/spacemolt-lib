@@ -371,6 +371,40 @@ test('reconnectOnce rejects in-flight work and holds a queued mutation until re-
   expect(res.result).toBe('ok');
 });
 
+test('reconnectOnce still re-seeds the state cache on the new socket', async () => {
+  // The post-auth get_status seed runs inside authenticate(), i.e. inside the
+  // reconnect window. The reconnect send guard must let it through once the
+  // new socket has logged in, or every reconnect silently skips the re-seed.
+  const sockets: MockSocket[] = [];
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url, sockets.length === 0 ? { deferClose: true } : {});
+    sockets.push(s);
+    return s;
+  };
+  const serveAuthAndSeed = (socket: MockSocket): void => {
+    socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+    socket.onClientSend = (frame, s) => {
+      if (frame.action === 'login') {
+        s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+      } else if (frame.action === 'get_status') {
+        s.serverSend({ type: 'result', request_id: frame.request_id, payload: {} });
+      }
+    };
+  };
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, credentials: creds() });
+  const cp = account.connect();
+  serveAuthAndSeed(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  const reconnectP = account.reconnectOnce();
+  await tick();
+  const next = requireValue(sockets[1]);
+  serveAuthAndSeed(next);
+  await reconnectP;
+  expect(next.sent.some((f) => f.action === 'get_status')).toBe(true);
+});
+
 // --- connect/auth timeout ---
 //
 // Without a bounded timeout, a connection the server accepts at the WS/TCP

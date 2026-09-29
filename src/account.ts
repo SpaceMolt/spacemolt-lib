@@ -1328,9 +1328,10 @@ export class Account {
     // not-yet-authenticated socket and hang until it times out instead of
     // failing immediately. Scoped to that window specifically (not a general
     // "must be authenticated" rule) so it doesn't reject a query/mutation
-    // sent on a connection `reconnectOnce` never touched.
+    // sent on a connection `reconnectOnce` never touched. Lifts as soon as the
+    // new socket logs in, so the post-auth `get_status` seed still goes out.
     const isAuthHandshake = tool === 'spacemolt_auth' && action !== 'logout';
-    if (this.reconnectPending && !isAuthHandshake) {
+    if (this.reconnectPending && !this._authenticated && !isAuthHandshake) {
       throw new ConnectionClosedError('cannot send: account is reconnecting');
     }
     const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
@@ -1602,8 +1603,9 @@ export class Account {
     // Clear `_authenticated` first: rejecting a mutation's correlator entry
     // frees `enqueueMutation`'s lane, so a queued mutation's task can run on
     // the very next microtask — before `makeSocket`/`authenticate` below have
-    // run. `sendFrame`'s authenticated guard is what stops it from reaching
-    // the new, not-yet-authenticated socket instead of hanging on it.
+    // run. `sendFrame`'s guard (reconnectPending && !_authenticated) is what
+    // stops it from reaching the new, not-yet-authenticated socket instead of
+    // hanging on it; the guard lifts at logged_in, so the post-auth seed runs.
     //
     // `reconnectPending` is a narrower guard than "not authenticated" — it's
     // only true for this window, so it can't reject a query/mutation any
