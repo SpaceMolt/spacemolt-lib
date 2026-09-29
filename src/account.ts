@@ -1561,10 +1561,10 @@ export class Account {
    * Fails everything waiting on the current socket: in-flight correlator
    * entries (query/mutate), a pending `welcome` wait, and a pending auth
    * exchange (`login`/`register`/`loginToken`). Deliberately excludes
-   * `emitter.closeStreams()` — a player's event async iterators must survive
-   * a reconnect, so only `handleClose` (a real, final close) tears those
-   * down. Shared by `handleClose` and `reconnectOnce`, which both strand
-   * work on a socket that's going away.
+   * `emitter.closeStreams()`: `handleClose` (a real close) still ends the
+   * player's event async iterators itself, but a `reconnectOnce` forced on a
+   * live socket leaves them running. Shared by `handleClose` and
+   * `reconnectOnce`, which both strand work on a socket that's going away.
    */
   private failPendingWork(err: ConnectionClosedError): void {
     this._authenticated = false;
