@@ -647,3 +647,33 @@ test('onSend redacts password/token from a spacemolt_auth frame, but the frame a
   // ...but the frame actually sent over the wire still carries it.
   expect(socket.sent[0]?.payload).toEqual({ username: 'Nova', password: 'super-secret' });
 });
+
+test('onReceive redacts the generated password from a registered frame, but register() still resolves with the real one', async () => {
+  const { factory, sockets } = mockFactory();
+  const receivedPayloads: unknown[] = [];
+  const account = new Account({
+    url: 'ws://m/ws/v2',
+    webSocketFactory: factory,
+    seedState: false,
+    onReceive: (f) => {
+      if (f.type === 'registered') receivedPayloads.push(f.payload);
+    },
+  });
+  const connectP = account.connect();
+  const socket = requireValue(sockets[0], 'expected socket');
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'register') {
+      s.serverSend({ type: 'registered', payload: { password: 'deadbeef', player_id: 'plr_1' } });
+      s.serverSend({ type: 'logged_in', payload: { ship: { class_id: 'shuttle' } } });
+    }
+  };
+  const res = await account.register({ username: 'Nova', empire: 'solarian', registration_code: 'code' });
+
+  // The hook sees the password redacted...
+  expect(receivedPayloads).toEqual([{ password: '[redacted]', player_id: 'plr_1' }]);
+  // ...but register() itself still returns the real generated password.
+  expect(res.password).toBe('deadbeef');
+});

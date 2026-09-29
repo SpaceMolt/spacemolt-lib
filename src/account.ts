@@ -97,7 +97,12 @@ export interface AccountOptions {
    * the frame actually sent to the server is unaffected.
    */
   onSend?: (frame: InboundFrame) => void;
-  /** Observe every parsed inbound frame (logging/review). Fires before routing. */
+  /**
+   * Observe every parsed inbound frame (logging/review). Fires before
+   * routing. A `registered` push's `password` (the account's generated
+   * credential) is replaced with `'[redacted]'` before this fires — the
+   * frame that reaches `register()`'s own resolution is unaffected.
+   */
   onReceive?: (frame: RawFrame) => void;
   /**
    * After authenticating, issue a `get_status` query to seed the local state
@@ -349,6 +354,17 @@ function redactForOnSend(frame: InboundFrame): InboundFrame {
     }
   }
   return redacted ? { ...frame, payload: redacted } : frame;
+}
+
+/**
+ * Redacts the generated password from a `registered` frame before it reaches
+ * `onReceive` — mirrors `redactForOnSend`, but for the one push that carries
+ * a secret inbound. The real frame (with the real password) is still what
+ * routes to `pendingAuth`/`register()`.
+ */
+function redactForOnReceive(frame: RawFrame): RawFrame {
+  if (frame.type !== 'registered' || !isRecord(frame.payload) || !('password' in frame.payload)) return frame;
+  return { ...frame, payload: { ...frame.payload, password: '[redacted]' } };
 }
 
 function requireStructuredContent<T>(result: QueryResult<T>, command: string): T {
@@ -1381,7 +1397,7 @@ export class Account {
   }
 
   private routeFrame(frame: RawFrame): void {
-    this.callHook(this.onReceive, 'onReceive', frame);
+    this.callHook(this.onReceive, 'onReceive', redactForOnReceive(frame));
     // Any frame carrying a numeric `tick` advances the observed game clock.
     if (isRecord(frame.payload)) this.observeTick(frame.payload.tick);
     switch (frame.type) {

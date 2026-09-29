@@ -138,9 +138,12 @@ for await (const hit of account.events('battle_damage')) { /* ... */ }
 
 `onAny` sees only unsolicited pushes. To log every frame on the wire, including
 your own query/mutation replies, pass `onSend`/`onReceive` (the client variants
-also receive the account id). `onSend` sees a `spacemolt_auth` register/login/
-login_token frame with its password, token, or registration_code replaced by
-`'[redacted]'` — the frame actually sent to the server is unaffected:
+also receive the account id). Credentials are redacted in both directions:
+`onSend` sees a `spacemolt_auth` register/login/login_token frame with its
+password, token, or registration_code replaced by `'[redacted]'`, and
+`onReceive` sees a `registered` push (which carries the account's generated
+password) with that password redacted too — the frame actually sent/routed is
+unaffected either way:
 
 ```ts
 new SpacemoltClient({
