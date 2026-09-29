@@ -278,15 +278,30 @@ test('client.catalog() and map() fetch once and cache', async () => {
 });
 
 test('httpGet times out and does not retry', async () => {
+  let calls = 0;
   const fetchImpl = (async (_url: string, init?: RequestInit) => {
+    calls++;
     return new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () =>
         reject(new DOMException('The operation was aborted', 'AbortError')),
       );
     });
   }) as typeof fetch;
-  await expect(httpGet('https://game.spacemolt.com/api/map', { fetchImpl, timeoutMs: 5 })).rejects.toThrow();
-});
+  // Plain try/catch, not `expect(...).rejects`: without the abort signal
+  // (a removed `AbortSignal.timeout` in httpGet), fetchImpl's returned
+  // promise never settles -- and bun's own per-test timeout below does not
+  // preempt an in-flight `expect(promise).rejects`, only a directly
+  // awaited one, so `.rejects` would hang right along with the bug this
+  // test exists to catch instead of failing fast.
+  let threw = false;
+  try {
+    await httpGet('https://game.spacemolt.com/api/map', { fetchImpl, timeoutMs: 5 });
+  } catch {
+    threw = true;
+  }
+  expect(threw).toBe(true);
+  expect(calls).toBe(1); // a timeout is not retried — only one attempt was ever made
+}, 1000); // without the abort signal, fetchImpl never settles and this test would hang for minutes
 
 test('httpGet retries a 429 (honoring Retry-After seconds) then succeeds', async () => {
   let calls = 0;
