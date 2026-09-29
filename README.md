@@ -345,6 +345,10 @@ const client = new SpacemoltClient({
 });
 ```
 
+The per-call timeout is delivered through `init.signal` (an `AbortSignal`), not
+a separate argument — a wrapper must pass `init` through to the real `fetch`
+unchanged, as above, or it silently loses the timeout.
+
 The standalone functions above take the same option as a trailing
 `{ fetchImpl }` for use without a client.
 

@@ -111,7 +111,12 @@ export interface SpacemoltClientOptions {
    * Generate one from the website; keep it secret.
    */
   clerkApiKey?: string;
-  /** Inject a `fetch` implementation (tests, custom runtimes). */
+  /**
+   * Inject a `fetch` implementation (tests, custom runtimes). The per-call
+   * timeout is delivered via `init.signal` (an `AbortSignal`), not a
+   * separate argument — a wrapper must pass `init` through to the real
+   * `fetch` unchanged or it silently loses the timeout.
+   */
   fetchImpl?: typeof fetch;
   /**
    * How long to wait for the server's `welcome` frame (post-WS-upgrade) and
