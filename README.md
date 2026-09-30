@@ -136,6 +136,23 @@ account.onAny((frame) => console.log('push:', frame.type));
 for await (const hit of account.events('battle_damage')) { /* ... */ }
 ```
 
+`onAny` sees only unsolicited pushes. To log every frame on the wire, including
+your own query/mutation replies, pass `onSend`/`onReceive` (the client variants
+also receive the account id). Credentials are redacted in both directions:
+`onSend` sees a `spacemolt_auth` frame with its `password`, `token`,
+`registration_code`, or `device_code` (from `login_link_poll`) replaced by
+`'[redacted]'`, and `onReceive` sees a `registered` push (which carries the
+account's generated password) with that password redacted, and a `result`
+frame carrying a `device_code` (`login_link`'s response) with that code
+redacted too — the frame actually sent/routed is unaffected either way:
+
+```ts
+new SpacemoltClient({
+  onSend: (id, frame) => console.log(id, '→', frame.tool, frame.action, frame.request_id),
+  onReceive: (id, frame) => console.log(id, '←', frame.type, frame.request_id),
+});
+```
+
 ### Subscriptions
 
 Subscribe to a station's order book or to presence at your location; the
@@ -302,6 +319,40 @@ map.system('sol');
 const { stations } = await fetchStations('https://game.spacemolt.com');
 const { system } = await fetchMobileBase('https://game.spacemolt.com'); // the moving capital
 ```
+
+Every one of these fetches is bounded by a timeout (30s by default, covering the
+response body, not just the headers; pass `{ timeoutMs }`, or `httpTimeoutMs` on
+the client, to change it — the catalog is several MB), retries a transient `429`/`503` a few times
+(honoring `Retry-After`, jittered), and throws a typed `HttpError`
+(`status`/`url`/`attempts`/`retryAfterMs`) on a retry-exhausted or otherwise
+non-ok response. A timeout or network error throws the native error
+(`DOMException`/`TypeError`) instead — it's not an `HttpError`. The 60s
+retry-wait cap is on the *total* base wait summed across every attempt, not
+each attempt checked in isolation — so three retries of a near-the-cap
+`Retry-After` can't add up to several times the cap.
+
+With a client, the same data is `client.catalog()`, `client.map()`,
+`client.stations()` and `client.mobileBase()`. To observe HTTP traffic
+(status/bytes/timing/retries), set `fetchImpl` once on the client — every
+HTTP call it makes, including Clerk, goes through it:
+
+```ts
+const client = new SpacemoltClient({
+  fetchImpl: async (input, init) => {
+    const started = Date.now();
+    const res = await fetch(input, init);
+    console.log(res.status, String(input), `${Date.now() - started}ms`);
+    return res;
+  },
+});
+```
+
+The per-call timeout is delivered through `init.signal` (an `AbortSignal`), not
+a separate argument — a wrapper must pass `init` through to the real `fetch`
+unchanged, as above, or it silently loses the timeout.
+
+The standalone functions above take the same option as a trailing
+`{ fetchImpl }` for use without a client.
 
 ## Examples
 

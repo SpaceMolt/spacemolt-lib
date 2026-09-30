@@ -104,6 +104,67 @@ test('authenticate auto-retries a login after a rate_limited error', async () =>
   expect(attempts).toBe(2);
 });
 
+test('onRateLimited fires per retry with increasing attempt and jittered delayMs, and unsubscribes', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, maxRateLimitRetries: 3 });
+  const cp = account.connect();
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  const events: Array<{ command: string; attempt: number; delayMs: number }> = [];
+  const unsubscribe = account.onRateLimited((info) => events.push(info));
+
+  let attempts = 0;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      attempts++;
+      if (attempts <= 2) {
+        s.serverSend({
+          type: 'error',
+          request_id: frame.request_id,
+          payload: { code: 'rate_limited', message: 'Too many requests. Retry in 0 seconds.' },
+        });
+      } else {
+        s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+      }
+    }
+  };
+  // Pin the jitter so the delay proves it was applied: 250ms floor + 0.5 * 250ms.
+  const realRandom = Math.random;
+  Math.random = () => 0.5;
+  try {
+    await account.query('spacemolt', 'get_status');
+  } finally {
+    Math.random = realRandom;
+  }
+
+  expect(events.length).toBe(2);
+  expect(events[0]?.command).toBe('spacemolt.get_status');
+  expect(events[0]?.attempt).toBe(1);
+  expect(events[1]?.attempt).toBe(2);
+  for (const e of events) expect(e.delayMs).toBe(375);
+
+  unsubscribe();
+  attempts = 0;
+  socket.onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      attempts++;
+      if (attempts === 1) {
+        s.serverSend({
+          type: 'error',
+          request_id: frame.request_id,
+          payload: { code: 'rate_limited', message: 'Too many requests. Retry in 0 seconds.' },
+        });
+      } else {
+        s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+      }
+    }
+  };
+  await account.query('spacemolt', 'get_status');
+  expect(events.length).toBe(2); // unchanged after unsubscribe
+});
+
 // --- mutation serialization ---
 
 test('mutations are serialized: the second sends only after the first resolves', async () => {
@@ -240,6 +301,221 @@ test('reconnects after connection_rate_limited (4003), honoring the retry_after 
   expect(elapsed).toBeGreaterThanOrEqual(900); // honored the ~1000ms hint (some timer jitter tolerated)
   expect(elapsed).toBeLessThan(3000); // ...not the 5000ms fallback
 }, 6000);
+
+test('reconnectOnce rejects in-flight work and a mutation queued before re-auth, then new-socket queries still work', async () => {
+  // The old socket's close event must arrive LATE, not synchronously inside
+  // reconnectOnce's own `this.socket.close()` call -- otherwise `handleClose`
+  // (a separate, pre-existing code path) does all the rejecting/
+  // de-authenticating itself, and this test would pass even with
+  // reconnectOnce's own fix deleted. `deferClose` suppresses that callback
+  // until explicitly fired (which, once the socket has been replaced, the
+  // identity guard in makeSocket ignores anyway) so only reconnectOnce's own
+  // logic is under test here.
+  const sockets: MockSocket[] = [];
+  let first = true;
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url, first ? { deferClose: true } : {});
+    first = false;
+    sockets.push(s);
+    return s;
+  };
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+  });
+  const cp = account.connect();
+  serveAuth(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  // (a) In flight on the old socket, never answered -- stays pending until
+  // reconnectOnce rejects it.
+  const strandedQuery = account.query('spacemolt', 'get_status');
+
+  // (b) A mutation in flight (occupies the mutation lane) plus one queued
+  // behind it. Neither is ever answered by the old socket.
+  const inFlightMutation = account.mutate('spacemolt', 'mine');
+  const queuedMutation = account.mutate('spacemolt', 'mine');
+  // Suppress the spurious "unhandled rejection" noise between these settling
+  // (several ticks below) and the `expect(...).rejects` assertions further
+  // down -- both attach their own consumer to the same promise later.
+  strandedQuery.catch(() => {});
+  inFlightMutation.catch(() => {});
+  queuedMutation.catch(() => {});
+
+  const reconnectP = account.reconnectOnce();
+
+  // Let the mutation lane's freed continuation (from rejectAll) run its
+  // microtask(s) before the new socket has authenticated.
+  await tick();
+  await tick();
+
+  expect(requireValue(sockets[1]).sent.some((f) => f.action === 'mine')).toBe(false);
+
+  serveAuth(requireValue(sockets[1]));
+  await reconnectP;
+
+  await expect(strandedQuery).rejects.toThrow(ConnectionClosedError);
+  await expect(inFlightMutation).rejects.toThrow(ConnectionClosedError);
+  // (b) rejects immediately rather than being sent once re-authenticated --
+  // the caller finds out right away instead of the frame silently waiting.
+  await expect(queuedMutation).rejects.toThrow(ConnectionClosedError);
+
+  // (c) The new socket is fully usable: a query sent after reconnectOnce
+  // resolves normally, and isn't caught up in the old socket's rejection.
+  requireValue(sockets[1]).onClientSend = (frame, s) => {
+    if (frame.action === 'get_status') {
+      s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+    }
+  };
+  const res = await account.query('spacemolt', 'get_status');
+  expect(res.result).toBe('ok');
+});
+
+test('reconnectOnce fails a stranded login left unanswered on the old socket, then re-authenticates cleanly on the new one', async () => {
+  // Regression: reconnectOnce only rejected the correlator, not the
+  // welcomeWaiter/pendingAuth waiting on the old socket. A stranded login
+  // (never answered by the peer) left `pendingAuth` occupied, so
+  // reconnectOnce's own login attempt on the new socket found `beginAuth`
+  // already claimed and rejected with `auth_in_progress` -- while the old,
+  // stranded login promise resolved instead, off the new socket's reply.
+  const sockets: MockSocket[] = [];
+  let first = true;
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url, first ? { deferClose: true } : {});
+    first = false;
+    sockets.push(s);
+    return s;
+  };
+  const account = new Account({
+    url: 'ws://m',
+    webSocketFactory: factory,
+    seedState: false,
+    credentials: creds(),
+  });
+  const cp = account.connect();
+  requireValue(sockets[0]).serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  // Never answered on the old (deferClose) socket.
+  const strandedLogin = account.login({ username: 'Nova', password: 'pw' });
+  strandedLogin.catch(() => {});
+
+  const reconnectP = account.reconnectOnce();
+  await tick();
+  serveAuth(requireValue(sockets[1]));
+  await reconnectP;
+
+  await expect(strandedLogin).rejects.toThrow(ConnectionClosedError);
+  expect(account.authenticated).toBe(true);
+});
+
+test('a second concurrent login() rejects with auth_in_progress and sends no frame', async () => {
+  const { factory, sockets } = mockFactory();
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false });
+  const cp = account.connect();
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await cp;
+
+  // No onClientSend handler -- the first login is left unanswered/in-flight.
+  const firstLogin = account.login({ username: 'Nova', password: 'pw' });
+  firstLogin.catch(() => {});
+
+  const sentBefore = socket.sent.length;
+  try {
+    await account.login({ username: 'Nova', password: 'pw2' });
+    throw new Error('expected login() to reject');
+  } catch (err) {
+    expect(err).toBeInstanceOf(SpacemoltError);
+    expect((err as SpacemoltError).code).toBe('auth_in_progress');
+  }
+  expect(socket.sent.length).toBe(sentBefore); // the rejected attempt sent no frame
+
+  // The rejected attempt must not have cleared the first login's pending state:
+  // its logged_in still resolves it.
+  const loginFrame = requireValue(socket.sent.find((f) => f.action === 'login'));
+  socket.serverSend({
+    type: 'logged_in',
+    request_id: loginFrame.request_id,
+    payload: { player: { username: 'Nova' } },
+  });
+  await firstLogin;
+  expect(account.authenticated).toBe(true);
+});
+
+test('reconnectOnce still re-seeds the state cache on the new socket', async () => {
+  // The post-auth get_status seed runs inside authenticate(), i.e. inside the
+  // reconnect window. The reconnect send guard must let it through once the
+  // new socket has logged in, or every reconnect silently skips the re-seed.
+  const sockets: MockSocket[] = [];
+  const factory: WebSocketFactory = (url) => {
+    const s = new MockSocket(url, sockets.length === 0 ? { deferClose: true } : {});
+    sockets.push(s);
+    return s;
+  };
+  const serveAuthAndSeed = (socket: MockSocket): void => {
+    socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+    socket.onClientSend = (frame, s) => {
+      if (frame.action === 'login') {
+        s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+      } else if (frame.action === 'get_status') {
+        s.serverSend({ type: 'result', request_id: frame.request_id, payload: {} });
+      }
+    };
+  };
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, credentials: creds() });
+  const cp = account.connect();
+  serveAuthAndSeed(requireValue(sockets[0]));
+  await cp;
+  await account.login({ username: 'Nova', password: 'pw' });
+
+  const reconnectP = account.reconnectOnce();
+  await tick();
+  const next = requireValue(sockets[1]);
+  serveAuthAndSeed(next);
+  await reconnectP;
+  expect(next.sent.some((f) => f.action === 'get_status')).toBe(true);
+});
+
+test('reconnectOnce does not close its own new socket via a stranded connect() left waiting for welcome', async () => {
+  // Regression: open()'s catch used to do `this.welcomeWaiter = null;
+  // this.socket.close();` unconditionally. When reconnectOnce() runs while a
+  // connect() is still waiting for welcome, failPendingWork rejects that
+  // waiter, reconnectOnce synchronously swaps in a new socket (makeSocket),
+  // and the stranded open()'s catch then ran -- by then `this.socket` was
+  // the NEW socket, still connecting. A real WebSocket closed while
+  // connecting fails the connection instead of completing it.
+  const sockets: MockSocket[] = [];
+  let first = true;
+  const factory: WebSocketFactory = (url) => {
+    // deferClose on the first socket only: its close() must not synchronously
+    // fire handleClose (a separate, pre-existing code path) or this test
+    // would pass even with the fix reverted -- see the matching note on the
+    // reconnectOnce tests above.
+    const s = new MockSocket(url, first ? { deferClose: true } : {});
+    first = false;
+    sockets.push(s);
+    return s;
+  };
+  const account = new Account({ url: 'ws://m', webSocketFactory: factory, seedState: false, credentials: creds() });
+
+  // connect() is left waiting for welcome on socket 0 -- never served.
+  const connectP = account.connect();
+  connectP.catch(() => {});
+  await tick(); // let socket 0 open and connect()'s open() start its welcome wait
+
+  const reconnectP = account.reconnectOnce();
+  const socket1 = requireValue(sockets[1]);
+  serveAuth(socket1);
+  await reconnectP;
+
+  expect(socket1.closedWhileConnecting).toBe(false);
+  expect(account.authenticated).toBe(true);
+  await expect(connectP).rejects.toThrow(ConnectionClosedError);
+});
 
 // --- connect/auth timeout ---
 //

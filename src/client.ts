@@ -16,10 +16,14 @@ import {
   type StoredAccount,
 } from './auth/credentials.ts';
 import type { WebSocketFactory } from './transport/socket.ts';
+import type { InboundFrame, RawFrame } from './protocol.ts';
 import type { ReconnectOptions, RegisterParams, RegisterResult } from './account.ts';
 import { CatalogCache } from './data/catalog.ts';
+import type { FetchOptions } from './data/http.ts';
 import { notifyListeners } from './events/emitter.ts';
 import { MapCache, httpBaseFromWs } from './data/map.ts';
+import { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';
+import { fetchStations, type StationList } from './data/stations.ts';
 import { ClerkSource, type ClerkPlayer } from './auth/clerk.ts';
 import { CLOSE_CODE, type ConnectionClosedError, retryAfterMsFromClose } from './errors.ts';
 
@@ -32,6 +36,10 @@ export interface SpacemoltClientOptions {
   store?: CredentialStore;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
   webSocketFactory?: WebSocketFactory;
+  /** Observe every outbound frame on every managed account (see Account). */
+  onSend?: (accountId: string, frame: InboundFrame) => void;
+  /** Observe every inbound frame on every managed account (see Account). */
+  onReceive?: (accountId: string, frame: RawFrame) => void;
   /** Seed each account's state cache after auth (see Account). Default true. */
   seedState?: boolean;
   /**
@@ -104,8 +112,19 @@ export interface SpacemoltClientOptions {
    * Generate one from the website; keep it secret.
    */
   clerkApiKey?: string;
-  /** Inject a `fetch` implementation (tests, custom runtimes). */
+  /**
+   * Inject a `fetch` implementation (tests, custom runtimes). The per-call
+   * timeout is delivered via `init.signal` (an `AbortSignal`), not a
+   * separate argument — a wrapper must pass `init` through to the real
+   * `fetch` unchanged or it silently loses the timeout.
+   */
   fetchImpl?: typeof fetch;
+  /**
+   * Abort each HTTP data fetch (catalog, map, stations, mobile base) after this
+   * many ms, body included. Default 30000. Raise it on a slow link: the catalog
+   * is several MB.
+   */
+  httpTimeoutMs?: number;
   /**
    * How long to wait for the server's `welcome` frame (post-WS-upgrade) and
    * for a `logged_in`/error response to an auth attempt, before giving up.
@@ -241,6 +260,10 @@ export class SpacemoltClient {
     return this.opts.httpBaseUrl ?? (this.opts.url ? httpBaseFromWs(this.opts.url) : DEFAULT_HTTP_BASE);
   }
 
+  private get httpOptions(): FetchOptions {
+    return { fetchImpl: this.opts.fetchImpl, timeoutMs: this.opts.httpTimeoutMs };
+  }
+
   /**
    * The bulk catalog. Fetched on first use and cached, then revalidated against
    * the server once the cache is older than `catalogMaxAgeMs` (default 1h) so a
@@ -257,16 +280,26 @@ export class SpacemoltClient {
 
     this.catalogCache =
       !this.catalogCache || force
-        ? await CatalogCache.load(this.httpBaseUrl)
-        : await this.catalogCache.revalidate(this.httpBaseUrl);
+        ? await CatalogCache.load(this.httpBaseUrl, this.httpOptions)
+        : await this.catalogCache.revalidate(this.httpBaseUrl, this.httpOptions);
     this.catalogFetchedAt = Date.now();
     return this.catalogCache;
   }
 
   /** The static galaxy map, fetched once and cached. Pass `force` to refetch. */
   async map(force = false): Promise<MapCache> {
-    if (force || !this.mapCache) this.mapCache = await MapCache.load(this.httpBaseUrl);
+    if (force || !this.mapCache) this.mapCache = await MapCache.load(this.httpBaseUrl, this.httpOptions);
     return this.mapCache;
+  }
+
+  /** The live station directory. Not cached — it changes as the game runs. */
+  stations(): Promise<StationList> {
+    return fetchStations(this.httpBaseUrl, this.httpOptions);
+  }
+
+  /** The mobile base's current system. Not cached — it moves. */
+  mobileBase(): Promise<MobileBaseLocation> {
+    return fetchMobileBase(this.httpBaseUrl, this.httpOptions);
   }
 
   /** The credential store backing this client. */
@@ -634,6 +667,8 @@ export class SpacemoltClient {
       id,
       url: this.opts.url,
       webSocketFactory: this.opts.webSocketFactory,
+      onSend: this.opts.onSend && ((f) => this.opts.onSend?.(id, f)),
+      onReceive: this.opts.onReceive && ((f) => this.opts.onReceive?.(id, f)),
       seedState: this.opts.seedState,
       // The client owns reconnection for its managed accounts (see
       // handleAccountDisconnected) instead of each Account reconnecting

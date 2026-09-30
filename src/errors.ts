@@ -56,6 +56,29 @@ export function errorFromActionFrame(frame: ActionErrorFrame): SpacemoltError {
   });
 }
 
+/**
+ * Raised by a bulk/live HTTP data fetch (catalog, map, stations, mobile-base)
+ * that didn't come back ok — after retries, for a retryable status. Message
+ * text matches the old bare-`Error` format (`GET <url> -> <status> <text>`).
+ */
+export class HttpError extends Error {
+  readonly status: number;
+  readonly url: string;
+  /** How many requests were made in total, including the one that finally failed. */
+  readonly attempts: number;
+  /** The server's `Retry-After` on the failing response, parsed to ms, if any. */
+  readonly retryAfterMs?: number;
+
+  constructor(message: string, opts: { status: number; url: string; attempts: number; retryAfterMs?: number }) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = opts.status;
+    this.url = opts.url;
+    this.attempts = opts.attempts;
+    this.retryAfterMs = opts.retryAfterMs;
+  }
+}
+
 /** Raised against every in-flight request when the socket closes. */
 export class ConnectionClosedError extends Error {
   readonly code?: number;

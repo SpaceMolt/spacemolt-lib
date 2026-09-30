@@ -18,6 +18,7 @@ export {
   type RegisterParams,
   type RegisterResult,
   type LoggedInPayload,
+  type RateLimitedInfo,
 } from './account.ts';
 export { SpacemoltClient, type SpacemoltClientOptions } from './client.ts';
 export {
@@ -37,7 +38,7 @@ export {
 } from './auth/credentials.ts';
 // FileCredentialStore imports node:fs — exported from '@spacemolt/lib/node'
 // to keep this entry point browser-safe.
-export { SpacemoltError, ConnectionClosedError, CLOSE_CODE, retryAfterMsFromClose } from './errors.ts';
+export { SpacemoltError, ConnectionClosedError, HttpError, CLOSE_CODE, retryAfterMsFromClose } from './errors.ts';
 export { StateCache } from './state/cache.ts';
 export { MarketCache, type MarketBook, type MarketItem } from './state/market.ts';
 export {
@@ -61,6 +62,7 @@ export {
   type CatalogShip,
   type CatalogSkill,
 } from './data/catalog.ts';
+export type { FetchOptions } from './data/http.ts';
 export { MapCache, fetchMap, httpBaseFromWs, type GalaxyMap, type MapSystem } from './data/map.ts';
 export { fetchStations, type StationEmpire, type StationList, type StationSummary } from './data/stations.ts';
 export { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';

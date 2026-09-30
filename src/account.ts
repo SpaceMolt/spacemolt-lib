@@ -37,6 +37,7 @@ import type {
   MutationAck,
   MutationResult,
   QueryResult,
+  InboundFrame,
   RawFrame,
   RegisteredFrame,
   StateSection,
@@ -44,6 +45,7 @@ import type {
 } from './protocol.ts';
 import { isActionResultFrame, isErrorFrame, isLoggedInFrame, isRegisteredFrame, isWelcomeFrame } from './protocol.ts';
 import { isRecord } from './validation.ts';
+import { jitteredDelayMs } from './jitter.ts';
 import { StateCache } from './state/cache.ts';
 import { Correlator } from './transport/correlator.ts';
 import { Socket, type WebSocketFactory } from './transport/socket.ts';
@@ -73,11 +75,37 @@ export interface ReconnectOptions {
   maxDelayMs?: number;
 }
 
+/** Info reported to an `onRateLimited` listener — see `Account.onRateLimited`. */
+export interface RateLimitedInfo {
+  /** The call being retried: `tool.action` for `query`/`mutate`, `'authenticate'` for auth. */
+  command: string;
+  /** 1-based retry attempt number. */
+  attempt: number;
+  /** How long this retry is waiting before resending, including jitter. */
+  delayMs: number;
+}
+
 export interface AccountOptions {
   /** WebSocket URL of the v2 endpoint. Defaults to the production server. */
   url?: string;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
   webSocketFactory?: WebSocketFactory;
+  /**
+   * Observe every outbound frame (logging/review). Fires before it is sent.
+   * A `spacemolt_auth` frame's `password`, `token`, `registration_code`, or
+   * `device_code` (from `login_link_poll`) is replaced with `'[redacted]'`
+   * before this fires — the frame actually sent to the server is unaffected.
+   */
+  onSend?: (frame: InboundFrame) => void;
+  /**
+   * Observe every parsed inbound frame (logging/review). Fires before
+   * routing. A `registered` push's `password` (the account's generated
+   * credential), and a `result` frame's `device_code` (`login_link`'s
+   * response), are replaced with `'[redacted]'` before this fires — the
+   * frame that reaches `register()`'s/the correlator's own resolution is
+   * unaffected.
+   */
+  onReceive?: (frame: RawFrame) => void;
   /**
    * After authenticating, issue a `get_status` query to seed the local state
    * cache with the canonical full state. Default `true`. Disable to avoid the
@@ -308,6 +336,66 @@ function retryAfterMs(err: SpacemoltError): number {
   return Math.max(250, (seconds ?? 1) * 1000);
 }
 
+/** Payload field names carrying a secret in a `spacemolt_auth` frame — never handed to `onSend` unredacted. */
+const AUTH_SECRET_PAYLOAD_FIELDS = new Set(['password', 'token', 'registration_code', 'device_code']);
+
+/**
+ * Redacts secret fields from a `spacemolt_auth` frame before it reaches
+ * `onSend` — `register`/`login`/`login_token` payloads carry a password,
+ * token, or registration code, and `login_link_poll` carries the device code
+ * (whoever holds it gets the session once the human approves, so it's a
+ * credential too). Other fields (e.g. `username`) are left as-is so a log is
+ * still useful. Frames for every other tool pass through untouched; the
+ * frame actually sent to the socket is never modified.
+ */
+function redactForOnSend(frame: InboundFrame): InboundFrame {
+  if (frame.tool !== 'spacemolt_auth' || !isRecord(frame.payload)) return frame;
+  let redacted: Record<string, unknown> | undefined;
+  for (const field of AUTH_SECRET_PAYLOAD_FIELDS) {
+    if (field in frame.payload) {
+      redacted ??= { ...frame.payload };
+      redacted[field] = '[redacted]';
+    }
+  }
+  return redacted ? { ...frame, payload: redacted } : frame;
+}
+
+/**
+ * Redacts secrets from an inbound frame before it reaches `onReceive` —
+ * mirrors `redactForOnSend`, but for the two pushes that carry a secret
+ * inbound: the `registered` frame's generated `password`, and a `result`
+ * frame's `device_code` (`login_link`'s response carries a fresh one, in both
+ * `structuredContent.device_code` and, when present, the same value inlined
+ * in the rendered `result` text). Keyed off the field name rather than the
+ * command, so it applies to any `result` frame that happens to carry one,
+ * not a hand-maintained command list. The real frame (with the real secret)
+ * is still what routes to `pendingAuth`/`register()`/the correlator.
+ */
+function redactForOnReceive(frame: RawFrame): RawFrame {
+  if (frame.type === 'registered' && isRecord(frame.payload) && 'password' in frame.payload) {
+    return { ...frame, payload: { ...frame.payload, password: '[redacted]' } };
+  }
+  if (frame.type === 'result' && isRecord(frame.payload)) {
+    const { structuredContent } = frame.payload;
+    if (
+      isRecord(structuredContent) &&
+      typeof structuredContent.device_code === 'string' &&
+      structuredContent.device_code
+    ) {
+      const code = structuredContent.device_code;
+      const result =
+        typeof frame.payload.result === 'string' && frame.payload.result.includes(code)
+          ? frame.payload.result.split(code).join('[redacted]')
+          : frame.payload.result;
+      return {
+        ...frame,
+        payload: { ...frame.payload, result, structuredContent: { ...structuredContent, device_code: '[redacted]' } },
+      };
+    }
+  }
+  return frame;
+}
+
 function requireStructuredContent<T>(result: QueryResult<T>, command: string): T {
   if (result.structuredContent === undefined) {
     throw new SpacemoltError('invalid_response', `${command} returned no structured content`);
@@ -325,6 +413,8 @@ export class Account {
   private readonly seedState: boolean;
   private readonly url: string;
   private readonly webSocketFactory?: WebSocketFactory;
+  private readonly onSend?: (frame: InboundFrame) => void;
+  private readonly onReceive?: (frame: RawFrame) => void;
   private readonly reconnectConfig: Required<ReconnectOptions> | null;
   private readonly credentialsProvider?: () => AuthCredentials | Promise<AuthCredentials>;
   private readonly fetchImpl?: typeof fetch;
@@ -338,6 +428,9 @@ export class Account {
 
   private _welcome: WelcomeFrame['payload'] | null = null;
   private _authenticated = false;
+  // True only for `reconnectOnce`'s socket-swap-to-re-auth window — see there.
+  /** How many `reconnectOnce` calls are mid-swap; a count, so overlapping calls can't lift each other's guard. */
+  private reconnectsPending = 0;
   private _loginPayload: LoggedInPayload | null = null;
   private _currentTick = 0;
   private _commands: Commands | null = null;
@@ -361,11 +454,14 @@ export class Account {
   private readonly reconnectedListeners = new Set<() => void>();
   private readonly reconnectingListeners = new Set<(attempt: number) => void>();
   private readonly disconnectedListeners = new Set<(err: ConnectionClosedError) => void>();
+  private readonly rateLimitedListeners = new Set<(info: RateLimitedInfo) => void>();
 
   constructor(opts: AccountOptions = {}) {
     this.seedState = opts.seedState ?? true;
     this.url = opts.url ?? DEFAULT_URL;
     this.webSocketFactory = opts.webSocketFactory;
+    this.onSend = opts.onSend;
+    this.onReceive = opts.onReceive;
     this.credentialsProvider = opts.credentials;
     this.fetchImpl = opts.fetchImpl;
     this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
@@ -513,11 +609,21 @@ export class Account {
   }
 
   private async open(): Promise<WelcomeFrame['payload']> {
+    // Capture the socket this attempt belongs to — `reconnectOnce` can swap
+    // in a new one (`makeSocket`) while this call is still waiting for
+    // welcome (its waiter gets rejected by `failPendingWork`, which runs
+    // before the swap resolves). The catch below must only ever touch state
+    // that still belongs to this attempt, or it closes the NEW socket while
+    // it's mid-connect — a real WebSocket closed while connecting fails the
+    // connection outright.
+    const socket = this.socket;
     this._welcome = null;
-    await this.socket.connect();
+    await socket.connect();
     if (this._welcome) return this._welcome;
+    let waiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | undefined;
     const waitForWelcome = new Promise<WelcomeFrame['payload']>((resolve, reject) => {
-      this.welcomeWaiter = { resolve, reject };
+      waiter = { resolve, reject };
+      this.welcomeWaiter = waiter;
     });
     try {
       return await withTimeout(
@@ -527,24 +633,32 @@ export class Account {
       );
     } catch (err) {
       // Give up on this connection attempt rather than leaving a socket open
-      // that's never going to complete the handshake.
-      this.welcomeWaiter = null;
-      this.socket.close();
+      // that's never going to complete the handshake — but only if `socket`
+      // and `waiter` are still the live ones; a newer attempt may already
+      // have replaced both.
+      if (waiter && this.welcomeWaiter === waiter) this.welcomeWaiter = null;
+      if (this.socket === socket) socket.close();
       throw err;
     }
   }
 
   /** Register a new account; resolves with the generated credentials + state. */
   async register(params: RegisterParams): Promise<RegisterResult> {
+    let authEntry: PendingAuth | undefined;
     const registerPromise = new Promise<RegisterResult>((resolve, reject) => {
-      this.beginAuth((state, registered) => {
+      const accepted = this.beginAuth((state, registered) => {
         if (!registered) {
           reject(new SpacemoltError('missing_credentials', 'register succeeded but no credentials frame was received'));
           return;
         }
         resolve({ password: registered.password, player_id: registered.player_id, state });
       }, reject);
-      this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
+      // Capture the exact entry `beginAuth` created — identity, not just
+      // "accepted" — so the catch below can't clobber a newer exchange's
+      // entry (e.g. one `reconnectOnce` started) that happens to occupy
+      // `pendingAuth` by the time this call's timeout/error fires.
+      if (accepted) authEntry = this.pendingAuth ?? undefined;
+      if (accepted) this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
     });
     let result: RegisterResult;
     try {
@@ -554,7 +668,10 @@ export class Account {
         `No register response received within ${this.connectTimeoutMs}ms`,
       );
     } catch (err) {
-      this.pendingAuth = null;
+      // Only clear `pendingAuth` if it's still the entry this call created —
+      // a rejected `beginAuth` (another exchange already in flight) never
+      // touched it, and a newer exchange may have replaced it since.
+      if (authEntry && this.pendingAuth === authEntry) this.pendingAuth = null;
       throw err;
     }
     this._loginPayload = result.state;
@@ -579,7 +696,7 @@ export class Account {
    * rejection doesn't waste a single-use token.
    */
   authenticate(creds: AuthCredentials): Promise<void> {
-    return this.withRateLimitRetry(() => this.authenticateOnce(creds));
+    return this.withRateLimitRetry('authenticate', () => this.authenticateOnce(creds));
   }
 
   private async authenticateOnce(creds: AuthCredentials): Promise<void> {
@@ -661,7 +778,7 @@ export class Account {
    * drops it rather than erroring) fails cleanly instead of hanging forever.
    */
   query(tool: string, action: string, payload?: Record<string, unknown>, requestId?: string): Promise<QueryResult> {
-    return this.withRateLimitRetry(async () => {
+    return this.withRateLimitRetry(`${tool}.${action}`, async () => {
       const id = this.claimRequestId(requestId);
       const promise = this.correlator.awaitQuery(id);
       try {
@@ -707,7 +824,7 @@ export class Account {
       ? this.mutationTimeoutMs
       : this.fastMutationTimeoutMs;
     return this.enqueueMutation(() =>
-      this.withRateLimitRetry(() => {
+      this.withRateLimitRetry(`${tool}.${action}`, () => {
         const id = this.claimRequestId(requestId);
         return this.awaitMutationWithTimeout(
           id,
@@ -1192,6 +1309,18 @@ export class Account {
     };
   }
   /**
+   * Fired before each rate-limit retry sleep (`query`/`mutate`/`authenticate`
+   * auto-retrying a `rate_limited` error) — the delay includes jitter, so
+   * accounts rate-limited together don't retry in lockstep; this is what a
+   * caller sees per attempt. Returns an unsubscribe function.
+   */
+  onRateLimited(listener: (info: RateLimitedInfo) => void): () => void {
+    this.rateLimitedListeners.add(listener);
+    return () => {
+      this.rateLimitedListeners.delete(listener);
+    };
+  }
+  /**
    * Fired when the connection is gone for good (non-reconnectable or retries
    * exhausted). Returns an unsubscribe function.
    */
@@ -1208,9 +1337,13 @@ export class Account {
     action: 'login' | 'login_token',
     payload: Record<string, unknown>,
   ): Promise<LoggedInPayload> {
+    let authEntry: PendingAuth | undefined;
     const authPromise = new Promise<LoggedInPayload>((resolve, reject) => {
-      this.beginAuth(resolve, reject);
-      this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
+      const accepted = this.beginAuth(resolve, reject);
+      // See the matching comment in `register()` — identity, not just
+      // "accepted", so this call's catch can't clobber a newer exchange.
+      if (accepted) authEntry = this.pendingAuth ?? undefined;
+      if (accepted) this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
     });
     let state: LoggedInPayload;
     try {
@@ -1220,7 +1353,10 @@ export class Account {
         `No auth response received within ${this.connectTimeoutMs}ms`,
       );
     } catch (err) {
-      this.pendingAuth = null;
+      // Only clear `pendingAuth` if it's still the entry this call created —
+      // a rejected `beginAuth` (another exchange already in flight) never
+      // touched it, and a newer exchange may have replaced it since.
+      if (authEntry && this.pendingAuth === authEntry) this.pendingAuth = null;
       throw err;
     }
     this._loginPayload = state;
@@ -1239,19 +1375,21 @@ export class Account {
     }
   }
 
+  /** Returns whether the auth exchange was accepted — a caller must not send its frame when it wasn't. */
   private beginAuth(
     onLoggedIn: (state: LoggedInPayload, registered?: RegisteredFrame['payload']) => void,
     onError: (err: Error) => void,
-  ): void {
+  ): boolean {
     if (this.pendingAuth) {
       onError(new SpacemoltError('auth_in_progress', 'another auth exchange is already in flight'));
-      return;
+      return false;
     }
     if (this._authenticated) {
       onError(new SpacemoltError('already_authenticated', 'this connection is already authenticated'));
-      return;
+      return false;
     }
     this.pendingAuth = { onLoggedIn, onError };
+    return true;
   }
 
   private sendFrame(
@@ -1260,7 +1398,35 @@ export class Account {
     payload: Record<string, unknown> | undefined,
     requestId: string,
   ): void {
-    this.socket.send({ tool, action, ...(payload ? { payload } : {}), request_id: requestId });
+    // While `reconnectOnce` is mid-swap (old socket rejected, new one not yet
+    // authenticated), block everything except the auth handshake itself —
+    // otherwise a mutation freed by that rejection can land on the fresh,
+    // not-yet-authenticated socket and hang until it times out instead of
+    // failing immediately. Scoped to that window specifically (not a general
+    // "must be authenticated" rule) so it doesn't reject a query/mutation
+    // sent on a connection `reconnectOnce` never touched. Lifts as soon as the
+    // new socket logs in, so the post-auth `get_status` seed still goes out.
+    const isAuthHandshake = tool === 'spacemolt_auth' && action !== 'logout';
+    if (this.reconnectsPending > 0 && !this._authenticated && !isAuthHandshake) {
+      throw new ConnectionClosedError('cannot send: account is reconnecting');
+    }
+    const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
+    this.callHook(this.onSend, 'onSend', redactForOnSend(frame));
+    this.socket.send(frame);
+  }
+
+  /**
+   * Calls an optional single-callback hook (`onSend`/`onReceive`), swallowing
+   * a throw so a broken observer can't stop the frame being sent or routed —
+   * same handling as `notifyListeners` for a `Set` of listeners.
+   */
+  private callHook<A extends unknown[]>(hook: ((...args: A) => void) | undefined, label: string, ...args: A): void {
+    if (!hook) return;
+    try {
+      hook(...args);
+    } catch (err) {
+      console.warn(`[spacemolt] ${label} hook threw: ${err}`);
+    }
   }
 
   private nextRequestId(): string {
@@ -1291,6 +1457,7 @@ export class Account {
   }
 
   private routeFrame(frame: RawFrame): void {
+    this.callHook(this.onReceive, 'onReceive', redactForOnReceive(frame));
     // Any frame carrying a numeric `tick` advances the observed game clock.
     if (isRecord(frame.payload)) this.observeTick(frame.payload.tick);
     switch (frame.type) {
@@ -1390,13 +1557,18 @@ export class Account {
     console.warn(`[spacemolt] dropped malformed ${frame.type} frame`);
   }
 
-  private handleClose(err: ConnectionClosedError): void {
+  /**
+   * Fails everything waiting on the current socket: in-flight correlator
+   * entries (query/mutate), a pending `welcome` wait, and a pending auth
+   * exchange (`login`/`register`/`loginToken`). Deliberately excludes
+   * `emitter.closeStreams()`: `handleClose` (a real close) still ends the
+   * player's event async iterators itself, but a `reconnectOnce` forced on a
+   * live socket leaves them running. Shared by `handleClose` and
+   * `reconnectOnce`, which both strand work on a socket that's going away.
+   */
+  private failPendingWork(err: ConnectionClosedError): void {
     this._authenticated = false;
     this.correlator.rejectAll(err);
-    this.emitter.closeStreams();
-    // Reject with the original err (not a wrapped SpacemoltError) so its
-    // code/reason survive — e.g. a 4003 connection_rate_limited close's
-    // retry_after hint, which reconnectLoop/client.connect() honor.
     if (this.welcomeWaiter) {
       const waiter = this.welcomeWaiter;
       this.welcomeWaiter = null;
@@ -1407,6 +1579,14 @@ export class Account {
       this.pendingAuth = null;
       auth.onError(err);
     }
+  }
+
+  private handleClose(err: ConnectionClosedError): void {
+    // Reject with the original err (not a wrapped SpacemoltError) so its
+    // code/reason survive — e.g. a 4003 connection_rate_limited close's
+    // retry_after hint, which reconnectLoop/client.connect() honor.
+    this.failPendingWork(err);
+    this.emitter.closeStreams();
     // A reconnect loop is running: each of its attempts wires a fresh socket
     // back here, so an attempt's close lands in this handler. The loop owns
     // the terminal decision — reporting it here would fire `onDisconnected`
@@ -1503,11 +1683,42 @@ export class Account {
     };
     stopIfClosed();
     this.socket.close();
-    this.makeSocket();
-    await this.open();
-    stopIfClosed();
-    await this.authenticate(await this.credentialsProvider());
-    stopIfClosed();
+    // The old socket's close event is ignored once makeSocket below replaces
+    // `this.socket` (the identity guard in makeSocket), so handleClose never
+    // runs for it and anything still in flight on it -- a query/mutation, a
+    // stranded `welcome` wait, a stranded login/register -- would otherwise
+    // hang until its own timeout. `failPendingWork` (shared with handleClose)
+    // rejects all of it now, before the new socket exists, so nothing sent on
+    // it is caught up in this and, critically, `pendingAuth` is free before
+    // `authenticate` below tries to claim it -- otherwise that call finds
+    // `beginAuth` already occupied by the stranded attempt and rejects with
+    // `auth_in_progress` while the stranded promise resolves later off the
+    // new socket's reply instead.
+    //
+    // `failPendingWork` clears `_authenticated` first: rejecting a mutation's
+    // correlator entry frees `enqueueMutation`'s lane, so a queued mutation's
+    // task can run on the very next microtask -- before `makeSocket`/
+    // `authenticate` below have run. `sendFrame`'s guard (reconnectsPending &&
+    // !_authenticated) is what stops it from reaching the new, not-yet-
+    // authenticated socket instead of hanging on it; the guard lifts at
+    // logged_in, so the post-auth seed runs.
+    //
+    // `reconnectsPending` is a narrower guard than "not authenticated" — it's
+    // only true for this window, so it can't reject a query/mutation any
+    // other caller (including tests that drive query/mutate directly,
+    // without a full auth handshake) legitimately sends on a connection this
+    // method never touched.
+    this.reconnectsPending++;
+    this.failPendingWork(new ConnectionClosedError('account is reconnecting'));
+    try {
+      this.makeSocket();
+      await this.open();
+      stopIfClosed();
+      await this.authenticate(await this.credentialsProvider());
+      stopIfClosed();
+    } finally {
+      this.reconnectsPending--;
+    }
     await this.resubscribe();
   }
 
@@ -1528,13 +1739,22 @@ export class Account {
     }
   }
 
-  private async withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+  /**
+   * Runs `fn`, retrying on a `rate_limited` `SpacemoltError` up to
+   * `maxRateLimitRetries` times. The wait is jittered (see `jitteredDelayMs`)
+   * so accounts rate-limited together don't all retry in lockstep, and fires
+   * `onRateLimited` before each sleep. `command` identifies the call for that
+   * listener (`tool.action`, or `'authenticate'`).
+   */
+  private async withRateLimitRetry<T>(command: string, fn: () => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
         return await fn();
       } catch (err) {
         if (err instanceof SpacemoltError && err.code === 'rate_limited' && attempt < this.maxRateLimitRetries) {
-          await delay(retryAfterMs(err));
+          const delayMs = jitteredDelayMs(retryAfterMs(err));
+          notifyListeners(this.rateLimitedListeners, 'onRateLimited', { command, attempt: attempt + 1, delayMs });
+          await delay(delayMs);
           continue;
         }
         throw err;

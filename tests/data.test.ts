@@ -13,6 +13,8 @@ import { catalog, mapSystem } from './fixtures.ts';
 import { fetchStations } from '../src/data/stations.ts';
 import { fetchMobileBase } from '../src/data/mobile-base.ts';
 import { SpacemoltClient } from '../src/client.ts';
+import { httpGet } from '../src/data/http.ts';
+import { HttpError } from '../src/errors.ts';
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -274,3 +276,195 @@ test('client.catalog() and map() fetch once and cache', async () => {
   const map = await client.map();
   expect(map.system('sol')).toBeDefined();
 });
+
+test('httpGet times out and does not retry', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string, init?: RequestInit) => {
+    calls++;
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () =>
+        reject(new DOMException('The operation was aborted', 'AbortError')),
+      );
+    });
+  }) as typeof fetch;
+  // Plain try/catch, not `expect(...).rejects`: without the abort signal
+  // (a removed `AbortSignal.timeout` in httpGet), fetchImpl's returned
+  // promise never settles -- and bun's own per-test timeout below does not
+  // preempt an in-flight `expect(promise).rejects`, only a directly
+  // awaited one, so `.rejects` would hang right along with the bug this
+  // test exists to catch instead of failing fast.
+  let threw = false;
+  try {
+    await httpGet('https://game.spacemolt.com/api/map', { fetchImpl, timeoutMs: 5 });
+  } catch {
+    threw = true;
+  }
+  expect(threw).toBe(true);
+  expect(calls).toBe(1); // a timeout is not retried — only one attempt was ever made
+}, 1000); // without the abort signal, fetchImpl never settles and this test would hang for minutes
+
+test('httpGet retries a 429 (honoring Retry-After seconds) then succeeds', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    if (calls === 1) {
+      return new Response(null, { status: 429, statusText: 'Too Many Requests', headers: { 'retry-after': '0' } });
+    }
+    return jsonResponse({ ok: true });
+  }) as typeof fetch;
+  const res = await httpGet('https://game.spacemolt.com/x', { fetchImpl });
+  expect(calls).toBe(2);
+  expect(await res.json()).toEqual({ ok: true });
+});
+
+test('httpGet honors a Retry-After HTTP-date', async () => {
+  let calls = 0;
+  let expectedWaitMs = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    if (calls === 1) {
+      // A little in the future, not just 10ms -- with an assertion of
+      // `>= 0` (the previous version of this test) always passing even with
+      // no wait at all, this needs an actual gap to prove the wait was
+      // honored, not skipped.
+      const retryAt = new Date(Date.now() + 1200).toUTCString();
+      // HTTP-date has 1-second resolution, so what httpGet actually parses
+      // back out can be up to ~1s short of the 1200ms requested here —
+      // compute the same way it does, and assert against that.
+      expectedWaitMs = Math.max(0, Date.parse(retryAt) - Date.now());
+      return new Response(null, {
+        status: 503,
+        statusText: 'Service Unavailable',
+        headers: { 'retry-after': retryAt },
+      });
+    }
+    return jsonResponse({ ok: true });
+  }) as typeof fetch;
+  const start = Date.now();
+  const res = await httpGet('https://game.spacemolt.com/x', { fetchImpl });
+  expect(calls).toBe(2);
+  // Jitter only adds to the wait, never subtracts, so the elapsed time
+  // should be at least the parsed Retry-After (small tolerance for
+  // measurement overhead).
+  expect(Date.now() - start).toBeGreaterThanOrEqual(expectedWaitMs - 20);
+  expect(await res.json()).toEqual({ ok: true });
+}, 3000);
+
+test('httpGet throws a typed HttpError once retries are exhausted', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    return new Response(null, { status: 503, statusText: 'Service Unavailable', headers: { 'retry-after': '0' } });
+  }) as typeof fetch;
+  try {
+    await httpGet('https://game.spacemolt.com/x', { fetchImpl });
+    throw new Error('expected httpGet to throw');
+  } catch (err) {
+    expect(err).toBeInstanceOf(HttpError);
+    const httpErr = err as HttpError;
+    expect(httpErr.status).toBe(503);
+    expect(httpErr.url).toBe('https://game.spacemolt.com/x');
+    expect(httpErr.attempts).toBe(4); // 1 initial + 3 retries
+    expect(httpErr.message).toBe('GET https://game.spacemolt.com/x -> 503 Service Unavailable');
+  }
+  expect(calls).toBe(4);
+});
+
+test('httpGet throws instead of sleeping through a long Retry-After', async () => {
+  let calls = 0;
+  const fetchImpl = (async () => {
+    calls++;
+    return new Response(null, { status: 429, statusText: 'Too Many Requests', headers: { 'retry-after': '3600' } });
+  }) as unknown as typeof fetch;
+  const err = await httpGet('https://game.spacemolt.com/x', { fetchImpl }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(HttpError);
+  expect((err as HttpError).retryAfterMs).toBe(3_600_000);
+  expect((err as HttpError).attempts).toBe(1);
+  expect(calls).toBe(1);
+});
+
+test('httpGet caps the total (cumulative) base retry wait, not just each attempt individually', async () => {
+  // Each Retry-After (1s) is well under maxRetryWaitMs (1.5s) on its own, so
+  // a per-attempt-only cap would keep retrying (up to MAX_RETRIES=3, 4
+  // calls). The cumulative cap must stop once the running total would
+  // exceed maxRetryWaitMs: attempt 1's wait (0 + 1000 <= 1500) is allowed,
+  // but attempt 2's (1000 + 1000 = 2000 > 1500) is not -- 2 calls, not 4.
+  let calls = 0;
+  const fetchImpl = (async () => {
+    calls++;
+    return new Response(null, { status: 429, statusText: 'Too Many Requests', headers: { 'retry-after': '1' } });
+  }) as unknown as typeof fetch;
+  const err = await httpGet('https://game.spacemolt.com/x', { fetchImpl, maxRetryWaitMs: 1500 }).catch(
+    (e: unknown) => e,
+  );
+  expect(err).toBeInstanceOf(HttpError);
+  expect((err as HttpError).attempts).toBe(2);
+  expect(calls).toBe(2);
+}, 3000);
+
+test('httpGet lets a non-retryable status through as HttpError immediately', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) => {
+    calls++;
+    return new Response(null, { status: 404, statusText: 'Not Found' });
+  }) as typeof fetch;
+  await expect(httpGet('https://game.spacemolt.com/x', { fetchImpl })).rejects.toThrow(
+    'GET https://game.spacemolt.com/x -> 404 Not Found',
+  );
+  expect(calls).toBe(1);
+});
+
+test('client.catalog() uses an injected fetchImpl, not global fetch', async () => {
+  globalThis.fetch = (async (_url: string | URL, _init?: RequestInit): Promise<Response> => {
+    throw new Error('global fetch must not be called when fetchImpl is injected');
+  }) as typeof fetch;
+  const fetchImpl = (async (_url: string | URL, _init?: RequestInit) =>
+    jsonResponse({ version: '1', ships: [{ id: 'shuttle' }] })) as typeof fetch;
+  const client = new SpacemoltClient({ url: 'wss://game.spacemolt.com/ws/v2', fetchImpl });
+  const cache = await client.catalog();
+  expect(cache.ship('shuttle')).toBeDefined();
+});
+
+test('client.stations() and client.mobileBase() use the client-level fetchImpl', async () => {
+  globalThis.fetch = (async (_url: string | URL, _init?: RequestInit): Promise<Response> => {
+    throw new Error('global fetch must not be called when fetchImpl is injected');
+  }) as typeof fetch;
+  const seen: string[] = [];
+  const fetchImpl = (async (url: string | URL, _init?: RequestInit) => {
+    seen.push(String(url));
+    return String(url).endsWith('/wheres-mobile-base')
+      ? jsonResponse({ system: 'sol' })
+      : jsonResponse({ stations: [], empires: [] });
+  }) as typeof fetch;
+  const client = new SpacemoltClient({ url: 'wss://game.spacemolt.com/ws/v2', fetchImpl });
+  expect((await client.mobileBase()).system).toBe('sol');
+  expect((await client.stations()).stations).toEqual([]);
+  expect(seen).toEqual(['https://game.spacemolt.com/wheres-mobile-base', 'https://game.spacemolt.com/api/stations']);
+});
+
+test('an HttpError still surfaces when a fetchImpl wrapper already read the body', async () => {
+  const fetchImpl = (async () => {
+    const res = new Response('nope', { status: 404, statusText: 'Not Found' });
+    await res.text(); // e.g. a wrapper measuring bytes without clone()
+    return res;
+  }) as unknown as typeof fetch;
+  const err = await httpGet('https://game.spacemolt.com/x', { fetchImpl }).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(HttpError);
+});
+
+test('client httpTimeoutMs reaches the data fetches', async () => {
+  const fetchImpl = (async (_url: string | URL, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'TimeoutError')));
+    })) as typeof fetch;
+  const client = new SpacemoltClient({ url: 'wss://game.spacemolt.com/ws/v2', fetchImpl, httpTimeoutMs: 20 });
+  const started = Date.now();
+  let err: unknown;
+  try {
+    await client.stations();
+  } catch (e) {
+    err = e;
+  }
+  expect(err).toBeInstanceOf(DOMException);
+  expect(Date.now() - started).toBeLessThan(1000);
+}, 2000);

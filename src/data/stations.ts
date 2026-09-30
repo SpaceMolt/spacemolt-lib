@@ -1,3 +1,4 @@
+import { type FetchOptions, httpGet } from './http.ts';
 import { isRecord, requireRecord } from '../validation.ts';
 
 /**
@@ -59,11 +60,14 @@ export interface StationList {
   empires: StationEmpire[];
 }
 
-/** Fetch the public station directory. */
-export async function fetchStations(httpBaseUrl: string): Promise<StationList> {
+/** Fetch the public station directory. Pass `fetchImpl` to inject a `fetch` (tests, observability). */
+export async function fetchStations(httpBaseUrl: string, opts: FetchOptions = {}): Promise<StationList> {
   const url = `${httpBaseUrl.replace(/\/$/, '')}/api/stations`;
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
+  const res = await httpGet(url, {
+    headers: { accept: 'application/json' },
+    fetchImpl: opts.fetchImpl,
+    timeoutMs: opts.timeoutMs,
+  });
   const data = requireRecord(await res.json(), 'stations response');
   const stations = Array.isArray(data.stations) ? (data.stations.filter(isRecord) as StationSummary[]) : [];
   const empires = Array.isArray(data.empires)
