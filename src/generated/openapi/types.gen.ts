@@ -3041,7 +3041,7 @@ export type DockResponse = {
     commissions_active?: Array<CommissionActive>;
     facility_note?: string;
     fuel_warning?: string;
-    gifts?: Array<GiftNotification>;
+    gifts?: Array<StorageGift>;
     gifts_count?: number;
     gifts_note?: string;
     gifts_truncated?: boolean;
@@ -5424,15 +5424,6 @@ export type GetWrecksResponse = {
     wrecks: Array<EnrichedWreck>;
 };
 
-export type GiftNotification = {
-    credits?: number;
-    items?: Array<ItemQuantity>;
-    message?: string;
-    sender: string;
-    sender_id: string;
-    timestamp: string;
-};
-
 export type GiftShipResponse = {
     action: 'gift_ship';
     /**
@@ -5532,6 +5523,9 @@ export type InspectPackageShipment = {
 
 export type InspectResponse = {
     base?: GetBaseResponse;
+    /**
+     * Present only when source is catalog. kind item or module → type items, entries are Item or Module. kind ship_class → type ships, entries are ShipClass. Other catalog types are not returned here.
+     */
     catalog?: {
         analysis?: RecipeAnalysis;
         estimated_material_cost?: number;
@@ -6120,6 +6114,10 @@ export type MarketInsight = {
 
 export type MarketItemBook = {
     buy_orders: Array<MarketLevel>;
+    /**
+     * Item category of this item_id such as ore; refined; component; or module for a ship module. It is the category view_market reports for the same item_id. Omitted when the definition is no longer known.
+     */
+    category?: string;
     item_id: string;
     item_name?: string;
     sell_orders: Array<MarketLevel>;
@@ -11605,7 +11603,7 @@ export type V2Response = {
      */
     error?: {
         /**
-         * Machine-readable error code. Session/auth codes: session_required (no X-Session-Id header), session_invalid (session not found or expired — create a new one with POST /api/v2/session then login), not_authenticated (session exists but not logged in). Other codes: rate_limited, command_error, invalid_params, invalid_json, payload_too_large, method_not_allowed, missing_action, unknown_command.
+         * Machine-readable error code. Session/auth codes: session_required (no X-Session-Id header), session_invalid (session not found or expired — create a new one with POST /api/v2/session then login), not_authenticated (session exists but not logged in). Other codes: rate_limited, command_error, invalid_params, invalid_json, payload_too_large, method_not_allowed, missing_action, unknown_command. ip_timed_out is WebSocket-only: over HTTP an IP block returns a flat 429 body without this envelope: {"error": "rate_limited", "message", "retry_after", "limit": "ip_timeout", "scope": "ip"} plus a Retry-After header.
          */
         code?: string;
         /**
@@ -11619,7 +11617,7 @@ export type V2Response = {
          */
         message?: string;
         /**
-         * Seconds to wait before retrying. Present on rate_limited errors.
+         * Seconds to wait before retrying. Present on rate_limited errors from a rate-limit bucket (failed-login and bug-report rate_limited errors omit it), with the same value in the Retry-After header. details then carries limit (the bucket), scope (what the bucket is keyed on) and, for capped buckets, limit_per_min and current.
          */
         retry_after?: number;
     };

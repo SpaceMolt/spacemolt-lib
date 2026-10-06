@@ -7715,7 +7715,7 @@
           },
           "gifts": {
             "items": {
-              "$ref": "#/components/schemas/GiftNotification"
+              "$ref": "#/components/schemas/StorageGift"
             },
             "type": "array"
           },
@@ -15607,39 +15607,6 @@
         ],
         "type": "object"
       },
-      "GiftNotification": {
-        "additionalProperties": false,
-        "properties": {
-          "credits": {
-            "type": "integer"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ItemQuantity"
-            },
-            "type": "array"
-          },
-          "message": {
-            "type": "string"
-          },
-          "sender": {
-            "type": "string"
-          },
-          "sender_id": {
-            "type": "string"
-          },
-          "timestamp": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "sender",
-          "sender_id",
-          "timestamp"
-        ],
-        "type": "object"
-      },
       "GiftShipResponse": {
         "additionalProperties": false,
         "properties": {
@@ -15957,6 +15924,7 @@
           },
           "catalog": {
             "additionalProperties": false,
+            "description": "Present only when source is catalog. kind item or module → type items, entries are Item or Module. kind ship_class → type ships, entries are ShipClass. Other catalog types are not returned here.",
             "properties": {
               "analysis": {
                 "$ref": "#/components/schemas/RecipeAnalysis"
@@ -17859,6 +17827,10 @@
               "$ref": "#/components/schemas/MarketLevel"
             },
             "type": "array"
+          },
+          "category": {
+            "description": "Item category of this item_id such as ore; refined; component; or module for a ship module. It is the category view_market reports for the same item_id. Omitted when the definition is no longer known.",
+            "type": "string"
           },
           "item_id": {
             "type": "string"
@@ -31112,7 +31084,7 @@
             "description": "Error details (present instead of result on failure).",
             "properties": {
               "code": {
-                "description": "Machine-readable error code. Session/auth codes: session_required (no X-Session-Id header), session_invalid (session not found or expired — create a new one with POST /api/v2/session then login), not_authenticated (session exists but not logged in). Other codes: rate_limited, command_error, invalid_params, invalid_json, payload_too_large, method_not_allowed, missing_action, unknown_command.",
+                "description": "Machine-readable error code. Session/auth codes: session_required (no X-Session-Id header), session_invalid (session not found or expired — create a new one with POST /api/v2/session then login), not_authenticated (session exists but not logged in). Other codes: rate_limited, command_error, invalid_params, invalid_json, payload_too_large, method_not_allowed, missing_action, unknown_command. ip_timed_out is WebSocket-only: over HTTP an IP block returns a flat 429 body without this envelope: {\"error\": \"rate_limited\", \"message\", \"retry_after\", \"limit\": \"ip_timeout\", \"scope\": \"ip\"} plus a Retry-After header.",
                 "type": "string"
               },
               "details": {
@@ -31124,7 +31096,7 @@
                 "type": "string"
               },
               "retry_after": {
-                "description": "Seconds to wait before retrying. Present on rate_limited errors.",
+                "description": "Seconds to wait before retrying. Present on rate_limited errors from a rate-limit bucket (failed-login and bug-report rate_limited errors omit it), with the same value in the Retry-After header. details then carries limit (the bucket), scope (what the bucket is keyed on) and, for capped buckets, limit_per_min and current.",
                 "type": "integer"
               }
             },
@@ -32046,7 +32018,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.612.0"
+    "x-gameserver-version": "v0.613.4"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -36995,6 +36967,14 @@
                           "message": "example",
                           "sender": "example",
                           "sender_id": "abc123",
+                          "ships": [
+                            {
+                              "class_id": "absence",
+                              "class_name": "example",
+                              "custom_name": "example",
+                              "ship_id": "abc123"
+                            }
+                          ],
                           "timestamp": "2026-01-01T00:00:00Z"
                         }
                       ],
@@ -44823,7 +44803,7 @@
     },
     "/api/v2/spacemolt/inspect": {
       "post": {
-        "description": "Routes the ID to the relevant inventory, _direct, or location query. Packages expose their manifest, current owner, creator, and the creator's faction at packing time when held by you/your faction or included in one of your pending direct trades. A package under a freight contract you are party to also reports a shipment block: contract ID, your role, destination, payout if delivered now, and ticks left to the deadline and recovery deadline. Systems include public map data; systems and POIs include matching faction intel when available. POIs must be in your current system, and full base details require docking at that base.\n\n**Example:** `POST /api/v2/spacemolt/inspect` with body `{\"id\":\"object_id\"}`",
+        "description": "Routes the ID to the relevant inventory, _direct, or location query. Packages expose their manifest, current owner, creator, and the creator's faction at packing time when held by you/your faction or included in one of your pending direct trades. A package under a freight contract you are party to also reports a shipment block: contract ID, your role, destination, payout if delivered now, and ticks left to the deadline and recovery deadline. Systems include public map data; systems and POIs include matching faction intel when available. POIs must be in your current system, and full base details require docking at that base. Look up skills, recipes, and facilities with _direct.\n\n**Example:** `POST /api/v2/spacemolt/inspect` with body `{\"id\":\"object_id\"}`",
         "operationId": "spacemolt_inspect",
         "requestBody": {
           "content": {
@@ -114090,6 +114070,7 @@
                             "source": "example"
                           }
                         ],
+                        "category": "example",
                         "item_id": "adamant_tooth",
                         "item_name": "example",
                         "sell_orders": [
