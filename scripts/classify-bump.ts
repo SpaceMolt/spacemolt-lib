@@ -122,8 +122,9 @@ export function classifyCommits(messages: string[]): Classification {
     }
     if (!m) continue;
     const type = m[1];
-    if (type === 'feat') bump('minor', `feat: ${subject}`);
-    else if (type === 'fix' || type === 'perf') bump('patch', `${type}: ${subject}`);
+    // The subject already carries its `type:` prefix; don't repeat it.
+    if (type === 'feat') bump('minor', subject);
+    else if (type === 'fix' || type === 'perf') bump('patch', subject);
     // chore / docs / ci / refactor / test / style / build -> no bump
   }
 
