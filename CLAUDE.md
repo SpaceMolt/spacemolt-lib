@@ -29,7 +29,7 @@ and `gameserver/` are loaded only for reference.
 bun install
 bun run fetch-spec    # sync openapi.json from the live server
 bun run generate      # openapi-ts types + custom catalog/notification codegen
-bun run check         # format + lint + generated sync + types + tests + package builds
+bun run check         # format + lint + generated sync + types + tests + package builds + consumer install
 bun run format        # apply Biome formatting
 bun run lint          # run Biome lint rules
 bun run typecheck     # tsc --noEmit
@@ -182,6 +182,7 @@ scripts/
   generate.ts             stage-2 custom codegen
   check-generated.ts      verify generated output is current (dirty-tree safe)
   check-build.mjs          runtime smoke check for the packed entry points
+  check-consumer.ts       packs + installs into a scratch consumer; tsc Node-only + DOM
 src/
   index.ts                public surface (browser-safe — no Node built-ins)
   node.ts                 Node/Bun-only entry (@spacemolt/lib/node)

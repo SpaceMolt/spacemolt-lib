@@ -24,7 +24,7 @@
     "fetch-spec": "bun run scripts/fetch-spec.ts",
     "generate": "bun run openapi-ts && bun run scripts/generate.ts",
     "generate:check": "bun run scripts/check-generated.ts",
-    "check": "bun run format:check && bun run lint && bun run generate:check && bun run typecheck && bun test && bun run build:browser-check && bun run build && bun run build:smoke",
+    "check": "bun run format:check && bun run lint && bun run generate:check && bun run typecheck && bun test && bun run build:browser-check && bun run build && bun run build:smoke && bun run check:consumer",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
@@ -33,7 +33,8 @@
     "build:smoke": "node scripts/check-build.mjs",
     "build:browser-check": "bun run scripts/check-browser-build.ts",
     "test": "bun test",
-    "prepack": "bun run build"
+    "prepack": "bun run build",
+    "check:consumer": "bun run scripts/check-consumer.ts"
   },
   "repository": {
     "type": "git",
@@ -51,6 +52,7 @@
     "@biomejs/biome": "^2.5.3",
     "@hey-api/openapi-ts": "^0.73.0",
     "@types/bun": "^1.3.9",
+    "@types/node": "^22",
     "typescript": "^5.9.3"
   }
 }

@@ -24,6 +24,13 @@ jobs:
         with:
           bun-version: latest
 
+      # check:consumer and build:smoke run the packed library under node; pin
+      # the oldest supported major instead of whatever the runner ships.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
