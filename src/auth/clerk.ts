@@ -44,13 +44,18 @@ export interface ClerkRegistration {
   players: ClerkPlayer[];
 }
 
+// Whatever this environment's `Headers` constructor accepts (DOM lib,
+// @types/node, bun-types), so the emitted .d.ts doesn't need the DOM lib. Under
+// the DOM lib this is exactly the global `HeadersInit`.
+type HeadersCtorInit = NonNullable<ConstructorParameters<typeof Headers>[0]>;
+
 /**
  * Headers that authorize calls to the Clerk-gated gameserver endpoints — an
  * alternative to `apiKey` for callers whose credential isn't a static key.
  * A factory is resolved fresh on every request, so short-lived tokens (e.g. a
  * browser Clerk session's `getToken()` JWT) stay valid across reconnects.
  */
-export type ClerkAuthHeaders = HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+export type ClerkAuthHeaders = HeadersCtorInit | (() => HeadersCtorInit | Promise<HeadersCtorInit>);
 
 /** How Clerk-gated requests are authorized. Provide `apiKey`, `headers`, or both. */
 export interface ClerkAuth {

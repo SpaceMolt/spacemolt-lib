@@ -122,6 +122,11 @@ test('conventional commits classify by type', () => {
   expect(classifyCommits(['refactor: internals\n\nBREAKING CHANGE: dropped Account.foo']).level).toBe('major');
 });
 
+test('commit reasons state the type once', () => {
+  expect(classifyCommits(['fix: correct retry parsing']).reasons).toEqual(['patch: fix: correct retry parsing']);
+  expect(classifyCommits(['feat(client): add batching']).reasons).toEqual(['minor: feat(client): add batching']);
+});
+
 test('bump is the max across commits', () => {
   const msgs = ['docs: x', 'fix: y', 'feat: z'];
   expect(classifyCommits(msgs).level).toBe('minor');
