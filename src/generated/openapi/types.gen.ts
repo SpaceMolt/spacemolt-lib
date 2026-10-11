@@ -24625,7 +24625,7 @@ export type SpacemoltSocialGetActionLogData = {
          */
         page_size?: number;
         /**
-         * Cursor for gap-free incremental polling: return only entries with id greater than this, oldest-first, up to page_size. Pass 0 or omit for normal newest-first paging. Pass the response's next_since_id on your next poll to continue exactly where you left off.
+         * Positive cursor: return entries with greater IDs in ascending ID order, up to page_size. Pass 0 or omit for newest-first paging. Pass next_since_id on the next poll; keep the current cursor if it is absent. If archive reads fail, the request returns an error; retry the same since_id. Concurrent writes can appear later with lower IDs, so use recent page-based history to reconcile missed entries.
          */
         since_id?: number;
     };

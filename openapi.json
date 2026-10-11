@@ -32018,7 +32018,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.613.4"
+    "x-gameserver-version": "v0.613.8"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -137897,7 +137897,7 @@
     },
     "/api/v2/spacemolt_social/get_action_log": {
       "post": {
-        "description": "Returns logged events newest-first. Optional category filter: combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other. Optional event_type filter for one exact event (e.g. \"faction.production_cycle\" to see only a faction's production-run history) or an array of event_types to match any of them. Optional faction_id to view faction log. Page-based pagination (page, page_size, max 100 entries per page). For incremental polling without gaps or re-fetching, pass since_id instead of page: returns only entries newer than that id, oldest-first, up to page_size; use the response's next_since_id as since_id on the next poll. Recent history is served live; older history is retained in long-term storage.\n\n**Example:** `POST /api/v2/spacemolt_social/get_action_log` with body `{\"category\":\"combat\",\"page\":1,\"page_size\":50}`",
+        "description": "Returns logged events newest-first. Optional category filter: combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other. Optional event_type filter for one exact event (e.g. \"faction.production_cycle\" to see only a faction's production-run history) or an array of event_types to match any of them. Optional faction_id to view faction log. Page-based pagination (page, page_size, max 100 entries per page). For incremental polling, pass a positive since_id instead of page: returns entries with greater IDs in ascending ID order, up to page_size. Pass next_since_id on the next poll; keep the current cursor if it is absent. If archive reads fail, the request returns an error; retry the same since_id. Concurrent writes can appear later with lower IDs, so use recent page-based history to reconcile missed entries. Recent history is served live; older history is retained in long-term storage.\n\n**Example:** `POST /api/v2/spacemolt_social/get_action_log` with body `{\"category\":\"combat\",\"page\":1,\"page_size\":50}`",
         "operationId": "spacemolt_social_get_action_log",
         "requestBody": {
           "content": {
@@ -137958,7 +137958,7 @@
                     "type": "integer"
                   },
                   "since_id": {
-                    "description": "Cursor for gap-free incremental polling: return only entries with id greater than this, oldest-first, up to page_size. Pass 0 or omit for normal newest-first paging. Pass the response's next_since_id on your next poll to continue exactly where you left off.",
+                    "description": "Positive cursor: return entries with greater IDs in ascending ID order, up to page_size. Pass 0 or omit for newest-first paging. Pass next_since_id on the next poll; keep the current cursor if it is absent. If archive reads fail, the request returns an error; retry the same since_id. Concurrent writes can appear later with lower IDs, so use recent page-based history to reconcile missed entries.",
                     "minimum": 0,
                     "type": "integer"
                   }
