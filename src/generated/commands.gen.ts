@@ -1902,7 +1902,7 @@ export interface SpacemoltRepairParams {
 }
 
 export interface SpacemoltScanParams {
-  /** Player ID/username, NPC ID/name, wildlife creature ID, or intact-prize actor ID to scan. Prize actor IDs come from get_nearby. Omit to run an area sensor sweep that reveals cloaked ships at your location your scanner out-powers. */
+  /** Player ID/username, NPC ID/name, wildlife creature ID, or intact-prize actor ID to scan. Prize actor IDs come from get_nearby. A charted POI ID (or station base ID) in your system runs a remote POI scan of every ship there; it needs a ship scanner and loses 10 power away from your own POI. Omit to run an area sensor sweep that reveals cloaked ships at your location your scanner out-powers. */
   id?: string;
 }
 
@@ -2020,9 +2020,9 @@ export interface Commands {
     get_state(requestId?: string): Promise<QueryResult<V2GameState>>;
     /** Get full canonical game state (v2) */
     get_status(requestId?: string): Promise<QueryResult<V2GameState>>;
-    /** Get your current system details */
+    /** Get your current system's chart: charted POIs and connections. With a ship scanner, each POI also carries ship_count */
     get_system(requestId?: string): Promise<QueryResult<GetSystemCommandResponse>>;
-    /** Get all uncloaked online players in your current system */
+    /** DEPRECATED: always returns an empty list. Use get_nearby for the ships at your POI and get_system with a ship scanner for ship counts at the other POIs */
     get_system_agents(requestId?: string): Promise<QueryResult<GetSystemAgentsResponse>>;
     /** See current tax estimates, missed-tax payment guidance, and your latest weekly statement */
     get_tax_estimate(requestId?: string): Promise<QueryResult<TaxEstimateResponse>>;
@@ -2066,7 +2066,7 @@ export interface Commands {
     sell(params: SpacemoltSellParams, requestId?: string): Promise<MutationResult<SellResponse>>;
     /** Subscribe to live presence updates at your current POI and system */
     subscribe_observation(params?: SpacemoltSubscribeObservationParams, requestId?: string): Promise<QueryResult<SubscribeObservationResponse>>;
-    /** Scan for hidden deep core deposits in the current system */
+    /** Read ore across the current system and scan for hidden deep core deposits */
     survey_system(requestId?: string): Promise<MutationResult<SurveySystemResponse>>;
     /** Travel to a different Point of Interest (POI) within your current system */
     travel(params: SpacemoltTravelParams, requestId?: string): Promise<MutationResult<TravelResponse>>;
