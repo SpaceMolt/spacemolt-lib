@@ -469,7 +469,11 @@ decides when that is. Read it before scheduling the split.
 
 ## 13. The observation watch omits arena NPCs, and its doc comment oversells it
 
-**Status:** todo · **Needed by:** the watch actually replacing `get_nearby` · **Priority:** low
+**Status:** done (gameserver v0.609.4) · **Needed by:** the watch actually replacing `get_nearby` · **Priority:** low
+
+Done: the baseline carries `arena_npcs` and `observation_update` carries
+`arena_npcs_changed` / `arena_npcs_departed`. The lib stores them in
+`ObservationView.arenaNpcs`.
 
 `SubscribeObservationResponse` carries five of `get_nearby`'s six presence
 classes: players, pirates, empire NPCs, creatures and prizes. Arena NPCs are
@@ -504,7 +508,11 @@ change can substitute for it.
 
 ## 15. `ship_name` means different things in the watch and in `V2Location`
 
-**Status:** todo · **Needed by:** the location bridge round-tripping · **Priority:** low
+**Status:** done (gameserver PR #2378) · **Needed by:** the location bridge round-tripping · **Priority:** low
+
+Done: `buildV2Location` now reads the same `POIPresence` as the watch, and both
+use the shared `NearbyPlayer` / `EmpireNpcInfo` schemas. `ship_name` is the
+display name on both paths, and the bridge passes entries through.
 
 For players and empire NPCs the two paths disagree on one field.
 `buildNearbyPlayerLocked` and `gatherPOIEmpireNPCsLocked`
