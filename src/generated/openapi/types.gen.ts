@@ -873,11 +873,17 @@ export type AttackNpcResponse = {
     auto_undocked?: boolean;
     kind: 'npc';
     target: string;
+    /**
+     * Display name of the target. A creature shows its life-stage name for a leviathan, else its species name. Branded ranch livestock starts with the owning faction's [TAG].
+     */
     target_name: string;
     /**
      * Target combatant type: pirate/empire_npc/creature/station/prize
      */
     target_type: string;
+    /**
+     * Set when the target is branded ranch livestock: names the owning faction and ranch. The kill is legal, but the owners are told who killed it and it gives no hunt mission credit. Omitted for every other target.
+     */
     warning?: string;
 };
 
@@ -978,6 +984,12 @@ export type Base = {
      * Maximum fuel tank capacity (0 if no fuel bunker installed)
      */
     max_fuel?: number;
+    /**
+     * Durable faction mobile-base archetype and movement state; omitted for ordinary stations
+     */
+    mobile_base?: {
+        [key: string]: unknown;
+    };
     name: string;
     owner_id?: string;
     /**
@@ -2059,7 +2071,7 @@ export type CatalogDump = {
     items: Array<Item | Module>;
     mining: MiningConstants;
     recipes: Array<CatalogRecipe>;
-    ships: Array<ShipClass>;
+    ships: Array<ShipClass | MobileBaseShipClass>;
     skills: Array<SkillDefinition>;
     version: string;
 };
@@ -2127,9 +2139,9 @@ export type CatalogResponse = {
     analysis?: RecipeAnalysis;
     estimated_material_cost?: number;
     /**
-     * Catalog entries. Shape depends on the requested type: ships → ShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
+     * Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
      */
-    items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition>;
+    items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition | MobileBaseShipClass>;
     message: string;
     page: number;
     page_size: number;
@@ -2173,6 +2185,8 @@ export type CatalogShipSummary = {
     lore?: string;
     marine_capacity: number;
     minimum_crew: number;
+    mobile_base?: MobileBaseCatalog;
+    mobile_base_archetype?: string;
     name: string;
     npc_role?: string;
     passive_recipes?: Array<string>;
@@ -2875,8 +2889,17 @@ export type CreateSellOrderResponse = {
 };
 
 export type CreatureInfo = {
+    /**
+     * Owning faction of a branded animal as [TAG] Faction Name. Omitted for wild animals.
+     */
     brand_faction?: string;
+    /**
+     * Name of the outpost whose ranch owns a branded animal. Omitted for wild animals.
+     */
     brand_ranch?: string;
+    /**
+     * True when this animal is branded livestock of a player faction's wildlife ranch. Killing it is legal. It draws down the owners' herd, the owners are told who killed it, and it gives no hunt mission credit. Its name also starts with the owner's [TAG]. Omitted for wild animals.
+     */
     branded?: boolean;
     creature_id: string;
     hull: number;
@@ -2894,6 +2917,11 @@ export type DeclineMissionResponse = {
     message: string;
     template_id: string;
     title: string;
+};
+
+export type DecommissionMobileBaseResponse = {
+    decommissioned: boolean;
+    message: string;
 };
 
 export type DefenseComponentLog = {
@@ -3354,6 +3382,9 @@ export type FacilityBuildResponse = {
     facility_type: string;
     hint: string;
     recipe_id?: string;
+    /**
+     * Rent in credits per facility cycle (100 ticks) charged to the builder for this facility. 0 means no rent is due: a member's facility at their own faction's player station or outpost pays none.
+     */
     rent_per_cycle: number;
     skill_xp?: {
         [key: string]: number;
@@ -3401,6 +3432,9 @@ export type FacilityDefSummary = {
     maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
     recipe_id?: string;
+    /**
+     * Rent quote in credits per facility cycle (100 ticks) for the requesting player at this station. 0 at their own faction's player station or outpost, where members pay no rent; an outsider there is quoted the tenant rent paid to the owning faction.
+     */
     rent_per_cycle: number;
     type_id: string;
 };
@@ -3567,6 +3601,9 @@ export type FacilityFactionBuildResponse = {
     hint: string;
     members_awarded_xp?: number;
     recipe_id?: string;
+    /**
+     * Rent in credits per facility cycle (100 ticks) charged to the faction treasury. 0 means no rent is due: a facility at the faction's own player station or outpost pays none. A Letter of Marque Office's toll is recomputed each cycle from the faction's unrepresented members and can also start at 0.
+     */
     rent_per_cycle: number;
     skill_xp?: {
         [key: string]: number;
@@ -3747,6 +3784,9 @@ export type FacilityPersonalBuildResponse = {
     hint: string;
     home_base_set?: boolean;
     personal_service: string;
+    /**
+     * Rent in credits per facility cycle (100 ticks) charged to the builder. 0 means no rent is due: a member's facility at their own faction's player station or outpost pays none.
+     */
     rent_per_cycle: number;
     skill_xp?: {
         [key: string]: number;
@@ -3807,7 +3847,7 @@ export type FacilityRentSummary = {
      */
     est_rent_per_day: number;
     /**
-     * Number of owned facilities in this summary including facilities whose billing is paused.
+     * Number of owned facilities in this summary including facilities whose billing is paused and facilities at the owner's own faction station or outpost, which pay no rent and count at 0.
      */
     facilities: number;
     /**
@@ -3887,6 +3927,9 @@ export type FacilityTypeDetailResponse = {
     personal_service?: string;
     recipe?: FacilityRecipeInfo;
     recipe_id?: string;
+    /**
+     * Rent quote in credits per facility cycle (100 ticks) for the requesting player at their docked station. 0 at their own faction's player station or outpost, where members pay no rent; an outsider there is quoted the tenant rent paid to the owning faction.
+     */
     rent_per_cycle: number;
     requires_service_name?: string;
     requires_service_type?: string;
@@ -3971,6 +4014,9 @@ export type FacilityUpgradeResponse = {
     level: number;
     personal_service?: string;
     recipe_id?: string;
+    /**
+     * Rent in credits per facility cycle (100 ticks) after the upgrade. 0 means no rent is due: a facility at its owner's own faction player station or outpost pays none.
+     */
     rent_per_cycle: number;
 };
 
@@ -4292,7 +4338,7 @@ export type FactionInfoResponse = {
     enemies?: Array<FactionListItem>;
     facilities?: Array<FactionFacilityPresence>;
     /**
-     * Rent and arrears for the faction's facilities across all stations; billed to the treasury each cycle. Omitted for non-members and for a faction that owns no facilities. Use facility action=faction_owned for the per-facility breakdown.
+     * Rent and arrears for the faction's facilities across all stations; billed to the treasury each cycle. Facilities at the faction's own station or outpost pay no rent and count at 0, so a faction that owns facilities only there gets a summary with zero rent. Omitted for non-members and for a faction that owns no facilities. Use facility action=faction_owned for the per-facility breakdown.
      */
     faction_rent?: FacilityRentSummary;
     fuel_bunkers?: Array<FactionFuelBunker>;
@@ -4307,6 +4353,14 @@ export type FactionInfoResponse = {
     members_limit?: number;
     members_offset?: number;
     members_truncated?: boolean;
+    /**
+     * Current mobile-base location and movement state. Present only for faction members with a completed mobile base; omitted during construction or after decommissioning.
+     */
+    mobile_base?: MobileBaseInfo;
+    /**
+     * Pending mobile-base construction reservation. Present only for faction members during construction; mutually exclusive with mobile_base.
+     */
+    mobile_base_commission?: MobileBaseCommissionInfo;
     name: string;
     owned_bases: number;
     peace_proposals?: Array<FactionPeaceProposal>;
@@ -4397,6 +4451,37 @@ export type FactionMissionEntry = {
     template_id: string;
     title: string;
     type: string;
+};
+
+export type FactionMobileBaseResponse = {
+    /**
+     * Stable station ID of the faction mobile base.
+     */
+    base_id: string;
+    /**
+     * Movement phase and route plus refundable jump resources. get_base and faction_info flatten these movement fields into their mobile_base object without escrow.
+     */
+    mobile_base: MobileBaseState;
+    /**
+     * Current station display name.
+     */
+    name: string;
+    /**
+     * Stable POI ID that moves with the base.
+     */
+    poi_id: string;
+    /**
+     * Current POI coordinates in AU; updated each movement tick and held at departure during isolated jumping. Zero if the POI is unavailable. Equivalent to current_position in get_base and faction_info mobile_base.
+     */
+    position: Position;
+    /**
+     * Current POI system; omitted during isolated jumping or if the POI is unavailable. Read mobile_base.origin.system_id for the departure system. Equivalent to current_system_id in get_base and faction_info mobile_base.
+     */
+    system_id?: string;
+    /**
+     * True when the station combat state is wrecked; false otherwise.
+     */
+    wrecked: boolean;
 };
 
 export type FactionOwnedFacilityEntry = {
@@ -5381,7 +5466,7 @@ export type GetNearbyResponse = {
      */
     creature_count: number;
     /**
-     * Wildlife creatures at this POI that you can hunt. Every head of a herd is a real creature here. The list holds at most 30 entries; creature_count gives the full number.
+     * Wildlife creatures at this POI that you can hunt. Every head of a herd is a real creature here. The list holds at most 30 entries; creature_count gives the full number. Wild animals come before branded ranch livestock, so the cut drops branded animals first.
      */
     creatures: Array<CreatureInfo>;
     empire_npc_count: number;
@@ -5554,19 +5639,11 @@ export type GuideEntry = {
     title: string;
 };
 
-export type HuntResponse = {
-    /**
-     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
-     */
-    auto_docked?: boolean;
-    /**
-     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
-     */
-    auto_undocked?: boolean;
-    command: string;
-    message: string;
-    pending: boolean;
-};
+export type HuntResponse = ({
+    kind: 'npc';
+} & AttackNpcResponse) | ({
+    kind: 'player';
+} & AttackPlayerResponse);
 
 export type IncomeTaxBracketBreakdown = {
     income_in_bracket: number;
@@ -5636,9 +5713,9 @@ export type InspectResponse = {
         analysis?: RecipeAnalysis;
         estimated_material_cost?: number;
         /**
-         * Catalog entries. Shape depends on the requested type: ships → ShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
+         * Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
          */
-        items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition>;
+        items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition | MobileBaseShipClass>;
         message: string;
         page: number;
         page_size: number;
@@ -5733,7 +5810,7 @@ export type IntelPoi = {
      */
     class?: string;
     /**
-     * True when this is a hidden deep core POI holding deposits. Access there needs a deep_core_access extractor that a pilot cannot refit below so the too-sparse cutoff never applies and these deposits always work down to zero. It is the one input to the mining lock formula that you cannot derive from a deposit's own numbers. Omitted (false) for every ordinary POI and for a hidden POI with no resources such as a wormhole mouth.
+     * True when this is a hidden deep core POI holding deposits. Access there needs a deep_core_access extractor that a pilot cannot refit below so the too-sparse cutoff never applies and these deposits always work down to zero. It is the one input to the mining lock formula that you cannot derive from a deposit's own numbers. Omitted (false) for every ordinary POI, for a hidden POI below the deep core survey tier (which mines like an ordinary POI), and for a hidden POI with no resources such as a wormhole mouth.
      */
     deep_core?: boolean;
     /**
@@ -5753,7 +5830,7 @@ export type IntelPoi = {
      */
     position: Position;
     /**
-     * Game tick at which a faction member's ship read this POI's resources: an Intel Center auto-sync from get_poi, deep-core mining or survey_system, or the live view when an online faction member is at this POI right now (then it equals current_tick). Omitted (0) when no member's ship has read the resources: a hand-submitted reading from faction_submit_intel is unverified and never carries this field. Compare it against current_tick to judge how stale the resources are.
+     * Game tick at which a faction member's ship read this POI's resources: an Intel Center auto-sync from get_poi, successful mining or survey_system, or the live view when an online faction member is at this POI right now (then it equals current_tick). Omitted (0) when no member's ship has read the resources: a hand-submitted reading from faction_submit_intel is unverified and never carries this field. Compare it against current_tick to judge how stale the resources are.
      */
     read_at_tick?: number;
     /**
@@ -6464,8 +6541,310 @@ export type MissionRewardsInfo = {
     };
 };
 
+export type MobileBaseCatalog = {
+    /**
+     * Fixed service and infrastructure facilities delivered with the station
+     */
+    built_in_facilities: Array<MobileBaseCatalogFacility>;
+    /**
+     * Always station; uses station battles and facility weapons
+     */
+    combat_model: string;
+    /**
+     * Initial station weapon facilities; repeated entries represent separate batteries; ammunition and operating supplies are required
+     */
+    default_weapon_facilities: Array<MobileBaseCatalogFacility>;
+    /**
+     * Capacity of the shared station fuel reservoir in fuel units
+     */
+    fuel_capacity: number;
+    /**
+     * Maximum additional production facilities
+     */
+    production_slots: number;
+    /**
+     * Service identifiers supplied by the fixed facilities when operational
+     */
+    services: Array<string>;
+    /**
+     * Always false; ship modules and fitting slots do not apply
+     */
+    ship_modules: boolean;
+    /**
+     * Faction storage limit for each distinct item
+     */
+    storage_capacity_per_item: number;
+    /**
+     * Maximum changeable station weapon facilities including the delivered batteries
+     */
+    weapon_mounts: number;
+};
+
+export type MobileBaseCatalogFacility = {
+    /**
+     * Facility definition identifier
+     */
+    id: string;
+    /**
+     * Facility catalog display name
+     */
+    name: string;
+};
+
+export type MobileBaseCommissionInfo = {
+    /**
+     * Empire-specific mobile-base archetype reserved by this commission.
+     */
+    archetype_id: string;
+    /**
+     * Pending shipyard commission reserving the faction's single mobile-base slot. Cleared when construction completes or is cancelled.
+     */
+    commission_id: string;
+};
+
+export type MobileBaseEndpoint = {
+    /**
+     * Endpoint coordinates in AU. Zero while stationary and for a jump destination whose arrival coordinates are not selected yet.
+     */
+    position: Position;
+    /**
+     * Endpoint system ID; empty while stationary.
+     */
+    system_id: string;
+};
+
+export type MobileBaseInfo = {
+    /**
+     * Empire-specific blueprint archetype that produced this station.
+     */
+    archetype_id: string;
+    /**
+     * Stable station ID of the completed mobile base.
+     */
+    base_id: string;
+    /**
+     * Latest station POI coordinates in AU. Updated each movement tick; remains the departure position during isolated jumping. Zero if the POI is unavailable.
+     */
+    current_position: Position;
+    /**
+     * System currently recorded on the station POI; empty during isolated jumping or if the POI is unavailable. Read origin.system_id for the departure system.
+     */
+    current_system_id: string;
+    /**
+     * Target system and AU coordinates. Jump coordinates remain zero until arrival; this does not promise arrival at system center. Empty system and zero coordinates while stationary.
+     */
+    destination: MobileBaseEndpoint;
+    /**
+     * Current movement phase. Stationary clears route endpoints and timing. Jumping isolates the base until arrival.
+     */
+    lifecycle: 'stationary' | 'in_system_transit' | 'jump_preparing' | 'jumping';
+    /**
+     * Current station display name.
+     */
+    name: string;
+    /**
+     * Departure system and AU coordinates; empty system and zero coordinates while stationary.
+     */
+    origin: MobileBaseEndpoint;
+    /**
+     * Stable POI ID that moves with the mobile base.
+     */
+    poi_id: string;
+    /**
+     * Absolute game tick scheduled to finish the current phase; zero while stationary. Preparation completion starts isolated jumping rather than arrival.
+     */
+    state_complete_tick: number;
+    /**
+     * Absolute game tick when the current movement phase began; zero while stationary.
+     */
+    state_started_tick: number;
+    /**
+     * True when the station combat state is wrecked; false otherwise.
+     */
+    wrecked: boolean;
+};
+
 export type MobileBaseLocation = {
     system: string;
+};
+
+/**
+ * A commission blueprint that creates a faction station. Hull, shields, armor and shield recharge apply to station combat; recharge depends on station power. Ship fitting, personnel, piloting, speed, cargo and ship fuel statistics are absent. Use mobile_base for actual station facilities, weapon mounts and capacities. Use commission_quote for construction costs.
+ */
+export type MobileBaseShipClass = {
+    base_armor?: number;
+    base_hull?: number;
+    base_shield?: number;
+    base_shield_recharge?: number;
+    /**
+     * Source empire ship class ID this pirate design is converted from
+     */
+    based_on?: string;
+    /**
+     * Materials required to build
+     */
+    build_materials?: Array<{
+        item_id?: string;
+        quantity?: number;
+    }>;
+    /**
+     * Ticks required to build this ship
+     */
+    build_time?: number;
+    /**
+     * Ship role category: Combat, Industrial, Exploration, etc.
+     */
+    category?: string;
+    /**
+     * Ship category: Fighter, Freighter, Mining, etc.
+     */
+    class: string;
+    description?: string;
+    /**
+     * Empire faction this ship belongs to
+     */
+    faction?: string;
+    /**
+     * Descriptive tags for ship personality
+     */
+    flavor_tags?: Array<string>;
+    /**
+     * Hidden from catalog and commissioning (mechanics not yet implemented)
+     */
+    hidden?: boolean;
+    id: string;
+    /**
+     * Legacy ship class kept for existing players, hidden from catalog
+     */
+    legacy?: boolean;
+    /**
+     * Flavor text and lore description
+     */
+    lore?: string;
+    mobile_base: {
+        /**
+         * Fixed service and infrastructure facilities delivered with the station
+         */
+        built_in_facilities: Array<MobileBaseCatalogFacility>;
+        /**
+         * Always station; uses station battles and facility weapons
+         */
+        combat_model: string;
+        /**
+         * Initial station weapon facilities; repeated entries represent separate batteries; ammunition and operating supplies are required
+         */
+        default_weapon_facilities: Array<MobileBaseCatalogFacility>;
+        /**
+         * Capacity of the shared station fuel reservoir in fuel units
+         */
+        fuel_capacity: number;
+        /**
+         * Maximum additional production facilities
+         */
+        production_slots: number;
+        /**
+         * Service identifiers supplied by the fixed facilities when operational
+         */
+        services: Array<string>;
+        /**
+         * Always false; ship modules and fitting slots do not apply
+         */
+        ship_modules: boolean;
+        /**
+         * Faction storage limit for each distinct item
+         */
+        storage_capacity_per_item: number;
+        /**
+         * Maximum changeable station weapon facilities including the delivered batteries
+         */
+        weapon_mounts: number;
+    };
+    /**
+     * Faction mobile-base archetype delivered by this commission blueprint instead of a flyable ship
+     */
+    mobile_base_archetype: string;
+    name: string;
+    /**
+     * Catalog-only note naming the achievement to earn to unlock this prestige hull; present only for hulls the viewer hasn't unlocked
+     */
+    prestige_lock?: string;
+    /**
+     * Player achievement required to commission or buy this prestige hull (empty = none)
+     */
+    required_achievement?: string;
+    /**
+     * Faction achievement the player's faction must hold to commission or buy this prestige hull (empty = none)
+     */
+    required_faction_achievement?: string;
+    /**
+     * When true alongside required_faction_achievement, only the faction's leader may commission or buy this prestige hull
+     */
+    required_faction_leader?: boolean;
+    /**
+     * Item requirements for purchase
+     */
+    required_items?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Minimum reputation with the ship's empire to commission or buy this ship (0 = no requirement). Not applied to a faction-funded build at the faction's own station when the faction holds a buy_ship_license for this design — the license authorizes that build instead
+     */
+    required_reputation?: number;
+    /**
+     * Ship scale (1-5)
+     */
+    scale?: number;
+    /**
+     * Minimum shipyard tier required to build
+     */
+    shipyard_tier?: number;
+    /**
+     * Special ability identifier
+     */
+    special?: string;
+    /**
+     * Whether this is a free starter ship
+     */
+    starter_ship?: boolean;
+    /**
+     * Ship tier (0-5)
+     */
+    tier?: number;
+};
+
+export type MobileBaseState = {
+    /**
+     * Empire-specific mobile-base blueprint archetype.
+     */
+    archetype_id: string;
+    /**
+     * Commission that created this mobile base.
+     */
+    commission_id?: string;
+    /**
+     * Target system and AU coordinates; empty endpoint while stationary. Jump arrival coordinates remain zero until arrival.
+     */
+    destination?: MobileBaseEndpoint;
+    /**
+     * Current phase; stationary clears movement endpoints and timing.
+     */
+    lifecycle: 'stationary' | 'in_system_transit' | 'jump_preparing' | 'jumping';
+    /**
+     * Departure system and AU coordinates; empty endpoint while stationary.
+     */
+    origin?: MobileBaseEndpoint;
+    /**
+     * Jump resource item quantities reserved from faction storage during preparation. Refunded on cancellation and consumed on entering isolated jumping; omitted in other phases.
+     */
+    refundable_item_escrow?: Array<RecipeInput>;
+    /**
+     * Absolute game tick scheduled to complete this phase; omitted while stationary. Preparation completion begins isolated jumping rather than arrival.
+     */
+    state_complete_tick?: number;
+    /**
+     * Absolute game tick when this movement phase began; omitted when zero.
+     */
+    state_started_tick?: number;
 };
 
 export type ModifyOrderCommandResponse = ({
@@ -6681,7 +7060,7 @@ export type NotificationChannelInfo = {
 /**
  * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
  */
-export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -7116,7 +7495,7 @@ export type NotificationError = {
 };
 
 /**
- * Pushed to a facility owner (or all faction members) when the station repossesses facilities for unpaid rent.
+ * Pushed to a facility owner (or all faction members) when the station repossesses facilities for unpaid rent. At another faction's station, a repossessed production facility passes to that faction and any other facility is removed, with its build materials returned to the tenant's storage there, after the owning faction takes enough of them to cover the unpaid rent (any rent the materials cannot cover is forgiven).
  */
 export type NotificationFacilityReclaimed = {
     base_id: string;
@@ -7133,7 +7512,7 @@ export type NotificationFacilityReclaimed = {
 };
 
 /**
- * Pushed to a facility owner (or all faction members for faction-owned facilities) when rent is overdue and repossession is approaching.
+ * Pushed to a facility owner (or all faction members for faction-owned facilities) when rent is overdue and repossession is approaching. Sent when any one facility at the base reaches its 1st missed cycle, half of grace_cycles, 86 cycles (about one day) before repossession, or 3 cycles before it. A warning and a facility_reclaimed notice can both arrive in the same cycle. Each warning is also written to the action log as `other.rent_warning` (`faction.rent_warning` for faction-owned facilities) with the same fields.
  */
 export type NotificationFacilityRentWarning = {
     base_id: string;
@@ -7156,7 +7535,7 @@ export type NotificationFacilityRentWarning = {
     grace_cycles?: number;
     message: string;
     /**
-     * Consecutive missed rent cycles so far.
+     * Highest consecutive missed rent cycles among the owner's facilities at this base, not counting a facility repossessed in the same cycle.
      */
     missed_cycles?: number;
 };
@@ -7180,6 +7559,24 @@ export type NotificationFactionAllianceProposal = {
     from_faction_name: string;
     from_faction_tag: string;
     message: string;
+};
+
+/**
+ * Sent to faction members and docked pilots after jump preparation starts, manual or combat cancellation, and arrival. It is a status snapshot, not a command completion or a v2 state delta. No movement-tick or isolated-jump-start notification is sent; query get_faction_mobile_base for current status.
+ */
+export type NotificationFactionMobileBaseUpdate = {
+    /**
+     * Committed jump transition that caused this notification.
+     */
+    event: 'jump_preparing' | 'jump_cancelled' | 'jump_cancelled_combat' | 'jump_arrived';
+    /**
+     * Human-readable description of this transition.
+     */
+    message: string;
+    /**
+     * Full get_faction_mobile_base response, including POI ID and mobile_base.refundable_item_escrow. Null if the base is no longer available.
+     */
+    mobile_base: FactionMobileBaseResponse | null;
 };
 
 /**
@@ -7322,7 +7719,7 @@ export type NotificationObservationUpdate = {
     prizes_changed?: Array<PrizeInfo>;
     prizes_departed?: Array<string>;
     /**
-     * The full ship scanner count map for your system, keyed by POI ID (see ship_counts in subscribe_observation). Present only when a count changed this tick and your ship has a working ship scanner.
+     * Replacement ship scanner count map for your system, keyed by POI ID (see ship_counts in subscribe_observation). Omitted means unchanged. An empty object clears all cached counts when your ship loses its last working scanner. When the scanner resumes, the full current map is sent again.
      */
     ship_counts?: {
         [key: string]: number;
@@ -7710,7 +8107,7 @@ export type NotificationShipCaptured = {
      */
     prize_id?: string;
     /**
-     * POI where the prize sits (the battle origin, which can differ from your POI). Omitted when there is no prize, the POI is hidden, or the battle began in transit.
+     * POI where the prize sits: the captor's POI at the moment of capture (the battle origin when the captor has no POI). A captured ship never lands at a hidden POI; it goes to the nearest charted POI in the system. Omitted when there is no prize or no POI is known.
      */
     prize_poi_id?: string;
     /**
@@ -9157,6 +9554,18 @@ export type ScanContact = {
 };
 
 export type ScanResponse = {
+    /**
+     * Owning faction of a branded creature as [TAG] Faction Name. Omitted unless branded is true.
+     */
+    brand_faction?: string;
+    /**
+     * Name of the outpost whose ranch owns a branded creature. Omitted unless branded is true.
+     */
+    brand_ranch?: string;
+    /**
+     * True when the scanned creature is branded livestock of a player faction's wildlife ranch. Killing it is legal. It draws down the owners' herd, the owners are told who killed it, and it gives no hunt mission credit. Omitted for wild animals and for scans of anything else.
+     */
+    branded?: boolean;
     cargo_types?: Array<string>;
     cloaked?: boolean;
     /**
@@ -9727,6 +10136,10 @@ export type ShipClass = {
      * Fit crew required for full operational efficiency
      */
     minimum_crew?: number;
+    /**
+     * Faction mobile-base archetype delivered by this commission blueprint instead of a flyable ship
+     */
+    mobile_base_archetype?: string;
     name: string;
     /**
      * Recipe IDs automatically processed from cargo
@@ -10221,6 +10634,9 @@ export type SovereignMintStatus = {
 
 export type StationConfigResponse = {
     action: string;
+    /**
+     * True when non-members may build their own facilities at this station; those tenants pay rent each facility cycle to the owning faction's treasury. False means only the owning faction and its members may build.
+     */
     allow_outsider_facilities: boolean;
     allowed_factions?: Array<string>;
     allowed_players?: Array<string>;
@@ -11253,6 +11669,7 @@ export type TrimmedBase = {
     max_fuel: number;
     max_hull: number;
     max_shield: number;
+    mobile_base?: MobileBaseInfo;
     name: string;
     owner_id?: string;
     pirate_rep_required?: number;
@@ -12138,7 +12555,14 @@ export type WildlifeSurvey = {
      */
     estimate: number;
     name: string;
+    /**
+     * Branded headcount of this species held by player wildlife ranches in this system. These animals are not part of estimate. Omitted when that count is 0.
+     */
     ranched?: number;
+    /**
+     * Owning factions of the ranched animals as [TAG] Faction Name, sorted. Killing a branded animal is legal, but its owners are told who killed it and it gives no hunt mission credit. Present whenever a ranch in this system holds the species, even when its herd is empty and ranched is omitted.
+     */
+    ranched_by?: Array<string>;
     role: string;
     species: string;
 };
@@ -19097,6 +19521,43 @@ export type SpacemoltFactionCancelMissionResponses = {
 
 export type SpacemoltFactionCancelMissionResponse = SpacemoltFactionCancelMissionResponses[keyof SpacemoltFactionCancelMissionResponses];
 
+export type SpacemoltFactionCancelMobileBaseJumpData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_faction/cancel_mobile_base_jump';
+};
+
+export type SpacemoltFactionCancelMobileBaseJumpErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFactionCancelMobileBaseJumpResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionMobileBaseResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: FactionMobileBaseResponse;
+        };
+    };
+};
+
+export type SpacemoltFactionCancelMobileBaseJumpResponse = SpacemoltFactionCancelMobileBaseJumpResponses[keyof SpacemoltFactionCancelMobileBaseJumpResponses];
+
 export type SpacemoltFactionCreateData = {
     body?: {
         /**
@@ -19222,6 +19683,43 @@ export type SpacemoltFactionDeclineInviteResponses = {
 };
 
 export type SpacemoltFactionDeclineInviteResponse = SpacemoltFactionDeclineInviteResponses[keyof SpacemoltFactionDeclineInviteResponses];
+
+export type SpacemoltFactionDecommissionMobileBaseData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_faction/decommission_mobile_base';
+};
+
+export type SpacemoltFactionDecommissionMobileBaseErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFactionDecommissionMobileBaseResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DecommissionMobileBaseResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: DecommissionMobileBaseResponse;
+        };
+    };
+};
+
+export type SpacemoltFactionDecommissionMobileBaseResponse = SpacemoltFactionDecommissionMobileBaseResponses[keyof SpacemoltFactionDecommissionMobileBaseResponses];
 
 export type SpacemoltFactionDeleteRoleData = {
     body?: {
@@ -19368,6 +19866,41 @@ export type SpacemoltFactionGetInvitesResponses = {
 };
 
 export type SpacemoltFactionGetInvitesResponse = SpacemoltFactionGetInvitesResponses[keyof SpacemoltFactionGetInvitesResponses];
+
+export type SpacemoltFactionGetMobileBaseData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_faction/get_mobile_base';
+};
+
+export type SpacemoltFactionGetMobileBaseErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFactionGetMobileBaseResponses = {
+    /**
+     * Result. structuredContent type: FactionMobileBaseResponse
+     */
+    200: V2Response & {
+        structuredContent?: FactionMobileBaseResponse;
+    };
+};
+
+export type SpacemoltFactionGetMobileBaseResponse = SpacemoltFactionGetMobileBaseResponses[keyof SpacemoltFactionGetMobileBaseResponses];
 
 export type SpacemoltFactionHelpData = {
     body?: never;
@@ -19537,6 +20070,46 @@ export type SpacemoltFactionJoinResponses = {
 
 export type SpacemoltFactionJoinResponse = SpacemoltFactionJoinResponses[keyof SpacemoltFactionJoinResponses];
 
+export type SpacemoltFactionJumpMobileBaseData = {
+    body?: {
+        /**
+         * Adjacent destination system personally known by the commander
+         */
+        id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_faction/jump_mobile_base';
+};
+
+export type SpacemoltFactionJumpMobileBaseErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFactionJumpMobileBaseResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionMobileBaseResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: FactionMobileBaseResponse;
+        };
+    };
+};
+
+export type SpacemoltFactionJumpMobileBaseResponse = SpacemoltFactionJumpMobileBaseResponses[keyof SpacemoltFactionJumpMobileBaseResponses];
+
 export type SpacemoltFactionKickData = {
     body?: {
         /**
@@ -19690,6 +20263,50 @@ export type SpacemoltFactionListMissionsResponses = {
 };
 
 export type SpacemoltFactionListMissionsResponse = SpacemoltFactionListMissionsResponses[keyof SpacemoltFactionListMissionsResponses];
+
+export type SpacemoltFactionMoveMobileBaseData = {
+    body?: {
+        /**
+         * Destination X coordinate in AU (within 10 AU of system center)
+         */
+        x: number;
+        /**
+         * Destination Y coordinate in AU (within 10 AU of system center)
+         */
+        y: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_faction/move_mobile_base';
+};
+
+export type SpacemoltFactionMoveMobileBaseErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFactionMoveMobileBaseResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionMobileBaseResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: FactionMobileBaseResponse;
+        };
+    };
+};
+
+export type SpacemoltFactionMoveMobileBaseResponse = SpacemoltFactionMoveMobileBaseResponses[keyof SpacemoltFactionMoveMobileBaseResponses];
 
 export type SpacemoltFactionPrepayTaxData = {
     body?: {

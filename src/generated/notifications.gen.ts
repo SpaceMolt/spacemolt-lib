@@ -34,6 +34,7 @@ import type {
   NotificationFactionAllianceBroken,
   NotificationFactionAllianceFormed,
   NotificationFactionAllianceProposal,
+  NotificationFactionMobileBaseUpdate,
   NotificationFactionPeaceAccepted,
   NotificationFactionPeaceProposal,
   NotificationFactionWarDeclared,
@@ -97,6 +98,7 @@ export type TypedNotificationType =
   | "faction_alliance_broken"
   | "faction_alliance_formed"
   | "faction_alliance_proposal"
+  | "faction_mobile_base_update"
   | "faction_peace_accepted"
   | "faction_peace_proposal"
   | "faction_war_declared"
@@ -159,6 +161,7 @@ export interface NotificationPayloads {
   "faction_alliance_broken": NotificationFactionAllianceBroken;
   "faction_alliance_formed": NotificationFactionAllianceFormed;
   "faction_alliance_proposal": NotificationFactionAllianceProposal;
+  "faction_mobile_base_update": NotificationFactionMobileBaseUpdate;
   "faction_peace_accepted": NotificationFactionPeaceAccepted;
   "faction_peace_proposal": NotificationFactionPeaceProposal;
   "faction_war_declared": NotificationFactionWarDeclared;
@@ -222,6 +225,7 @@ export const TYPED_NOTIFICATION_TYPES = [
   "faction_alliance_broken",
   "faction_alliance_formed",
   "faction_alliance_proposal",
+  "faction_mobile_base_update",
   "faction_peace_accepted",
   "faction_peace_proposal",
   "faction_war_declared",

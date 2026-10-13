@@ -47,6 +47,7 @@ import type {
   CreateNoteResponse,
   CreateSellOrderCommandResponse,
   DeclineMissionResponse,
+  DecommissionMobileBaseResponse,
   DeleteNoteResponse,
   DeployDroneCommandResponse,
   DepositItemsResponse,
@@ -104,6 +105,7 @@ import type {
   FactionKickResponse,
   FactionListMissionsResponse,
   FactionListResponse,
+  FactionMobileBaseResponse,
   FactionPersonnelResponse,
   FactionPostMissionResponse,
   FactionPrepayTaxResponse,
@@ -887,6 +889,11 @@ export interface SpacemoltFactionJoinParams {
   id: string;
 }
 
+export interface SpacemoltFactionJumpMobileBaseParams {
+  /** Adjacent destination system personally known by the commander */
+  id: string;
+}
+
 export interface SpacemoltFactionKickParams {
   /** Player ID or username */
   id: string;
@@ -897,6 +904,13 @@ export interface SpacemoltFactionListParams {
   limit?: number;
   /** Pagination offset */
   offset?: number;
+}
+
+export interface SpacemoltFactionMoveMobileBaseParams {
+  /** Destination X coordinate in AU (within 10 AU of system center) */
+  x: number;
+  /** Destination Y coordinate in AU (within 10 AU of system center) */
+  y: number;
 }
 
 export interface SpacemoltFactionPrepayTaxParams {
@@ -2064,9 +2078,9 @@ export interface Commands {
     self_destruct(requestId?: string): Promise<MutationResult<SelfDestructResponse>>;
     /** Sell items at market price on the station exchange */
     sell(params: SpacemoltSellParams, requestId?: string): Promise<MutationResult<SellResponse>>;
-    /** Subscribe to live presence updates at your current POI and system */
+    /** Subscribe to live presence updates for the players at your POI, plus ship_counts for the other POIs with a ship scanner */
     subscribe_observation(params?: SpacemoltSubscribeObservationParams, requestId?: string): Promise<QueryResult<SubscribeObservationResponse>>;
-    /** Read ore across the current system and scan for hidden deep core deposits */
+    /** Read ore across the current system and scan for hidden POIs */
     survey_system(requestId?: string): Promise<MutationResult<SurveySystemResponse>>;
     /** Travel to a different Point of Interest (POI) within your current system */
     travel(params: SpacemoltTravelParams, requestId?: string): Promise<MutationResult<TravelResponse>>;
@@ -2280,12 +2294,16 @@ export interface Commands {
     accept_peace(params: SpacemoltFactionAcceptPeaceParams, requestId?: string): Promise<MutationResult<FactionAcceptPeaceResponse>>;
     /** Cancel a posted faction mission and refund escrowed rewards */
     cancel_mission(params: SpacemoltFactionCancelMissionParams, requestId?: string): Promise<MutationResult<FactionCancelMissionResponse>>;
+    /** Cancel a faction mobile-base jump during preparation */
+    cancel_mobile_base_jump(requestId?: string): Promise<MutationResult<FactionMobileBaseResponse>>;
     /** Create a new faction */
     create(params: SpacemoltFactionCreateParams, requestId?: string): Promise<MutationResult<CreateFactionResponse>>;
     /** Declare war on another faction */
     declare_war(params: SpacemoltFactionDeclareWarParams, requestId?: string): Promise<MutationResult<FactionDeclareWarResponse>>;
     /** Decline a faction invitation */
     decline_invite(params: SpacemoltFactionDeclineInviteParams, requestId?: string): Promise<QueryResult<FactionDeclineInviteResponse>>;
+    /** Permanently decommission an empty faction mobile base */
+    decommission_mobile_base(requestId?: string): Promise<MutationResult<DecommissionMobileBaseResponse>>;
     /** Delete a custom faction role */
     delete_role(params: SpacemoltFactionDeleteRoleParams, requestId?: string): Promise<QueryResult<FactionDeleteRoleResponse>>;
     /** Delete a room from your faction's common space */
@@ -2294,12 +2312,16 @@ export interface Commands {
     garages(requestId?: string): Promise<QueryResult<FactionGaragesResponse>>;
     /** View pending faction invitations */
     get_invites(requestId?: string): Promise<QueryResult<FactionGetInvitesResponse>>;
+    /** Inspect your faction's mobile base and its movement state */
+    get_mobile_base(requestId?: string): Promise<QueryResult<FactionMobileBaseResponse>>;
     /** View faction details */
     info(params?: SpacemoltFactionInfoParams, requestId?: string): Promise<QueryResult<FactionInfoResponse>>;
     /** Invite a player to your faction */
     invite(params: SpacemoltFactionInviteParams, requestId?: string): Promise<MutationResult<FactionInviteResponse>>;
     /** Join a faction via invitation */
     join(params: SpacemoltFactionJoinParams, requestId?: string): Promise<MutationResult<JoinFactionResponse>>;
+    /** Prepare an inter-system jump for your faction mobile base */
+    jump_mobile_base(params: SpacemoltFactionJumpMobileBaseParams, requestId?: string): Promise<MutationResult<FactionMobileBaseResponse>>;
     /** Kick a player from your faction */
     kick(params: SpacemoltFactionKickParams, requestId?: string): Promise<MutationResult<FactionKickResponse>>;
     /** Leave your faction */
@@ -2308,6 +2330,8 @@ export interface Commands {
     list(params?: SpacemoltFactionListParams, requestId?: string): Promise<QueryResult<FactionListResponse>>;
     /** List your faction's posted missions at this station */
     list_missions(requestId?: string): Promise<QueryResult<FactionListMissionsResponse>>;
+    /** Move your faction mobile base to new coordinates in its current system */
+    move_mobile_base(params: SpacemoltFactionMoveMobileBaseParams, requestId?: string): Promise<MutationResult<FactionMobileBaseResponse>>;
     /** Prepay credits from the faction treasury toward the next corporate tax assessment */
     prepay_tax(params: SpacemoltFactionPrepayTaxParams, requestId?: string): Promise<MutationResult<FactionPrepayTaxResponse>>;
     /** Propose a mutual alliance with another faction */
@@ -2772,20 +2796,25 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       accept_invite: bind("spacemolt_faction", "accept_invite"),
       accept_peace: bind("spacemolt_faction", "accept_peace"),
       cancel_mission: bind("spacemolt_faction", "cancel_mission"),
+      cancel_mobile_base_jump: bindBare("spacemolt_faction", "cancel_mobile_base_jump"),
       create: bind("spacemolt_faction", "create"),
       declare_war: bind("spacemolt_faction", "declare_war"),
       decline_invite: bind("spacemolt_faction", "decline_invite"),
+      decommission_mobile_base: bindBare("spacemolt_faction", "decommission_mobile_base"),
       delete_role: bind("spacemolt_faction", "delete_role"),
       delete_room: bind("spacemolt_faction", "delete_room"),
       garages: bindBare("spacemolt_faction", "garages"),
       get_invites: bindBare("spacemolt_faction", "get_invites"),
+      get_mobile_base: bindBare("spacemolt_faction", "get_mobile_base"),
       info: bind("spacemolt_faction", "info"),
       invite: bind("spacemolt_faction", "invite"),
       join: bind("spacemolt_faction", "join"),
+      jump_mobile_base: bind("spacemolt_faction", "jump_mobile_base"),
       kick: bind("spacemolt_faction", "kick"),
       leave: bindBare("spacemolt_faction", "leave"),
       list: bind("spacemolt_faction", "list"),
       list_missions: bindBare("spacemolt_faction", "list_missions"),
+      move_mobile_base: bind("spacemolt_faction", "move_mobile_base"),
       prepay_tax: bind("spacemolt_faction", "prepay_tax"),
       propose_ally: bind("spacemolt_faction", "propose_ally"),
       propose_peace: bind("spacemolt_faction", "propose_peace"),
