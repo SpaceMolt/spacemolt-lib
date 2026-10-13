@@ -165,16 +165,20 @@ account.market(baseId);                          // cached order book, kept live
 await account.subscribeObservation();
 const view = account.observation();              // kept live by `observation_update`
 view?.nearby;                                    // players at your POI, keyed by player_id
-view?.system;                                    // players system-wide
+view?.offlineCollapsed;                          // offline players at your POI not listed in nearby
 view?.pirates;                                   // pirate NPCs, keyed by pirate_id
 view?.empireNpcs;                                // empire NPCs, keyed by npc_id
 view?.creatures;                                 // wildlife, keyed by creature_id
 view?.prizes;                                    // intact captured ships, keyed by prize_id
+view?.arenaNpcs;                                 // arena challenge enemies, keyed by npc_id
+view?.shipCounts;                                // ship scanner only: ship count per charted POI in your system
 ```
 
-The watch is not players only. It covers five of `get_nearby`'s six classes —
-arena NPCs are the one it does not carry — and every class except wildlife is
-also mirrored into `account.state.location`.
+The watch is not players only. It covers all six of `get_nearby`'s classes, and
+every class except wildlife and arena NPCs is also mirrored into
+`account.state.location`. It is scoped to your POI: there is no system-wide
+player list. With a ship scanner, `shipCounts` gives the count at every other
+POI.
 
 ## Multi-account
 

@@ -1,5 +1,5 @@
 /**
- * Local cache of the subscribed observation watch (current POI + system).
+ * Local cache of the subscribed observation watch (current POI).
  *
  * Seeded from the `subscribe_observation` baseline and kept current by merging
  * `observation_update` pushes: `*_changed` arrays upsert entities (keyed by
@@ -7,14 +7,19 @@
  * cloaked-contact / signature hints are tracked alongside.
  *
  * Not a players-only feed: the baseline and every update also carry the
- * pirate, empire-NPC, wildlife and intact-prize presence at the watched POI,
- * each with the same changed/departed delta shape as players. It covers five
- * of `get_nearby`'s six classes — arena NPCs are the one it does not carry, so
- * a player in an arena match still has to poll `get_nearby` for their
- * opponents. `offline_collapsed` has no equivalent here either.
+ * pirate, empire-NPC, wildlife, intact-prize and arena-NPC presence at the
+ * watched POI, each with the same changed/departed delta shape as players —
+ * all six of `get_nearby`'s classes. The player list matches `get_nearby`:
+ * above 10 players, offline ones collapse into `offlineCollapsed`.
+ *
+ * Nothing here is system-wide except `shipCounts`: with a working ship
+ * scanner, the per-POI ship count for every charted POI in the system. The
+ * server sends the full map whenever any count changes, so it replaces the
+ * previous map rather than merging.
  */
 
 import type {
+  ArenaNpcInfo,
   CreatureInfo,
   EmpireNpcInfo,
   NotificationObservationUpdate,
@@ -33,8 +38,6 @@ export interface ObservationView {
   tick: number;
   /** Uncloaked players at the watched POI, keyed by player_id. */
   nearby: Map<string, ObservedPlayer>;
-  /** Uncloaked players system-wide, keyed by player_id. */
-  system: Map<string, ObservedPlayer>;
   /** Pirate NPCs at the watched POI, keyed by pirate_id. */
   pirates: Map<string, PirateInfo>;
   /** Empire NPCs at the watched POI, keyed by npc_id. */
@@ -43,6 +46,12 @@ export interface ObservationView {
   creatures: Map<string, CreatureInfo>;
   /** Intact captured ships at the watched POI, keyed by prize_id. */
   prizes: Map<string, PrizeInfo>;
+  /** Arena challenge enemies at the watched POI, keyed by npc_id. */
+  arenaNpcs: Map<string, ArenaNpcInfo>;
+  /** Offline players at the watched POI not listed in `nearby` (0 when all are listed). */
+  offlineCollapsed: number;
+  /** Ship scanner counts per charted POI in the system, keyed by POI ID. Empty without a working ship scanner. */
+  shipCounts: Map<string, number>;
   /** Cloaked contacts resolved by an active sensor sweep, keyed by target_id. */
   cloaked: Map<string, CloakedContact>;
   /** A faint cloaked-ship signature is present at the watched POI. */
@@ -83,11 +92,13 @@ export class ObservationCache {
       system_id: snapshot.system_id,
       tick: 0,
       nearby: indexBy(snapshot.nearby, (p) => p.player_id),
-      system: indexBy(snapshot.system_agents, (p) => p.player_id),
       pirates: indexBy(snapshot.pirates, (p) => p.pirate_id),
       empireNpcs: indexBy(snapshot.empire_npcs, (n) => n.npc_id),
       creatures: indexBy(snapshot.creatures, (c) => c.creature_id),
       prizes: indexBy(snapshot.prizes, (p) => p.prize_id),
+      arenaNpcs: indexBy(snapshot.arena_npcs, (n) => n.npc_id),
+      offlineCollapsed: snapshot.offline_collapsed ?? 0,
+      shipCounts: new Map(Object.entries(snapshot.ship_counts ?? {})),
       cloaked: indexBy(snapshot.cloaked_contacts, (c) => c.target_id),
       unknownSignature: snapshot.unknown_signature ?? false,
       activeScan: snapshot.active_scan ?? false,
@@ -103,11 +114,13 @@ export class ObservationCache {
         system_id: update.system_id,
         tick: update.tick,
         nearby: new Map(),
-        system: new Map(),
         pirates: new Map(),
         empireNpcs: new Map(),
         creatures: new Map(),
         prizes: new Map(),
+        arenaNpcs: new Map(),
+        offlineCollapsed: 0,
+        shipCounts: new Map(),
         cloaked: new Map(),
         unknownSignature: false,
         activeScan: false,
@@ -116,12 +129,14 @@ export class ObservationCache {
     const v = this.view;
     v.tick = update.tick;
     merge(v.nearby, update.nearby_changed, update.nearby_departed, (p) => p.player_id);
-    merge(v.system, update.system_changed, update.system_departed, (p) => p.player_id);
     merge(v.pirates, update.pirates_changed, update.pirates_departed, (p) => p.pirate_id);
     merge(v.empireNpcs, update.empire_npcs_changed, update.empire_npcs_departed, (n) => n.npc_id);
     merge(v.creatures, update.creatures_changed, update.creatures_departed, (c) => c.creature_id);
     merge(v.prizes, update.prizes_changed, update.prizes_departed, (p) => p.prize_id);
+    merge(v.arenaNpcs, update.arena_npcs_changed, update.arena_npcs_departed, (n) => n.npc_id);
     merge(v.cloaked, update.cloaked_resolved, update.cloaked_lost, (c) => c.target_id);
+    if (update.offline_collapsed !== undefined) v.offlineCollapsed = update.offline_collapsed;
+    if (update.ship_counts !== undefined) v.shipCounts = new Map(Object.entries(update.ship_counts));
     if (update.unknown_signature !== undefined) v.unknownSignature = update.unknown_signature;
     if (update.active_scan !== undefined) v.activeScan = update.active_scan;
   }

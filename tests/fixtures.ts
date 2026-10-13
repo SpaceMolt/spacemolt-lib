@@ -16,8 +16,8 @@ import type {
   SkillProgress,
   V2CargoItem,
   V2GameState,
+  NearbyPlayer,
   V2Location,
-  V2NearbyPlayer,
   V2Personnel,
   V2Player,
   V2Queue,
@@ -81,8 +81,8 @@ export function ship(overrides: Partial<V2Ship> = {}): V2Ship {
   };
 }
 
-export function nearbyPlayer(overrides: Partial<V2NearbyPlayer> = {}): V2NearbyPlayer {
-  return { player_id: 'other_1', in_combat: false, ...overrides };
+export function nearbyPlayer(overrides: Partial<NearbyPlayer> = {}): NearbyPlayer {
+  return { player_id: 'other_1', username: 'Other', in_combat: false, ...overrides };
 }
 
 export function resource(overrides: Partial<V2Resource> = {}): V2Resource {
@@ -121,6 +121,7 @@ export function location(overrides: Partial<V2Location> = {}): V2Location {
     nearby_pirate_count: 0,
     nearby_empire_npcs: [],
     nearby_empire_npc_count: 0,
+    nearby_leviathans: [],
     ...overrides,
   };
 }

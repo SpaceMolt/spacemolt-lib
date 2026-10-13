@@ -249,7 +249,6 @@ function respondToSubscribeObservation(
             active_scan: false,
             unknown_signature: false,
             nearby,
-            system_agents: [],
             cloaked_contacts: [],
             ...rest,
           } satisfies SubscribeObservationResponse,
@@ -352,7 +351,6 @@ test('ObservationCache merges presence changes and departures', () => {
     poi_id: 'earth_station',
     system_id: 'sol',
     nearby: [{ player_id: 'p1', username: 'Nova', in_combat: false }],
-    system_agents: [],
     cloaked_contacts: [],
   } satisfies SubscribeObservationResponse);
   expect(cache.current()?.nearby.size).toBe(1);
@@ -381,9 +379,20 @@ test('ObservationCache tracks pirates, empire NPCs, creatures and prizes, not ju
     poi_id: 'earth_station',
     system_id: 'sol',
     nearby: [],
-    system_agents: [],
     cloaked_contacts: [],
-    pirates: [{ pirate_id: 'k1', name: 'Kael Raider', tier: 'raider', is_boss: false, status: 'hostile', hull: 80 }],
+    pirates: [
+      {
+        pirate_id: 'k1',
+        name: 'Kael Raider',
+        tier: 'raider',
+        is_boss: false,
+        status: 'hostile',
+        hull: 80,
+        max_hull: 100,
+        shield: 0,
+        max_shield: 0,
+      },
+    ],
     empire_npcs: [{ npc_id: 'n1', name: 'Patrol Alpha', role: 'patrol', empire: 'solarian', in_combat: false }],
     creatures: [
       {
@@ -424,7 +433,17 @@ test('ObservationCache tracks pirates, empire NPCs, creatures and prizes, not ju
     unknown_signature: false,
     active_scan: false,
     pirates_changed: [
-      { pirate_id: 'k1', name: 'Kael Raider', tier: 'raider', is_boss: false, status: 'hostile', hull: 30 },
+      {
+        pirate_id: 'k1',
+        name: 'Kael Raider',
+        tier: 'raider',
+        is_boss: false,
+        status: 'hostile',
+        hull: 30,
+        max_hull: 100,
+        shield: 0,
+        max_shield: 0,
+      },
     ],
     empire_npcs_departed: ['n1'],
     creatures_changed: [
@@ -447,6 +466,111 @@ test('ObservationCache tracks pirates, empire NPCs, creatures and prizes, not ju
   expect(view.creatures.has('c1')).toBe(false);
   expect(view.creatures.get('c2')?.species).toBe('rift_drifter');
   expect(view.prizes.size).toBe(0);
+});
+
+test('ObservationCache tracks arena NPCs, offline_collapsed and replaces ship_counts whole', () => {
+  const arenaNpc = {
+    npc_id: 'a1',
+    battle_id: 'b1',
+    name: 'Champion',
+    flees: false,
+    hull: 100,
+    max_hull: 100,
+    shield: 20,
+    max_shield: 20,
+    is_boss: true,
+    primary_color: '#000000',
+    secondary_color: '#ffffff',
+    ship_class: 'brawler',
+    ship_class_name: 'Brawler',
+  };
+  const cache = new ObservationCache();
+  cache.seed({
+    action: 'subscribe_observation',
+    active_scan: false,
+    unknown_signature: false,
+    poi_id: 'earth_station',
+    system_id: 'sol',
+    nearby: [],
+    arena_npcs: [arenaNpc],
+    offline_collapsed: 4,
+    ship_counts: { earth_station: 12, mars: 1 },
+  } satisfies SubscribeObservationResponse);
+  const seeded = requireValue(cache.current());
+  expect(seeded.arenaNpcs.get('a1')?.name).toBe('Champion');
+  expect(seeded.offlineCollapsed).toBe(4);
+  expect([...seeded.shipCounts]).toEqual([
+    ['earth_station', 12],
+    ['mars', 1],
+  ]);
+
+  // an update without ship_counts or offline_collapsed keeps the previous values
+  cache.applyUpdate({
+    poi_id: 'earth_station',
+    system_id: 'sol',
+    tick: 2,
+    unknown_signature: false,
+    active_scan: false,
+    arena_npcs_changed: [{ ...arenaNpc, hull: 0 }],
+  } satisfies NotificationObservationUpdate);
+  expect(cache.current()?.arenaNpcs.get('a1')?.hull).toBe(0);
+  expect(cache.current()?.offlineCollapsed).toBe(4);
+  expect(cache.current()?.shipCounts.get('mars')).toBe(1);
+
+  // the server sends the full map on any change, so a POI missing from it is gone
+  cache.applyUpdate({
+    poi_id: 'earth_station',
+    system_id: 'sol',
+    tick: 3,
+    unknown_signature: false,
+    active_scan: false,
+    arena_npcs_departed: ['a1'],
+    offline_collapsed: 0,
+    ship_counts: { earth_station: 11 },
+  } satisfies NotificationObservationUpdate);
+  const view = requireValue(cache.current());
+  expect(view.arenaNpcs.size).toBe(0);
+  expect(view.offlineCollapsed).toBe(0);
+  expect([...view.shipCounts]).toEqual([['earth_station', 11]]);
+});
+
+test('the observation bridge orders players online first then by username, and mirrors offline_collapsed', async () => {
+  const { account, socket } = await connected();
+  socket.serverSend({
+    type: 'action_result',
+    request_id: 'seed',
+    payload: {
+      command: 'dock',
+      tick: 1,
+      result: { location: { poi_id: 'earth_station', docked_at: 'earth_station' } },
+    },
+  });
+
+  respondToSubscribeObservation(
+    socket,
+    [
+      { player_id: 'p1', username: 'Zed', in_combat: false },
+      { player_id: 'p2', username: 'Ann', in_combat: false, offline: true },
+    ],
+    { offline_collapsed: 3 },
+  );
+  await account.subscribeObservation();
+  socket.serverSend({
+    type: 'observation_update',
+    payload: {
+      poi_id: 'earth_station',
+      system_id: 'sol',
+      tick: 5,
+      unknown_signature: false,
+      active_scan: false,
+      nearby_changed: [{ player_id: 'p3', username: 'Bob', in_combat: false }],
+    } satisfies NotificationObservationUpdate,
+  });
+
+  const location = requireValue(account.state.location);
+  expect(location.nearby_players.map((p) => p.username)).toEqual(['Bob', 'Zed', 'Ann']);
+  expect(location.nearby_player_count).toBe(3);
+  expect(location.offline_collapsed).toBe(3);
 });
 
 test('the observation bridge mirrors non-player presence into location too', async () => {
@@ -496,7 +620,7 @@ test('the observation bridge mirrors non-player presence into location too', asy
   await account.subscribeObservation();
 
   const location = requireValue(account.state.location);
-  // livery colors are dropped — `V2NearbyPirate` sets additionalProperties: false
+  // the feed and location share PirateInfo, so entries pass through whole
   expect(location.nearby_pirates).toEqual([
     {
       pirate_id: 'k1',
@@ -508,6 +632,7 @@ test('the observation bridge mirrors non-player presence into location too', asy
       max_hull: 100,
       shield: 5,
       max_shield: 10,
+      primary_color: '#ff0000',
     },
   ]);
   expect(location.nearby_pirate_count).toBe(1);

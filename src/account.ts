@@ -22,9 +22,6 @@ import type {
   SubscribeMarketResponse,
   SubscribeObservationResponse,
   V2Location,
-  V2NearbyEmpireNpc,
-  V2NearbyPirate,
-  V2NearbyPlayer,
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import type { FleetPush, OkPush } from './push-frames.ts';
@@ -223,6 +220,7 @@ const ARRIVED: Partial<V2Location> = {
   nearby_pirate_count: undefined,
   nearby_empire_npcs: undefined,
   nearby_empire_npc_count: undefined,
+  nearby_leviathans: undefined,
   offline_collapsed: undefined,
   unknown_signature: undefined,
 };
@@ -987,11 +985,11 @@ export class Account {
   }
 
   /**
-   * Subscribe to a change-feed of presence at your current POI/system: players
-   * (POI and system-wide), plus the pirates, empire NPCs, wildlife and intact
-   * prizes at the POI — not players only. That is five of `get_nearby`'s six
-   * classes; arena NPCs are not in the feed, so an arena match still needs
-   * `get_nearby` to see its opponents.
+   * Subscribe to a change-feed of presence at your current POI: players, plus
+   * the pirates, empire NPCs, wildlife, intact prizes and arena NPCs there —
+   * all six of `get_nearby`'s classes. With a working ship scanner it also
+   * carries the ship count at every charted POI in your system
+   * (`shipCounts`); nothing else in it is system-wide.
    * Returns the baseline and seeds the observation cache; `observation_update`
    * pushes are merged automatically. Read with `account.observation()`. Also
    * bridges the POI-scoped classes into their matching `location` fields in the
@@ -1029,89 +1027,49 @@ export class Account {
    * `location` fields in the base state cache, so code reading
    * `account.state.location` (rather than `account.observation()`) sees live
    * data once subscribed: players, pirates, empire NPCs, intact prizes, their
-   * counts, and the cloaked-signature hint. Wildlife has no `location` field —
-   * read creatures from `account.observation()`.
+   * counts, `offline_collapsed`, and the cloaked-signature hint. Wildlife and
+   * arena NPCs have no `location` field — read them from
+   * `account.observation()`. The feed carries no leviathans, so
+   * `nearby_leviathans` keeps whatever the server last said.
    *
-   * Three ways the bridged values differ from what `get_status` would return
-   * for the same POI, none of them fixable from here:
-   * - The arrays are uncapped. `get_status` truncates them (50 players, 20
-   *   each of the rest) while reporting the pre-cap total in the count, so a
-   *   bridged array can be longer than the server would ever send. The counts
-   *   mean the same thing either way.
-   * - `offline_collapsed` is a `get_status` response cap the feed does not
-   *   report, so it is left untouched at whatever the server last said. Above
-   *   the crowding threshold `get_status` drops offline players from
-   *   `nearby_players` and counts them there instead; the feed carries them in
-   *   full, so once bridged the two no longer sum — read the array, not the sum.
-   * - `ship_name` on players and empire NPCs is the ship's display name here
-   *   (its custom name, else the class name) where `get_status` sends the
-   *   custom name alone. Present does not imply custom-named while subscribed.
+   * The player list matches `get_nearby` and `get_status`: the server already
+   * applies the offline collapse above 10 players and the 50-player cap, and
+   * the bridge restores the order (online first, then by username) that
+   * delta merging loses. `nearby_player_count` is the listed count, as in
+   * `get_status`.
    *
-   * `unknown_signature` is written even when false, where `get_status` omits
-   * the key; the bridge has to write it to clear a signature that has gone.
+   * One way the bridged values differ from what `get_status` would return
+   * for the same POI: the pirate, empire-NPC and prize arrays are uncapped.
+   * `get_status` truncates them (20 each) while reporting the pre-cap total in
+   * the count, so a bridged array can be longer than the server would ever
+   * send. The counts mean the same thing either way.
+   *
+   * `unknown_signature` is written even when false, and `offline_collapsed`
+   * even when 0, where `get_status` omits the key; the bridge has to write
+   * them to clear a value that has gone.
    * No-ops if `location` hasn't been seeded yet or nothing is subscribed.
    */
   private bridgeObservationToLocation(): void {
     const view = this.observationCache.current();
     if (!view) return;
-    // The observation feed's `NearbyPlayer` and `location.nearby_players`'
-    // `V2NearbyPlayer` are distinct schemas: the latter declares
-    // `additionalProperties: false` and requires `in_combat`, while the feed
-    // carries extra presence fields (docked, faction_id, colors,
-    // status_message) and leaves `in_combat` off when false. Project the
-    // overlapping fields rather than passing the feed shape through.
-    const nearbyPlayers: V2NearbyPlayer[] = [...view.nearby.entries()].map(([playerId, p]) => ({
-      player_id: playerId,
-      in_combat: p.in_combat ?? false,
-      ...(p.clan_tag !== undefined && { clan_tag: p.clan_tag }),
-      ...(p.faction_tag !== undefined && { faction_tag: p.faction_tag }),
-      ...(p.offline !== undefined && { offline: p.offline }),
-      ...(p.ship_class !== undefined && { ship_class: p.ship_class }),
-      ...(p.ship_name !== undefined && { ship_name: p.ship_name }),
-      ...(p.username !== undefined && { username: p.username }),
-    }));
-    // `V2NearbyPirate` drops the feed's livery colors and, unlike `PirateInfo`,
-    // always carries the hull/shield numbers — the server itself emits zeros
-    // there for a pirate whose ship record is missing, so default to match.
-    const nearbyPirates: V2NearbyPirate[] = [...view.pirates.values()].map((p) => ({
-      pirate_id: p.pirate_id,
-      name: p.name,
-      tier: p.tier,
-      is_boss: p.is_boss,
-      status: p.status,
-      hull: p.hull ?? 0,
-      max_hull: p.max_hull ?? 0,
-      shield: p.shield ?? 0,
-      max_shield: p.max_shield ?? 0,
-      ...(p.faction !== undefined && { faction: p.faction }),
-      ...(p.faction_name !== undefined && { faction_name: p.faction_name }),
-    }));
-    // `EmpireNpcInfo` and `V2NearbyEmpireNpc` carry the same fields today, but
-    // they are separate server structs that have already drifted once (see the
-    // ship_name note above), and `V2NearbyEmpireNpc` sets
-    // additionalProperties: false. Project field by field so a field added to
-    // one alone fails the build here instead of writing an illegal property.
-    const nearbyEmpireNpcs: V2NearbyEmpireNpc[] = [...view.empireNpcs.values()].map((n) => ({
-      npc_id: n.npc_id,
-      name: n.name,
-      role: n.role,
-      empire: n.empire,
-      in_combat: n.in_combat,
-      ...(n.fleet_name !== undefined && { fleet_name: n.fleet_name }),
-      ...(n.ship_class !== undefined && { ship_class: n.ship_class }),
-      ...(n.ship_name !== undefined && { ship_name: n.ship_name }),
-    }));
-    // `PrizeInfo` is the very schema `location.nearby_prizes` uses — one Go
-    // type on both sides, so it passes through.
+    // The feed and `location` share the NearbyPlayer, PirateInfo,
+    // EmpireNpcInfo and PrizeInfo schemas, so entries pass through.
+    // Plain string comparison, not localeCompare: the server sorts by bytes.
+    const nearbyPlayers = [...view.nearby.values()].sort(
+      (a, b) =>
+        Number(a.offline ?? false) - Number(b.offline ?? false) ||
+        (a.username < b.username ? -1 : a.username > b.username ? 1 : 0),
+    );
     const changed = this.cache.patchSection('location', {
       nearby_players: nearbyPlayers,
-      nearby_player_count: view.nearby.size,
-      nearby_pirates: nearbyPirates,
+      nearby_player_count: nearbyPlayers.length,
+      nearby_pirates: [...view.pirates.values()],
       nearby_pirate_count: view.pirates.size,
-      nearby_empire_npcs: nearbyEmpireNpcs,
+      nearby_empire_npcs: [...view.empireNpcs.values()],
       nearby_empire_npc_count: view.empireNpcs.size,
       nearby_prizes: [...view.prizes.values()],
       nearby_prize_count: view.prizes.size,
+      offline_collapsed: view.offlineCollapsed,
       unknown_signature: view.unknownSignature,
     });
     if (changed.length) this.stateRevision++;
