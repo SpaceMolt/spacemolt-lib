@@ -32622,7 +32622,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.626.1"
+    "x-gameserver-version": "v0.627.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -75314,7 +75314,7 @@
     },
     "/api/v2/spacemolt_facility/dismantle_outpost": {
       "post": {
-        "description": "Must be docked at one of your faction's outposts (not a full station). Requires the ManageBases permission. Packs the entire outpost — base, its point of interest, and its built-in lockbox and fuel bunker — back into a single Outpost Kit, returned to your ship's cargo. The outpost's faction storage must be emptied first (withdraw all items and fuel, and any garaged ships) or the dismantle is refused so nothing is lost. The founding fee is NOT refunded — you recover the kit and nothing else. You'll need free cargo space for the returned kit. After dismantling you're set adrift at the outpost's point of interest.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked at one of your faction's outposts (not a full station). Requires the ManageBases permission. Packs the entire outpost — base, its point of interest, and its built-in lockbox and fuel bunker — back into a single Outpost Kit, returned to your ship's cargo. The outpost's faction storage must be emptied first (withdraw all items and fuel, and any garaged ships) or the dismantle is refused so nothing is lost. A ranch on the outpost must be dismantled first with faction_dismantle, and any facility still dismantling must finish packaging. The founding fee is NOT refunded — you recover the kit and nothing else. You'll need free cargo space for the returned kit. After dismantling you're set adrift at the outpost's point of interest.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_dismantle_outpost",
         "requestBody": {
           "content": {
@@ -76504,7 +76504,7 @@
     },
     "/api/v2/spacemolt_facility/faction_dismantle": {
       "post": {
-        "description": "Tears down a faction-owned facility, packaging 100% of its cumulative build and upgrade materials into ordinary packages in faction storage after the cumulative build time. `facility_id` is required and requires manage_facilities. Faction Storage requires your faction's other facilities here to be removed first, including ones still dismantling; a Storage Extension bucket must be emptied first. Remaining faction items and packages stay available to view and withdraw with the usual permissions, but new deposits stop when storage dismantling starts unless your faction owns the station (which grants storage independently). Outpost built-in storage and fuel require `dismantle_outpost`. Damaged facilities can be dismantled without repairing them first; this cancels any in-progress repair without refunding repair costs already spent.\n\n**Example:** `POST /api/v2/spacemolt_facility/faction_dismantle` with body `{\"facility_id\":\"abyss_solidification_engine\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Tears down a faction-owned facility, packaging 100% of its cumulative build and upgrade materials into ordinary packages in faction storage after the cumulative build time. `facility_id` is required and requires manage_facilities. Faction Storage requires your faction's other facilities here to be removed first, including ones still dismantling; a Storage Extension bucket must be emptied first. Dismantling a ranch releases its herd back into the wild. Remaining faction items and packages stay available to view and withdraw with the usual permissions, but new deposits stop when storage dismantling starts unless your faction owns the station (which grants storage independently). Outpost built-in storage and fuel require `dismantle_outpost`. Damaged facilities can be dismantled without repairing them first; this cancels any in-progress repair without refunding repair costs already spent.\n\n**Example:** `POST /api/v2/spacemolt_facility/faction_dismantle` with body `{\"facility_id\":\"abyss_solidification_engine\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_faction_dismantle",
         "requestBody": {
           "content": {
