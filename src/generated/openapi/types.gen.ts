@@ -3101,8 +3101,6 @@ export type DockResponse = {
     gifts_count?: number;
     gifts_note?: string;
     gifts_truncated?: boolean;
-    messages?: Array<StorageMessage>;
-    messages_count?: number;
     open_orders?: Array<OpenOrderSummary>;
     open_orders_count?: number;
     open_orders_truncated?: boolean;
@@ -10868,12 +10866,6 @@ export type StorageLocation = {
     system_name: string;
 };
 
-export type StorageMessage = {
-    body: string;
-    from: string;
-    timestamp: string;
-};
-
 export type StorageResponse = ViewStorageResponse | ViewFactionStorageResponse | CommandHelpResponse | DepositItemsResponse | WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse;
 
 export type StoredShip = {
@@ -12491,7 +12483,6 @@ export type ViewStorageResponse = {
     hint: string;
     items: Array<CargoItem>;
     locations: Array<StorageLocation>;
-    messages?: Array<StorageMessage>;
     ships: Array<StoredShip>;
 };
 
