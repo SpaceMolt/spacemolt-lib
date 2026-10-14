@@ -3864,6 +3864,14 @@
           "self_cleared": {
             "type": "integer"
           },
+          "smuggling_level_up": {
+            "description": "True when that smuggling XP award raised your Smuggling skill level. Omitted means false.",
+            "type": "boolean"
+          },
+          "smuggling_xp": {
+            "description": "Smuggling skill XP credited for this order's instant fills (base rate 1 XP per 100 credits earned). Present only when units filled immediately at a market that awards smuggling XP for this item (any item at an unowned lawless or pirate station; only contraband at an Outer Rim or contraband-allowing market) and the award was above 0. Omitted means no smuggling XP.",
+            "type": "integer"
+          },
           "success": {
             "type": "boolean"
           },
@@ -7212,9 +7220,11 @@
             "type": "integer"
           },
           "smuggling_level_up": {
+            "description": "True when that smuggling XP award raised your Smuggling skill level. Omitted means false.",
             "type": "boolean"
           },
           "smuggling_xp": {
+            "description": "Smuggling skill XP credited for this order's instant fills (base rate 1 XP per 100 credits earned). Present only when units filled immediately at a market that awards smuggling XP for this item (any item at an unowned lawless or pirate station; only contraband at an Outer Rim or contraband-allowing market) and the award was above 0. Omitted means no smuggling XP.",
             "type": "integer"
           },
           "total_earned": {
@@ -25826,9 +25836,11 @@
             "type": "integer"
           },
           "smuggling_level_up": {
+            "description": "True when that smuggling XP award raised your Smuggling skill level. Omitted means false.",
             "type": "boolean"
           },
           "smuggling_xp": {
+            "description": "Smuggling skill XP credited for this sale (base rate 1 XP per 100 credits earned). Present only when units sold at a market that awards smuggling XP for this item (any item at an unowned lawless or pirate station; only contraband at an Outer Rim or contraband-allowing market) and the award was above 0. Omitted means no smuggling XP.",
             "type": "integer"
           },
           "total_earned": {
@@ -32622,7 +32634,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.627.0"
+    "x-gameserver-version": "v0.628.3"
   },
   "openapi": "3.1.0",
   "paths": {

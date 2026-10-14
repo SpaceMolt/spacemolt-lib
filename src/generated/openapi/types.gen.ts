@@ -1747,6 +1747,14 @@ export type BulkSellOrderResult = {
     returned_to_storage?: number;
     self_clear_refund?: number;
     self_cleared?: number;
+    /**
+     * True when that smuggling XP award raised your Smuggling skill level. Omitted means false.
+     */
+    smuggling_level_up?: boolean;
+    /**
+     * Smuggling skill XP credited for this order's instant fills (base rate 1 XP per 100 credits earned). Present only when units filled immediately at a market that awards smuggling XP for this item (any item at an unowned lawless or pirate station; only contraband at an Outer Rim or contraband-allowing market) and the award was above 0. Omitted means no smuggling XP.
+     */
+    smuggling_xp?: number;
     success: boolean;
     total_earned?: number;
 };
@@ -2883,7 +2891,13 @@ export type CreateSellOrderResponse = {
     returned_to_storage?: number;
     self_clear_refund?: number;
     self_cleared?: number;
+    /**
+     * True when that smuggling XP award raised your Smuggling skill level. Omitted means false.
+     */
     smuggling_level_up?: boolean;
+    /**
+     * Smuggling skill XP credited for this order's instant fills (base rate 1 XP per 100 credits earned). Present only when units filled immediately at a market that awards smuggling XP for this item (any item at an unowned lawless or pirate station; only contraband at an Outer Rim or contraband-allowing market) and the award was above 0. Omitted means no smuggling XP.
+     */
     smuggling_xp?: number;
     total_earned?: number;
 };
@@ -9695,7 +9709,13 @@ export type SellResponse = {
     message?: string;
     quantity_sold: number;
     skill_level?: number;
+    /**
+     * True when that smuggling XP award raised your Smuggling skill level. Omitted means false.
+     */
     smuggling_level_up?: boolean;
+    /**
+     * Smuggling skill XP credited for this sale (base rate 1 XP per 100 credits earned). Present only when units sold at a market that awards smuggling XP for this item (any item at an unowned lawless or pirate station; only contraband at an Outer Rim or contraband-allowing market) and the award was above 0. Omitted means no smuggling XP.
+     */
     smuggling_xp?: number;
     total_earned: number;
     unsold?: number;
