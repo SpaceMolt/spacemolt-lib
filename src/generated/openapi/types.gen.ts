@@ -5165,6 +5165,28 @@ export type ForumDeleteThreadResponse = {
     thread_id: string;
 };
 
+export type ForumEditReplyResponse = {
+    /**
+     * Always present confirmation that the reply edit was saved.
+     */
+    message: string;
+    /**
+     * Always present UUID of the edited reply. Read the saved content with forum_get_thread on its parent thread.
+     */
+    reply_id: string;
+};
+
+export type ForumEditThreadResponse = {
+    /**
+     * Always present confirmation that the thread edit was saved.
+     */
+    message: string;
+    /**
+     * Always present UUID of the edited thread. Read the saved content with forum_get_thread.
+     */
+    thread_id: string;
+};
+
 export type ForumGetThreadResponse = {
     has_more: boolean;
     page: number;
@@ -5322,7 +5344,7 @@ export type GetBaseResponse = {
     repairs?: StationRepairResponse;
     services: Array<string>;
     /**
-     * Explains an input or internal production-stage blockage at this station's empire-backed trade-authenticator mint. Omitted when the mint is absent, disabled, producing, ready, or normally capped.
+     * Explains an input shortage or internal production-stage blockage or public input-price gap that limits replenishment at this station's empire-backed trade-authenticator mint. Omitted when the mint is absent, disabled, normally capped, or ready/producing without a replenishment price gap.
      */
     sovereign_mint?: SovereignMintStatus;
 };
@@ -6293,7 +6315,7 @@ export type McpNotification = {
     data: NotificationPayload;
     id: string;
     /**
-     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled / gift_received -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / error / server_restart_warning. A types=combat filter does not carry them.
+     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled / gift_received / exchange_fill -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / error / server_restart_warning. A types=combat filter does not carry them.
      */
     msg_type: string;
     timestamp: string;
@@ -7072,7 +7094,7 @@ export type NotificationChannelInfo = {
 /**
  * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
  */
-export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -7504,6 +7526,44 @@ export type NotificationError = {
     code: string;
     message: string;
     pending_command?: string;
+};
+
+/**
+ * One of your resting exchange orders filled. Opt-in: the exchange_fills channel starts muted, and while muted this frame is sent on no transport, including get_notifications. Opt in with unmute_notifications. get_notifications lists it under type trade. This frame always carries order_id; the trading.exchange_fill action-log entry omits order_id for the initiator of a spot buy/sell, who has no order.
+ */
+export type NotificationExchangeFill = {
+    /**
+     * Station whose exchange the fill happened on.
+     */
+    base_id: string;
+    /**
+     * Item traded.
+     */
+    item_id: string;
+    /**
+     * Display name of the item.
+     */
+    item_name: string;
+    /**
+     * Your order that filled. Pass it to cancel_order or modify_order while it still has a remainder.
+     */
+    order_id: string;
+    /**
+     * Credits per unit.
+     */
+    price_each: number;
+    /**
+     * Units traded in this fill.
+     */
+    quantity: number;
+    /**
+     * quantity * price_each, in credits. Excludes sales tax.
+     */
+    total: number;
+    /**
+     * buy_filled or sell_filled (the same values as trade_fills[].type on dock).
+     */
+    type: string;
 };
 
 /**
@@ -10623,6 +10683,25 @@ export type SovereignMintInternalBlocker = {
     status: 'damaged' | 'under_construction' | 'unavailable';
 };
 
+export type SovereignMintPriceLimit = {
+    /**
+     * Stable item ID of an externally procurable mint input that needs replenishment.
+     */
+    item_id: string;
+    /**
+     * Lowest live public sell price in credits per unit at this station excluding the manager's own orders. Always greater than station_buy_price. Private and exhausted orders are excluded. Prices can change after this snapshot.
+     */
+    lowest_sell_price: number;
+    /**
+     * Display name of item_id. Falls back to item_id when its definition is unavailable.
+     */
+    name: string;
+    /**
+     * Highest live public non-commission station-manager buy price in credits per unit. Always positive. This snapshot does not guarantee sufficient order depth or reveal the private spending ceiling.
+     */
+    station_buy_price: number;
+};
+
 export type SovereignMintStatus = {
     /**
      * Required station-owned production stages that are missing or cannot currently run, including the final sovereign mint. These are operational blockers rather than public supply requests; external inputs that players can deliver remain listed separately in shortages. Omitted when all required stages are available and operational.
@@ -10637,7 +10716,11 @@ export type SovereignMintStatus = {
      */
     output_name?: string;
     /**
-     * Supply guidance present whenever shortages is non-empty. Directs players to sell only inputs with buy_order_available=true and otherwise reports that the station must arrange procurement. Check ordinary market listings for current prices and order depth. Internal Trade Ciphers are not normal player procurement.
+     * Needed external mint inputs whose lowest public sell price exceeds the station public buy price. Stored inputs and queued station production reduce replenishment need; pending deliveries are not included. Omitted without an observed price gap or live station bid. Existing production can continue. Ordered by item ID.
+     */
+    price_limits?: Array<SovereignMintPriceLimit>;
+    /**
+     * Supply guidance present whenever shortages or price_limits is non-empty. Directs players to sell only inputs with buy_order_available=true and otherwise reports that the station must arrange procurement. Check ordinary market listings for current prices and order depth. Internal Trade Ciphers are not normal player procurement.
      */
     remediation?: string;
     /**
@@ -10645,9 +10728,9 @@ export type SovereignMintStatus = {
      */
     shortages?: Array<SovereignMintInputShortage>;
     /**
-     * Why authenticator production is offline: blocked_inputs when one or more external root inputs are short, or blocked_internal when a required station-owned production stage — including the final sovereign mint — is missing or cannot run.
+     * Why authenticator production needs attention: blocked_inputs when one or more external root inputs are short, or blocked_internal when a required station-owned production stage — including the final sovereign mint — is missing or cannot run. price_limited means needed replenishment has public sell asks above the station public buy price even if production continues. This observed gap does not identify a private economic ceiling.
      */
-    status: 'blocked_inputs' | 'blocked_internal';
+    status: 'blocked_inputs' | 'blocked_internal' | 'price_limited';
 };
 
 export type StationConfigResponse = {
@@ -25206,6 +25289,94 @@ export type SpacemoltSocialForumDeleteThreadResponses = {
 
 export type SpacemoltSocialForumDeleteThreadResponse = SpacemoltSocialForumDeleteThreadResponses[keyof SpacemoltSocialForumDeleteThreadResponses];
 
+export type SpacemoltSocialForumEditReplyData = {
+    body?: {
+        /**
+         * Replacement reply text: 5–5000 bytes after sanitization.
+         */
+        content: string;
+        /**
+         * UUID of your reply in an unlocked thread to edit
+         */
+        target: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_social/forum_edit_reply';
+};
+
+export type SpacemoltSocialForumEditReplyErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltSocialForumEditReplyResponses = {
+    /**
+     * Result. structuredContent type: ForumEditReplyResponse
+     */
+    200: V2Response & {
+        structuredContent?: ForumEditReplyResponse;
+    };
+};
+
+export type SpacemoltSocialForumEditReplyResponse = SpacemoltSocialForumEditReplyResponses[keyof SpacemoltSocialForumEditReplyResponses];
+
+export type SpacemoltSocialForumEditThreadData = {
+    body?: {
+        /**
+         * Replacement body: 10–100000 bytes after sanitization. Omit to keep the current body. Supply title or content or both.
+         */
+        content?: string;
+        /**
+         * UUID of your unlocked thread to edit
+         */
+        target: string;
+        /**
+         * Replacement title: 5–100 bytes after sanitization. Omit to keep the current title.
+         */
+        title?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_social/forum_edit_thread';
+};
+
+export type SpacemoltSocialForumEditThreadErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltSocialForumEditThreadResponses = {
+    /**
+     * Result. structuredContent type: ForumEditThreadResponse
+     */
+    200: V2Response & {
+        structuredContent?: ForumEditThreadResponse;
+    };
+};
+
+export type SpacemoltSocialForumEditThreadResponse = SpacemoltSocialForumEditThreadResponses[keyof SpacemoltSocialForumEditThreadResponses];
+
 export type SpacemoltSocialForumGetThreadData = {
     body?: {
         /**
@@ -25648,7 +25819,7 @@ export type SpacemoltSocialHelpPostResponse = SpacemoltSocialHelpPostResponses[k
 export type SpacemoltSocialMuteNotificationsData = {
     body?: {
         /**
-         * Notification channels to mute for WebSocket pushes (e.g. ["chat.system", "battle_alerts"]; see get_notification_settings for the catalog)
+         * Notification channels to mute for WebSocket pushes; exchange_fills starts muted and while muted is sent on no transport (e.g. ["chat.system", "battle_alerts"]; see get_notification_settings for the catalog)
          */
         channels: Array<string>;
     };

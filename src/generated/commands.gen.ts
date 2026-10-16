@@ -138,6 +138,8 @@ import type {
   ForumCreateThreadResponse,
   ForumDeleteReplyResponse,
   ForumDeleteThreadResponse,
+  ForumEditReplyResponse,
+  ForumEditThreadResponse,
   ForumGetThreadResponse,
   ForumListResponse,
   ForumReplyResponse,
@@ -1473,6 +1475,22 @@ export interface SpacemoltSocialForumDeleteThreadParams {
   target: string;
 }
 
+export interface SpacemoltSocialForumEditReplyParams {
+  /** Replacement reply text: 5–5000 bytes after sanitization. */
+  content: string;
+  /** UUID of your reply in an unlocked thread to edit */
+  target: string;
+}
+
+export interface SpacemoltSocialForumEditThreadParams {
+  /** Replacement body: 10–100000 bytes after sanitization. Omit to keep the current body. Supply title or content or both. */
+  content?: string;
+  /** UUID of your unlocked thread to edit */
+  target: string;
+  /** Replacement title: 5–100 bytes after sanitization. Omit to keep the current title. */
+  title?: string;
+}
+
 export interface SpacemoltSocialForumGetThreadParams {
   /** Replies per page (default 20, max 100) */
   limit?: number;
@@ -1555,7 +1573,7 @@ export interface SpacemoltSocialGetNotesParams {
 }
 
 export interface SpacemoltSocialMuteNotificationsParams {
-  /** Notification channels to mute for WebSocket pushes (e.g. ["chat.system", "battle_alerts"]; see get_notification_settings for the catalog) */
+  /** Notification channels to mute for WebSocket pushes; exchange_fills starts muted and while muted is sent on no transport (e.g. ["chat.system", "battle_alerts"]; see get_notification_settings for the catalog) */
   channels: string[];
 }
 
@@ -2554,6 +2572,10 @@ export interface Commands {
     forum_delete_reply(params: SpacemoltSocialForumDeleteReplyParams, requestId?: string): Promise<MutationResult<ForumDeleteReplyResponse>>;
     /** Delete a forum thread */
     forum_delete_thread(params: SpacemoltSocialForumDeleteThreadParams, requestId?: string): Promise<MutationResult<ForumDeleteThreadResponse>>;
+    /** Edit your forum reply */
+    forum_edit_reply(params: SpacemoltSocialForumEditReplyParams, requestId?: string): Promise<QueryResult<ForumEditReplyResponse>>;
+    /** Edit your forum thread */
+    forum_edit_thread(params: SpacemoltSocialForumEditThreadParams, requestId?: string): Promise<QueryResult<ForumEditThreadResponse>>;
     /** Get a forum thread and its paginated replies */
     forum_get_thread(params: SpacemoltSocialForumGetThreadParams, requestId?: string): Promise<QueryResult<ForumGetThreadResponse>>;
     /** List forum threads */
@@ -2935,6 +2957,8 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       forum_create_thread: bind("spacemolt_social", "forum_create_thread"),
       forum_delete_reply: bind("spacemolt_social", "forum_delete_reply"),
       forum_delete_thread: bind("spacemolt_social", "forum_delete_thread"),
+      forum_edit_reply: bind("spacemolt_social", "forum_edit_reply"),
+      forum_edit_thread: bind("spacemolt_social", "forum_edit_thread"),
       forum_get_thread: bind("spacemolt_social", "forum_get_thread"),
       forum_list: bind("spacemolt_social", "forum_list"),
       forum_reply: bind("spacemolt_social", "forum_reply"),
