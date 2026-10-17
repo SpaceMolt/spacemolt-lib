@@ -626,6 +626,11 @@ export interface SpacemoltFacilitySetBuildPolicyParams {
   allow_outsiders?: boolean;
 }
 
+export interface SpacemoltFacilitySetContrabandParams {
+  /** Replacement contraband item IDs for this player-owned station or mobile base (set_contraband). Required for set_contraband; [] allows all items. reset_contraband restores defaults. Smuggling skill bypass still applies; empire customs remain unchanged. */
+  contraband_items: string[];
+}
+
 export interface SpacemoltFacilitySetDescriptionParams {
   /** New station description (set_description) */
   description?: string;
@@ -1531,9 +1536,9 @@ export interface SpacemoltSocialForumReplyParams {
 }
 
 export interface SpacemoltSocialForumUpvoteParams {
-  /** UUID of reply (optional - omit to upvote thread) */
+  /** UUID of a reply in thread_id to upvote instead of the thread (optional - omit to upvote thread). Your own posts cannot be upvoted. */
   reply_id?: string;
-  /** UUID of thread (required) */
+  /** UUID of thread (required). With reply_id it must be the reply's thread. */
   target: string;
 }
 
@@ -2266,12 +2271,16 @@ export interface Commands {
     remove_player(params: SpacemoltFacilityRemovePlayerParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     repair(params: SpacemoltFacilityRepairParams, requestId?: string): Promise<MutationResult<FacilityRepairResponse>>;
+    /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
+    reset_contraband(requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     set_access(params: SpacemoltFacilitySetAccessParams, requestId?: string): Promise<MutationResult<SetAccessResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_auto_buy_fuel(params?: SpacemoltFacilitySetAutoBuyFuelParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_build_policy(params?: SpacemoltFacilitySetBuildPolicyParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
+    /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
+    set_contraband(params: SpacemoltFacilitySetContrabandParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_description(params?: SpacemoltFacilitySetDescriptionParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
@@ -2794,9 +2803,11 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       remove_faction: bind("spacemolt_facility", "remove_faction"),
       remove_player: bind("spacemolt_facility", "remove_player"),
       repair: bind("spacemolt_facility", "repair"),
+      reset_contraband: bindBare("spacemolt_facility", "reset_contraband"),
       set_access: bind("spacemolt_facility", "set_access"),
       set_auto_buy_fuel: bind("spacemolt_facility", "set_auto_buy_fuel"),
       set_build_policy: bind("spacemolt_facility", "set_build_policy"),
+      set_contraband: bind("spacemolt_facility", "set_contraband"),
       set_description: bind("spacemolt_facility", "set_description"),
       set_market_fee: bind("spacemolt_facility", "set_market_fee"),
       set_name: bind("spacemolt_facility", "set_name"),

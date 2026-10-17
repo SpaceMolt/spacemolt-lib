@@ -967,6 +967,10 @@ export type Base = {
          */
         wrecked_tick?: number;
     };
+    /**
+     * Custom banned item IDs for player-owned stations and mobile bases. Null uses default rules; an empty array allows all items. Empire customs remain unchanged.
+     */
+    contraband_items?: Array<string> | null;
     description?: string;
     empire?: string;
     facilities?: Array<string>;
@@ -3728,6 +3732,10 @@ export type FacilityListForSaleResponse = {
 export type FacilityListResponse = {
     action: 'list';
     /**
+     * Facilities here owned by an allied faction that has turned on ally_facility_access for your faction. You queue jobs on them free: production.rental_fee_per_run is 0 and no output price is quoted, even when the facility is also publicly rentable to strangers. Your jobs still queue behind the owner's own work like a renter's. An ally facility is listed here and never under public_facilities. Omitted when there are none.
+     */
+    ally_facilities?: Array<FacilityEntry>;
+    /**
      * Canonical ID of the station containing every listed facility and both per-station rent summaries.
      */
     base_id: string;
@@ -3836,6 +3844,9 @@ export type FacilityProduction = {
     queued_items: number;
     queued_runs: number;
     recipe?: string;
+    /**
+     * Credits charged per run to queue a job here as an outside renter. Present for publicly rentable facilities, including your own and your faction's so you can confirm the price you set. Omitted (0) when the facility is not publicly rentable, when the owner rents it out free, and on every ally_facilities entry, because an allied grant lets you queue there free.
+     */
     rental_fee_per_run?: number;
     ticks_per_run?: number;
     unpack_operations_per_hour?: number;
@@ -6978,9 +6989,6 @@ export type Module = {
      * Maximum remote-repair range in same-side radial-band distance to an eligible ally.
      */
     remote_repair_range?: number;
-    required_skills?: {
-        [key: string]: number;
-    };
     resistance_bonus?: {
         [key: string]: number;
     };
@@ -7153,7 +7161,7 @@ export type NotificationActionError = {
 };
 
 /**
- * A state update from the server. Two producers send it. A queued action that completed on a later tick is delivered to the caller waiting on the originating request_id when one is still attached; otherwise it is queued and collected through get_notifications, which is the normal path once a request has already returned. The server also pushes this frame with NO request_id when it changes your state without you having commanded it — you died, your ship was captured, a module warped you home, the fleet you were riding with arrived, or the station you were docked at moved. Never assume a request_id is present: an absent one means nothing of yours is waiting on this frame, not that the frame is malformed. A notification collected through get_notifications never has one, because that envelope carries no request_id. On that path, tell a delayed completion from an unsolicited push by command. A registered command name (mine, dock, buy) is a completion. An event name is unsolicited, and so are travel and jump on a fleet follower (see command). A death or a capture arrives as two notifications. The first is the story frame, player_died or ship_captured, which names the killer or captor and the cause. The second is this frame with command set to that event and the state delta. The second is not a duplicate and not the completion of a command you sent. Apply the delta. Read the story frame for the cause. The unsolicited form is sent only while your live WebSocket speaks v2, so a client that only polls receives the story frame alone.
+ * A state update from the server. Two producers send it. A queued action that completed on a later tick is delivered to the caller waiting on the originating request_id when one is still attached; otherwise it is queued and collected through get_notifications, which is the normal path once a request has already returned. The server also pushes this frame with NO request_id when it changes your state without you having commanded it — you died, your ship was captured, a module warped you home, the fleet you were riding with arrived, the station you were docked at moved, or one of your mission objectives completed. Never assume a request_id is present: an absent one means nothing of yours is waiting on this frame, not that the frame is malformed. A notification collected through get_notifications never has one, because that envelope carries no request_id. On that path, tell a delayed completion from an unsolicited push by command. A registered command name (mine, dock, buy) is a completion. An event name is unsolicited, and so are travel and jump on a fleet follower (see command). A death or a capture arrives as two notifications. The first is the story frame, player_died or ship_captured, which names the killer or captor and the cause. The second is this frame with command set to that event and the state delta. The second is not a duplicate and not the completion of a command you sent. Apply the delta. Read the story frame for the cause. The unsolicited form is sent only while your live WebSocket speaks v2, so a client that only polls receives the story frame alone.
  */
 export type NotificationActionResult = {
     /**
@@ -7165,7 +7173,7 @@ export type NotificationActionResult = {
      */
     auto_undocked?: boolean;
     /**
-     * Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, or mobile_capital_transit. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.
+     * Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, mobile_capital_transit, or mission_objective_completed. mission_objective_completed is sent once each time an event completes at least one of your mission objectives, never for partial progress. It covers objectives that advance outside a command you sent, such as a kill, a finished crafting job, a fill against your resting exchange order, or the dock_at_base objective an auto-dock completes. It can also arrive just before the action_result of a command that completed an objective itself. Apply both. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.
      */
     command: string;
     /**
@@ -10744,6 +10752,14 @@ export type StationConfigResponse = {
     auto_buy_fuel: boolean;
     banned_players?: Array<string>;
     base_id: string;
+    /**
+     * Custom banned item IDs in sorted order. Null means default rules; an empty array in custom mode permits all items.
+     */
+    contraband_items: Array<string> | null;
+    /**
+     * default uses the general contraband rules; custom replaces them with contraband_items at this player-owned station or mobile base. Empire customs remain unchanged.
+     */
+    contraband_mode: string;
     description?: string;
     market_fee_bps?: number;
     message?: string;
@@ -11753,6 +11769,14 @@ export type TreatPersonnelResponse = {
 export type TrimmedBase = {
     allow_outsider_facilities?: boolean;
     armor: number;
+    /**
+     * Custom banned item IDs in sorted order. Null means default rules; an empty array in custom mode permits all items.
+     */
+    contraband_items: Array<string> | null;
+    /**
+     * default uses the general contraband rules; custom replaces them with contraband_items at this player-owned station or mobile base. Empire customs remain unchanged.
+     */
+    contraband_mode: string;
     description: string;
     empire?: string;
     facilities?: Array<string>;
@@ -18683,6 +18707,43 @@ export type SpacemoltFacilityRepairResponses = {
 
 export type SpacemoltFacilityRepairResponse = SpacemoltFacilityRepairResponses[keyof SpacemoltFacilityRepairResponses];
 
+export type SpacemoltFacilityResetContrabandData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/reset_contraband';
+};
+
+export type SpacemoltFacilityResetContrabandErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityResetContrabandResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: StationConfigResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilityResetContrabandResponse = SpacemoltFacilityResetContrabandResponses[keyof SpacemoltFacilityResetContrabandResponses];
+
 export type SpacemoltFacilitySetAccessData = {
     body?: {
         /**
@@ -18806,6 +18867,46 @@ export type SpacemoltFacilitySetBuildPolicyResponses = {
 };
 
 export type SpacemoltFacilitySetBuildPolicyResponse = SpacemoltFacilitySetBuildPolicyResponses[keyof SpacemoltFacilitySetBuildPolicyResponses];
+
+export type SpacemoltFacilitySetContrabandData = {
+    body?: {
+        /**
+         * Replacement contraband item IDs for this player-owned station or mobile base (set_contraband). Required for set_contraband; [] allows all items. reset_contraband restores defaults. Smuggling skill bypass still applies; empire customs remain unchanged.
+         */
+        contraband_items: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/set_contraband';
+};
+
+export type SpacemoltFacilitySetContrabandErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilitySetContrabandResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: StationConfigResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilitySetContrabandResponse = SpacemoltFacilitySetContrabandResponses[keyof SpacemoltFacilitySetContrabandResponses];
 
 export type SpacemoltFacilitySetDescriptionData = {
     body?: {
@@ -25544,11 +25645,11 @@ export type SpacemoltSocialForumReplyResponse = SpacemoltSocialForumReplyRespons
 export type SpacemoltSocialForumUpvoteData = {
     body?: {
         /**
-         * UUID of reply (optional - omit to upvote thread)
+         * UUID of a reply in thread_id to upvote instead of the thread (optional - omit to upvote thread). Your own posts cannot be upvoted.
          */
         reply_id?: string;
         /**
-         * UUID of thread (required)
+         * UUID of thread (required). With reply_id it must be the reply's thread.
          */
         target: string;
     };
