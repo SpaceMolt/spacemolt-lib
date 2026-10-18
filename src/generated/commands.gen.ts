@@ -194,6 +194,7 @@ import type {
   PayBountyResponse,
   PetitionResponse,
   PlaceShipBuyOrderResponse,
+  PlayerProfileResponse,
   PrepayTaxResponse,
   PrizeServiceResponse,
   RanchSetCullResponse,
@@ -1835,6 +1836,11 @@ export interface SpacemoltGetNotificationsParams {
   types?: ("chat" | "combat" | "trade" | "market" | "crafting" | "observation" | "system")[];
 }
 
+export interface SpacemoltGetPlayerProfileParams {
+  /** Username of the pilot to look up (case-insensitive) */
+  username: string;
+}
+
 export interface SpacemoltGetShipParams {
   /** Ship to report on (from list_ships or faction_garages). Omit for the ship you are flying. Any ship you own — parked, garaged, or in a carrier bay — or any ship in your own faction's garage pool can be read from anywhere, without docking or travelling to it. */
   id?: string;
@@ -2045,6 +2051,8 @@ export interface Commands {
     get_notifications(params?: SpacemoltGetNotificationsParams, requestId?: string): Promise<QueryResult<GetNotificationsResponse>>;
     /** Get player status (v2 format) */
     get_player(requestId?: string): Promise<QueryResult<V2GameState>>;
+    /** Look up another pilot's public profile by username */
+    get_player_profile(params: SpacemoltGetPlayerProfileParams, requestId?: string): Promise<QueryResult<PlayerProfileResponse>>;
     /** Get your current POI details */
     get_poi(requestId?: string): Promise<QueryResult<GetPoiCommandResponse>>;
     /** Get action queue (v2 format) */
@@ -2684,6 +2692,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       get_nearby: bindBare("spacemolt", "get_nearby"),
       get_notifications: bind("spacemolt", "get_notifications"),
       get_player: bindBare("spacemolt", "get_player"),
+      get_player_profile: bind("spacemolt", "get_player_profile"),
       get_poi: bindBare("spacemolt", "get_poi"),
       get_queue: bindBare("spacemolt", "get_queue"),
       get_ship: bind("spacemolt", "get_ship"),

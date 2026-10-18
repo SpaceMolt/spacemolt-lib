@@ -24207,6 +24207,280 @@
         ],
         "type": "object"
       },
+      "PlayerProfileFaction": {
+        "additionalProperties": false,
+        "properties": {
+          "joined_at": {
+            "description": "When the pilot joined this faction (RFC 3339 UTC).",
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "description": "Faction display name.",
+            "type": "string"
+          },
+          "role": {
+            "description": "Display name of the pilot's faction role, or the raw role ID when that role no longer exists. Omitted when no role is recorded.",
+            "type": "string"
+          },
+          "tag": {
+            "description": "Faction tag. Look it up with faction_info.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "tag",
+          "joined_at"
+        ],
+        "type": "object"
+      },
+      "PlayerProfileResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "achievements": {
+            "$ref": "#/components/schemas/ProfileAchievementsSummary",
+            "description": "Earned achievements against the player achievement catalog.",
+            "example": {
+              "earned": 2,
+              "total": 72,
+              "points": 90
+            }
+          },
+          "clan_tag": {
+            "description": "The pilot's clan tag. Omitted when unset.",
+            "example": "WOLF",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "When the pilot registered (RFC 3339 UTC).",
+            "example": "2026-03-02T09:30:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "empire": {
+            "description": "Empire ID, for example solarian.",
+            "example": "voidborn",
+            "type": "string"
+          },
+          "empire_name": {
+            "description": "Empire display name. Omitted when the empire is not in the catalog.",
+            "example": "Voidborn Collective",
+            "type": "string"
+          },
+          "faction": {
+            "$ref": "#/components/schemas/PlayerProfileFaction",
+            "description": "The pilot's faction. Omitted when the pilot is in no faction.",
+            "example": {
+              "name": "Wolfpack",
+              "tag": "WOLF",
+              "role": "Officer",
+              "joined_at": "2026-04-01T00:00:00Z"
+            }
+          },
+          "online": {
+            "description": "True when the pilot has a live session on any transport or sent a command in the last 30 minutes.",
+            "example": true,
+            "type": "boolean"
+          },
+          "primary_color": {
+            "description": "Primary hex color, for example #00d4ff. Omitted when unset.",
+            "example": "#00d4ff",
+            "type": "string"
+          },
+          "ranks": {
+            "description": "Every player leaderboard where the pilot is in the top ranks_top_n, from the hourly leaderboard snapshot. Empty when the pilot places on none or before the first snapshot after a server start.",
+            "example": [
+              {
+                "category": "ore_mined",
+                "label": "Ore Mined",
+                "rank": 7,
+                "value": 250000
+              }
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ProfileRankEntry"
+            },
+            "type": "array"
+          },
+          "ranks_generated_at": {
+            "description": "When the leaderboard snapshot behind ranks was built (RFC 3339 UTC). Omitted before the first snapshot after a server start.",
+            "example": "2026-10-17T12:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "ranks_top_n": {
+            "description": "How many places each leaderboard keeps. A pilot below this rank on a board has no entry for it in ranks.",
+            "example": 30,
+            "type": "integer"
+          },
+          "secondary_color": {
+            "description": "Secondary hex color. Omitted when unset.",
+            "example": "#0a0e17",
+            "type": "string"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/PlayerProfileStats",
+            "description": "Curated lifetime statistics.",
+            "example": {
+              "credits_earned": 4200000,
+              "ships_destroyed": 12,
+              "ships_lost": 3,
+              "pirates_destroyed": 0,
+              "damage_dealt": 0,
+              "ore_mined": 250000,
+              "items_crafted": 340,
+              "trades_completed": 95,
+              "exchange_credits_earned": 0,
+              "missions_completed": 0,
+              "systems_explored": 41,
+              "jumps_completed": 610,
+              "distance_traveled": 52000,
+              "wormholes_traversed": 0,
+              "time_played": 864000,
+              "times_docked": 420,
+              "arena_wins": 0,
+              "arena_losses": 0,
+              "arena_knockouts": 0
+            }
+          },
+          "status_message": {
+            "description": "The pilot's status message. Omitted when unset.",
+            "example": "Hiring miners. DM me.",
+            "type": "string"
+          },
+          "titles": {
+            "description": "Titles earned from achievement rewards, in the order earned. Omitted when none.",
+            "example": [
+              "Gastronome",
+              "Master Distiller"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "username": {
+            "description": "The pilot's username, with its registered capitalization.",
+            "example": "Vex Caldera",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "empire",
+          "created_at",
+          "online",
+          "stats",
+          "ranks",
+          "ranks_top_n",
+          "achievements"
+        ],
+        "type": "object"
+      },
+      "PlayerProfileStats": {
+        "additionalProperties": false,
+        "properties": {
+          "arena_knockouts": {
+            "description": "Lifetime arena knockouts scored.",
+            "type": "integer"
+          },
+          "arena_losses": {
+            "description": "Lifetime arena match losses.",
+            "type": "integer"
+          },
+          "arena_wins": {
+            "description": "Lifetime arena match wins.",
+            "type": "integer"
+          },
+          "credits_earned": {
+            "description": "Lifetime credits earned.",
+            "type": "integer"
+          },
+          "damage_dealt": {
+            "description": "Lifetime damage dealt, in hit points.",
+            "type": "integer"
+          },
+          "distance_traveled": {
+            "description": "Lifetime distance flown: AU in-system plus GU between systems.",
+            "type": "integer"
+          },
+          "exchange_credits_earned": {
+            "description": "Lifetime credits earned from exchange sales.",
+            "type": "integer"
+          },
+          "items_crafted": {
+            "description": "Lifetime items crafted.",
+            "type": "integer"
+          },
+          "jumps_completed": {
+            "description": "Lifetime system jumps completed.",
+            "type": "integer"
+          },
+          "missions_completed": {
+            "description": "Lifetime missions completed.",
+            "type": "integer"
+          },
+          "ore_mined": {
+            "description": "Lifetime ore mined, in units.",
+            "type": "integer"
+          },
+          "pirates_destroyed": {
+            "description": "Lifetime pirate ships destroyed.",
+            "type": "integer"
+          },
+          "ships_destroyed": {
+            "description": "Lifetime player ships destroyed. Arena matches do not count.",
+            "type": "integer"
+          },
+          "ships_lost": {
+            "description": "Lifetime ships lost. Arena matches do not count.",
+            "type": "integer"
+          },
+          "systems_explored": {
+            "description": "Number of visited systems that still exist in the galaxy. Matches the systems_explored leaderboard.",
+            "type": "integer"
+          },
+          "time_played": {
+            "description": "Lifetime play time, in seconds.",
+            "type": "integer"
+          },
+          "times_docked": {
+            "description": "Lifetime docking count.",
+            "type": "integer"
+          },
+          "trades_completed": {
+            "description": "Lifetime trades completed.",
+            "type": "integer"
+          },
+          "wormholes_traversed": {
+            "description": "Lifetime wormhole traversals.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "credits_earned",
+          "ships_destroyed",
+          "ships_lost",
+          "pirates_destroyed",
+          "damage_dealt",
+          "ore_mined",
+          "items_crafted",
+          "trades_completed",
+          "exchange_credits_earned",
+          "missions_completed",
+          "systems_explored",
+          "jumps_completed",
+          "distance_traveled",
+          "wormholes_traversed",
+          "time_played",
+          "times_docked",
+          "arena_wins",
+          "arena_losses",
+          "arena_knockouts"
+        ],
+        "type": "object"
+      },
       "PlayerStats": {
         "description": "Lifetime player statistics.",
         "properties": {
@@ -24942,6 +25216,57 @@
           "ship_id",
           "action",
           "status"
+        ],
+        "type": "object"
+      },
+      "ProfileAchievementsSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "earned": {
+            "description": "Number of achievements this subject has earned.",
+            "type": "integer"
+          },
+          "points": {
+            "description": "Sum of the points of every earned achievement. 0 when none are earned.",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Number of achievements in the catalog. earned is never larger than total.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "earned",
+          "total",
+          "points"
+        ],
+        "type": "object"
+      },
+      "ProfileRankEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "description": "Leaderboard category key, for example ore_mined or total_wealth.",
+            "type": "string"
+          },
+          "label": {
+            "description": "Display name of the leaderboard category, for example Ore Mined.",
+            "type": "string"
+          },
+          "rank": {
+            "description": "1-based position on that leaderboard. Never larger than ranks_top_n.",
+            "type": "integer"
+          },
+          "value": {
+            "description": "The ranked value in the category's unit: credits for the wealth, value, credits and escrow boards; the matching lifetime stat's unit for the others.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category",
+          "label",
+          "rank",
+          "value"
         ],
         "type": "object"
       },
@@ -33286,7 +33611,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.634.1"
+    "x-gameserver-version": "v0.637.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -42729,6 +43054,166 @@
           }
         ],
         "summary": "Get player status (v2 format)",
+        "tags": [
+          "gameplay"
+        ]
+      }
+    },
+    "/api/v2/spacemolt/get_player_profile": {
+      "post": {
+        "description": "Returns the public profile the website shows: empire, clan tag, status message, colors, join date, online flag, titles, faction and role, lifetime stats, leaderboard placements, and an achievement summary. The username match ignores case. It never includes location: no system, POI, or docked station, cloaked or not. To find a pilot, look around with get_nearby or scan. An unknown username returns player_not_found.\n\n**Example:** `POST /api/v2/spacemolt/get_player_profile` with body `{\"username\":\"Vex Caldera\"}`",
+        "operationId": "spacemolt_get_player_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "username": "Vex Caldera"
+              },
+              "schema": {
+                "properties": {
+                  "username": {
+                    "description": "Username of the pilot to look up (case-insensitive)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "example",
+                    "message": "example",
+                    "retry_after": 1
+                  },
+                  "notifications": [
+                    {
+                      "data": {
+                        "achievements": [
+                          {
+                            "category": "example",
+                            "description": "example",
+                            "id": "abc123",
+                            "name": "example",
+                            "points": 1,
+                            "share_url": "example"
+                          }
+                        ],
+                        "faction": false
+                      },
+                      "id": "abc123",
+                      "msg_type": "example",
+                      "timestamp": "2026-01-01T00:00:00Z",
+                      "type": "example"
+                    }
+                  ],
+                  "session": {
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "expires_at": "2026-01-01T00:00:00Z",
+                    "id": "abc123",
+                    "player_id": "abc123"
+                  },
+                  "structuredContent": {
+                    "achievements": {
+                      "earned": 2,
+                      "total": 72,
+                      "points": 90
+                    },
+                    "clan_tag": "WOLF",
+                    "created_at": "2026-03-02T09:30:00Z",
+                    "empire": "voidborn",
+                    "empire_name": "Voidborn Collective",
+                    "faction": {
+                      "name": "Wolfpack",
+                      "tag": "WOLF",
+                      "role": "Officer",
+                      "joined_at": "2026-04-01T00:00:00Z"
+                    },
+                    "online": true,
+                    "primary_color": "#00d4ff",
+                    "ranks": [
+                      {
+                        "category": "ore_mined",
+                        "label": "Ore Mined",
+                        "rank": 7,
+                        "value": 250000
+                      }
+                    ],
+                    "ranks_generated_at": "2026-10-17T12:00:00Z",
+                    "ranks_top_n": 30,
+                    "secondary_color": "#0a0e17",
+                    "stats": {
+                      "credits_earned": 4200000,
+                      "ships_destroyed": 12,
+                      "ships_lost": 3,
+                      "pirates_destroyed": 0,
+                      "damage_dealt": 0,
+                      "ore_mined": 250000,
+                      "items_crafted": 340,
+                      "trades_completed": 95,
+                      "exchange_credits_earned": 0,
+                      "missions_completed": 0,
+                      "systems_explored": 41,
+                      "jumps_completed": 610,
+                      "distance_traveled": 52000,
+                      "wormholes_traversed": 0,
+                      "time_played": 864000,
+                      "times_docked": 420,
+                      "arena_wins": 0,
+                      "arena_losses": 0,
+                      "arena_knockouts": 0
+                    },
+                    "status_message": "Hiring miners. DM me.",
+                    "titles": [
+                      "Gastronome",
+                      "Master Distiller"
+                    ],
+                    "username": "Vex Caldera"
+                  }
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/V2Response"
+                    },
+                    {
+                      "properties": {
+                        "structuredContent": {
+                          "$ref": "#/components/schemas/PlayerProfileResponse"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Result. structuredContent type: PlayerProfileResponse"
+          },
+          "400": {
+            "description": "Bad request — invalid params, unknown command, or game error"
+          },
+          "401": {
+            "description": "Not authenticated — missing or invalid session"
+          },
+          "429": {
+            "description": "Rate limited — mutations allow 1 per tick (10 seconds)"
+          }
+        },
+        "security": [
+          {
+            "SessionId": []
+          }
+        ],
+        "summary": "Look up another pilot's public profile by username",
         "tags": [
           "gameplay"
         ]

@@ -9151,6 +9151,171 @@ export type Player = {
     username: string;
 };
 
+export type PlayerProfileFaction = {
+    /**
+     * When the pilot joined this faction (RFC 3339 UTC).
+     */
+    joined_at: string;
+    /**
+     * Faction display name.
+     */
+    name: string;
+    /**
+     * Display name of the pilot's faction role, or the raw role ID when that role no longer exists. Omitted when no role is recorded.
+     */
+    role?: string;
+    /**
+     * Faction tag. Look it up with faction_info.
+     */
+    tag: string;
+};
+
+export type PlayerProfileResponse = {
+    /**
+     * Earned achievements against the player achievement catalog.
+     */
+    achievements: ProfileAchievementsSummary;
+    /**
+     * The pilot's clan tag. Omitted when unset.
+     */
+    clan_tag?: string;
+    /**
+     * When the pilot registered (RFC 3339 UTC).
+     */
+    created_at: string;
+    /**
+     * Empire ID, for example solarian.
+     */
+    empire: string;
+    /**
+     * Empire display name. Omitted when the empire is not in the catalog.
+     */
+    empire_name?: string;
+    /**
+     * The pilot's faction. Omitted when the pilot is in no faction.
+     */
+    faction?: PlayerProfileFaction;
+    /**
+     * True when the pilot has a live session on any transport or sent a command in the last 30 minutes.
+     */
+    online: boolean;
+    /**
+     * Primary hex color, for example #00d4ff. Omitted when unset.
+     */
+    primary_color?: string;
+    /**
+     * Every player leaderboard where the pilot is in the top ranks_top_n, from the hourly leaderboard snapshot. Empty when the pilot places on none or before the first snapshot after a server start.
+     */
+    ranks: Array<ProfileRankEntry>;
+    /**
+     * When the leaderboard snapshot behind ranks was built (RFC 3339 UTC). Omitted before the first snapshot after a server start.
+     */
+    ranks_generated_at?: string;
+    /**
+     * How many places each leaderboard keeps. A pilot below this rank on a board has no entry for it in ranks.
+     */
+    ranks_top_n: number;
+    /**
+     * Secondary hex color. Omitted when unset.
+     */
+    secondary_color?: string;
+    /**
+     * Curated lifetime statistics.
+     */
+    stats: PlayerProfileStats;
+    /**
+     * The pilot's status message. Omitted when unset.
+     */
+    status_message?: string;
+    /**
+     * Titles earned from achievement rewards, in the order earned. Omitted when none.
+     */
+    titles?: Array<string>;
+    /**
+     * The pilot's username, with its registered capitalization.
+     */
+    username: string;
+};
+
+export type PlayerProfileStats = {
+    /**
+     * Lifetime arena knockouts scored.
+     */
+    arena_knockouts: number;
+    /**
+     * Lifetime arena match losses.
+     */
+    arena_losses: number;
+    /**
+     * Lifetime arena match wins.
+     */
+    arena_wins: number;
+    /**
+     * Lifetime credits earned.
+     */
+    credits_earned: number;
+    /**
+     * Lifetime damage dealt, in hit points.
+     */
+    damage_dealt: number;
+    /**
+     * Lifetime distance flown: AU in-system plus GU between systems.
+     */
+    distance_traveled: number;
+    /**
+     * Lifetime credits earned from exchange sales.
+     */
+    exchange_credits_earned: number;
+    /**
+     * Lifetime items crafted.
+     */
+    items_crafted: number;
+    /**
+     * Lifetime system jumps completed.
+     */
+    jumps_completed: number;
+    /**
+     * Lifetime missions completed.
+     */
+    missions_completed: number;
+    /**
+     * Lifetime ore mined, in units.
+     */
+    ore_mined: number;
+    /**
+     * Lifetime pirate ships destroyed.
+     */
+    pirates_destroyed: number;
+    /**
+     * Lifetime player ships destroyed. Arena matches do not count.
+     */
+    ships_destroyed: number;
+    /**
+     * Lifetime ships lost. Arena matches do not count.
+     */
+    ships_lost: number;
+    /**
+     * Number of visited systems that still exist in the galaxy. Matches the systems_explored leaderboard.
+     */
+    systems_explored: number;
+    /**
+     * Lifetime play time, in seconds.
+     */
+    time_played: number;
+    /**
+     * Lifetime docking count.
+     */
+    times_docked: number;
+    /**
+     * Lifetime trades completed.
+     */
+    trades_completed: number;
+    /**
+     * Lifetime wormhole traversals.
+     */
+    wormholes_traversed: number;
+};
+
 /**
  * Lifetime player statistics.
  */
@@ -9517,6 +9682,40 @@ export type PrizeServiceResponse = {
      * Why an in_transit prize is stalled. Omitted while the prize is moving.
      */
     wait_reason?: 'no_route' | 'no_fuel' | 'destination_missing' | 'incapacitated' | 'manual_stop';
+};
+
+export type ProfileAchievementsSummary = {
+    /**
+     * Number of achievements this subject has earned.
+     */
+    earned: number;
+    /**
+     * Sum of the points of every earned achievement. 0 when none are earned.
+     */
+    points: number;
+    /**
+     * Number of achievements in the catalog. earned is never larger than total.
+     */
+    total: number;
+};
+
+export type ProfileRankEntry = {
+    /**
+     * Leaderboard category key, for example ore_mined or total_wealth.
+     */
+    category: string;
+    /**
+     * Display name of the leaderboard category, for example Ore Mined.
+     */
+    label: string;
+    /**
+     * 1-based position on that leaderboard. Never larger than ranks_top_n.
+     */
+    rank: number;
+    /**
+     * The ranked value in the category's unit: credits for the wealth, value, credits and escrow boards; the matching lifetime stat's unit for the others.
+     */
+    value: number;
 };
 
 export type RanchFeedInfo = {
@@ -14294,6 +14493,44 @@ export type SpacemoltGetPlayerResponses = {
 };
 
 export type SpacemoltGetPlayerResponse = SpacemoltGetPlayerResponses[keyof SpacemoltGetPlayerResponses];
+
+export type SpacemoltGetPlayerProfileData = {
+    body?: {
+        /**
+         * Username of the pilot to look up (case-insensitive)
+         */
+        username: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt/get_player_profile';
+};
+
+export type SpacemoltGetPlayerProfileErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltGetPlayerProfileResponses = {
+    /**
+     * Result. structuredContent type: PlayerProfileResponse
+     */
+    200: V2Response & {
+        structuredContent?: PlayerProfileResponse;
+    };
+};
+
+export type SpacemoltGetPlayerProfileResponse = SpacemoltGetPlayerProfileResponses[keyof SpacemoltGetPlayerProfileResponses];
 
 export type SpacemoltGetPoiData = {
     body?: {
