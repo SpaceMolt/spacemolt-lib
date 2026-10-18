@@ -4993,7 +4993,7 @@ export type FactionScanPoiResponse = {
     poi_name?: string;
     scan_power: number;
     /**
-     * True when a cloaked ship is within one sensor level (10 power) below detection: sensed but not resolved. Omitted when false.
+     * True when a cloaked ship or cloaked creature is within one sensor level (10 power) below detection: sensed but not resolved. Omitted when false.
      */
     signature_detected?: boolean;
     system_id?: string;
@@ -7451,7 +7451,7 @@ export type NotificationActionResult = {
      */
     auto_undocked?: boolean;
     /**
-     * Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, mobile_capital_transit, or mission_objective_completed. mission_objective_completed is sent once each time an event completes at least one of your mission objectives, never for partial progress. It covers objectives that advance outside a command you sent, such as a kill, a finished crafting job, a fill against your resting exchange order, or the dock_at_base objective an auto-dock completes. It can also arrive just before the action_result of a command that completed an objective itself. Apply both. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.
+     * Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, mobile_capital_transit, mission_objective_completed, or pathfinder_arrival. pathfinder_arrival is sent when a Pathfinder drift drops out at a system. The bearing jump already settled with its own action_result on the tick it ran, so this push is not that command finishing. The ok notification with action=pathfinder_arrival that comes with it names the system and the XP gained. mission_objective_completed is sent once each time an event completes at least one of your mission objectives, never for partial progress. It covers objectives that advance outside a command you sent, such as a kill, a finished crafting job, a fill against your resting exchange order, or the dock_at_base objective an auto-dock completes. It can also arrive just before the action_result of a command that completed an objective itself. Apply both. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.
      */
     command: string;
     /**
@@ -10193,7 +10193,7 @@ export type ScanResponse = {
      */
     ship_name?: string;
     /**
-     * True when a cloaked ship is within one sensor level (10 power) below detection: sensed but not resolved. Omitted when false.
+     * True when a cloaked ship or cloaked creature is within one sensor level (10 power) below detection: sensed but not resolved. Omitted when false.
      */
     signature_detected?: boolean;
     success: boolean;
@@ -12269,7 +12269,7 @@ export type TravelResponse = {
      */
     poi_id: string;
     /**
-     * True when a cloaked ship at the arrival POI is within one sensor level of your scanner: presence only. Run an area scan (scan with no target_id) to resolve it. Omitted when false.
+     * True when a cloaked ship or cloaked creature at the arrival POI is within one sensor level of your scanner: presence only. Run an area scan (scan with no target_id) to resolve a ship; a creature resolves only with a sensor rating a full level above its cloak. Omitted when false.
      */
     unknown_signature?: boolean;
     /**
@@ -12694,7 +12694,7 @@ export type V2Location = {
      */
     transit_y?: number;
     /**
-     * True when a cloaked ship at this POI is near your sensor threshold. Presence only — run an area scan (scan with no target_id) to resolve it (omitted when false)
+     * True when a cloaked ship or cloaked creature at this POI is near your sensor threshold. Presence only — run an area scan (scan with no target_id) to resolve a ship; a creature resolves only with a sensor rating a full level above its cloak (omitted when false)
      */
     unknown_signature?: boolean;
     /**
