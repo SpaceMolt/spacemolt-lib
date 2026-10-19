@@ -1810,6 +1810,10 @@ export type BulkStorageResponse = {
     dest_bucket?: string;
     dest_bucket_id?: string;
     failed: number;
+    /**
+     * How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer.
+     */
+    goodwill?: GiftGoodwill;
     requested: number;
     results: Array<BulkStorageItemResult>;
     succeeded: number;
@@ -3218,8 +3222,14 @@ export type EmpireGiftResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
-    base_id: string;
-    base_name: string;
+    /**
+     * Station where the donation was made. Omitted for a credit wire sent from anywhere other than one of the empire's own stations.
+     */
+    base_id?: string;
+    /**
+     * Name of base_id. Omitted with it for a remote credit wire.
+     */
+    base_name?: string;
     cargo_remaining?: number;
     class_id?: string;
     class_name?: string;
@@ -3228,6 +3238,10 @@ export type EmpireGiftResponse = {
     empire_name: string;
     fleet_id?: string;
     fleet_name?: string;
+    /**
+     * How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer.
+     */
+    goodwill?: GiftGoodwill;
     hull_designator?: string;
     item_id?: string;
     message?: string;
@@ -5924,6 +5938,49 @@ export type GetVersionResponse = {
 export type GetWrecksResponse = {
     count: number;
     wrecks: Array<EnrichedWreck>;
+};
+
+export type GiftGoodwill = {
+    /**
+     * Credits of value applied to the donor's outstanding bounty with this empire before any goodwill. Credits pay at face value; goods and ships pay at need_value. Omitted when no bounty was owed.
+     */
+    bounty_paid?: number;
+    /**
+     * Bounty still owed to this empire after this gift. Omitted when none is left. While any bounty remains a gift earns no reputation.
+     */
+    bounty_remaining?: number;
+    /**
+     * Empire ID (e.g. solarian) or pirate crew ID (e.g. pirate_voss) whose standing the gift affected.
+     */
+    counterparty: string;
+    /**
+     * What the gift was worth to the recipient in credits after weighing how much they need it: more than face value for cash they are short of, goods that fill a real shortage or a hull their fleets need; less for cash they do not need, goods beyond their needs and cheap hulls. Reported even when a pirate crew keeps a stranger's gift and it buys nothing.
+     */
+    need_value: number;
+    /**
+     * The recipient's in-character reply. The same text arrives as a private chat message from reply_from.
+     */
+    reply: string;
+    /**
+     * Who replied and signed the private message. Rank follows the outcome: a minion for hostile, cooling, bounty, stranger, unwanted and token gifts; an officer for appreciated and generous ones; the empire leader or pirate boss in person for lavish gifts and for donors they already treat as devoted friends.
+     */
+    reply_from: string;
+    /**
+     * Donor's reputation with the counterparty after the gift (-100 to 100). Includes any restoration from clearing a bounty.
+     */
+    reputation_after: number;
+    /**
+     * Donor's reputation with the counterparty before the gift (-100 to 100).
+     */
+    reputation_before: number;
+    /**
+     * reputation_after minus reputation_before. Each point above your baseline costs more than the last. Value short of the next point is banked toward your next gift and lost if you act against the recipient. Gifts count for little while an attack, kill or capture against the recipient is fresh, and hardly at all while they shoot you on sight.
+     */
+    reputation_change: number;
+    /**
+     * Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship.
+     */
+    situation: string;
 };
 
 export type GiftShipResponse = {
@@ -9073,6 +9130,12 @@ export type Player = {
      * Fleet ID if the player is in a fleet
      */
     fleet_id?: string;
+    /**
+     * Gift value (credits of need) banked per empire or pirate crew ID toward the next reputation point, always less than that point costs. A hostile act against the counterparty wipes it. A missing key means zero.
+     */
+    gift_goodwill?: {
+        [key: string]: number;
+    };
     home_base?: string;
     id: string;
     is_cloaked?: boolean;
@@ -9097,6 +9160,12 @@ export type Player = {
      * Last player-initiated command (login, queued mutation, trade). Used to determine online status; not bumped by tick-driven mutations.
      */
     last_command_at?: string;
+    /**
+     * When you last attacked, killed or captured against each empire or pirate crew ID. Gifts to that counterparty count for little while the act is fresh and recover as it ages. A missing key means never.
+     */
+    last_hostile_act?: {
+        [key: string]: string;
+    };
     last_login_at?: string;
     /**
      * Hex color
@@ -10349,7 +10418,7 @@ export type SendGiftResponse = {
      */
     auto_undocked?: boolean;
     /**
-     * Canonical Base ID where gifted items were deposited. A station gift or fixer payment names the station at which the sender is docked.
+     * Canonical Base ID where gifted items were deposited. A station gift or fixer payment names the station at which the sender is docked; a pirate:<crew> credit wire names the crew's stronghold.
      */
     base_id: string;
     /**
@@ -10357,7 +10426,7 @@ export type SendGiftResponse = {
      */
     cargo_remaining?: number;
     /**
-     * Credits gifted to a player or paid toward fixer debt; omitted when none. Station material gifts never transfer credits.
+     * Credits gifted to a player, a station manager or a pirate crew, or paid toward fixer debt; omitted when none (item gifts).
      */
     credits_sent?: number;
     /**
@@ -10365,7 +10434,11 @@ export type SendGiftResponse = {
      */
     fixer?: FixerAccountInfo;
     /**
-     * Gifted item ID; omitted for credit-only player gifts. Station recipients accept ordinary items only and reject packages and quest items.
+     * How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer.
+     */
+    goodwill?: GiftGoodwill;
+    /**
+     * Gifted item ID; omitted for credit-only gifts. Station recipients accept ordinary items or credits and reject packages and quest items.
      */
     item_id?: string;
     /**
@@ -10377,7 +10450,7 @@ export type SendGiftResponse = {
      */
     quantity?: number;
     /**
-     * Recipient player name or fixer:tab for debt repayment or canonical station:<base ID> for a station material gift. Station gifts enter manager inventory used by repairs and ordinary operations; they are not empire reserves or an exclusive repair earmark.
+     * Recipient player name or fixer:tab for debt repayment or canonical station:<base ID> for a station gift (a pirate:<crew> credit wire also reports its stronghold as station:<base ID>). Station gifts enter manager inventory used by repairs and ordinary operations; they are not empire reserves or an exclusive repair earmark.
      */
     recipient: string;
     /**
@@ -26809,7 +26882,7 @@ export type SpacemoltStorageDepositData = {
          */
         bucket?: string;
         /**
-         * For 'deposit' with target=<player name/id>: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.)
+         * For 'deposit': credits to gift a player, or to donate to an empire, a station:<id> or a pirate:<crew>. (Faction credit deposits use item_id='credits' with quantity instead.)
          */
         credits?: number;
         /**
@@ -26828,7 +26901,7 @@ export type SpacemoltStorageDepositData = {
             quantity: number;
         }>;
         /**
-         * Optional message when gifting to another player
+         * Optional message with a gift or donation
          */
         message?: string;
         /**
@@ -26840,7 +26913,7 @@ export type SpacemoltStorageDepositData = {
          */
         source?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
@@ -27029,7 +27102,7 @@ export type SpacemoltStorageViewData = {
          */
         station_id?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
@@ -27098,7 +27171,7 @@ export type SpacemoltStorageWithdrawData = {
          */
         source?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };

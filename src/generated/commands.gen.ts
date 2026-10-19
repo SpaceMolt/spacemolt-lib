@@ -1628,7 +1628,7 @@ export interface SpacemoltSocialWriteNoteParams {
 export interface SpacemoltStorageDepositParams {
   /** Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in a storage view with target=faction. */
   bucket?: string;
-  /** For 'deposit' with target=<player name/id>: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.) */
+  /** For 'deposit': credits to gift a player, or to donate to an empire, a station:<id> or a pirate:<crew>. (Faction credit deposits use item_id='credits' with quantity instead.) */
   credits?: number;
   /** Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury. */
   dest_bucket?: string;
@@ -1636,13 +1636,13 @@ export interface SpacemoltStorageDepositParams {
   item_id?: string;
   /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure. */
   items?: { item_id: string; quantity: number }[];
-  /** Optional message when gifting to another player */
+  /** Optional message with a gift or donation */
   message?: string;
   /** Amount to transfer */
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
+  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
   target?: string;
 }
 
@@ -1669,7 +1669,7 @@ export interface SpacemoltStorageLootParams {
 export interface SpacemoltStorageViewParams {
   /** Optional: station Base ID or station POI ID to view storage at without being docked. Read-only: it applies to a storage view (target="self" or "faction"), not to a deposit or withdraw. */
   station_id?: string;
-  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
+  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
   target?: string;
 }
 
@@ -1686,7 +1686,7 @@ export interface SpacemoltStorageWithdrawParams {
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
+  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
   target?: string;
 }
 
@@ -2481,7 +2481,7 @@ export interface Commands {
     policies(requestId?: string): Promise<QueryResult<ClaimInsuranceResponse>>;
     /** Get a risk-based insurance quote for your current ship */
     quote(requestId?: string): Promise<QueryResult<GetInsuranceQuoteResponse>>;
-    /** Release a towed wreck at your current location */
+    /** Release your wreck tow without moving the wreck */
     release(requestId?: string): Promise<MutationResult<ReleaseTowResponse>>;
     /** Scrap a towed wreck for salvage materials */
     scrap(requestId?: string): Promise<MutationResult<ScrapWreckResponse>>;
@@ -2625,15 +2625,15 @@ export interface Commands {
     write_note(params: SpacemoltSocialWriteNoteParams, requestId?: string): Promise<QueryResult<WriteNoteResponse>>;
   };
   spacemolt_storage: {
-    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
+    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews */
     deposit(params?: SpacemoltStorageDepositParams, requestId?: string): Promise<MutationResult<DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse>>;
     /** Jettison items from cargo into space */
     jettison(params?: SpacemoltStorageJettisonParams, requestId?: string): Promise<MutationResult<JettisonCommandResponse>>;
     /** Loot items and modules from a wreck */
     loot(params?: SpacemoltStorageLootParams, requestId?: string): Promise<MutationResult<LootWreckCommandResponse>>;
-    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
+    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews */
     view(params?: SpacemoltStorageViewParams, requestId?: string): Promise<QueryResult<ViewStorageResponse | ViewFactionStorageResponse>>;
-    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players */
+    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews */
     withdraw(params?: SpacemoltStorageWithdrawParams, requestId?: string): Promise<MutationResult<WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse>>;
   };
   spacemolt_transfer: {

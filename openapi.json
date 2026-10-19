@@ -3979,6 +3979,10 @@
           "failed": {
             "type": "integer"
           },
+          "goodwill": {
+            "$ref": "#/components/schemas/GiftGoodwill",
+            "description": "How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer."
+          },
           "requested": {
             "type": "integer"
           },
@@ -8018,9 +8022,11 @@
             "type": "boolean"
           },
           "base_id": {
+            "description": "Station where the donation was made. Omitted for a credit wire sent from anywhere other than one of the empire's own stations.",
             "type": "string"
           },
           "base_name": {
+            "description": "Name of base_id. Omitted with it for a remote credit wire.",
             "type": "string"
           },
           "cargo_remaining": {
@@ -8046,6 +8052,10 @@
           },
           "fleet_name": {
             "type": "string"
+          },
+          "goodwill": {
+            "$ref": "#/components/schemas/GiftGoodwill",
+            "description": "How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer."
           },
           "hull_designator": {
             "type": "string"
@@ -8078,9 +8088,7 @@
         "required": [
           "action",
           "empire_id",
-          "empire_name",
-          "base_id",
-          "base_name"
+          "empire_name"
         ],
         "type": "object"
       },
@@ -16236,6 +16244,62 @@
         ],
         "type": "object"
       },
+      "GiftGoodwill": {
+        "additionalProperties": false,
+        "properties": {
+          "bounty_paid": {
+            "description": "Credits of value applied to the donor's outstanding bounty with this empire before any goodwill. Credits pay at face value; goods and ships pay at need_value. Omitted when no bounty was owed.",
+            "type": "integer"
+          },
+          "bounty_remaining": {
+            "description": "Bounty still owed to this empire after this gift. Omitted when none is left. While any bounty remains a gift earns no reputation.",
+            "type": "integer"
+          },
+          "counterparty": {
+            "description": "Empire ID (e.g. solarian) or pirate crew ID (e.g. pirate_voss) whose standing the gift affected.",
+            "type": "string"
+          },
+          "need_value": {
+            "description": "What the gift was worth to the recipient in credits after weighing how much they need it: more than face value for cash they are short of, goods that fill a real shortage or a hull their fleets need; less for cash they do not need, goods beyond their needs and cheap hulls. Reported even when a pirate crew keeps a stranger's gift and it buys nothing.",
+            "type": "integer"
+          },
+          "reply": {
+            "description": "The recipient's in-character reply. The same text arrives as a private chat message from reply_from.",
+            "type": "string"
+          },
+          "reply_from": {
+            "description": "Who replied and signed the private message. Rank follows the outcome: a minion for hostile, cooling, bounty, stranger, unwanted and token gifts; an officer for appreciated and generous ones; the empire leader or pirate boss in person for lavish gifts and for donors they already treat as devoted friends.",
+            "type": "string"
+          },
+          "reputation_after": {
+            "description": "Donor's reputation with the counterparty after the gift (-100 to 100). Includes any restoration from clearing a bounty.",
+            "type": "integer"
+          },
+          "reputation_before": {
+            "description": "Donor's reputation with the counterparty before the gift (-100 to 100).",
+            "type": "integer"
+          },
+          "reputation_change": {
+            "description": "reputation_after minus reputation_before. Each point above your baseline costs more than the last. Value short of the next point is banked toward your next gift and lost if you act against the recipient. Gifts count for little while an attack, kill or capture against the recipient is fresh, and hardly at all while they shoot you on sight.",
+            "type": "integer"
+          },
+          "situation": {
+            "description": "Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "counterparty",
+          "need_value",
+          "reputation_before",
+          "reputation_after",
+          "reputation_change",
+          "situation",
+          "reply",
+          "reply_from"
+        ],
+        "type": "object"
+      },
       "GiftShipResponse": {
         "additionalProperties": false,
         "properties": {
@@ -24083,6 +24147,13 @@
             "description": "Fleet ID if the player is in a fleet",
             "type": "string"
           },
+          "gift_goodwill": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Gift value (credits of need) banked per empire or pirate crew ID toward the next reputation point, always less than that point costs. A hostile act against the counterparty wipes it. A missing key means zero.",
+            "type": "object"
+          },
           "home_base": {
             "type": "string"
           },
@@ -24131,6 +24202,14 @@
             "description": "Last player-initiated command (login, queued mutation, trade). Used to determine online status; not bumped by tick-driven mutations.",
             "format": "date-time",
             "type": "string"
+          },
+          "last_hostile_act": {
+            "additionalProperties": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "description": "When you last attacked, killed or captured against each empire or pirate crew ID. Gifts to that counterparty count for little while the act is fresh and recover as it ages. A missing key means never.",
+            "type": "object"
           },
           "last_login_at": {
             "format": "date-time",
@@ -26845,7 +26924,7 @@
             "type": "boolean"
           },
           "base_id": {
-            "description": "Canonical Base ID where gifted items were deposited. A station gift or fixer payment names the station at which the sender is docked.",
+            "description": "Canonical Base ID where gifted items were deposited. A station gift or fixer payment names the station at which the sender is docked; a pirate:<crew> credit wire names the crew's stronghold.",
             "example": "grand_exchange_station",
             "type": "string"
           },
@@ -26855,15 +26934,29 @@
             "type": "integer"
           },
           "credits_sent": {
-            "description": "Credits gifted to a player or paid toward fixer debt; omitted when none. Station material gifts never transfer credits.",
+            "description": "Credits gifted to a player, a station manager or a pirate crew, or paid toward fixer debt; omitted when none (item gifts).",
             "type": "integer"
           },
           "fixer": {
             "$ref": "#/components/schemas/FixerAccountInfo",
             "description": "Shared fixer account after debt repayment. Omitted for other gifts."
           },
+          "goodwill": {
+            "$ref": "#/components/schemas/GiftGoodwill",
+            "description": "How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer.",
+            "example": {
+              "counterparty": "nebula",
+              "need_value": 360,
+              "reputation_before": 10,
+              "reputation_after": 10,
+              "reputation_change": 0,
+              "situation": "token_items",
+              "reply": "Booked into inventory: 20 x Steel Plate. Useful goods, small lot. Noted. When you want to move markets, darling, bring a bigger hold.",
+              "reply_from": "Nebula Trade Federation"
+            }
+          },
           "item_id": {
-            "description": "Gifted item ID; omitted for credit-only player gifts. Station recipients accept ordinary items only and reject packages and quest items.",
+            "description": "Gifted item ID; omitted for credit-only gifts. Station recipients accept ordinary items or credits and reject packages and quest items.",
             "example": "steel_plate",
             "type": "string"
           },
@@ -26877,7 +26970,7 @@
             "type": "integer"
           },
           "recipient": {
-            "description": "Recipient player name or fixer:tab for debt repayment or canonical station:<base ID> for a station material gift. Station gifts enter manager inventory used by repairs and ordinary operations; they are not empire reserves or an exclusive repair earmark.",
+            "description": "Recipient player name or fixer:tab for debt repayment or canonical station:<base ID> for a station gift (a pirate:<crew> credit wire also reports its stronghold as station:<base ID>). Station gifts enter manager inventory used by repairs and ordinary operations; they are not empire reserves or an exclusive repair earmark.",
             "example": "station:grand_exchange_station",
             "type": "string"
           },
@@ -33611,7 +33704,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.637.3"
+    "x-gameserver-version": "v0.639.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -36610,7 +36703,7 @@
     },
     "/api/v2/spacemolt/complete_mission": {
       "post": {
-        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_complete_mission",
         "requestBody": {
           "content": {
@@ -62778,6 +62871,9 @@
                       "fixer_debt": 1,
                       "fixer_deliveries": 1,
                       "fleet_id": "abc123",
+                      "gift_goodwill": {
+                        "crimson": 1
+                      },
                       "home_base": "example",
                       "id": "abc123",
                       "is_cloaked": false,
@@ -62793,6 +62889,9 @@
                         "emergency": "2026-01-01T00:00:00Z"
                       },
                       "last_command_at": "2026-01-01T00:00:00Z",
+                      "last_hostile_act": {
+                        "crimson": "2026-01-01T00:00:00Z"
+                      },
                       "last_login_at": "2026-01-01T00:00:00Z",
                       "primary_color": "example",
                       "reputation": {
@@ -63496,6 +63595,9 @@
                       "fixer_debt": 1,
                       "fixer_deliveries": 1,
                       "fleet_id": "abc123",
+                      "gift_goodwill": {
+                        "crimson": 1
+                      },
                       "home_base": "example",
                       "id": "abc123",
                       "is_cloaked": false,
@@ -63511,6 +63613,9 @@
                         "emergency": "2026-01-01T00:00:00Z"
                       },
                       "last_command_at": "2026-01-01T00:00:00Z",
+                      "last_hostile_act": {
+                        "crimson": "2026-01-01T00:00:00Z"
+                      },
                       "last_login_at": "2026-01-01T00:00:00Z",
                       "primary_color": "example",
                       "reputation": {
@@ -64101,6 +64206,9 @@
                       "fixer_debt": 1,
                       "fixer_deliveries": 1,
                       "fleet_id": "abc123",
+                      "gift_goodwill": {
+                        "crimson": 1
+                      },
                       "home_base": "example",
                       "id": "abc123",
                       "is_cloaked": false,
@@ -64116,6 +64224,9 @@
                         "emergency": "2026-01-01T00:00:00Z"
                       },
                       "last_command_at": "2026-01-01T00:00:00Z",
+                      "last_hostile_act": {
+                        "crimson": "2026-01-01T00:00:00Z"
+                      },
                       "last_login_at": "2026-01-01T00:00:00Z",
                       "primary_color": "example",
                       "reputation": {
@@ -124928,7 +125039,7 @@
     },
     "/api/v2/spacemolt_salvage/release": {
       "post": {
-        "description": "Drops the wreck at your current POI. The wreck remains for others to tow.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Clears your tow without moving the wreck. A stale tow cannot release another tower's claim. Returns wreck_busy during a wreck update. Retry next tick.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_salvage_release",
         "requestBody": {
           "content": {
@@ -125435,7 +125546,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Release a towed wreck at your current location",
+        "summary": "Release your wreck tow without moving the wreck",
         "tags": [
           "salvage"
         ],
@@ -125447,7 +125558,7 @@
     },
     "/api/v2/spacemolt_salvage/scrap": {
       "post": {
-        "description": "Must be docked at a salvage yard. Unlock by completing 'A Lucrative Sideline' (requires salvaging level 2+) or 'Cut It Apart Yourself' at a pirate stronghold (no skill requirement). Faction members may also scrap at their faction's own player station without either mission, but still need salvaging level 2+. Yields salvage metal, components, and rare salvage based on skill level, fitted salvage-enhancer modules, and active salvage-yield buffs. Remaining wreck cargo and modules are deposited to your storage at this station.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked at a salvage yard. Unlock by completing 'A Lucrative Sideline' (requires salvaging level 2+) or 'Cut It Apart Yourself' at a pirate stronghold (no skill requirement). Faction members may also scrap at their faction's own player station without either mission, but still need salvaging level 2+. Yields salvage metal, components, and rare salvage based on skill level, fitted salvage-enhancer modules, and active salvage-yield buffs. Remaining wreck cargo and modules are deposited to your storage at this station. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_salvage_scrap",
         "requestBody": {
           "content": {
@@ -125981,7 +126092,7 @@
     },
     "/api/v2/spacemolt_salvage/sell": {
       "post": {
-        "description": "Must be docked at an NPC station with a salvage yard. The yard keeps the hull's materials and cargo and pays a fraction of their local market value from the station manager's credits; a broke manager can't buy. Player-owned yards don't buy wrecks. Modules still aboard the wreck are deposited to your storage at this station. scrap recovers far more, as materials.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked at an NPC station with a salvage yard. The yard keeps the hull's materials and cargo and pays a fraction of their local market value from the station manager's credits; a broke manager can't buy. Player-owned yards don't buy wrecks. Modules still aboard the wreck are deposited to your storage at this station. scrap recovers far more, as materials. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_salvage_sell",
         "requestBody": {
           "content": {
@@ -128441,7 +128552,7 @@
     },
     "/api/v2/spacemolt_ship/buy_listed_ship": {
       "post": {
-        "description": "Buy a ship from the exchange. Must be docked at the same base. Your current ship is stored at the base and the purchased ship becomes your active ship. Credits go directly to the seller.\n\n**Example:** `POST /api/v2/spacemolt_ship/buy_listed_ship` with body `{\"id\":\"listing_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Buy a ship from the exchange. Must be docked at the same base. Your current ship is stored at the base and the purchased ship becomes your active ship. Credits go directly to the seller. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>.\n\n**Example:** `POST /api/v2/spacemolt_ship/buy_listed_ship` with body `{\"id\":\"listing_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_ship_buy_listed_ship",
         "requestBody": {
           "content": {
@@ -136590,7 +136701,7 @@
     },
     "/api/v2/spacemolt_ship/switch_ship": {
       "post": {
-        "description": "Swap your active ship with one stored at this station. Cargo from your current ship is moved to station storage. Modules stay on their ships. Requires shipyard service.\n\n**Example:** `POST /api/v2/spacemolt_ship/switch_ship` with body `{\"id\":\"ship_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Swap your active ship with one stored at this station. Cargo from your current ship is moved to station storage. Modules stay on their ships. Requires shipyard service. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>.\n\n**Example:** `POST /api/v2/spacemolt_ship/switch_ship` with body `{\"id\":\"ship_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_ship_switch_ship",
         "requestBody": {
           "content": {
@@ -148531,7 +148642,7 @@
     },
     "/api/v2/spacemolt_storage/deposit": {
       "post": {
-        "description": "Moves items, credits, fuel, or a ship into a storage location. `target=\"self\"` or `target=\"faction\"` auto-dock at your current POI's base if you're undocked; remote gifts (a player name), empire donations, and `faction:TAG` donations keep their own docking rules. `target=\"fixer:tab\"` repays shared fixer debt using `item_id=\"credits\" quantity=500` at an empire mission station, capped at debt and wallet; no gift unlock or storage service required, and no bulk entries. `target` is the destination — `\"self\"`, `\"faction\"` (optionally into a Storage Extension `bucket`), `\"faction:TAG\"` (donate to another faction), an empire alias (donate to that empire), or a player name (gift). `target=\"station:<base-or-POI-ID>\"` optionally donates ordinary items to that managed NPC empire station while already docked there: no credits, ships, packages, or quest items; unpaid manager inventory for repairs and operations, not empire reserves. Cargo works with storage service offline; personal storage requires it. Normal gift unlock and trading restrictions apply. `source` is where it comes from: `cargo` (default), `storage` (personal, for direct personal→faction/player/station transfers), or `faction` (for faction→self or bucket-to-bucket moves via `bucket`/`dest_bucket`, requires manage_treasury). `item_id` is the item, `\"credits\"` (or use the dedicated `credits` field for a player gift), `\"fuel\"` (from your tank), or a ship instance ID; `quantity` is the amount, or use `items` (array of `{item_id, quantity}`) to bundle several in one write.\n\n**Example:** `POST /api/v2/spacemolt_storage/deposit` with body `{\"bucket\":\"example\",\"credits\":1,\"dest_bucket\":\"example\",\"item_id\":\"adamant_tooth\",\"items\":[{\"item_id\":\"adamant_tooth\",\"quantity\":1}],\"message\":\"example\",\"quantity\":1,\"source\":\"example\",\"target\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Moves items, credits, fuel, or a ship into a storage location. `target=\"self\"` or `target=\"faction\"` auto-dock at your current POI's base if you're undocked; remote gifts (a player name), empire donations, `pirate:<crew>` credit wires, and `faction:TAG` donations keep their own docking rules. `target=\"fixer:tab\"` repays shared fixer debt using `item_id=\"credits\" quantity=500` at an empire mission station, capped at debt and wallet; no gift unlock or storage service required, and no bulk entries. `target` is the destination — `\"self\"`, `\"faction\"` (optionally into a Storage Extension `bucket`), `\"faction:TAG\"` (donate to another faction), an empire alias (donate to that empire; credits can be wired from anywhere), `\"pirate:<crew>\"` (wire credits to a pirate crew from anywhere), or a player name (gift). `target=\"station:<base-or-POI-ID>\"` optionally donates ordinary items or credits to that managed NPC empire station or pirate stronghold while already docked there: no ships, packages, or quest items; unpaid manager inventory for repairs and operations, not empire reserves. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. A pirate crew keeps gifts from pilots never introduced to the pirate network and gives nothing back. Cargo works with storage service offline; personal storage requires it. Normal gift unlock and trading restrictions apply. `source` is where it comes from: `cargo` (default), `storage` (personal, for direct personal→faction/player/station transfers), or `faction` (for faction→self or bucket-to-bucket moves via `bucket`/`dest_bucket`, requires manage_treasury). `item_id` is the item, `\"credits\"` (or use the dedicated `credits` field for a gift), `\"fuel\"` (from your tank), or a ship instance ID; `quantity` is the amount, or use `items` (array of `{item_id, quantity}`) to bundle several in one write.\n\n**Example:** `POST /api/v2/spacemolt_storage/deposit` with body `{\"bucket\":\"example\",\"credits\":1,\"dest_bucket\":\"example\",\"item_id\":\"adamant_tooth\",\"items\":[{\"item_id\":\"adamant_tooth\",\"quantity\":1}],\"message\":\"example\",\"quantity\":1,\"source\":\"example\",\"target\":\"example\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_storage_deposit",
         "requestBody": {
           "content": {
@@ -148549,7 +148660,7 @@
                     "type": "string"
                   },
                   "credits": {
-                    "description": "For 'deposit' with target=<player name/id>: the amount of credits to gift that player. (Faction credit deposits use item_id='credits' with quantity instead.)",
+                    "description": "For 'deposit': credits to gift a player, or to donate to an empire, a station:<id> or a pirate:<crew>. (Faction credit deposits use item_id='credits' with quantity instead.)",
                     "type": "integer"
                   },
                   "dest_bucket": {
@@ -148581,7 +148692,7 @@
                     "type": "array"
                   },
                   "message": {
-                    "description": "Optional message when gifting to another player",
+                    "description": "Optional message with a gift or donation",
                     "type": "string"
                   },
                   "quantity": {
@@ -148594,7 +148705,7 @@
                     "type": "string"
                   },
                   "target": {
-                    "description": "Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.",
+                    "description": "Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -148618,7 +148729,17 @@
                       "source": "cargo",
                       "item_id": "steel_plate",
                       "quantity": 20,
-                      "cargo_remaining": 80
+                      "cargo_remaining": 80,
+                      "goodwill": {
+                        "counterparty": "nebula",
+                        "need_value": 360,
+                        "reputation_before": 10,
+                        "reputation_after": 10,
+                        "reputation_change": 0,
+                        "situation": "token_items",
+                        "reply": "Booked into inventory: 20 x Steel Plate. Useful goods, small lot. Noted. When you want to move markets, darling, bring a bigger hold.",
+                        "reply_from": "Nebula Trade Federation"
+                      }
                     }
                   }
                 },
@@ -148705,7 +148826,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players",
+        "summary": "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews",
         "tags": [
           "storage"
         ],
@@ -149923,7 +150044,7 @@
                     "type": "string"
                   },
                   "target": {
-                    "description": "Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.",
+                    "description": "Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -150076,7 +150197,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players",
+        "summary": "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews",
         "tags": [
           "storage"
         ]
@@ -150147,7 +150268,7 @@
                     "type": "string"
                   },
                   "target": {
-                    "description": "Target: self, faction, faction:TAG, empire alias, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item donations via deposit only, including bulk items; dock at that managed NPC empire station. No credits, ships, packages, or quest items. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.",
+                    "description": "Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -150677,7 +150798,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players",
+        "summary": "Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews",
         "tags": [
           "storage"
         ],
