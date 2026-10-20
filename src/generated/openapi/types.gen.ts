@@ -5954,7 +5954,7 @@ export type GiftGoodwill = {
      */
     counterparty: string;
     /**
-     * What the gift was worth to the recipient in credits after weighing how much they need it: more than face value for cash they are short of, goods that fill a real shortage or a hull their fleets need; less for cash they do not need, goods beyond their needs and cheap hulls. Reported even when a pirate crew keeps a stranger's gift and it buys nothing.
+     * What the gift was worth to the recipient in credits after weighing how much they need it: more than face value for cash they are short of, goods that fill a real shortage, a hull their fleets need or a ship a pirate boss takes to fly in person; less for cash they do not need, goods beyond their needs, cheap hulls and ships a pirate crew breaks for parts (a rival boss's flagship excepted). Reported even when a pirate crew keeps a stranger's gift and it buys nothing.
      */
     need_value: number;
     /**
@@ -5962,7 +5962,7 @@ export type GiftGoodwill = {
      */
     reply: string;
     /**
-     * Who replied and signed the private message. Rank follows the outcome: a minion for hostile, cooling, bounty, stranger, unwanted and token gifts; an officer for appreciated and generous ones; the empire leader or pirate boss in person for lavish gifts and for donors they already treat as devoted friends.
+     * Who replied and signed the private message. Rank follows the outcome: a minion for hostile, cooling, bounty, stranger, unwanted and token gifts; an officer for appreciated and generous ones; the empire leader or pirate boss in person for lavish gifts, for donors they already treat as devoted friends, for expensive ships and whenever a pirate boss gets involved. A pirate crew answers a cheap ship with a minion and a mid-priced one with an officer.
      */
     reply_from: string;
     /**
@@ -5978,12 +5978,15 @@ export type GiftGoodwill = {
      */
     reputation_change: number;
     /**
-     * Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship.
+     * Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship. A ship given to a pirate crew instead reports what the crew did with it: ship_scrap (no pirate design for that hull), ship_refit (rebuilt to a pirate design) or ship_pirate (a pirate-built hull) followed by _cheap, _mid or _expensive by its fitted value; or, when the boss gets involved, boss_upgrade (the boss switches to your ship because it out-fights the boss's current one), boss_hunt (the boss's flagship is in a player's hands and the boss takes your stronger ship to hunt them), boss_flagship_returned, boss_rival_flown (the boss flies another boss's flagship until the stolen one comes back), boss_rival_scrapped, boss_flagship_copy (your hull was rebuilt into a copy of the boss's stolen flagship and the boss flies it) or boss_flagship_spare (rebuilt into a spare copy of the boss's flagship), each with _cold appended when the crew does not like you. stranger, hostile and cooling still apply to ordinary pirate ship gifts.
      */
     situation: string;
 };
 
 export type GiftShipResponse = {
+    /**
+     * Completed ship gift to another player or to a pirate stronghold.
+     */
     action: 'gift_ship';
     /**
      * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
@@ -5993,11 +5996,37 @@ export type GiftShipResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
+    /**
+     * Base ID where the ship was parked when it changed hands.
+     */
     base_id: string;
+    /**
+     * Ship class the ship had when you gave it. A pirate crew may refit it to its own design afterwards.
+     */
     class_id: string;
+    /**
+     * Display name of class_id; omitted when the class is unknown.
+     */
     class_name?: string;
+    /**
+     * What a pirate crew did with the ship: scrapped (broken down for parts), refitted (rebuilt to the crew's own design and added to its fleet), joined_fleet (a pirate-built hull added to its fleet as it is) or boss_ship (the boss flies it in person now or as soon as the boss is free). Omitted for gifts to players.
+     */
+    disposition?: 'scrapped' | 'refitted' | 'joined_fleet' | 'boss_ship';
+    /**
+     * How the pirate crew received the ship: value to them, reputation change and their reply. Omitted for gifts to players.
+     */
+    goodwill?: GiftGoodwill;
+    /**
+     * Gift note; omitted when empty.
+     */
     message?: string;
+    /**
+     * Recipient player name, or station:<base ID> for a ship given to a pirate stronghold.
+     */
     recipient: string;
+    /**
+     * ID of the ship given away.
+     */
     ship_id: string;
 };
 
@@ -10349,6 +10378,14 @@ export type SellResponse = {
      */
     auto_undocked?: boolean;
     fills: Array<Fill>;
+    /**
+     * Units of this sale drawn from your ship cargo. Sell draws from cargo first, then from your station storage at the docked station. Omitted when zero (including sells with no fills).
+     */
+    from_cargo?: number;
+    /**
+     * Units of this sale drawn from your station storage at the docked station after cargo ran out. Omitted when zero (including sells with no fills).
+     */
+    from_storage?: number;
     item: string;
     item_id: string;
     level_up: boolean;
@@ -26913,7 +26950,7 @@ export type SpacemoltStorageDepositData = {
          */
         source?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
@@ -27102,7 +27139,7 @@ export type SpacemoltStorageViewData = {
          */
         station_id?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
@@ -27171,7 +27208,7 @@ export type SpacemoltStorageWithdrawData = {
          */
         source?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No ships, packages, or quest items. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
