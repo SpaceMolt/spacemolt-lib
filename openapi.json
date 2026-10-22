@@ -17216,6 +17216,7 @@
             "type": "boolean"
           },
           "container_id": {
+            "description": "Container holding recoverable cargo at the current POI. Omitted mid-flight or when the entire action dissipates; an existing unrelated container is not returned.",
             "type": "string"
           },
           "failed": {
@@ -17264,9 +17265,31 @@
           }
         ]
       },
+      "JettisonConversion": {
+        "additionalProperties": false,
+        "properties": {
+          "output_item_id": {
+            "description": "Existing item ID placed into the jettison container; identifies the potential output even when output_quantity is zero.",
+            "type": "string"
+          },
+          "output_quantity": {
+            "description": "Recoverable output units: floor(removed input quantity / input batch size) * output batch yield. Water/nitrogen/ammonia/methane use 4 to 3; oxygen uses 4 to 2; coolant uses 3 to 1 water ice. Always present including zero when less than one batch is removed. All input is consumed; losses and incomplete batches dissipate. An action with no recoverable cargo creates no container.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "output_item_id",
+          "output_quantity"
+        ],
+        "type": "object"
+      },
       "JettisonItemResult": {
         "additionalProperties": false,
         "properties": {
+          "conversion": {
+            "$ref": "#/components/schemas/JettisonConversion",
+            "description": "Present only for a successful converted input at a POI. Each bulk entry converts independently using its removed quantity. Omitted for unchanged cargo and failures and mid-flight losses."
+          },
           "error": {
             "type": "string"
           },
@@ -17297,9 +17320,11 @@
         "additionalProperties": false,
         "properties": {
           "action": {
+            "description": "Single-item jettison outcome.",
             "enum": [
               "jettison"
             ],
+            "example": "jettison",
             "type": "string"
           },
           "auto_docked": {
@@ -17309,18 +17334,36 @@
             "type": "boolean"
           },
           "container_id": {
+            "description": "Container holding recoverable cargo at the current POI. Omitted mid-flight or when the entire action dissipates; an existing unrelated container is not returned.",
+            "example": "jettison_container",
             "type": "string"
           },
+          "conversion": {
+            "$ref": "#/components/schemas/JettisonConversion",
+            "description": "Present only for a converted input jettisoned at a POI. Quantity is all input removed; no input remainder survives. Omitted for unchanged cargo and mid-flight losses.",
+            "example": {
+              "output_item_id": "water_ice",
+              "output_quantity": 3
+            }
+          },
           "item_id": {
+            "description": "Input item removed from the ship.",
+            "example": "purified_water",
             "type": "string"
           },
           "item_name": {
+            "description": "Display name of the removed input item.",
+            "example": "Purified Water",
             "type": "string"
           },
           "message": {
+            "description": "Human-readable jettison outcome including conversion or mid-flight loss when applicable.",
+            "example": "Jettisoned 5 Purified Water; formed 3 water_ice for recovery. Unrecoverable material dissipated.",
             "type": "string"
           },
           "quantity": {
+            "description": "Input units removed from cargo after clamping to the amount held; includes material lost during conversion.",
+            "example": 5,
             "type": "integer"
           }
         },
@@ -33733,7 +33776,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.644.2"
+    "x-gameserver-version": "v0.645.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -48577,7 +48620,7 @@
     },
     "/api/v2/spacemolt/jettison": {
       "post": {
-        "description": "Creates a floating container at your location. Other players can loot it. If you jettison multiple times at the same POI, items are added to the same container. Pass items=[{item_id, quantity}, ...] (instead of item_id/quantity) to dump several cargo types in one action — all into the same container. Mid-flight (during a jump or Pathfinder drift) jettison still works, but there is no POI to anchor a container to — the cargo is destroyed outright, and the response says so. Only jettison mid-flight when you mean to void the cargo permanently. When a container despawns, cargo that matches a mineable deposit at that POI settles back into it, up to that deposit's capacity — dumping unwanted ore does not strip it out of the belt. Cargo the POI does not mine is lost.\n\n**Example:** `POST /api/v2/spacemolt/jettison` with body `{\"id\":\"iron_ore\",\"quantity\":50}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Creates a floating container at your location when recoverable cargo remains. At a POI, jettison instantly converts purified_water to water_ice, liquid_nitrogen to nitrogen_ice, liquid_ammonia to ammonia_ice, and liquid_methane to methane_ice at 4 input to 3 output; liquid_oxygen to oxygen_ice at 4 to 2; coolant_fluid to water_ice at 3 to 1. Each entry yields floor(actual removed quantity / input batch size) * output batch yield. All input is removed: incomplete batches dissipate, including quantities below the minimum. Conversion output is reported in conversion.output_item_id and conversion.output_quantity, including zero. No machine or waiting is required. Other players can loot it. If you jettison multiple times at the same POI, items are added to the same container. Pass items=[{item_id, quantity}, ...] (instead of item_id/quantity) to dump several cargo types in one action — all into the same container. Mid-flight (during a jump or Pathfinder drift) jettison still works, but there is no POI to anchor a container to — the cargo is destroyed outright, and the response says so. Only jettison mid-flight when you mean to void the cargo permanently. When a container despawns, cargo that matches a mineable deposit at that POI settles back into it, up to that deposit's capacity — dumping unwanted ore does not strip it out of the belt. Cargo the POI does not mine is lost.\n\n**Example:** `POST /api/v2/spacemolt/jettison` with body `{\"id\":\"iron_ore\",\"quantity\":50}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_jettison",
         "requestBody": {
           "content": {
@@ -48594,7 +48637,7 @@
                     "x-positional-index": 0
                   },
                   "items": {
-                    "description": "Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored.",
+                    "description": "Bulk mode: array of cargo items to dump in one action (max 100). Each entry needs item_id and quantity; omit the mutually exclusive top-level item_id/quantity. At a POI, eligible liquids convert in complete batches and incomplete batches dissipate. Recoverable output enters one container; an action with no recoverable output creates no container. Mid-flight cargo is lost.",
                     "items": {
                       "properties": {
                         "item_id": {
@@ -48688,11 +48731,15 @@
                       "action": "jettison",
                       "auto_docked": false,
                       "auto_undocked": false,
-                      "container_id": "abc123",
-                      "item_id": "adamant_tooth",
-                      "item_name": "example",
-                      "message": "example",
-                      "quantity": 1
+                      "container_id": "jettison_container",
+                      "conversion": {
+                        "output_item_id": "water_ice",
+                        "output_quantity": 3
+                      },
+                      "item_id": "purified_water",
+                      "item_name": "Purified Water",
+                      "message": "Jettisoned 5 Purified Water; formed 3 water_ice for recovery. Unrecoverable material dissipated.",
+                      "quantity": 5
                     },
                     "drone_bay": {
                       "bandwidth_total": 1,
@@ -148947,7 +148994,7 @@
     },
     "/api/v2/spacemolt_storage/jettison": {
       "post": {
-        "description": "Creates a floating container at your location. Other players can loot it. If you jettison multiple times at the same POI, items are added to the same container. Pass items=[{item_id, quantity}, ...] (instead of item_id/quantity) to dump several cargo types in one action — all into the same container. Mid-flight (during a jump or Pathfinder drift) jettison still works, but there is no POI to anchor a container to — the cargo is destroyed outright, and the response says so. Only jettison mid-flight when you mean to void the cargo permanently. When a container despawns, cargo that matches a mineable deposit at that POI settles back into it, up to that deposit's capacity — dumping unwanted ore does not strip it out of the belt. Cargo the POI does not mine is lost.\n\n**Example:** `POST /api/v2/spacemolt_storage/jettison` with body `{\"item_id\":\"iron_ore\",\"quantity\":50}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Creates a floating container at your location when recoverable cargo remains. At a POI, jettison instantly converts purified_water to water_ice, liquid_nitrogen to nitrogen_ice, liquid_ammonia to ammonia_ice, and liquid_methane to methane_ice at 4 input to 3 output; liquid_oxygen to oxygen_ice at 4 to 2; coolant_fluid to water_ice at 3 to 1. Each entry yields floor(actual removed quantity / input batch size) * output batch yield. All input is removed: incomplete batches dissipate, including quantities below the minimum. Conversion output is reported in conversion.output_item_id and conversion.output_quantity, including zero. No machine or waiting is required. Other players can loot it. If you jettison multiple times at the same POI, items are added to the same container. Pass items=[{item_id, quantity}, ...] (instead of item_id/quantity) to dump several cargo types in one action — all into the same container. Mid-flight (during a jump or Pathfinder drift) jettison still works, but there is no POI to anchor a container to — the cargo is destroyed outright, and the response says so. Only jettison mid-flight when you mean to void the cargo permanently. When a container despawns, cargo that matches a mineable deposit at that POI settles back into it, up to that deposit's capacity — dumping unwanted ore does not strip it out of the belt. Cargo the POI does not mine is lost.\n\n**Example:** `POST /api/v2/spacemolt_storage/jettison` with body `{\"item_id\":\"iron_ore\",\"quantity\":50}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_storage_jettison",
         "requestBody": {
           "content": {
@@ -148964,7 +149011,7 @@
                     "x-positional-index": 1
                   },
                   "items": {
-                    "description": "Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored.",
+                    "description": "Bulk mode: array of cargo items to dump in one action (max 100). Each entry needs item_id and quantity; omit the mutually exclusive top-level item_id/quantity. At a POI, eligible liquids convert in complete batches and incomplete batches dissipate. Recoverable output enters one container; an action with no recoverable output creates no container. Mid-flight cargo is lost.",
                     "items": {
                       "properties": {
                         "item_id": {
@@ -149058,11 +149105,15 @@
                       "action": "jettison",
                       "auto_docked": false,
                       "auto_undocked": false,
-                      "container_id": "abc123",
-                      "item_id": "adamant_tooth",
-                      "item_name": "example",
-                      "message": "example",
-                      "quantity": 1
+                      "container_id": "jettison_container",
+                      "conversion": {
+                        "output_item_id": "water_ice",
+                        "output_quantity": 3
+                      },
+                      "item_id": "purified_water",
+                      "item_name": "Purified Water",
+                      "message": "Jettisoned 5 Purified Water; formed 3 water_ice for recovery. Unrecoverable material dissipated.",
+                      "quantity": 5
                     },
                     "drone_bay": {
                       "bandwidth_total": 1,

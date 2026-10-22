@@ -6312,6 +6312,9 @@ export type JettisonBulkResponse = {
     action: 'bulk_jettison';
     auto_docked?: boolean;
     auto_undocked?: boolean;
+    /**
+     * Container holding recoverable cargo at the current POI. Omitted mid-flight or when the entire action dissipates; an existing unrelated container is not returned.
+     */
     container_id?: string;
     failed: number;
     message: string;
@@ -6326,7 +6329,22 @@ export type JettisonCommandResponse = ({
     action: 'bulk_jettison';
 } & JettisonBulkResponse);
 
+export type JettisonConversion = {
+    /**
+     * Existing item ID placed into the jettison container; identifies the potential output even when output_quantity is zero.
+     */
+    output_item_id: string;
+    /**
+     * Recoverable output units: floor(removed input quantity / input batch size) * output batch yield. Water/nitrogen/ammonia/methane use 4 to 3; oxygen uses 4 to 2; coolant uses 3 to 1 water ice. Always present including zero when less than one batch is removed. All input is consumed; losses and incomplete batches dissipate. An action with no recoverable cargo creates no container.
+     */
+    output_quantity: number;
+};
+
 export type JettisonItemResult = {
+    /**
+     * Present only for a successful converted input at a POI. Each bulk entry converts independently using its removed quantity. Omitted for unchanged cargo and failures and mid-flight losses.
+     */
+    conversion?: JettisonConversion;
     error?: string;
     item_id: string;
     item_name?: string;
@@ -6336,13 +6354,35 @@ export type JettisonItemResult = {
 };
 
 export type JettisonResponse = {
+    /**
+     * Single-item jettison outcome.
+     */
     action: 'jettison';
     auto_docked?: boolean;
     auto_undocked?: boolean;
+    /**
+     * Container holding recoverable cargo at the current POI. Omitted mid-flight or when the entire action dissipates; an existing unrelated container is not returned.
+     */
     container_id?: string;
+    /**
+     * Present only for a converted input jettisoned at a POI. Quantity is all input removed; no input remainder survives. Omitted for unchanged cargo and mid-flight losses.
+     */
+    conversion?: JettisonConversion;
+    /**
+     * Input item removed from the ship.
+     */
     item_id: string;
+    /**
+     * Display name of the removed input item.
+     */
     item_name: string;
+    /**
+     * Human-readable jettison outcome including conversion or mid-flight loss when applicable.
+     */
     message: string;
+    /**
+     * Input units removed from cargo after clamping to the amount held; includes material lost during conversion.
+     */
     quantity: number;
 };
 
@@ -15177,7 +15217,7 @@ export type SpacemoltJettisonData = {
          */
         id?: string;
         /**
-         * Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored.
+         * Bulk mode: array of cargo items to dump in one action (max 100). Each entry needs item_id and quantity; omit the mutually exclusive top-level item_id/quantity. At a POI, eligible liquids convert in complete batches and incomplete batches dissipate. Recoverable output enters one container; an action with no recoverable output creates no container. Mid-flight cargo is lost.
          */
         items?: Array<{
             item_id: string;
@@ -27040,7 +27080,7 @@ export type SpacemoltStorageJettisonData = {
          */
         item_id?: string;
         /**
-         * Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored.
+         * Bulk mode: array of cargo items to dump in one action (max 100). Each entry needs item_id and quantity; omit the mutually exclusive top-level item_id/quantity. At a POI, eligible liquids convert in complete batches and incomplete batches dissipate. Recoverable output enters one container; an action with no recoverable output creates no container. Mid-flight cargo is lost.
          */
         items?: Array<{
             item_id: string;

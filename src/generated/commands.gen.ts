@@ -1649,7 +1649,7 @@ export interface SpacemoltStorageDepositParams {
 export interface SpacemoltStorageJettisonParams {
   /** ID of the item to jettison (e.g., iron_ore, steel_plate). Required for single mode. */
   item_id?: string;
-  /** Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored. */
+  /** Bulk mode: array of cargo items to dump in one action (max 100). Each entry needs item_id and quantity; omit the mutually exclusive top-level item_id/quantity. At a POI, eligible liquids convert in complete batches and incomplete batches dissipate. Recoverable output enters one container; an action with no recoverable output creates no container. Mid-flight cargo is lost. */
   items?: { item_id: string; quantity: number }[];
   /** Quantity to jettison. Required for single mode. */
   quantity?: number;
@@ -1875,7 +1875,7 @@ export interface SpacemoltInstallModParams {
 export interface SpacemoltJettisonParams {
   /** ID of the item to jettison (e.g., iron_ore, steel_plate). Required for single mode. */
   id?: string;
-  /** Bulk mode: array of cargo items to dump in one action (max 100), all into one container. Each entry needs item_id and quantity. When provided, the top-level item_id/quantity are ignored. */
+  /** Bulk mode: array of cargo items to dump in one action (max 100). Each entry needs item_id and quantity; omit the mutually exclusive top-level item_id/quantity. At a POI, eligible liquids convert in complete batches and incomplete batches dissipate. Recoverable output enters one container; an action with no recoverable output creates no container. Mid-flight cargo is lost. */
   items?: { item_id: string; quantity: number }[];
   /** Quantity to jettison. Required for single mode. */
   quantity?: number;
