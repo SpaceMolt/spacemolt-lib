@@ -33733,7 +33733,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.643.2"
+    "x-gameserver-version": "v0.644.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -36197,7 +36197,7 @@
     },
     "/api/v2/spacemolt/cloak": {
       "post": {
-        "description": "Requires a cloaking device module or a ship with an integrated cloak. When cloaked, passive views (get_nearby, ship counts, observation, travel arrival) never list you; only an active scan whose power exceeds your total scan defense can resolve you. A battle cannot hold a cloaked ship: you cannot engage a cloak while in a battle (in_battle), and attacking or engaging drops it. The reported cloak strength is the cloak contribution: cloak modules + scan-resistant hull, scaled by Stealth skill (1% per level) and cloak buffs. Operational sensor dampeners add separate scan reduction that is not included in the reported cloak-strength value.\n\n**Example:** `POST /api/v2/spacemolt/cloak` with body `{\"enable\":true}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Requires a cloaking device module or a ship with an integrated cloak. When cloaked, passive views (get_nearby, ship counts, observation, travel arrival) never list you; only an active scan whose power exceeds your total scan defense can resolve you. A battle cannot hold a cloaked ship: you cannot engage a cloak while in a battle (in_battle), and attacking or engaging drops it. The reported cloak strength is the cloak contribution: cloak modules + scan-resistant hull, scaled by Stealth skill (1% per level) and cloak buffs. Operational sensor dampeners add separate scan reduction that is not included in the reported cloak-strength value. You can toggle the cloak mid-jump, mid-travel, and during a Pathfinder drift; it burns 1 fuel per tick while engaged.\n\n**Example:** `POST /api/v2/spacemolt/cloak` with body `{\"enable\":true}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_cloak",
         "requestBody": {
           "content": {
@@ -57608,13 +57608,14 @@
     },
     "/api/v2/spacemolt/uninstall_mod": {
       "post": {
-        "description": "module_id accepts a module instance ID (from get_ship) or a module type ID (e.g. 'pulse_laser_i'). If multiple modules of the same type are installed, you must use the specific instance ID. You must be docked or have a Ship Maintenance Bay fitted. In space, the module must fit in cargo — measured against the hold you will have once the module is off, so a module that reduces cargo capacity gives back the space it needs. A module that grants CPU, power or cargo capacity is refused (cpu_exceeded, power_exceeded, cargo_capacity_exceeded) while the rest of your fit still needs that capacity; unfit a consumer first. A module that costs capacity is never refused for this reason.\n\n**Example:** `POST /api/v2/spacemolt/uninstall_mod` with body `{\"id\":\"instance_id_or_type_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "ship_id is optional: omit or leave empty for your active ship. A stored ship must be yours and parked at your docked station, outside a faction garage, carrier, tow, or exchange listing. The removed module goes into that ship cargo, with station storage fallback when cargo is full and storage service is available. module_id accepts a module instance ID (from get_ship) or a module type ID (e.g. 'pulse_laser_i'). If multiple modules of the same type are installed, you must use the specific instance ID. You must be docked or have a Ship Maintenance Bay fitted. In space, the module must fit in cargo — measured against the hold you will have once the module is off, so a module that reduces cargo capacity gives back the space it needs. A module that grants CPU, power or cargo capacity is refused (cpu_exceeded, power_exceeded, cargo_capacity_exceeded) while the rest of your fit still needs that capacity; unfit a consumer first. A module that costs capacity is never refused for this reason.\n\n**Example:** `POST /api/v2/spacemolt/uninstall_mod` with body `{\"id\":\"instance_id_or_type_id\",\"ship_id\":\"optional_owned_ship_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_uninstall_mod",
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
-                "id": "instance_id_or_type_id"
+                "id": "instance_id_or_type_id",
+                "ship_id": "optional_owned_ship_id"
               },
               "schema": {
                 "properties": {
@@ -57622,6 +57623,10 @@
                     "description": "Module ID to install/uninstall. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level).",
                     "type": "string",
                     "x-positional-index": 0
+                  },
+                  "ship_id": {
+                    "description": "Optional owned ship ID. Omit or leave empty for your active ship. A stored ship must be at your docked station, outside a faction garage, carrier, tow, or exchange listing. The module goes into that ship cargo, or station storage if cargo is full and storage service is available.",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -58130,7 +58135,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Uninstall a module from your ship",
+        "summary": "Uninstall a module from your active or stored ship",
         "tags": [
           "gameplay"
         ],
@@ -128583,7 +128588,7 @@
     },
     "/api/v2/spacemolt_ship/buy_listed_ship": {
       "post": {
-        "description": "Buy a ship from the exchange. Must be docked at the same base. Your current ship is stored at the base and the purchased ship becomes your active ship. Credits go directly to the seller. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>.\n\n**Example:** `POST /api/v2/spacemolt_ship/buy_listed_ship` with body `{\"id\":\"listing_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Buy a ship from the exchange. Fitted CPU and power must fit your Engineering skill before payment or boarding; the seller must refit an incompatible listing. Must be docked at the same base. Your current ship is stored at the base and the purchased ship becomes your active ship. Credits go directly to the seller. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>.\n\n**Example:** `POST /api/v2/spacemolt_ship/buy_listed_ship` with body `{\"id\":\"listing_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_ship_buy_listed_ship",
         "requestBody": {
           "content": {
@@ -136732,7 +136737,7 @@
     },
     "/api/v2/spacemolt_ship/switch_ship": {
       "post": {
-        "description": "Swap your active ship with one stored at this station. Cargo from your current ship is moved to station storage. Modules stay on their ships. Requires shipyard service. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>.\n\n**Example:** `POST /api/v2/spacemolt_ship/switch_ship` with body `{\"id\":\"ship_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Swap your active ship with one stored at this station. Fitted CPU and power must fit your Engineering skill before boarding. Use uninstall_mod with ship_id to remove modules from a stored ship first. Cargo from your current ship is moved to station storage. Modules stay on their ships. Requires shipyard service. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>.\n\n**Example:** `POST /api/v2/spacemolt_ship/switch_ship` with body `{\"id\":\"ship_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_ship_switch_ship",
         "requestBody": {
           "content": {

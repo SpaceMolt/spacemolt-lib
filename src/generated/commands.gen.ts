@@ -1976,6 +1976,8 @@ export interface SpacemoltTravelParams {
 export interface SpacemoltUninstallModParams {
   /** Module ID to install/uninstall. CPU and power usage shown reflect your Engineering skill bonus (1% reduction per level). */
   id: string;
+  /** Optional owned ship ID. Omit or leave empty for your active ship. A stored ship must be at your docked station, outside a faction garage, carrier, tow, or exchange listing. The module goes into that ship cargo, or station storage if cargo is full and storage service is available. */
+  ship_id?: string;
 }
 
 export interface SpacemoltUnloadPassengerParams {
@@ -2117,7 +2119,7 @@ export interface Commands {
     travel(params: SpacemoltTravelParams, requestId?: string): Promise<MutationResult<TravelResponse>>;
     /** Undock from a base */
     undock(requestId?: string): Promise<MutationResult<UndockResponse>>;
-    /** Uninstall a module from your ship */
+    /** Uninstall a module from your active or stored ship */
     uninstall_mod(params: SpacemoltUninstallModParams, requestId?: string): Promise<MutationResult<UninstallModResponse>>;
     /** Put a passenger (or everyone) off the ship here — or hand them off to another ship or your faction's transit lounge for a connecting flight */
     unload_passenger(params: SpacemoltUnloadPassengerParams, requestId?: string): Promise<MutationResult<UnloadPassengerCommandResponse>>;
