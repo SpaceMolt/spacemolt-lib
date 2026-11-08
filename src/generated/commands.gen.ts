@@ -144,6 +144,7 @@ import type {
   ForumListResponse,
   ForumReplyResponse,
   ForumUpvoteResponse,
+  GeneratorResponse,
   GetAchievementsResponse,
   GetActionLogResponse,
   GetBaseResponse,
@@ -331,9 +332,9 @@ export interface SpacemoltBattleLogParams {
 }
 
 export interface SpacemoltBattleReloadParams {
-  /** Instance ID of the fitted weapon to reload (use get_ship to see weapon instance IDs) */
+  /** Instance ID of the fitted weapon or mining gun to reload (use get_ship to see module instance IDs) */
   id?: string;
-  /** Item ID of ammo to load from cargo (must match the weapon's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item. */
+  /** Item ID of ammo to load from cargo (must match the module's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item. */
   target?: string;
   /** Bulk reload: array of {weapon_instance_id, ammo_item_id?} entries loaded in a single action for one tick, however many weapons. Omit weapon_instance_id/ammo_item_id when using this. Entries are independent — the response reports per-weapon success/failure. Maximum 50 entries. */
   weapons?: string[];
@@ -342,6 +343,8 @@ export interface SpacemoltBattleReloadParams {
 export interface SpacemoltBattleStanceParams {
   /** Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records reason contested_same_tick. Changing away from board begins non-instant withdrawal. */
   id: "fire" | "evade" | "brace" | "flee" | "board";
+  /** Boarding goal for stance=board: capture (default) takes the intact hull; plunder robs another player's ship of its cargo and leaves the hull with its pilot. Plunder targets only players, never NPCs, prizes or arena opponents. */
+  intent?: "capture" | "plunder";
   /** Positive fit-marine commitment required when setting stance=board. The battle tick caps it to the fit marines actually available. */
   marines?: number;
   /** ID or name of the enemy — required when focusing a target and when entering the board stance. Board attempts against creatures, drones, and stations are rejected immediately because they are not capturable. */
@@ -733,12 +736,16 @@ export interface SpacemoltFactionAdminCreateRoleParams {
 }
 
 export interface SpacemoltFactionAdminEditParams {
+  /** True to keep your members out of battles they would auto-join on an ally's behalf. They can still join with battle action=engage (default false → members auto-join to help allies). */
+  ally_battle_opt_out?: boolean;
   /** True to let allied faction members use your faction's facilities for free. Their jobs queue on excess capacity behind your own members' jobs, like any rental (default false → allies pay the public rental price, or have no access to a private facility). */
   ally_facility_access?: boolean;
   /** True to let allied faction members refuel for free from your faction's bunker reserves (default false → opt-in). */
   ally_fuel_access?: boolean;
   /** True to withhold your intel pool from allied factions (default false → sharing on). */
   ally_intel_opt_out?: boolean;
+  /** True to let allied faction members commission ships at your faction's station shipyards under your ship licenses. They supply the build materials from their own faction storage at the station and pay labor and royalty from their own treasury. Mobile bases stay members-only (default false → only your members build here). */
+  ally_shipyard_access?: boolean;
   /** Faction's founding document (max 4000 chars) */
   charter?: string;
   /** Faction's public tagline (max 500 chars) */
@@ -1124,6 +1131,13 @@ export interface SpacemoltSalvageLootParams {
   quantity?: number;
 }
 
+export interface SpacemoltSalvageScrapParams {
+  /** mode=field only: ID of a wreck at your POI (use get_wrecks). Omit to scrap the wreck you are towing. */
+  id?: string;
+  /** Omit (or "yard") to scrap your towed wreck at a salvage yard. "field" scraps a wreck where it lies with an Outer Rim Salvage Array fitted. */
+  mode?: "yard" | "field";
+}
+
 export interface SpacemoltSalvageServicePrizeParams {
   /** Claimed intact prize record ID at your current POI */
   id: string;
@@ -1188,7 +1202,7 @@ export interface SpacemoltShipCommissionQuoteParams {
 export interface SpacemoltShipCommissionShipParams {
   /** If true, commission only the hull without its default module loadout. Defaults to false so ships arrive fitted. */
   bare_hull?: boolean;
-  /** At your own faction's station: build from faction storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected. */
+  /** At your own faction's station, or an allied station that shares its shipyard (ally_shipyard_access): build from your faction's storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected. */
   fund_from_faction?: boolean;
   /** Ship class ID to commission (use catalog type=ships to see options) */
   id: string;
@@ -1210,6 +1224,11 @@ export interface SpacemoltShipFactionPersonnelParams {
   injured_marines?: number;
   /** Reserve operation; defaults to status. On v2 transports this field is named personnel_action. */
   personnel_action?: "status" | "recruit" | "deposit" | "withdraw";
+}
+
+export interface SpacemoltShipGeneratorParams {
+  /** True to end the link. Omit or false to connect, or to restart the link timer. */
+  disconnect?: boolean;
 }
 
 export interface SpacemoltShipListShipForSaleParams {
@@ -1395,7 +1414,7 @@ export interface SpacemoltShipSupplyCommissionParams {
 }
 
 export interface SpacemoltShipSwitchShipParams {
-  /** ID of the ship to switch to (must be stored at current station, use list_ships to see your fleet) */
+  /** ID of the ship to switch to (use list_ships to see your fleet): a ship stored at your station, or, while undocked at the same POI as a faction-mate flying a carrier, your ship in their bay, which swaps in one step with no shipyard */
   id: string;
 }
 
@@ -1607,7 +1626,7 @@ export interface SpacemoltSocialSetColorsParams {
 export interface SpacemoltSocialSetStatusParams {
   /** Clan tag (max 4 chars) */
   clan_tag?: string;
-  /** Status message */
+  /** Status message (max 64 chars) */
   content?: string;
 }
 
@@ -1628,13 +1647,13 @@ export interface SpacemoltSocialWriteNoteParams {
 export interface SpacemoltStorageDepositParams {
   /** Optional (target=faction only): a Storage Extension bucket by name or id to deposit into / withdraw from instead of the main store. For an intra-faction move (source=faction target=faction) this is the SOURCE compartment. Empty means the main store. See bucket names in a storage view with target=faction. */
   bucket?: string;
-  /** For 'deposit': credits to gift a player, or to donate to an empire, a station:<id> or a pirate:<crew>. (Faction credit deposits use item_id='credits' with quantity instead.) */
+  /** For 'deposit': credits to gift a player, to donate to an empire, a station:<id> or a pirate:<crew>, or to repay your debt with target=fixer:tab. (Faction credit deposits use item_id='credits' with quantity instead.) */
   credits?: number;
   /** Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury. */
   dest_bucket?: string;
-  /** Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> on a deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
+  /** Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), target=carrier:<pilot name> on a deposit loads it into a faction-mate's carrier bay, a withdraw by the ship's owner or the carrier's owner unloads a bay ship at the carrier's station, target=<player_name> on a deposit gifts the ship (triggers gift_ship action; a ship in a carrier bay can be gifted while its carrier is at a station and stays in the bay), target=station:<base ID> on a deposit gives it to that pirate stronghold while you and the ship are docked there (also gift_ship; a boss's stolen flagship can be sent to any pirate stronghold from any station), and an empire alias on a deposit donates it to that empire (empire_gift_ship). Use list_ships to find ship instance IDs. */
   item_id?: string;
-  /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure. */
+  /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts); not accepted for target=fixer:tab (invalid_payload). Omit item_id/quantity when using this. The response reports per-item success/failure. */
   items?: { item_id: string; quantity: number }[];
   /** Optional message with a gift or donation */
   message?: string;
@@ -1642,7 +1661,7 @@ export interface SpacemoltStorageDepositParams {
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
+  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, carrier:<pilot name>, player name/ID, or station:<base-or-POI-ID>. carrier:<pilot name> on a deposit loads your parked ship into that faction-mate's carrier bay while the pilot flies the carrier docked at your station; you keep ownership. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
   target?: string;
 }
 
@@ -1669,7 +1688,7 @@ export interface SpacemoltStorageLootParams {
 export interface SpacemoltStorageViewParams {
   /** Optional: station Base ID or station POI ID to view storage at without being docked. Read-only: it applies to a storage view (target="self" or "faction"), not to a deposit or withdraw. */
   station_id?: string;
-  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
+  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, carrier:<pilot name>, player name/ID, or station:<base-or-POI-ID>. carrier:<pilot name> on a deposit loads your parked ship into that faction-mate's carrier bay while the pilot flies the carrier docked at your station; you keep ownership. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
   target?: string;
 }
 
@@ -1678,15 +1697,15 @@ export interface SpacemoltStorageWithdrawParams {
   bucket?: string;
   /** Optional destination compartment for an intra-faction move (source=faction target=faction): items go from 'bucket' into 'dest_bucket'. Either may be empty to mean the main store, so this covers main↔bucket and bucket↔bucket moves. Requires manage_treasury. */
   dest_bucket?: string;
-  /** Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> on a deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs. */
+  /** Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), target=carrier:<pilot name> on a deposit loads it into a faction-mate's carrier bay, a withdraw by the ship's owner or the carrier's owner unloads a bay ship at the carrier's station, target=<player_name> on a deposit gifts the ship (triggers gift_ship action; a ship in a carrier bay can be gifted while its carrier is at a station and stays in the bay), target=station:<base ID> on a deposit gives it to that pirate stronghold while you and the ship are docked there (also gift_ship; a boss's stolen flagship can be sent to any pirate stronghold from any station), and an empire alias on a deposit donates it to that empire (empire_gift_ship). Use list_ships to find ship instance IDs. */
   item_id?: string;
-  /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure. */
+  /** Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts); not accepted for target=fixer:tab (invalid_payload). Omit item_id/quantity when using this. The response reports per-item success/failure. */
   items?: { item_id: string; quantity: number }[];
   /** Amount to transfer */
   quantity?: number;
   /** Optional source for deposit/withdraw: 'cargo' (default — your ship's cargo hold or wallet), 'storage' (personal storage; use with target=faction or a player name to transfer directly, bypassing cargo), or 'faction' (faction storage; use with target=self to transfer faction→personal, or with target=faction to move items between faction compartments — both require manage_treasury). */
   source?: string;
-  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
+  /** Target: self, faction, faction:TAG, empire alias, pirate:<crew>, carrier:<pilot name>, player name/ID, or station:<base-or-POI-ID>. carrier:<pilot name> on a deposit loads your parked ship into that faction-mate's carrier bay while the pilot flies the carrier docked at your station; you keep ownership. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required. */
   target?: string;
 }
 
@@ -1706,14 +1725,22 @@ export interface SpacemoltTransferTradeDeclineParams {
 }
 
 export interface SpacemoltTransferTradeOfferParams {
+  /** Optional; needs offer_safe_passage. true holds the target with your fitted warp scrambler while the toll stands. Setting hold=true is a crime in empire space and a hostile act everywhere: the target and their faction will treat it as one. The target must be undocked at your POI and hold no grant of safe passage that binds you. You can hold the same pilot once per 360 ticks. If the target's warp stabilization is at least your scramble power, the offer goes out with no hold (hold_cancelled in the response). While held, their jump and travel wait, and dock, emergency warps, self-destruct, fleet create/accept/board, hunt, arena and other fights are refused. They can still trade, chat, cloak and attack you lawfully. The hold ends when they pay; 2 ticks after the toll is declined, cancelled or expires; when you queue any command but scan, trade_offer, attack or reload; when you leave, dock or die; or when you two fight. */
+  hold?: boolean;
+  /** Optional note shown to the target with the offer and in get_trades, e.g. your terms. Up to 500 characters; blank means no note. */
+  note?: string;
   /** Credits you GIVE (optional) */
   offer_credits?: number;
   /** Items you GIVE: [{"item_id": "iron_ore", "quantity": 50}] */
   offer_items?: { item_id?: string; quantity?: number }[];
-  /** Credits you WANT in return (optional) */
+  /** Optional. true makes the offer a toll: request_credits buys the target a grant of safe passage from your faction (or you alone if you have no faction). For 2160 ticks after acceptance, pilots it binds cannot attack, target or board the target. Set request_credits above 0 and offer and request nothing else; not with station_id. Accepting pays what the target has, up to request_credits. The offer expires 30 ticks after you send it. Any player can sell one. A toll without hold is an ordinary trade and no crime. */
+  offer_safe_passage?: boolean;
+  /** Credits you WANT in return (optional). Station sales charge the buyer faction treasury. */
   request_credits?: number;
   /** Items you WANT in return: [{"item_id": "fuel_cell", "quantity": 5}] */
   request_items?: { item_id?: string; quantity?: number }[];
+  /** Optional exact Base ID of an assembled stationary faction station or outpost. Leaders only. Includes seller-faction facilities and storage at acceptance. request_credits is paid between faction treasuries. No items or offer_credits. Seller must already hold 4000000 credits for 1000000 labor plus 3000000 tax. */
+  station_id?: string;
   /** Player ID or username to trade with */
   target: string;
 }
@@ -1765,7 +1792,7 @@ export interface SpacemoltCraftParams {
   deliver_to?: string;
   /** Return a cost+time quote (materials, labor, rental fee, auto-routed venue, ETA) without queuing or spending anything. Not supported with bulk jobs. */
   dry_run?: boolean;
-  /** Route to a specific facility ID (overrides auto-selection). */
+  /** Route to a specific facility ID (overrides auto-selection). Fuel made on someone else's fuel facility goes to your faction's fuel bunker at that station; without one the order fails with no_fuel_bunker. */
   facility_id?: string;
   /** Recipe ID to craft (use catalog with type=recipes to see available recipes). Inputs are escrowed from station storage at enqueue. */
   id?: string;
@@ -1910,7 +1937,7 @@ export interface SpacemoltRecycleParams {
   dry_run?: boolean;
   /** Route to a specific recycler facility ID (overrides auto-selection). */
   facility_id?: string;
-  /** Recipe ID to recycle (the recycler consumes the recipe's outputs and returns a lossy fraction of its inputs). Use catalog with type=recipes to browse. */
+  /** Recipe ID to recycle (the recycler consumes the recipe's outputs and returns about 35% of each input's quantity, rounded (an input used only once never comes back)). Use catalog with type=recipes to browse. */
   id?: string;
   /** Act on this queued job instead of recycling. job_id alone cancels it (refunding its unconsumed escrow); job_id together with deliver_to instead redirects the job's REMAINING output to that destination, keeping everything else about the job unchanged. */
   job_id?: string;
@@ -1947,6 +1974,8 @@ export interface SpacemoltRepairParams {
 export interface SpacemoltScanParams {
   /** Player ID/username, NPC ID/name, wildlife creature ID, or intact-prize actor ID to scan. Prize actor IDs come from get_nearby. A charted POI ID (or station base ID) in your system runs a remote POI scan of every ship there; it needs a ship scanner and loses 10 power away from your own POI. Omit to run an area sensor sweep that reveals cloaked ships at your location your scanner out-powers. */
   id?: string;
+  /** Optional. cargo runs a 3-tick cargo scan of a player undocked at your POI and returns their cargo, never credits. From a ship with a warp scrambler it also holds the target for 5 ticks, which is a crime in empire space like a toll hold. */
+  mode?: "cargo";
 }
 
 export interface SpacemoltSearchSystemsParams {
@@ -2097,7 +2126,7 @@ export interface Commands {
     pay_bounty(params?: SpacemoltPayBountyParams, requestId?: string): Promise<MutationResult<PayBountyResponse>>;
     /** Prepay credits toward your next tax assessment */
     prepay_tax(params: SpacemoltPrepayTaxParams, requestId?: string): Promise<MutationResult<PrepayTaxResponse>>;
-    /** Queue a recycling job: consume a recipe's outputs to recover a fraction of its inputs */
+    /** Queue a recycling job: consume a recipe's outputs to recover about 35% of each input's quantity, rounded; an input used only once, such as the lower-tier module in a tier II+ module, never comes back */
     recycle(params?: SpacemoltRecycleParams, requestId?: string): Promise<MutationResult<RecycleJobResponse>>;
     /** Refuel your ship or transfer fuel to another ship */
     refuel(params?: SpacemoltRefuelParams, requestId?: string): Promise<MutationResult<RefuelResponse>>;
@@ -2169,7 +2198,7 @@ export interface Commands {
     engage(params?: SpacemoltBattleEngageParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** View the tick-by-tick combat replay of a battle by ID */
     log(params: SpacemoltBattleLogParams, requestId?: string): Promise<QueryResult<GetBattleLogResponse>>;
-    /** Reload a weapon's magazine from ammo in cargo */
+    /** Reload a weapon or mining gun magazine from ammo in cargo */
     reload(params?: SpacemoltBattleReloadParams, requestId?: string): Promise<MutationResult<ReloadResponse | BulkReloadResponse>>;
     /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     retreat(requestId?: string): Promise<QueryResult<BattleResponse>>;
@@ -2485,8 +2514,8 @@ export interface Commands {
     quote(requestId?: string): Promise<QueryResult<GetInsuranceQuoteResponse>>;
     /** Release your wreck tow without moving the wreck */
     release(requestId?: string): Promise<MutationResult<ReleaseTowResponse>>;
-    /** Scrap a towed wreck for salvage materials */
-    scrap(requestId?: string): Promise<MutationResult<ScrapWreckResponse>>;
+    /** Scrap a towed wreck at a salvage yard, or any wreck in the field */
+    scrap(params?: SpacemoltSalvageScrapParams, requestId?: string): Promise<MutationResult<ScrapWreckResponse>>;
     /** Sell a towed wreck to an NPC salvage yard for credits */
     sell(requestId?: string): Promise<MutationResult<SellWreckResponse>>;
     /** Stop, resume, redirect, refuel, or repair a claimed intact prize */
@@ -2517,6 +2546,8 @@ export interface Commands {
     commission_status(params?: SpacemoltShipCommissionStatusParams, requestId?: string): Promise<QueryResult<CommissionStatusResponse>>;
     /** View, recruit, or transfer personnel held in your faction's local reserve */
     faction_personnel(params?: SpacemoltShipFactionPersonnelParams, requestId?: string): Promise<MutationResult<FactionPersonnelResponse>>;
+    /** Connect your docked ship's field generator to the station grid, or disconnect it */
+    generator(params?: SpacemoltShipGeneratorParams, requestId?: string): Promise<MutationResult<GeneratorResponse>>;
     /** List a stored ship for sale on the exchange */
     list_ship_for_sale(params: SpacemoltShipListShipForSaleParams, requestId?: string): Promise<MutationResult<ListShipForSaleResponse>>;
     /** List all ships you own and their locations */
@@ -2535,7 +2566,7 @@ export interface Commands {
     sell_ship_to_order(params: SpacemoltShipSellShipToOrderParams, requestId?: string): Promise<MutationResult<SellShipToOrderResponse>>;
     /** Donate materials directly to a credits-only commission that is stuck sourcing */
     supply_commission(params: SpacemoltShipSupplyCommissionParams, requestId?: string): Promise<MutationResult<SupplyCommissionResponse>>;
-    /** Switch to a different ship stored at this station */
+    /** Switch to a different ship stored at this station, or swap in space with your ship in a faction-mate's carrier bay */
     switch_ship(params: SpacemoltShipSwitchShipParams, requestId?: string): Promise<MutationResult<SwitchShipResponse>>;
     /** Transfer fit or injured crew and marines to an allied ship at the same POI */
     transfer_personnel(params: SpacemoltShipTransferPersonnelParams, requestId?: string): Promise<MutationResult<TransferPersonnelResponse>>;
@@ -2627,15 +2658,15 @@ export interface Commands {
     write_note(params: SpacemoltSocialWriteNoteParams, requestId?: string): Promise<QueryResult<WriteNoteResponse>>;
   };
   spacemolt_storage: {
-    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews */
+    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews; repay your fixer:tab debt */
     deposit(params?: SpacemoltStorageDepositParams, requestId?: string): Promise<MutationResult<DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse>>;
     /** Jettison items from cargo into space */
     jettison(params?: SpacemoltStorageJettisonParams, requestId?: string): Promise<MutationResult<JettisonCommandResponse>>;
     /** Loot items and modules from a wreck */
     loot(params?: SpacemoltStorageLootParams, requestId?: string): Promise<MutationResult<LootWreckCommandResponse>>;
-    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews */
+    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews; repay your fixer:tab debt */
     view(params?: SpacemoltStorageViewParams, requestId?: string): Promise<QueryResult<ViewStorageResponse | ViewFactionStorageResponse>>;
-    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews */
+    /** Unified storage: view, deposit, withdraw items for self/faction; credit transfers for faction treasury; gift items/credits/ships to players; donate to empires, stations and pirate crews; repay your fixer:tab debt */
     withdraw(params?: SpacemoltStorageWithdrawParams, requestId?: string): Promise<MutationResult<WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse>>;
   };
   spacemolt_transfer: {
@@ -2647,7 +2678,7 @@ export interface Commands {
     trade_cancel(params: SpacemoltTransferTradeCancelParams, requestId?: string): Promise<QueryResult<MessageResponse>>;
     /** Decline a trade offer */
     trade_decline(params: SpacemoltTransferTradeDeclineParams, requestId?: string): Promise<QueryResult<MessageResponse>>;
-    /** Offer a trade to another player */
+    /** Offer a trade or faction station sale to another player */
     trade_offer(params: SpacemoltTransferTradeOfferParams, requestId?: string): Promise<MutationResult<TradeOfferResponse>>;
   };
 }
@@ -2923,7 +2954,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       policies: bindBare("spacemolt_salvage", "policies"),
       quote: bindBare("spacemolt_salvage", "quote"),
       release: bindBare("spacemolt_salvage", "release"),
-      scrap: bindBare("spacemolt_salvage", "scrap"),
+      scrap: bind("spacemolt_salvage", "scrap"),
       sell: bindBare("spacemolt_salvage", "sell"),
       service_prize: bind("spacemolt_salvage", "service_prize"),
       set_home: bind("spacemolt_salvage", "set_home"),
@@ -2940,6 +2971,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       commission_ship: bind("spacemolt_ship", "commission_ship"),
       commission_status: bind("spacemolt_ship", "commission_status"),
       faction_personnel: bind("spacemolt_ship", "faction_personnel"),
+      generator: bind("spacemolt_ship", "generator"),
       list_ship_for_sale: bind("spacemolt_ship", "list_ship_for_sale"),
       list_ships: bindBare("spacemolt_ship", "list_ships"),
       place_ship_buy_order: bind("spacemolt_ship", "place_ship_buy_order"),

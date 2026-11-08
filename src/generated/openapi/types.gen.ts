@@ -1451,7 +1451,7 @@ export type BoardingStateLogEntry = {
      */
     phase: 'latching' | 'assault' | 'withdrawing' | 'resolved' | 'self_destruct';
     /**
-     * Why the event fired, when the event alone is ambiguous. boarding_rejected carries either a validation reason or contested_same_tick when deterministic boarding initiative selected another eligible request sharing either hull. self_destruct_canceled may carry battle_ended when combat ending cleared the countdown. Omitted otherwise.
+     * Why the event fired, when the event alone is ambiguous. boarding_rejected carries either a validation reason or contested_same_tick when deterministic boarding initiative selected another eligible request sharing either hull. self_destruct_canceled may carry battle_ended when combat ending cleared the countdown. plundered carries surrendered when the target's crew gave up because no fit marine was left aboard, at latch or when its last marine fell; that ship keeps its surviving crew. Captures never surrender. Omitted otherwise.
      */
     reason?: string;
     /**
@@ -1780,7 +1780,7 @@ export type BulkSellOrderResult = {
 };
 
 /**
- * The single-item storage response for this entry (deposit, withdraw, gift, or faction/empire variant). Successful station gifts use action=send_gift and canonical recipient=station:<base ID>; remaining source inventory reflects the completed bulk batch, including zero.
+ * The single-item storage response for this entry (deposit, withdraw, gift, or faction/empire variant). Successful station gifts use action=send_gift and canonical recipient=station:<base ID>; remaining source inventory reflects the completed bulk batch, including zero. An entry never carries goodwill: a bulk station gift reports it once on the parent response.
  */
 export type BulkStorageItemData = {
     [key: string]: unknown;
@@ -1811,7 +1811,7 @@ export type BulkStorageResponse = {
     dest_bucket_id?: string;
     failed: number;
     /**
-     * How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer.
+     * How the empire or pirate crew received a bulk station:<base ID> gift: one result for all items delivered in the batch. Omitted when no item was delivered and for every other bulk target. Per-item results never carry goodwill.
      */
     goodwill?: GiftGoodwill;
     requested: number;
@@ -2816,24 +2816,72 @@ export type CraftQuoteResponse = {
 };
 
 export type CraftingDeposit = {
+    /**
+     * Item ID of the deposited item. A sealed package has a package item ID.
+     */
     item_id: string;
+    /**
+     * Display name of the deposited item.
+     */
     item_name: string;
+    /**
+     * Units of this item deposited this tick.
+     */
     quantity: number;
 };
 
 export type CraftingJobUpdate = {
+    /**
+     * True when this tick finished the job's last run. No more updates follow for this job.
+     */
     completed: boolean;
+    /**
+     * Items this job deposited this tick. Sorted by item_name.
+     */
     deposited: Array<CraftingDeposit>;
+    /**
+     * Credits still prepaid on the job: labor plus the rental fee for an external job.
+     */
     escrowed_credits: number;
+    /**
+     * True when this job rents a facility you do not own. Omitted when false.
+     */
     external?: boolean;
+    /**
+     * Job ID. The same ID that the job queue listing shows.
+     */
     job_id: string;
-    mode: string;
+    /**
+     * craft or recycle for a recipe job. pack or unpack for a package job.
+     */
+    mode: 'craft' | 'recycle' | 'pack' | 'unpack';
+    /**
+     * ID of the output package a packaged craft sealed on completion. Set only then.
+     */
     output_package_id?: string;
+    /**
+     * Label of the output package a packaged craft sealed on completion. Set only then.
+     */
     output_package_label?: string;
+    /**
+     * Display name of the job's recipe, not the recipe ID you passed to craft. For a package pack or unpack job it is the package label, or Package when the package has no label.
+     */
     recipe: string;
+    /**
+     * Runs completed this tick (not the job total).
+     */
     runs_done: number;
+    /**
+     * Runs still queued on the job. 0 when the job is completed.
+     */
     runs_remaining: number;
+    /**
+     * Where the output landed: station or faction or cargo. A package job can report cargo+station when its cargo overflowed into station storage.
+     */
     storage: string;
+    /**
+     * Display name of the venue: Station Workshop or the facility type name.
+     */
     venue: string;
 };
 
@@ -3213,6 +3261,9 @@ export type DroneInfo = {
 };
 
 export type EmpireGiftResponse = {
+    /**
+     * Donation to an empire named by an empire alias target: empire_gift_credits (credits wired to the treasury from anywhere), empire_gift_items (cargo given to the quartermaster at one of its stations with storage service) or empire_gift_ship (a ship parked at the empire station where you are docked, seated in the empire's Reserve fleet, scrapped if it is a starter ship, or destroyed for flagship_bounty if it is a pirate boss's flagship). A station:<base ID> donation returns SendGiftResponse instead, even at an empire station.
+     */
     action: 'empire_gift_credits' | 'empire_gift_items' | 'empire_gift_ship';
     /**
      * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
@@ -3230,26 +3281,81 @@ export type EmpireGiftResponse = {
      * Name of base_id. Omitted with it for a remote credit wire.
      */
     base_name?: string;
+    /**
+     * Units of item_id left in your cargo after the donation. Set on empire_gift_items only; omitted when zero.
+     */
     cargo_remaining?: number;
+    /**
+     * Ship class of the donated ship. Set on empire_gift_ship only.
+     */
     class_id?: string;
+    /**
+     * Display name of class_id. Set on empire_gift_ship only.
+     */
     class_name?: string;
+    /**
+     * Credits moved from your wallet to the empire treasury. Set on empire_gift_credits only.
+     */
     credits_sent?: number;
+    /**
+     * Empire that received the donation (e.g. solarian).
+     */
     empire_id: string;
+    /**
+     * Display name of empire_id.
+     */
     empire_name: string;
+    /**
+     * Credits the empire paid you for a pirate boss's stolen flagship (a flat 1000000), added to your wallet on top of the normal donation goodwill and counted as taxable ship_sale income. The empire destroys the hull. Set on empire_gift_ship only when the donated ship was a boss flagship; omitted otherwise. Less than the flat amount only if your wallet hit the credit cap.
+     */
+    flagship_bounty?: number;
+    /**
+     * The empire's shared Reserve fleet that the ship joined. Every ship donated to one empire reports the same fleet_id. Omitted when a starter ship is scrapped or a boss flagship is destroyed instead.
+     */
     fleet_id?: string;
+    /**
+     * Display name of fleet_id. Omitted with it.
+     */
     fleet_name?: string;
     /**
-     * How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer.
+     * How the empire received this donation: value to them, bounty paid, reputation change and their reply. Present on every empire donation except a starter ship, which is scrapped and earns nothing.
      */
     goodwill?: GiftGoodwill;
+    /**
+     * Designation the empire gave the hull in its Reserve roster. Omitted when a starter ship is scrapped or a boss flagship is destroyed instead.
+     */
     hull_designator?: string;
+    /**
+     * Donated item ID. Set on empire_gift_items only.
+     */
     item_id?: string;
+    /**
+     * Your donation note; omitted when empty. When a donated starter ship is scrapped or a boss flagship is destroyed it is the empire's reply instead.
+     */
     message?: string;
+    /**
+     * Empire NPC pilot seated on the donated ship, unique to this donation. Omitted when a starter ship is scrapped or a boss flagship is destroyed instead.
+     */
     npc_id?: string;
+    /**
+     * ID of the automated donation notice filed with the empire's leadership. Omitted when a starter ship is scrapped or a boss flagship is destroyed.
+     */
     petition_id?: string;
+    /**
+     * Full text of that donation notice. Omitted with petition_id.
+     */
     petition_notice?: string;
+    /**
+     * Units of item_id donated. Set on empire_gift_items only.
+     */
     quantity?: number;
+    /**
+     * ID of the donated ship. Set on empire_gift_ship only.
+     */
     ship_id?: string;
+    /**
+     * Your wallet after the credit donation. Set on empire_gift_credits only; omitted when zero.
+     */
     wallet_remaining?: number;
 };
 
@@ -3272,7 +3378,9 @@ export type EmpireNpcInfo = {
 
 export type EmpirePolicySnapshot = {
     bounty_attack: number;
+    bounty_hold: number;
     bounty_kill: number;
+    bounty_plunder: number;
     bounty_rep_restoration_bps: number;
     bounty_rep_restoration_cap: number;
     citizenship_auto_approve: boolean;
@@ -3303,7 +3411,9 @@ export type EmpirePolicySnapshot = {
     rep_baseline_outsider: number;
     rep_decay_amount: number;
     rep_penalty_attack: number;
+    rep_penalty_hold: number;
     rep_penalty_kill: number;
+    rep_penalty_plunder: number;
     rep_trade_fill_cap: number;
     rep_trade_fill_divisor: number;
     repair_cost_per_hull: number;
@@ -3483,6 +3593,9 @@ export type FacilityDefSummary = {
     faction_service?: string;
     labor_cost: number;
     level: number;
+    /**
+     * Item stock this facility type must hold each facility cycle (100 ticks) to count as fully supplied, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and burns in full each cycle.
+     */
     maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
     recipe_id?: string;
@@ -3617,7 +3730,7 @@ export type FacilityEntry = {
      */
     damaged?: boolean;
     /**
-     * Flavor text. For a facility with upkeep it adds a satisfied or degraded line that matches maintenance_satisfied. An owner-written description replaces the text, and a disguised facility seen from outside shows its cover description. Can be an empty string.
+     * Flavor text. For a facility with upkeep it adds a satisfied or degraded line that matches maintenance_satisfied. A per-facility description replaces the text, and a disguised facility seen from outside shows its cover description. Can be an empty string.
      */
     description: string;
     /**
@@ -3681,7 +3794,7 @@ export type FacilityEntry = {
      */
     maintenance_level?: number;
     /**
-     * Item stock this station-run facility must hold each facility cycle (100 ticks) to count as fully supplied. Present only for fleet depots and dining/leisure venues (tourism_upkeep); omitted otherwise. A tourism venue's figure scales with recent paying footfall and never drops below 15 percent of its declared menu (at least one of each item); it burns its paying guests' share of its declared menu — about the whole listed stock in a busy cycle and nothing in a cycle no guest paid for.
+     * Item stock this facility must hold each facility cycle (100 ticks) to count as fully supplied. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A market's trade_authenticator quantity is its declared stock plus a charge that grows with this station's recent market trade volume; the market burns that charge in full each cycle, and on a player station it goes offline when faction storage cannot cover the whole quantity. A tourism venue's figure scales with recent paying footfall and never drops below 15 percent of its declared menu (at least one of each item); it burns its paying guests' share of its declared menu — about the whole listed stock in a busy cycle and nothing in a cycle no guest paid for.
      */
     maintenance_per_cycle?: Array<ItemQuantity>;
     /**
@@ -4142,6 +4255,9 @@ export type FacilityTypeDetailResponse = {
     labor_cost: number;
     level: number;
     lore?: string;
+    /**
+     * Item stock this facility type must hold each facility cycle (100 ticks) to count as fully supplied, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and burns in full each cycle.
+     */
     maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
     personal_service?: string;
@@ -4464,9 +4580,11 @@ export type FactionEditRoleUpdates = {
 };
 
 export type FactionEditUpdates = {
+    ally_battle_opt_out?: boolean;
     ally_facility_access?: boolean;
     ally_fuel_access?: boolean;
     ally_intel_opt_out?: boolean;
+    ally_shipyard_access?: boolean;
     charter?: string;
     description?: string;
     primary_color?: string;
@@ -4486,7 +4604,13 @@ export type FactionFacilityPresence = {
 export type FactionFuelBunker = {
     base_id: string;
     base_name?: string;
+    /**
+     * Fuel capacity. At the faction's own station this is the shared station tank capacity.
+     */
     fuel_capacity: number;
+    /**
+     * Fuel held. At the faction's own station this is the shared station tank.
+     */
     fuel_reserve: number;
 };
 
@@ -4547,9 +4671,11 @@ export type FactionGiftResponse = {
 export type FactionInfoResponse = {
     alliance_proposals?: Array<FactionAllianceProposal>;
     allies?: Array<FactionListItem>;
+    ally_battle_opt_out?: boolean;
     ally_facility_access?: boolean;
     ally_fuel_access?: boolean;
     ally_intel_opt_out?: boolean;
+    ally_shipyard_access?: boolean;
     at_war: boolean;
     charter: string;
     created_at: string;
@@ -4570,8 +4696,17 @@ export type FactionInfoResponse = {
     leader_username: string;
     member_count: number;
     members?: Array<FactionMember>;
+    /**
+     * Member-list pagination: page size used for this response (the limit you passed if 1-100, else 50). This is NOT the faction member cap. Joining a full faction fails with a faction_full error that states the cap.
+     */
     members_limit?: number;
+    /**
+     * Member-list pagination: index of the first member on this page (the offset you passed). Omitted on the first page.
+     */
     members_offset?: number;
+    /**
+     * Member-list pagination: true when more members exist after this page. Request the next page with offset = members_offset + members_limit.
+     */
     members_truncated?: boolean;
     /**
      * Current mobile-base location and movement state. Present only for faction members with a completed mobile base; omitted during construction or after decommissioning.
@@ -5211,7 +5346,7 @@ export type FindRouteResponse = {
      */
     fleet_fuel?: Array<FleetMemberFuel>;
     /**
-     * True when a route exists, including when you are already in the target system. False means no path was found; route is then null and the fuel fields are 0.
+     * True when a route exists, including when you are already in the target system. False means no path was found; route is then empty and the fuel fields are 0.
      */
     found: boolean;
     /**
@@ -5227,7 +5362,7 @@ export type FindRouteResponse = {
      */
     message: string;
     /**
-     * Systems in order from your current system to target_system, both included; see RouteStep. It holds a single step when you are already there. Normal connections and wormholes you know count as one jump each. Null when found is false.
+     * Systems in order from your current system to target_system, both included; see RouteStep. It holds a single step when you are already there. Normal connections and wormholes you know count as one jump each. Empty when found is false.
      */
     route: Array<RouteStep>;
     /**
@@ -5589,6 +5724,53 @@ export type GaragedShipEntry = {
     ship_id: string;
 };
 
+export type GeneratorResponse = {
+    /**
+     * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
+     */
+    auto_docked?: boolean;
+    /**
+     * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
+     */
+    auto_undocked?: boolean;
+    /**
+     * Station the generator feeds. After disconnect: the station it fed.
+     */
+    base_id: string;
+    /**
+     * True when the link is active after this command. False after disconnect.
+     */
+    connected: boolean;
+    /**
+     * Tick when the link times out. Present only while connected. Connect again to restart the timer.
+     */
+    end_tick?: number;
+    /**
+     * Fuel burned over the whole link so far. After disconnect: the total for the link.
+     */
+    fuel_burned: number;
+    /**
+     * Ship fuel burned per tick while connected: 1 per operational field generator. 0 after disconnect.
+     */
+    fuel_per_tick: number;
+    /**
+     * Fuel the generator never burns (10% of max fuel). The link ends when the next tick would take the tank below it.
+     */
+    fuel_reserve: number;
+    /**
+     * Human-readable summary.
+     */
+    message: string;
+    /**
+     * Power the generator supplies per tick after the hull bonus and Engineering and crew staffing scale it. The station counts generator power only up to the larger of its installed plant capacity and 20.
+     */
+    output: number;
+    /**
+     * Sum of the per-tick output over the ticks the link ran.
+     */
+    power_delivered: number;
+};
+
 /**
  * Command-specific result object. See individual command documentation for field details.
  */
@@ -5621,12 +5803,24 @@ export type GetBaseResponse = {
     base: TrimmedBase;
     condition: StationHealth;
     construction?: StationConstructionResponse;
+    /**
+     * This station's current dining appeal: the sum of its dining venues' points, each scaled by how well its upkeep is supplied. Vacationing citizens who weigh dining pick stations with more of it. Omitted (0) when the station has no working dining venue.
+     */
+    dining_points?: number;
     faction_fuel_capacity?: number;
     faction_fuel_reserve?: number;
     fuel_price?: number;
     fuel_price_all_in?: number;
     fuel_tax_per_unit?: number;
+    /**
+     * This station's current leisure appeal: the sum of its leisure venues' points, each scaled by how well its upkeep is supplied. Vacationing citizens who weigh leisure pick stations with more of it. Omitted (0) when the station has no working leisure venue.
+     */
+    leisure_points?: number;
     life_support?: StationLifeSupportStatus;
+    /**
+     * Public material request or build status for the next pirate replacement hull at the docked stronghold. Omitted outside pirate strongholds or when no replacement is needed and no replacement build exists.
+     */
+    pirate_recovery?: PirateRecoveryNeeds;
     power?: StationPowerStatus;
     repairs?: StationRepairResponse;
     services: Array<string>;
@@ -5634,6 +5828,10 @@ export type GetBaseResponse = {
      * Explains an input shortage or internal production-stage blockage or public input-price gap that limits replenishment at this station's empire-backed trade-authenticator mint. Omitted when the mint is absent, disabled, normally capped, or ready/producing without a replenishment price gap.
      */
     sovereign_mint?: SovereignMintStatus;
+    /**
+     * Lifetime credits visitors, connecting passengers and residents have spent at this station's dining and leisure venues. Omitted (0) when nothing has been spent here.
+     */
+    tourism_revenue?: number;
 };
 
 export type GetBattleLogResponse = {
@@ -5907,14 +6105,74 @@ export type GetSystemTransitResponse = {
 };
 
 export type GetTradeEntry = {
+    /**
+     * Faction that receives the station and pays request_credits to the seller faction. Present only for faction station sales.
+     */
+    buyer_faction_id?: string;
+    /**
+     * UTC time when the pending offer expires. Tolls expire by expires_tick instead.
+     */
     expires_at: string;
+    /**
+     * Tick at which the toll offer expires unpaid. Present only for tolls.
+     */
+    expires_tick?: number;
+    /**
+     * True while the offerer holds the target with a warp scrambler for this toll. Omitted when no hold stands.
+     */
+    hold?: boolean;
+    /**
+     * Seller faction labor fee in credits paid to local station citizens on acceptance; outposts use the nearest reachable station pool. Currently 1000000. Omitted for ordinary trades.
+     */
+    labor_cost?: number;
+    /**
+     * Optional note the offerer attached to the trade_offer (sanitized, up to 500 characters). Empty string when the offerer sent no note.
+     */
+    note: string;
+    /**
+     * Personal credits offered. Zero or omitted for station sales.
+     */
     offer_credits?: number;
+    /**
+     * Items offered by the seller. Empty for station sales.
+     */
     offer_items: Array<PendingTradeItemView>;
+    /**
+     * True when the offer is a toll: request_credits buys the target a grant of safe passage from the offerer's faction (or the offerer alone if factionless) for 2160 ticks. Accepting pays what the target has, up to request_credits. Omitted for ordinary trades.
+     */
+    offer_safe_passage?: boolean;
+    /**
+     * Seller player name. Present for incoming offers only.
+     */
     offerer_name?: string;
+    /**
+     * Requested payment in credits. For station sales the buyer faction treasury pays the seller faction treasury. Zero or omission means no price.
+     */
     request_credits?: number;
+    /**
+     * Items requested from the buyer. Empty for station sales.
+     */
     request_items: Array<PendingTradeItemView>;
+    /**
+     * Faction that sells the station and pays the labor cost and transfer tax. Present only for faction station sales.
+     */
+    seller_faction_id?: string;
+    /**
+     * Exact Base ID of the assembled station or outpost. Includes seller-faction facilities and storage contents at acceptance. Present only for faction station sales.
+     */
+    station_id?: string;
+    /**
+     * Buyer player name. Present for outgoing offers only.
+     */
     target_name?: string;
+    /**
+     * Trade offer ID used by accept and cancel commands.
+     */
     trade_id: string;
+    /**
+     * Seller faction transfer tax in credits paid to its primary taxable empire on acceptance. Currently 3000000. Omitted for ordinary trades.
+     */
+    transfer_tax?: number;
 };
 
 export type GetTradesResponse = {
@@ -5978,9 +6236,9 @@ export type GiftGoodwill = {
      */
     reputation_change: number;
     /**
-     * Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship. A ship given to a pirate crew instead reports what the crew did with it: ship_scrap (no pirate design for that hull), ship_refit (rebuilt to a pirate design) or ship_pirate (a pirate-built hull) followed by _cheap, _mid or _expensive by its fitted value; or, when the boss gets involved, boss_upgrade (the boss switches to your ship because it out-fights the boss's current one), boss_hunt (the boss's flagship is in a player's hands and the boss takes your stronger ship to hunt them), boss_flagship_returned, boss_rival_flown (the boss flies another boss's flagship until the stolen one comes back), boss_rival_scrapped, boss_flagship_copy (your hull was rebuilt into a copy of the boss's stolen flagship and the boss flies it) or boss_flagship_spare (rebuilt into a spare copy of the boss's flagship), each with _cold appended when the crew does not like you. stranger, hostile and cooling still apply to ordinary pirate ship gifts.
+     * Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship. A ship given to a pirate crew instead reports what the crew did with it: ship_scrap (no pirate design for that hull), ship_refit (rebuilt to a pirate design) or ship_pirate (a pirate-built hull) followed by _cheap, _mid or _expensive by its fitted value; or, when the boss gets involved, boss_upgrade (the boss switches to your ship because it out-fights the boss's current one), boss_hunt (the boss's flagship is in a player's hands and the boss takes your stronger ship to hunt them), boss_flagship_returned, boss_rival_flown (the boss flies another boss's flagship until the stolen one comes back) or boss_rival_scrapped, each with _cold appended when the crew does not like you. stranger, hostile and cooling still apply to ordinary pirate ship gifts.
      */
-    situation: string;
+    situation: 'stranger' | 'bounty_partial' | 'bounty_cleared' | 'hostile' | 'cooling' | 'unwanted_items' | 'unwanted_ship' | 'token_credits' | 'token_items' | 'token_ship' | 'appreciated_credits' | 'appreciated_items' | 'appreciated_ship' | 'generous_credits' | 'generous_items' | 'generous_ship' | 'lavish_credits' | 'lavish_items' | 'lavish_ship' | 'devoted_credits' | 'devoted_items' | 'devoted_ship' | 'ship_scrap_cheap' | 'ship_scrap_mid' | 'ship_scrap_expensive' | 'ship_refit_cheap' | 'ship_refit_mid' | 'ship_refit_expensive' | 'ship_pirate_cheap' | 'ship_pirate_mid' | 'ship_pirate_expensive' | 'boss_upgrade' | 'boss_upgrade_cold' | 'boss_hunt' | 'boss_hunt_cold' | 'boss_flagship_returned' | 'boss_flagship_returned_cold' | 'boss_rival_flown' | 'boss_rival_flown_cold' | 'boss_rival_scrapped' | 'boss_rival_scrapped_cold';
 };
 
 export type GiftShipResponse = {
@@ -6437,25 +6695,85 @@ export type JobRetargetResponse = {
 };
 
 export type JobView = {
+    /**
+     * ID of the station where the job runs. Omitted when the base cannot be resolved.
+     */
     base_id?: string;
+    /**
+     * Display name of the station where the job runs. Omitted when the base cannot be resolved.
+     */
     base_name?: string;
+    /**
+     * Where the remaining output lands: storage or faction or faction:<bucket id> or cargo. Same values as craft deliver_to. Shown only to the player who placed the job.
+     */
     deliver_to?: string;
+    /**
+     * Estimated ticks until this job finishes. Counts the work queued ahead of it at the venue. 0 when the recipe is missing or the venue has no speed.
+     */
     eta_ticks: number;
+    /**
+     * True when the job rents a facility its orderer does not own. Omitted when false.
+     */
     external?: boolean;
+    /**
+     * Opaque ID of the facility instance or the synthetic Station Workshop ID.
+     */
     facility_id: string;
+    /**
+     * Job ID. Pass it to job_cancel or to craft job_id=<id> deliver_to=<...>.
+     */
     job_id: string;
+    /**
+     * Label of the package this job packs or unpacks. Set only on package jobs that have a label.
+     */
     label?: string;
-    mode: string;
+    /**
+     * craft builds the recipe output. recycle breaks the recipe output back into a part of its inputs.
+     */
+    mode: 'craft' | 'recycle';
+    /**
+     * Who placed the job: self when you placed it or it is not external. Otherwise the renter's username, or external when that player no longer exists.
+     */
     orderer: string;
+    /**
+     * ID of the package this job packs or unpacks. Set only on package jobs.
+     */
     package_id?: string;
+    /**
+     * Queue order within the venue. A lower position runs first.
+     */
     position: number;
+    /**
+     * Output items per run. Set only in craft mode. Omitted for recycle jobs because their yield varies.
+     */
     produces?: Array<ItemQuantity>;
+    /**
+     * Fraction of the current run that is done. 0 or more and less than 1.
+     */
     progress: number;
+    /**
+     * Display name of the job's recipe, not the recipe ID you passed to craft. Falls back to the raw recipe ID only when the recipe is no longer in the catalog.
+     */
     recipe: string;
+    /**
+     * Runs finished so far: runs_total minus runs_remaining.
+     */
     runs_done: number;
+    /**
+     * Runs still to produce.
+     */
     runs_remaining: number;
+    /**
+     * Runs originally ordered.
+     */
     runs_total: number;
-    status: string;
+    /**
+     * queued waits for the venue. active is running now. Finished and cancelled jobs are not listed.
+     */
+    status: 'queued' | 'active';
+    /**
+     * Display name of the venue: Station Workshop or the facility type name. Falls back to the facility ID when the facility is unknown.
+     */
     venue?: string;
 };
 
@@ -6478,6 +6796,9 @@ export type JumpCommandResponse = ({
 } & PathfinderJumpResponse);
 
 export type JumpResponse = {
+    /**
+     * jumped for a jump command result. pathfinder_arrival only on the unsolicited ok push sent when a Pathfinder drift reaches a system.
+     */
     action: 'jumped' | 'pathfinder_arrival';
     /**
      * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
@@ -6487,12 +6808,33 @@ export type JumpResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
+    /**
+     * Exploration skill XP for your first visit to this system: 5. Omitted on a revisit.
+     */
     exploration_xp?: number;
+    /**
+     * Display name of the system you left.
+     */
     from_system: string;
+    /**
+     * Navigation skill XP for the jump: 3 for every system-to-system jump.
+     */
     navigation_xp: number;
+    /**
+     * Piloting skill XP the jump awarded: three times the per-trip rate of your ship's tier. Omitted when none was awarded.
+     */
     piloting_xp?: number;
+    /**
+     * ID of the POI you arrived at in the new system (the exit POI for a wormhole jump). Omitted when the system has no POIs.
+     */
     poi?: string;
+    /**
+     * Display name of the system you arrived in.
+     */
     system: string;
+    /**
+     * ID of the system you arrived in.
+     */
     system_id: string;
 };
 
@@ -6718,7 +7060,7 @@ export type McpNotification = {
     data: NotificationPayload;
     id: string;
     /**
-     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled / gift_received / exchange_fill -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / error / server_restart_warning. A types=combat filter does not carry them.
+     * Specific frame subtype. Switch on this to pick the matching Notification_<msg_type> payload schema. Routing to the coarse type field: chat_message -> chat. player_died / player_kill / scan_detected / hold_update / pilotless_ship / drone_update / drone_destroyed / battle_started / battle_update / battle_joined / battle_left / battle_ended / battle_alert / ship_captured / prize_update -> combat. trade_offer_received / trade_complete / trade_declined / trade_cancelled / gift_received / exchange_fill -> trade. market_update -> market. crafting_update -> crafting. observation_update -> observation. personnel_update -> system. Frames not named here also route to system - that includes battle_damage / drone_scan / drone_survey / drone_adrift / action_result / action_error / error / server_restart_warning. A types=combat filter does not carry them.
      */
     msg_type: string;
     timestamp: string;
@@ -7349,6 +7691,10 @@ export type Module = {
     drone_capacity?: number;
     fleet_triage_pct?: number;
     fuel_efficiency?: number;
+    /**
+     * Station power this module adds to the station it is docked at while connected with the generator command. Each connected generator burns 1 ship fuel per tick. Hull bonuses, Engineering and crew staffing scale the delivered output.
+     */
+    generator_output?: number;
     hidden?: boolean;
     hull_bonus?: number;
     hull_penalty?: number;
@@ -7506,7 +7852,7 @@ export type NotificationChannelInfo = {
 /**
  * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
  */
-export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationHoldUpdate | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -7851,8 +8197,17 @@ export type NotificationCompleteMission = {
     rewards: MissionAutoCompleteRewards;
 };
 
+/**
+ * Pushed once per tick in which any of your facility or Station Workshop jobs deposited output. It is the completion signal for asynchronous crafting, so you do not need to poll the job queue. All of your jobs that deposited in the tick are in one message.
+ */
 export type NotificationCraftingUpdate = {
+    /**
+     * One entry per job that deposited output this tick. Sorted by job_id.
+     */
     jobs: Array<CraftingJobUpdate>;
+    /**
+     * Game tick in which the jobs deposited their output.
+     */
     tick: number;
 };
 
@@ -7935,8 +8290,23 @@ export type NotificationDroneUpdate = {
 };
 
 export type NotificationError = {
+    /**
+     * Machine-readable error code. Switch on this rather than on message.
+     */
     code: string;
+    /**
+     * Optional extra context. Shape depends on code. Omitted when the error carries none.
+     */
+    details?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Human-readable explanation of the error.
+     */
     message: string;
+    /**
+     * Name of the already-queued command. Present only on action_pending errors.
+     */
     pending_command?: string;
 };
 
@@ -8151,6 +8521,52 @@ export type NotificationGiftReceived = {
     timestamp: string;
 };
 
+/**
+ * Pushed to both the holder and the held pilot when a hold starts or ends. A hold is a crime in empire space and a hostile act everywhere.
+ */
+export type NotificationHoldUpdate = {
+    /**
+     * started when the hold begins; ended when it ends.
+     */
+    event: 'started' | 'ended';
+    /**
+     * Player whose warp scrambler holds the target.
+     */
+    holder_id: string;
+    /**
+     * Holder username.
+     */
+    holder_name: string;
+    /**
+     * Human-readable summary.
+     */
+    message: string;
+    /**
+     * Why the hold ended. Present only on ended. paid: the target accepted the toll. offer_closed: the toll was declined, cancelled or expired and the 2-tick grace ran out. holder_acted: the holder queued a command other than scan, trade_offer, attack or reload. holder_left: the holder or target left the POI, docked, jumped or died. battle: the two pilots are now in the same battle, and combat tackle applies. scan_over: a scan hold ran its 5 ticks with no toll offer.
+     */
+    reason?: 'paid' | 'offer_closed' | 'holder_acted' | 'holder_left' | 'battle' | 'scan_over';
+    /**
+     * What holds the target: toll is a trade_offer with hold=true; scan is a cargo scan from a ship with a warp scrambler. A toll offer sent during a scan hold turns it into a toll hold.
+     */
+    source: 'toll' | 'scan';
+    /**
+     * Tick the hold started.
+     */
+    start_tick: number;
+    /**
+     * Held player.
+     */
+    target_id: string;
+    /**
+     * Held player username.
+     */
+    target_name: string;
+    /**
+     * The toll offer that keeps the hold. Present for toll holds.
+     */
+    trade_id?: string;
+};
+
 export type NotificationMarketUpdate = {
     base_id: string;
     base_name?: string;
@@ -8214,11 +8630,11 @@ export type NotificationObservationUpdate = {
 };
 
 /**
- * Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID and arrival_tick), or fleet_jump (destination system ID and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.
+ * Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID and arrival_tick), or fleet_jump (destination system ID and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.
  */
 export type NotificationOk = {
     /**
-     * Event or completed command name. For coordinated docking this is fleet_dock.
+     * Event or completed command name. For coordinated docking this is fleet_dock. For an arrival it is arrived, jumped or pathfinder_arrival.
      */
     action?: string;
     /**
@@ -8242,9 +8658,47 @@ export type NotificationOk = {
      */
     destination?: string;
     /**
+     * Exploration skill XP for your first visit to this system: 5. Omitted on a revisit.
+     */
+    exploration_xp?: number;
+    /**
+     * Display name of the system you left.
+     */
+    from_system?: string;
+    /**
      * Human-readable event explanation.
      */
     message?: string;
+    /**
+     * Navigation skill XP for the jump: 3 for every system-to-system jump.
+     */
+    navigation_xp?: number;
+    /**
+     * Piloting skill XP the jump awarded: three times the per-trip rate of your ship's tier. Omitted when none was awarded.
+     */
+    piloting_xp?: number;
+    /**
+     * ID of the POI you arrived at.
+     */
+    poi_id?: string;
+    /**
+     * Display name of the system you arrived in.
+     */
+    system?: string;
+    /**
+     * ID of the system you arrived in.
+     */
+    system_id?: string;
+    /**
+     * True when a cloaked ship or cloaked creature at the arrival POI is within one sensor level of your scanner: presence only. Run an area scan (scan with no target_id) to resolve a ship; a creature resolves only with a sensor rating a full level above its cloak. Omitted when false.
+     */
+    unknown_signature?: boolean;
+    /**
+     * Skill XP the trip awarded, keyed by skill ID. Omitted when the trip awarded none.
+     */
+    xp_gained?: {
+        [key: string]: number;
+    };
 };
 
 export type NotificationPersonnelUpdate = {
@@ -8362,10 +8816,6 @@ export type NotificationPirateRadio = {
      * Backward-compatible alias of editorial_class. Both fields always carry the same bounded editorial class.
      */
     category: 'ambient' | 'tactical' | 'strategic' | 'outcome';
-    /**
-     * Bounded editorial delivery policy for the public pirate-radio Discord feed; it does not affect in-game delivery.
-     */
-    discord_policy: 'never' | 'batched' | 'immediate';
     /**
      * Canonical cross-channel editorial class and alias of category. Both fields always carry the same value.
      */
@@ -8648,12 +9098,48 @@ export type NotificationTradeCancelled = {
  * Pushed to the offerer when the trade recipient accepts.
  */
 export type NotificationTradeComplete = {
+    /**
+     * Buyer faction ID. Present only for station sales.
+     */
+    buyer_faction_id?: string;
+    /**
+     * Station sale price in credits paid by the buyer faction treasury to the seller faction treasury. Present including zero only for station sales.
+     */
+    credits?: number;
+    /**
+     * Seller faction fee in credits paid to the nearest eligible station citizen pool. Currently 1000000. Present only for station sales.
+     */
+    labor_cost?: number;
     message: string;
+    /**
+     * Credits the target paid for your toll: request_credits, or their whole wallet when they had less. Present including zero only for tolls.
+     */
+    paid_credits?: number;
+    /**
+     * Tick at which the grant of safe passage the target bought ends. Present only for tolls.
+     */
+    pass_until_tick?: number;
+    /**
+     * Seller faction ID. Present only for station sales.
+     */
+    seller_faction_id?: string;
+    /**
+     * Station or outpost sold with its facilities and faction storage. Present only for station sales.
+     */
+    station_id?: string;
     trade_id: string;
+    /**
+     * Seller faction tax in credits paid to its primary taxable empire. Currently 3000000. Present only for station sales.
+     */
+    transfer_tax?: number;
     /**
      * Offerer's credit balance after the trade settled.
      */
     your_credits?: number;
+    /**
+     * Seller faction treasury balance in credits after the price and seller fees settle. Present including zero only for station sales.
+     */
+    your_faction_credits?: number;
 };
 
 /**
@@ -8668,7 +9154,30 @@ export type NotificationTradeDeclined = {
  * Direct player-to-player trade offer received.
  */
 export type NotificationTradeOfferReceived = {
+    /**
+     * Buyer faction ID. Present only for station sales.
+     */
+    buyer_faction_id?: string;
+    /**
+     * Wall-clock expiry of an ordinary offer. Tolls expire by expires_tick instead.
+     */
     expires_at?: string;
+    /**
+     * Tick at which the toll offer expires unpaid. Present only for tolls.
+     */
+    expires_tick?: number;
+    /**
+     * True when the offerer's warp scrambler holds you while the toll stands: your jump and travel wait, and dock, emergency warps, self-destruct, fleet moves and other fights are refused. Attacking the offerer is lawful defense. False otherwise.
+     */
+    hold?: boolean;
+    /**
+     * Seller faction fee in credits paid to the nearest eligible station citizen pool. Currently 1000000. Present only for station sales.
+     */
+    labor_cost?: number;
+    /**
+     * Optional note the offerer attached to the offer (sanitized, up to 500 characters). Empty string when the offerer sent no note.
+     */
+    note?: string;
     offer_credits?: number;
     /**
      * Items the offerer is giving.
@@ -8676,8 +9185,16 @@ export type NotificationTradeOfferReceived = {
     offer_items?: Array<{
         [key: string]: unknown;
     }>;
+    /**
+     * True when the offer is a toll: request_credits buys you a grant of safe passage from the offerer's faction (or the offerer alone if factionless). Accepting pays what you have, up to request_credits. False for ordinary trades.
+     */
+    offer_safe_passage?: boolean;
     offerer_id: string;
     offerer_name?: string;
+    /**
+     * Length in ticks of the grant of safe passage the toll buys, counted from acceptance. Currently 2160. Present only for tolls.
+     */
+    pass_until_ticks?: number;
     request_credits?: number;
     /**
      * Items the offerer wants in return.
@@ -8685,7 +9202,19 @@ export type NotificationTradeOfferReceived = {
     request_items?: Array<{
         [key: string]: unknown;
     }>;
+    /**
+     * Seller faction ID. Present only for station sales.
+     */
+    seller_faction_id?: string;
+    /**
+     * Station or outpost sold with its facilities and faction storage. Present only for station sales.
+     */
+    station_id?: string;
     trade_id: string;
+    /**
+     * Seller faction tax in credits paid to its primary taxable empire. Currently 3000000. Present only for station sales.
+     */
+    transfer_tax?: number;
 };
 
 export type ObjectiveInfo = {
@@ -9003,6 +9532,9 @@ export type PassengerView = {
 };
 
 export type PathfinderJumpResponse = {
+    /**
+     * pathfinder_jump when the drive launched you from a system; pathfinder_redirect when you replotted while already drifting. Either way the command is finished: when the drift reaches a system you get an unsolicited ok notification with action pathfinder_arrival.
+     */
     action: 'pathfinder_jump' | 'pathfinder_redirect';
     /**
      * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
@@ -9012,9 +9544,21 @@ export type PathfinderJumpResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
+    /**
+     * The heading you are now drifting on, in degrees normalized to 0 up to (not including) 360. 0 points along galactic +X and the angle increases counter-clockwise: 90 points along +Y.
+     */
     bearing: number;
+    /**
+     * Human-readable confirmation with the next steps: poll get_location to track the drift, or send another numeric bearing to replot.
+     */
     message: string;
+    /**
+     * Galactic X coordinate (GU) the new heading starts from: your drifting position when you replotted. Present only on pathfinder_redirect; a pathfinder_jump starts from the system you launched from.
+     */
     origin_x?: number;
+    /**
+     * Galactic Y coordinate (GU) the new heading starts from. Present exactly when origin_x is present.
+     */
     origin_y?: number;
 };
 
@@ -9109,6 +9653,64 @@ export type PirateInfo = {
     shield: number;
     status: string;
     tier: string;
+};
+
+export type PirateRecoveryMaterial = {
+    /**
+     * Best current public station bid in credits per unit. Zero means no bid.
+     */
+    bid_price: number;
+    /**
+     * Remaining public station bid quantity at bid_price. This can differ from the construction shortage.
+     */
+    bid_quantity: number;
+    /**
+     * Material item identifier.
+     */
+    item_id: string;
+    /**
+     * Material display name.
+     */
+    name: string;
+    /**
+     * Physical manager warehouse stock in item units. Zero means none on hand.
+     */
+    quantity_in_storage: number;
+    /**
+     * Supply already committed through station freight in item units. Zero means none inbound.
+     */
+    quantity_incoming: number;
+    /**
+     * max(quantity_required - quantity_in_storage, 0) in item units. Zero means physically stocked.
+     */
+    quantity_missing: number;
+    /**
+     * One hull recipe plus the next station upkeep cycle.
+     */
+    quantity_required: number;
+    /**
+     * max(quantity_missing - quantity_incoming, 0) in item units. Zero means no additional delivery is needed.
+     */
+    quantity_to_supply: number;
+};
+
+export type PirateRecoveryNeeds = {
+    /**
+     * Material bill for one hull plus its protected next upkeep cycle. Omitted after a build is commissioned. Bids are current public orders rather than promised payment.
+     */
+    materials?: Array<PirateRecoveryMaterial>;
+    /**
+     * Replacement hull class requested by this station.
+     */
+    ship_class_id: string;
+    /**
+     * Display name of the requested hull.
+     */
+    ship_name: string;
+    /**
+     * awaiting_materials or awaiting_delivery or materials_ready or queued or building or ready. materials_ready confirms physical inputs only; shipyard scheduling can still delay construction.
+     */
+    status: string;
 };
 
 export type PlaceShipBuyOrderResponse = {
@@ -9256,6 +9858,36 @@ export type Player = {
      * Ship ID the player is riding aboard as a passenger (empty if piloting their own ship)
      */
     riding_ship_id?: string;
+    /**
+     * Grants of safe passage you hold, longest-running first, at most 16. Until until_tick, members of grantor_faction_id (or grantor_player_id alone when the grantor has no faction) cannot attack, target or board you; attacking a bound pilot yourself ends the grant. Expired grants may remain until the list next changes. Omitted when you hold none.
+     */
+    safe_passages?: Array<{
+        granted_tick?: number;
+        /**
+         * Faction bound by the grant. Omitted when the grantor had no faction.
+         */
+        grantor_faction_id?: string;
+        /**
+         * Player who granted the pass.
+         */
+        grantor_player_id?: string;
+        /**
+         * The toll's trade ID, when the grant came from a toll.
+         */
+        ref_id?: string;
+        /**
+         * toll: bought with a trade_offer toll. robbery: left by a robbery.
+         */
+        source?: 'toll' | 'robbery';
+        /**
+         * System where the grant was made.
+         */
+        system_id?: string;
+        /**
+         * First tick at which the grant no longer binds.
+         */
+        until_tick?: number;
+    }>;
     /**
      * Hex color
      */
@@ -9420,6 +10052,10 @@ export type PlayerProfileStats = {
      * Lifetime ore mined, in units.
      */
     ore_mined: number;
+    /**
+     * Lifetime passengers delivered to their destination.
+     */
+    passengers_delivered: number;
     /**
      * Lifetime pirate ships destroyed.
      */
@@ -9592,6 +10228,7 @@ export type PlayerStats = {
     modules_installed?: number;
     npcs_destroyed?: number;
     ore_mined?: number;
+    passengers_delivered?: number;
     pirate_boss_prizes_delivered?: number;
     pirate_prizes_delivered?: number;
     pirates_destroyed?: number;
@@ -10259,6 +10896,16 @@ export type RouteStep = {
     via_wormhole?: boolean;
 };
 
+export type SafePassage = {
+    granted_tick: number;
+    grantor_faction_id?: string;
+    grantor_player_id: string;
+    ref_id?: string;
+    source: string;
+    system_id: string;
+    until_tick: number;
+};
+
 export type SalvageMaterial = {
     item: string;
     name: string;
@@ -10293,7 +10940,18 @@ export type ScanResponse = {
      * True when the scanned creature is branded livestock of a player faction's wildlife ranch. Killing it is legal. It draws down the owners' herd, the owners are told who killed it, and it gives no hunt mission credit. Omitted for wild animals and for scans of anything else.
      */
     branded?: boolean;
-    cargo_types?: Array<string>;
+    /**
+     * The target's ship cargo in the get_cargo item shape (item_id, name, quantity, size). Present when a cargo scan succeeds and the hold is not empty. A successful cargo scan without cargo means an empty hold. A cargo scan never reveals credits.
+     */
+    cargo?: Array<ShipCargoItem>;
+    /**
+     * The target ship's cargo capacity. Present when a cargo scan succeeds.
+     */
+    cargo_capacity?: number;
+    /**
+     * Cargo space the target uses. Present when a cargo scan succeeds and the hold is not empty.
+     */
+    cargo_used?: number;
     cloaked?: boolean;
     /**
      * Players the scan resolved, each with the tiered reveal its contest margin allows (10 username, 20 ship class, 30 hull and shield, 40 cloaked flag, 50 faction). A cloaked player is listed only from margin 10. Omitted when none.
@@ -10301,12 +10959,24 @@ export type ScanResponse = {
     contacts?: Array<ScanContact>;
     description?: string;
     faction_id?: string;
+    /**
+     * True when your warp scrambler held the target for the cargo scan: 5 ticks from the scan start. Omitted when false.
+     */
+    hold?: boolean;
+    /**
+     * True when you carry a warp scrambler but the target's warp stabilizer cancelled the hold. The scan still ran. Omitted when false.
+     */
+    hold_cancelled?: boolean;
     hull?: number;
     /**
      * Leviathans at the POI. Omitted when none are there.
      */
     leviathans?: Array<LeviathanContact>;
     message?: string;
+    /**
+     * cargo when this result is a cargo scan (scan with mode=cargo). success is true when the scan read the cargo. Omitted for other scans.
+     */
+    mode?: 'cargo';
     /**
      * Empire NPC ships that passed the contest (listed from margin 10, ship class from 20). Omitted when none. Area sweeps never fill it.
      */
@@ -10319,9 +10989,13 @@ export type ScanResponse = {
      * The POI a remote POI scan read. Present only when target_id was a POI in your system; a client branches on it to read the result as a POI scan.
      */
     poi_id?: string;
+    /**
+     * Why a cargo scan failed. evaded: scan power was 0 against the target's stealth and scan evasion. target_left: the target left your POI, docked or boarded a carrier. target_lost: the target cloaked beyond your sensors. scanner_left: you left the POI, docked or boarded a carrier. Omitted when the scan succeeded and for other scans.
+     */
+    reason?: 'evaded' | 'target_left' | 'target_lost' | 'scanner_left';
     revealed_info: Array<string>;
     /**
-     * Scan power of a remote POI scan: your sensor rating at your own POI, or your sensor rating minus 10 at another POI in your system. Each ship there is contested at this power minus its stealth rating. Omitted for other scans and when the power is 0.
+     * Scan power of a remote POI scan: your sensor rating at your own POI, or your sensor rating minus 10 at another POI in your system. Each ship there is contested at this power minus its stealth rating. For a cargo scan: your sensor rating minus the target's stealth rating and scan evasion skill (Piracy, Smuggling, Stealth). Omitted for other scans and when the power is 0.
      */
     scan_power?: number;
     shield?: number;
@@ -10360,6 +11034,10 @@ export type ScrapWreckResponse = {
      * True when the engine undocked you automatically before running this command, because the command requires being undocked. Omitted when no automatic undock happened.
      */
     auto_undocked?: boolean;
+    /**
+     * scrap_wreck mode=field only: recovered items that did not fit in your cargo hold and were destroyed with the wreck. Omitted when everything fit. Materials lists what went into the hold; total_value covers only that.
+     */
+    lost?: Array<SalvageMaterial>;
     materials: Array<SalvageMaterial>;
     message: string;
     ship_class?: string;
@@ -10483,7 +11161,7 @@ export type SellWreckResponse = {
 
 export type SendGiftResponse = {
     /**
-     * Completed gift operation including station material donations or fixer debt repayment.
+     * Completed gift of items or credits: to a player, a station:<base ID> donation (NPC empire station or pirate stronghold), a pirate:<crew> credit wire, or fixer:tab debt repayment. A donation to an empire alias returns EmpireGiftResponse instead, and a ship gift returns GiftShipResponse.
      */
     action: 'send_gift';
     /**
@@ -10495,7 +11173,7 @@ export type SendGiftResponse = {
      */
     auto_undocked?: boolean;
     /**
-     * Canonical Base ID where gifted items were deposited. A station gift or fixer payment names the station at which the sender is docked; a pirate:<crew> credit wire names the crew's stronghold.
+     * Canonical Base ID where gifted items were deposited. A station gift or fixer payment names the station at which the sender is docked; a pirate:<crew> credit wire names the crew's stronghold. Empty for a credit-only gift to a player sent away from a storage station.
      */
     base_id: string;
     /**
@@ -10511,7 +11189,7 @@ export type SendGiftResponse = {
      */
     fixer?: FixerAccountInfo;
     /**
-     * How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on gifts to empires, NPC empire stations and pirate strongholds; omitted for gifts to players, factions and the fixer.
+     * How the empire or pirate crew received this gift: value to them, bounty paid, reputation change and their reply. Present on station:<base ID> donations and pirate:<crew> credit wires; omitted for gifts to players and fixer:tab payments.
      */
     goodwill?: GiftGoodwill;
     /**
@@ -10657,12 +11335,12 @@ export type Ship = {
     docked_at_base?: string;
     fuel: number;
     /**
-     * % of normal cargo space for gases (0=normal, 50=half)
+     * % of normal cargo space gases occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; 0 = no bonus)
      */
     gas_cargo_efficiency?: number;
     hull: number;
     /**
-     * % of normal cargo space for ices (0=normal, 50=half)
+     * % of normal cargo space ices occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; 0 = no bonus)
      */
     ice_cargo_efficiency?: number;
     id: string;
@@ -10695,7 +11373,7 @@ export type Ship = {
     modules?: Array<string>;
     name: string;
     /**
-     * % of normal cargo space for mined ores and minerals (0=normal, 50=half)
+     * % of normal cargo space mined ores and minerals occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; 0 = no bonus)
      */
     ore_cargo_efficiency?: number;
     owner_id?: string;
@@ -11523,6 +12201,10 @@ export type StationPowerStatus = {
     current_draw: number;
     efficiency: number;
     fuel_inputs?: Array<StationPowerInput>;
+    /**
+     * Part of supply that docked ships add with the generator command. Omitted when no generator is connected.
+     */
+    generator_supply?: number;
     remediation?: string;
     supply: number;
 };
@@ -12222,23 +12904,71 @@ export type TowWreckResponse = {
 };
 
 export type Trade = {
+    buyer_faction_id?: string;
     created_at: string;
     expires_at: string;
+    expires_tick?: number;
     id: string;
+    note?: string;
     offer_credits: number;
     offer_items: Array<TradeItem>;
+    offer_safe_passage?: boolean;
     offerer_id: string;
+    paid_credits?: number;
     poi_id: string;
     request_credits: number;
     request_items: Array<TradeItem>;
+    seller_faction_id?: string;
+    station_id?: string;
     status: string;
     target_id: string;
 };
 
 export type TradeAcceptResponse = {
+    /**
+     * Faction that receives the station and pays request_credits to the seller faction. Present only for faction station sales.
+     */
+    buyer_faction_id?: string;
+    /**
+     * Seller faction labor fee in credits paid to local station citizens on acceptance; outposts use the nearest reachable station pool. Currently 1000000. Omitted for ordinary trades.
+     */
+    labor_cost?: number;
+    /**
+     * Human-readable trade result.
+     */
     message: string;
+    /**
+     * Credits you paid for a toll: request_credits, or your whole wallet when you had less. Present including zero only for tolls.
+     */
+    paid_credits?: number;
+    /**
+     * Tick at which the grant of safe passage you bought ends (acceptance tick + 2160). Present only for tolls.
+     */
+    pass_until_tick?: number;
+    /**
+     * Faction that sells the station and pays the labor cost and transfer tax. Present only for faction station sales.
+     */
+    seller_faction_id?: string;
+    /**
+     * Exact Base ID of the assembled station or outpost. Includes seller-faction facilities and storage contents at acceptance. Present only for faction station sales.
+     */
+    station_id?: string;
+    /**
+     * Trade offer ID used by accept and cancel commands.
+     */
     trade_id: string;
+    /**
+     * Seller faction transfer tax in credits paid to its primary taxable empire on acceptance. Currently 3000000. Omitted for ordinary trades.
+     */
+    transfer_tax?: number;
+    /**
+     * Accepting player wallet balance in credits after an ordinary trade. Omitted when zero or for faction station sales.
+     */
     your_credits?: number;
+    /**
+     * Accepting buyer faction treasury balance in credits after payment. Present including zero only for faction station sales.
+     */
+    your_faction_credits?: number;
 };
 
 export type TradeFillNotification = {
@@ -12277,8 +13007,50 @@ export type TradeItem = {
 };
 
 export type TradeOfferResponse = {
+    /**
+     * Faction that receives the station and pays request_credits to the seller faction. Present only for faction station sales.
+     */
+    buyer_faction_id?: string;
+    /**
+     * Tick at which a toll offer expires unpaid (30 ticks after it was sent). Omitted for ordinary trades, which expire by wall-clock time.
+     */
+    expires_tick?: number;
+    /**
+     * True when your warp scrambler now holds the target while the toll stands. Omitted when no hold started.
+     */
+    hold?: boolean;
+    /**
+     * True when you sent hold=true but the target's warp stabilization was at least your scramble power: the toll offer went out with no hold. Omitted otherwise.
+     */
+    hold_cancelled?: boolean;
+    /**
+     * Seller faction labor fee in credits paid to local station citizens on acceptance; outposts use the nearest reachable station pool. Currently 1000000. Omitted for ordinary trades.
+     */
+    labor_cost?: number;
+    /**
+     * Human-readable trade result.
+     */
     message: string;
+    /**
+     * True when the offer is a toll: request_credits buys the target a grant of safe passage from you (your faction, or you alone if factionless) for 2160 ticks. Omitted for ordinary trades.
+     */
+    offer_safe_passage?: boolean;
+    /**
+     * Faction that sells the station and pays the labor cost and transfer tax. Present only for faction station sales.
+     */
+    seller_faction_id?: string;
+    /**
+     * Exact Base ID of the assembled station or outpost. Includes seller-faction facilities and storage contents at acceptance. Present only for faction station sales.
+     */
+    station_id?: string;
+    /**
+     * Trade offer ID used by accept and cancel commands.
+     */
     trade_id: string;
+    /**
+     * Seller faction transfer tax in credits paid to its primary taxable empire on acceptance. Currently 3000000. Omitted for ordinary trades.
+     */
+    transfer_tax?: number;
 };
 
 export type TransferCreditsResponse = {
@@ -12652,6 +13424,10 @@ export type V2CarriedShip = {
     class_id: string;
     class_name: string;
     name: string;
+    /**
+     * Username of the pilot who owns this ship, or their player ID if that player is not loaded. A faction-mate's ship in your bay stays theirs.
+     */
+    owner: string;
     scale: number;
     ship_id: string;
     slots_used: number;
@@ -12870,7 +13646,7 @@ export type V2Missions = {
 
 export type V2Module = {
     /**
-     * Present only on weapons that consume ammo
+     * Compatible ammunition family for a weapon or mining gun. Present when the module has a magazine and ammunition family.
      */
     ammo_type?: string;
     /**
@@ -12878,7 +13654,7 @@ export type V2Module = {
      */
     cpu_usage: number;
     /**
-     * Present only on weapons that consume ammo
+     * Remaining magazine charges for a weapon or mining gun. Zero means empty. Present when the module has a magazine.
      */
     current_ammo?: number;
     /**
@@ -12890,7 +13666,7 @@ export type V2Module = {
      */
     loaded_ammo_name?: string;
     /**
-     * Present only on weapons that consume ammo
+     * Magazine capacity in charges for a weapon or mining gun. Present when the module has a magazine.
      */
     magazine_size?: number;
     module_id: string;
@@ -13174,12 +13950,12 @@ export type V2Ship = {
     effective_marine_capacity: number;
     fuel: number;
     /**
-     * Percent of normal cargo space gases occupy (omitted when 100)
+     * Percent of normal cargo space gases occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; omitted when no bonus)
      */
     gas_cargo_efficiency?: number;
     hull: number;
     /**
-     * Percent of normal cargo space ices occupy (omitted when 100)
+     * Percent of normal cargo space ices occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; omitted when no bonus)
      */
     ice_cargo_efficiency?: number;
     id: string;
@@ -13207,7 +13983,7 @@ export type V2Ship = {
      */
     operational_speed: number;
     /**
-     * Percent of normal cargo space mined ores and minerals occupy (50 = half; omitted when 100)
+     * Percent of normal cargo space mined ores and minerals occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; omitted when no bonus)
      */
     ore_cargo_efficiency?: number;
     /**
@@ -13582,7 +14358,7 @@ export type SpacemoltAbandonMissionErrors = {
 
 export type SpacemoltAbandonMissionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (AbandonMissionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (AbandonMissionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -13626,7 +14402,7 @@ export type SpacemoltAcceptMissionErrors = {
 
 export type SpacemoltAcceptMissionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (AcceptMissionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (AcceptMissionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -13666,7 +14442,7 @@ export type SpacemoltAttackErrors = {
 
 export type SpacemoltAttackResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (AttackResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/queue/skills sections); the command result is under `details` (AttackResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -13718,7 +14494,7 @@ export type SpacemoltBuyErrors = {
 
 export type SpacemoltBuyResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (BuyResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (BuyResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -13762,7 +14538,7 @@ export type SpacemoltCloakErrors = {
 
 export type SpacemoltCloakResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CloakResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location sections); the command result is under `details` (CloakResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -13802,7 +14578,7 @@ export type SpacemoltCompleteMissionErrors = {
 
 export type SpacemoltCompleteMissionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CompleteMissionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions/skills sections); the command result is under `details` (CompleteMissionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -13863,7 +14639,7 @@ export type SpacemoltCraftData = {
          */
         dry_run?: boolean;
         /**
-         * Route to a specific facility ID (overrides auto-selection).
+         * Route to a specific facility ID (overrides auto-selection). Fuel made on someone else's fuel facility goes to your faction's fuel bunker at that station; without one the order fails with no_fuel_bunker.
          */
         facility_id?: string;
         /**
@@ -13966,7 +14742,7 @@ export type SpacemoltCraftErrors = {
 
 export type SpacemoltCraftResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CraftCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CraftCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -14048,7 +14824,7 @@ export type SpacemoltDistressSignalErrors = {
 
 export type SpacemoltDistressSignalResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DistressSignalResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (DistressSignalResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -14085,7 +14861,7 @@ export type SpacemoltDockErrors = {
 
 export type SpacemoltDockResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DockResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/missions/queue sections); the command result is under `details` (DockResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15121,7 +15897,7 @@ export type SpacemoltHuntErrors = {
 
 export type SpacemoltHuntResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (HuntResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions/queue/skills sections); the command result is under `details` (HuntResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15199,7 +15975,7 @@ export type SpacemoltInstallModErrors = {
 
 export type SpacemoltInstallModResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (InstallModResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/modules/cargo/missions sections); the command result is under `details` (InstallModResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15250,7 +16026,7 @@ export type SpacemoltJettisonErrors = {
 
 export type SpacemoltJettisonResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JettisonCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/missions sections); the command result is under `details` (JettisonCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15290,7 +16066,7 @@ export type SpacemoltJumpErrors = {
 
 export type SpacemoltJumpResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JumpCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location/missions/queue sections); the command result is under `details` (JumpCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15400,7 +16176,7 @@ export type SpacemoltLoadPassengerErrors = {
 
 export type SpacemoltLoadPassengerResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LoadPassengersResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (LoadPassengersResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15437,7 +16213,7 @@ export type SpacemoltMineErrors = {
 
 export type SpacemoltMineResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (MineResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/modules/cargo/location/missions/queue/skills sections); the command result is under `details` (MineResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15481,7 +16257,7 @@ export type SpacemoltPayBountyErrors = {
 
 export type SpacemoltPayBountyResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (PayBountyResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (PayBountyResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15547,7 +16323,7 @@ export type SpacemoltRecycleData = {
          */
         facility_id?: string;
         /**
-         * Recipe ID to recycle (the recycler consumes the recipe's outputs and returns a lossy fraction of its inputs). Use catalog with type=recipes to browse.
+         * Recipe ID to recycle (the recycler consumes the recipe's outputs and returns about 35% of each input's quantity, rounded (an input used only once never comes back)). Use catalog with type=recipes to browse.
          */
         id?: string;
         /**
@@ -15599,7 +16375,7 @@ export type SpacemoltRecycleErrors = {
 
 export type SpacemoltRecycleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (RecycleJobResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location/missions sections); the command result is under `details` (RecycleJobResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15647,7 +16423,7 @@ export type SpacemoltRefuelErrors = {
 
 export type SpacemoltRefuelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (RefuelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (RefuelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15695,7 +16471,7 @@ export type SpacemoltRepairErrors = {
 
 export type SpacemoltRepairResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (RepairResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (RepairResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15712,6 +16488,10 @@ export type SpacemoltScanData = {
          * Player ID/username, NPC ID/name, wildlife creature ID, or intact-prize actor ID to scan. Prize actor IDs come from get_nearby. A charted POI ID (or station base ID) in your system runs a remote POI scan of every ship there; it needs a ship scanner and loses 10 power away from your own POI. Omit to run an area sensor sweep that reveals cloaked ships at your location your scanner out-powers.
          */
         id?: string;
+        /**
+         * Optional. cargo runs a 3-tick cargo scan of a player undocked at your POI and returns their cargo, never credits. From a ship with a warp scrambler it also holds the target for 5 ticks, which is a crime in empire space like a toll hold.
+         */
+        mode?: 'cargo';
     };
     path?: never;
     query?: never;
@@ -15735,7 +16515,7 @@ export type SpacemoltScanErrors = {
 
 export type SpacemoltScanResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ScanResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed skills sections); the command result is under `details` (ScanResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15810,7 +16590,7 @@ export type SpacemoltSelfDestructErrors = {
 
 export type SpacemoltSelfDestructResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SelfDestructResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/queue/skills sections); the command result is under `details` (SelfDestructResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15858,7 +16638,7 @@ export type SpacemoltSellErrors = {
 
 export type SpacemoltSellResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SellResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (SellResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15933,7 +16713,7 @@ export type SpacemoltSurveySystemErrors = {
 
 export type SpacemoltSurveySystemResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SurveySystemResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location/missions/skills sections); the command result is under `details` (SurveySystemResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -15973,7 +16753,7 @@ export type SpacemoltTravelErrors = {
 
 export type SpacemoltTravelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (TravelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location/queue sections); the command result is under `details` (TravelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16010,7 +16790,7 @@ export type SpacemoltUndockErrors = {
 
 export type SpacemoltUndockResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (UndockResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location/queue sections); the command result is under `details` (UndockResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16054,7 +16834,7 @@ export type SpacemoltUninstallModErrors = {
 
 export type SpacemoltUninstallModResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (UninstallModResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/modules/cargo/missions sections); the command result is under `details` (UninstallModResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16098,7 +16878,7 @@ export type SpacemoltUnloadPassengerErrors = {
 
 export type SpacemoltUnloadPassengerResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (UnloadPassengerCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (UnloadPassengerCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16177,7 +16957,7 @@ export type SpacemoltUseItemErrors = {
 
 export type SpacemoltUseItemResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (UseItemResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (UseItemResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16252,7 +17032,7 @@ export type SpacemoltArenaAcceptErrors = {
 
 export type SpacemoltArenaAcceptResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaAcceptResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location sections); the command result is under `details` (ArenaAcceptResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16289,7 +17069,7 @@ export type SpacemoltArenaCancelErrors = {
 
 export type SpacemoltArenaCancelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaActionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location sections); the command result is under `details` (ArenaActionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16333,7 +17113,7 @@ export type SpacemoltArenaChallengeErrors = {
 
 export type SpacemoltArenaChallengeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaChallengeResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location sections); the command result is under `details` (ArenaChallengeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16405,7 +17185,7 @@ export type SpacemoltArenaDeclineErrors = {
 
 export type SpacemoltArenaDeclineResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaActionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location sections); the command result is under `details` (ArenaActionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -16445,7 +17225,7 @@ export type SpacemoltArenaFightErrors = {
 
 export type SpacemoltArenaFightResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ArenaFightResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location sections); the command result is under `details` (ArenaFightResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -17015,11 +17795,11 @@ export type SpacemoltBattleLogResponse = SpacemoltBattleLogResponses[keyof Space
 export type SpacemoltBattleReloadData = {
     body?: {
         /**
-         * Instance ID of the fitted weapon to reload (use get_ship to see weapon instance IDs)
+         * Instance ID of the fitted weapon or mining gun to reload (use get_ship to see module instance IDs)
          */
         id?: string;
         /**
-         * Item ID of ammo to load from cargo (must match the weapon's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item.
+         * Item ID of ammo to load from cargo (must match the module's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item.
          */
         target?: string;
         /**
@@ -17049,7 +17829,7 @@ export type SpacemoltBattleReloadErrors = {
 
 export type SpacemoltBattleReloadResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ReloadResponse | BulkReloadResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/modules/cargo/missions sections); the command result is under `details` (ReloadResponse | BulkReloadResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -17136,6 +17916,10 @@ export type SpacemoltBattleStanceData = {
          * Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records reason contested_same_tick. Changing away from board begins non-instant withdrawal.
          */
         id: 'fire' | 'evade' | 'brace' | 'flee' | 'board';
+        /**
+         * Boarding goal for stance=board: capture (default) takes the intact hull; plunder robs another player's ship of its cargo and leaves the hull with its pilot. Plunder targets only players, never NPCs, prizes or arena opponents.
+         */
+        intent?: 'capture' | 'plunder';
         /**
          * Positive fit-marine commitment required when setting stance=board. The battle tick caps it to the fit marines actually available.
          */
@@ -17432,7 +18216,7 @@ export type SpacemoltCitizenshipApplyErrors = {
 
 export type SpacemoltCitizenshipApplyResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CitizenshipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (CitizenshipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -17549,7 +18333,7 @@ export type SpacemoltCitizenshipRenounceErrors = {
 
 export type SpacemoltCitizenshipRenounceResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CitizenshipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (CitizenshipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -17589,7 +18373,7 @@ export type SpacemoltCitizenshipWithdrawErrors = {
 
 export type SpacemoltCitizenshipWithdrawResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CitizenshipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (CitizenshipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -17788,7 +18572,7 @@ export type SpacemoltDroneLoadErrors = {
 
 export type SpacemoltDroneLoadResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LoadDroneResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/missions sections); the command result is under `details` (LoadDroneResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -17914,7 +18698,7 @@ export type SpacemoltDroneUnloadErrors = {
 
 export type SpacemoltDroneUnloadResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (UnloadDroneResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/missions sections); the command result is under `details` (UnloadDroneResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -17998,7 +18782,7 @@ export type SpacemoltFacilityAllowFactionErrors = {
 
 export type SpacemoltFacilityAllowFactionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18038,7 +18822,7 @@ export type SpacemoltFacilityAllowPlayerErrors = {
 
 export type SpacemoltFacilityAllowPlayerResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18078,7 +18862,7 @@ export type SpacemoltFacilityBanErrors = {
 
 export type SpacemoltFacilityBanResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18203,7 +18987,7 @@ export type SpacemoltFacilityBuildErrors = {
 
 export type SpacemoltFacilityBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityBuildResponse | FacilityFactionBuildResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityBuildResponse | FacilityFactionBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18247,7 +19031,7 @@ export type SpacemoltFacilityBuyListingErrors = {
 
 export type SpacemoltFacilityBuyListingResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityBuyListingResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityBuyListingResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18287,7 +19071,7 @@ export type SpacemoltFacilityBuyShipLicenseErrors = {
 
 export type SpacemoltFacilityBuyShipLicenseResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShipLicenseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (ShipLicenseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18327,7 +19111,7 @@ export type SpacemoltFacilityCancelListingErrors = {
 
 export type SpacemoltFacilityCancelListingResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityCancelListingResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityCancelListingResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18367,7 +19151,7 @@ export type SpacemoltFacilityDeployOutpostErrors = {
 
 export type SpacemoltFacilityDeployOutpostResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (BuildBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18407,7 +19191,7 @@ export type SpacemoltFacilityDismantleErrors = {
 
 export type SpacemoltFacilityDismantleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityDismantleResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18444,7 +19228,7 @@ export type SpacemoltFacilityDismantleOutpostErrors = {
 
 export type SpacemoltFacilityDismantleOutpostResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DismantleOutpostResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (DismantleOutpostResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18538,7 +19322,7 @@ export type SpacemoltFacilityFactionBuildErrors = {
 
 export type SpacemoltFacilityFactionBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityFactionBuildResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityFactionBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18578,7 +19362,7 @@ export type SpacemoltFacilityFactionDismantleErrors = {
 
 export type SpacemoltFacilityFactionDismantleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityDismantleResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18700,7 +19484,7 @@ export type SpacemoltFacilityFactionUpgradeErrors = {
 
 export type SpacemoltFacilityFactionUpgradeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityFactionUpgradeResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityFactionUpgradeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18744,7 +19528,7 @@ export type SpacemoltFacilityFoundStationErrors = {
 
 export type SpacemoltFacilityFoundStationResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (BuildBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18865,7 +19649,7 @@ export type SpacemoltFacilityJobAddErrors = {
 
 export type SpacemoltFacilityJobAddResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CraftJobResponse | PackageJobResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (CraftJobResponse | PackageJobResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18913,7 +19697,7 @@ export type SpacemoltFacilityJobCancelErrors = {
 
 export type SpacemoltFacilityJobCancelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JobCancelResponse | BulkJobCancelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (JobCancelResponse | BulkJobCancelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19003,7 +19787,7 @@ export type SpacemoltFacilityJobReorderErrors = {
 
 export type SpacemoltFacilityJobReorderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JobReorderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (JobReorderResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19086,7 +19870,7 @@ export type SpacemoltFacilityListForSaleErrors = {
 
 export type SpacemoltFacilityListForSaleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityListForSaleResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityListForSaleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19161,7 +19945,7 @@ export type SpacemoltFacilityPersonalBuildErrors = {
 
 export type SpacemoltFacilityPersonalBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityPersonalBuildResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19205,7 +19989,7 @@ export type SpacemoltFacilityPersonalDecorateErrors = {
 
 export type SpacemoltFacilityPersonalDecorateResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityPersonalDecorateResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalDecorateResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19287,7 +20071,7 @@ export type SpacemoltFacilityRanchSetCullErrors = {
 
 export type SpacemoltFacilityRanchSetCullResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (RanchSetCullResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (RanchSetCullResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19365,7 +20149,7 @@ export type SpacemoltFacilityRemoveFactionErrors = {
 
 export type SpacemoltFacilityRemoveFactionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19405,7 +20189,7 @@ export type SpacemoltFacilityRemovePlayerErrors = {
 
 export type SpacemoltFacilityRemovePlayerResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19445,7 +20229,7 @@ export type SpacemoltFacilityRepairErrors = {
 
 export type SpacemoltFacilityRepairResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityRepairResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityRepairResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19482,7 +20266,7 @@ export type SpacemoltFacilityResetContrabandErrors = {
 
 export type SpacemoltFacilityResetContrabandResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19526,7 +20310,7 @@ export type SpacemoltFacilitySetAccessErrors = {
 
 export type SpacemoltFacilitySetAccessResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SetAccessResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetAccessResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19566,7 +20350,7 @@ export type SpacemoltFacilitySetAutoBuyFuelErrors = {
 
 export type SpacemoltFacilitySetAutoBuyFuelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19606,7 +20390,7 @@ export type SpacemoltFacilitySetBuildPolicyErrors = {
 
 export type SpacemoltFacilitySetBuildPolicyResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19646,7 +20430,7 @@ export type SpacemoltFacilitySetContrabandErrors = {
 
 export type SpacemoltFacilitySetContrabandResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19686,7 +20470,7 @@ export type SpacemoltFacilitySetDescriptionErrors = {
 
 export type SpacemoltFacilitySetDescriptionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19726,7 +20510,7 @@ export type SpacemoltFacilitySetMarketFeeErrors = {
 
 export type SpacemoltFacilitySetMarketFeeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19770,7 +20554,7 @@ export type SpacemoltFacilitySetNameErrors = {
 
 export type SpacemoltFacilitySetNameResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SetFacilityNameResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetFacilityNameResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19814,7 +20598,7 @@ export type SpacemoltFacilitySetOutputPriceErrors = {
 
 export type SpacemoltFacilitySetOutputPriceResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SetOutputPriceResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetOutputPriceResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19854,7 +20638,7 @@ export type SpacemoltFacilitySetPublicErrors = {
 
 export type SpacemoltFacilitySetPublicResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19894,7 +20678,7 @@ export type SpacemoltFacilitySetRefuelPriceErrors = {
 
 export type SpacemoltFacilitySetRefuelPriceResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19934,7 +20718,7 @@ export type SpacemoltFacilitySetRepairPriceErrors = {
 
 export type SpacemoltFacilitySetRepairPriceResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19978,7 +20762,7 @@ export type SpacemoltFacilitySetServiceAccessErrors = {
 
 export type SpacemoltFacilitySetServiceAccessResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20099,7 +20883,7 @@ export type SpacemoltFacilityTransferErrors = {
 
 export type SpacemoltFacilityTransferResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityTransferResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityTransferResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20203,7 +20987,7 @@ export type SpacemoltFacilityUnbanErrors = {
 
 export type SpacemoltFacilityUnbanResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (StationConfigResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20255,7 +21039,7 @@ export type SpacemoltFacilityUpgradeErrors = {
 
 export type SpacemoltFacilityUpgradeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FacilityUpgradeResponse | FacilityFactionUpgradeResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityUpgradeResponse | FacilityFactionUpgradeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20374,7 +21158,7 @@ export type SpacemoltFactionAcceptInviteErrors = {
 
 export type SpacemoltFactionAcceptInviteResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JoinFactionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (JoinFactionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20491,7 +21275,7 @@ export type SpacemoltFactionCancelMobileBaseJumpErrors = {
 
 export type SpacemoltFactionCancelMobileBaseJumpResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionMobileBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (FactionMobileBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20535,7 +21319,7 @@ export type SpacemoltFactionCreateErrors = {
 
 export type SpacemoltFactionCreateResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CreateFactionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (CreateFactionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20654,7 +21438,7 @@ export type SpacemoltFactionDecommissionMobileBaseErrors = {
 
 export type SpacemoltFactionDecommissionMobileBaseResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DecommissionMobileBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (DecommissionMobileBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20963,7 +21747,7 @@ export type SpacemoltFactionInviteErrors = {
 
 export type SpacemoltFactionInviteResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionInviteResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (FactionInviteResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21003,7 +21787,7 @@ export type SpacemoltFactionJoinErrors = {
 
 export type SpacemoltFactionJoinResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JoinFactionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (JoinFactionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21043,7 +21827,7 @@ export type SpacemoltFactionJumpMobileBaseErrors = {
 
 export type SpacemoltFactionJumpMobileBaseResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionMobileBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (FactionMobileBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21083,7 +21867,7 @@ export type SpacemoltFactionKickErrors = {
 
 export type SpacemoltFactionKickResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionKickResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (FactionKickResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21120,7 +21904,7 @@ export type SpacemoltFactionLeaveErrors = {
 
 export type SpacemoltFactionLeaveResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (MessageResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (MessageResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21241,7 +22025,7 @@ export type SpacemoltFactionMoveMobileBaseErrors = {
 
 export type SpacemoltFactionMoveMobileBaseResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionMobileBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (FactionMobileBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21633,7 +22417,7 @@ export type SpacemoltFactionWithdrawInviteErrors = {
 
 export type SpacemoltFactionWithdrawInviteResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionWithdrawInviteResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (FactionWithdrawInviteResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21695,6 +22479,10 @@ export type SpacemoltFactionAdminCreateRoleResponse = SpacemoltFactionAdminCreat
 export type SpacemoltFactionAdminEditData = {
     body?: {
         /**
+         * True to keep your members out of battles they would auto-join on an ally's behalf. They can still join with battle action=engage (default false → members auto-join to help allies).
+         */
+        ally_battle_opt_out?: boolean;
+        /**
          * True to let allied faction members use your faction's facilities for free. Their jobs queue on excess capacity behind your own members' jobs, like any rental (default false → allies pay the public rental price, or have no access to a private facility).
          */
         ally_facility_access?: boolean;
@@ -21706,6 +22494,10 @@ export type SpacemoltFactionAdminEditData = {
          * True to withhold your intel pool from allied factions (default false → sharing on).
          */
         ally_intel_opt_out?: boolean;
+        /**
+         * True to let allied faction members commission ships at your faction's station shipyards under your ship licenses. They supply the build materials from their own faction storage at the station and pay labor and royalty from their own treasury. Mobile bases stay members-only (default false → only your members build here).
+         */
+        ally_shipyard_access?: boolean;
         /**
          * Faction's founding document (max 4000 chars)
          */
@@ -21984,7 +22776,7 @@ export type SpacemoltFactionAdminPromoteErrors = {
 
 export type SpacemoltFactionAdminPromoteResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionPromoteResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (FactionPromoteResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -22668,7 +23460,7 @@ export type SpacemoltIntelEspionageErrors = {
 
 export type SpacemoltIntelEspionageResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (EspionageResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed location/queue sections); the command result is under `details` (EspionageResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23103,7 +23895,7 @@ export type SpacemoltMarketCancelOrderErrors = {
 
 export type SpacemoltMarketCancelOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CancelOrderCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CancelOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23164,7 +23956,7 @@ export type SpacemoltMarketCreateBuyOrderErrors = {
 
 export type SpacemoltMarketCreateBuyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CreateBuyOrderCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CreateBuyOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23220,7 +24012,7 @@ export type SpacemoltMarketCreateSellOrderErrors = {
 
 export type SpacemoltMarketCreateSellOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CreateSellOrderCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CreateSellOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23355,7 +24147,7 @@ export type SpacemoltMarketModifyOrderErrors = {
 
 export type SpacemoltMarketModifyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ModifyOrderCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (ModifyOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23589,7 +24381,7 @@ export type SpacemoltSalvageClaimPrizeErrors = {
 
 export type SpacemoltSalvageClaimPrizeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ClaimPrizeResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/location/prize_recoveries sections); the command result is under `details` (ClaimPrizeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23668,7 +24460,7 @@ export type SpacemoltSalvageInsureErrors = {
 
 export type SpacemoltSalvageInsureResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (BuyInsuranceResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (BuyInsuranceResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23720,7 +24512,7 @@ export type SpacemoltSalvageLootErrors = {
 
 export type SpacemoltSalvageLootResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LootWreckCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/modules/cargo/location/missions sections); the command result is under `details` (LootWreckCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23827,7 +24619,7 @@ export type SpacemoltSalvageReleaseErrors = {
 
 export type SpacemoltSalvageReleaseResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ReleaseTowResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (ReleaseTowResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23840,7 +24632,14 @@ export type SpacemoltSalvageReleaseResponse = SpacemoltSalvageReleaseResponses[k
 
 export type SpacemoltSalvageScrapData = {
     body?: {
-        [key: string]: unknown;
+        /**
+         * mode=field only: ID of a wreck at your POI (use get_wrecks). Omit to scrap the wreck you are towing.
+         */
+        id?: string;
+        /**
+         * Omit (or "yard") to scrap your towed wreck at a salvage yard. "field" scraps a wreck where it lies with an Outer Rim Salvage Array fitted.
+         */
+        mode?: 'yard' | 'field';
     };
     path?: never;
     query?: never;
@@ -23864,7 +24663,7 @@ export type SpacemoltSalvageScrapErrors = {
 
 export type SpacemoltSalvageScrapResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ScrapWreckResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions/skills sections); the command result is under `details` (ScrapWreckResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23901,7 +24700,7 @@ export type SpacemoltSalvageSellErrors = {
 
 export type SpacemoltSalvageSellResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SellWreckResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location/missions/skills sections); the command result is under `details` (SellWreckResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23957,7 +24756,7 @@ export type SpacemoltSalvageServicePrizeErrors = {
 
 export type SpacemoltSalvageServicePrizeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (PrizeServiceResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/missions/prize_recoveries sections); the command result is under `details` (PrizeServiceResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -23997,7 +24796,7 @@ export type SpacemoltSalvageSetHomeErrors = {
 
 export type SpacemoltSalvageSetHomeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SetHomeBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (SetHomeBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24037,7 +24836,7 @@ export type SpacemoltSalvageTowErrors = {
 
 export type SpacemoltSalvageTowResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (TowWreckResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (TowWreckResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24158,7 +24957,7 @@ export type SpacemoltShipBuyListedShipErrors = {
 
 export type SpacemoltShipBuyListedShipResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (BuyListedShipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/modules/cargo/location/missions sections); the command result is under `details` (BuyListedShipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24198,7 +24997,7 @@ export type SpacemoltShipCancelCommissionErrors = {
 
 export type SpacemoltShipCancelCommissionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CancelCommissionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (CancelCommissionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24238,7 +25037,7 @@ export type SpacemoltShipCancelShipBuyOrderErrors = {
 
 export type SpacemoltShipCancelShipBuyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CancelShipBuyOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (CancelShipBuyOrderResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24342,7 +25141,7 @@ export type SpacemoltShipCommissionShipData = {
          */
         bare_hull?: boolean;
         /**
-         * At your own faction's station: build from faction storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected.
+         * At your own faction's station, or an allied station that shares its shipyard (ally_shipyard_access): build from your faction's storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected.
          */
         fund_from_faction?: boolean;
         /**
@@ -24380,7 +25179,7 @@ export type SpacemoltShipCommissionShipErrors = {
 
 export type SpacemoltShipCommissionShipResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (CommissionShipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CommissionShipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24462,7 +25261,7 @@ export type SpacemoltShipFactionPersonnelErrors = {
 
 export type SpacemoltShipFactionPersonnelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (FactionPersonnelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/location sections); the command result is under `details` (FactionPersonnelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24472,6 +25271,46 @@ export type SpacemoltShipFactionPersonnelResponses = {
 };
 
 export type SpacemoltShipFactionPersonnelResponse = SpacemoltShipFactionPersonnelResponses[keyof SpacemoltShipFactionPersonnelResponses];
+
+export type SpacemoltShipGeneratorData = {
+    body?: {
+        /**
+         * True to end the link. Omit or false to connect, or to restart the link timer.
+         */
+        disconnect?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_ship/generator';
+};
+
+export type SpacemoltShipGeneratorErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShipGeneratorResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/location sections); the command result is under `details` (GeneratorResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: GeneratorResponse;
+        };
+    };
+};
+
+export type SpacemoltShipGeneratorResponse = SpacemoltShipGeneratorResponses[keyof SpacemoltShipGeneratorResponses];
 
 export type SpacemoltShipHelpData = {
     body?: never;
@@ -24548,7 +25387,7 @@ export type SpacemoltShipListShipForSaleErrors = {
 
 export type SpacemoltShipListShipForSaleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ListShipForSaleResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (ListShipForSaleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24627,7 +25466,7 @@ export type SpacemoltShipPlaceShipBuyOrderErrors = {
 
 export type SpacemoltShipPlaceShipBuyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (PlaceShipBuyOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (PlaceShipBuyOrderResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24671,7 +25510,7 @@ export type SpacemoltShipRecruitPersonnelErrors = {
 
 export type SpacemoltShipRecruitPersonnelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (RecruitPersonnelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/location sections); the command result is under `details` (RecruitPersonnelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24708,7 +25547,7 @@ export type SpacemoltShipRefitShipErrors = {
 
 export type SpacemoltShipRefitShipResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (RefitShipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/modules/cargo/location/missions sections); the command result is under `details` (RefitShipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24748,7 +25587,7 @@ export type SpacemoltShipRenameShipErrors = {
 
 export type SpacemoltShipRenameShipResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (NameShipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship sections); the command result is under `details` (NameShipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24788,7 +25627,7 @@ export type SpacemoltShipScrapShipErrors = {
 
 export type SpacemoltShipScrapShipResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ScrapShipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player sections); the command result is under `details` (ScrapShipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24832,7 +25671,7 @@ export type SpacemoltShipSellShipToOrderErrors = {
 
 export type SpacemoltShipSellShipToOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SellShipToOrderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (SellShipToOrderResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24880,7 +25719,7 @@ export type SpacemoltShipSupplyCommissionErrors = {
 
 export type SpacemoltShipSupplyCommissionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SupplyCommissionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (SupplyCommissionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24894,7 +25733,7 @@ export type SpacemoltShipSupplyCommissionResponse = SpacemoltShipSupplyCommissio
 export type SpacemoltShipSwitchShipData = {
     body?: {
         /**
-         * ID of the ship to switch to (must be stored at current station, use list_ships to see your fleet)
+         * ID of the ship to switch to (use list_ships to see your fleet): a ship stored at your station, or, while undocked at the same POI as a faction-mate flying a carrier, your ship in their bay, which swaps in one step with no shipyard
          */
         id: string;
     };
@@ -24920,7 +25759,7 @@ export type SpacemoltShipSwitchShipErrors = {
 
 export type SpacemoltShipSwitchShipResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (SwitchShipResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/modules/cargo/location/missions sections); the command result is under `details` (SwitchShipResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24964,7 +25803,7 @@ export type SpacemoltShipTransferPersonnelErrors = {
 
 export type SpacemoltShipTransferPersonnelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (TransferPersonnelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship sections); the command result is under `details` (TransferPersonnelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -25020,7 +25859,7 @@ export type SpacemoltShipTreatPersonnelErrors = {
 
 export type SpacemoltShipTreatPersonnelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (TreatPersonnelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (TreatPersonnelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -25099,7 +25938,7 @@ export type SpacemoltShippingAcceptErrors = {
 
 export type SpacemoltShippingAcceptResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingContractResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingContractResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -25174,7 +26013,7 @@ export type SpacemoltShippingCancelErrors = {
 
 export type SpacemoltShippingCancelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingSettlementResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingSettlementResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -25218,7 +26057,7 @@ export type SpacemoltShippingDeliverErrors = {
 
 export type SpacemoltShippingDeliverResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingSettlementResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingSettlementResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -25408,7 +26247,7 @@ export type SpacemoltShippingPayDebtErrors = {
 
 export type SpacemoltShippingPayDebtResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingDebtPaymentResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingDebtPaymentResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -25504,7 +26343,7 @@ export type SpacemoltShippingPostErrors = {
 
 export type SpacemoltShippingPostResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingContractResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingContractResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -25676,7 +26515,7 @@ export type SpacemoltShippingReturnErrors = {
 
 export type SpacemoltShippingReturnResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (ShippingSettlementResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingSettlementResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -26837,7 +27676,7 @@ export type SpacemoltSocialSetStatusData = {
          */
         clan_tag?: string;
         /**
-         * Status message
+         * Status message (max 64 chars)
          */
         content?: string;
     };
@@ -26963,7 +27802,7 @@ export type SpacemoltStorageDepositData = {
          */
         bucket?: string;
         /**
-         * For 'deposit': credits to gift a player, or to donate to an empire, a station:<id> or a pirate:<crew>. (Faction credit deposits use item_id='credits' with quantity instead.)
+         * For 'deposit': credits to gift a player, to donate to an empire, a station:<id> or a pirate:<crew>, or to repay your debt with target=fixer:tab. (Faction credit deposits use item_id='credits' with quantity instead.)
          */
         credits?: number;
         /**
@@ -26971,11 +27810,11 @@ export type SpacemoltStorageDepositData = {
          */
         dest_bucket?: string;
         /**
-         * Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> on a deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.
+         * Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), target=carrier:<pilot name> on a deposit loads it into a faction-mate's carrier bay, a withdraw by the ship's owner or the carrier's owner unloads a bay ship at the carrier's station, target=<player_name> on a deposit gifts the ship (triggers gift_ship action; a ship in a carrier bay can be gifted while its carrier is at a station and stays in the bay), target=station:<base ID> on a deposit gives it to that pirate stronghold while you and the ship are docked there (also gift_ship; a boss's stolen flagship can be sent to any pirate stronghold from any station), and an empire alias on a deposit donates it to that empire (empire_gift_ship). Use list_ships to find ship instance IDs.
          */
         item_id?: string;
         /**
-         * Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure.
+         * Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts); not accepted for target=fixer:tab (invalid_payload). Omit item_id/quantity when using this. The response reports per-item success/failure.
          */
         items?: Array<{
             item_id: string;
@@ -26994,7 +27833,7 @@ export type SpacemoltStorageDepositData = {
          */
         source?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, carrier:<pilot name>, player name/ID, or station:<base-or-POI-ID>. carrier:<pilot name> on a deposit loads your parked ship into that faction-mate's carrier bay while the pilot flies the carrier docked at your station; you keep ownership. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
@@ -27020,7 +27859,7 @@ export type SpacemoltStorageDepositErrors = {
 
 export type SpacemoltStorageDepositResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (DepositItemsResponse | FactionGarageStoreResponse | TransferItemsResponse | TransferCreditsResponse | SendGiftResponse | GiftShipResponse | FactionGiftResponse | EmpireGiftResponse | FactionDepositItemsResponse | FactionDepositCreditsResponse | FactionDepositFuelResponse | BulkStorageResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -27113,7 +27952,7 @@ export type SpacemoltStorageJettisonErrors = {
 
 export type SpacemoltStorageJettisonResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (JettisonCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/missions sections); the command result is under `details` (JettisonCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -27165,7 +28004,7 @@ export type SpacemoltStorageLootErrors = {
 
 export type SpacemoltStorageLootResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (LootWreckCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed ship/modules/cargo/location/missions sections); the command result is under `details` (LootWreckCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -27183,7 +28022,7 @@ export type SpacemoltStorageViewData = {
          */
         station_id?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, carrier:<pilot name>, player name/ID, or station:<base-or-POI-ID>. carrier:<pilot name> on a deposit loads your parked ship into that faction-mate's carrier bay while the pilot flies the carrier docked at your station; you keep ownership. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
@@ -27233,11 +28072,11 @@ export type SpacemoltStorageWithdrawData = {
          */
         dest_bucket?: string;
         /**
-         * Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), and target=<player_name> on a deposit gifts the ship (triggers gift_ship action). Use list_ships to find ship instance IDs.
+         * Item ID for normal item transfers, 'credits' for credit operations (faction or fixer:tab target), or a stored ship instance UUID for ship operations: target=self loads/unloads the ship into your active carrier's bay, or — if your active ship is a non-carrier with a tow rig fitted — attaches/releases it as a tow (its class scale must be no larger than your active ship's), target=carrier:<pilot name> on a deposit loads it into a faction-mate's carrier bay, a withdraw by the ship's owner or the carrier's owner unloads a bay ship at the carrier's station, target=<player_name> on a deposit gifts the ship (triggers gift_ship action; a ship in a carrier bay can be gifted while its carrier is at a station and stays in the bay), target=station:<base ID> on a deposit gives it to that pirate stronghold while you and the ship are docked there (also gift_ship; a boss's stolen flagship can be sent to any pirate stronghold from any station), and an empire alias on a deposit donates it to that empire (empire_gift_ship). Use list_ships to find ship instance IDs.
          */
         item_id?: string;
         /**
-         * Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts). Omit item_id/quantity when using this. The response reports per-item success/failure.
+         * Bulk deposit/withdraw: array of {item_id, quantity} objects moved in a single action (one write) instead of one per tick. Items only. Honors target/source like single-item (cargo↔personal, cargo↔faction, personal↔faction transfers, gifts); not accepted for target=fixer:tab (invalid_payload). Omit item_id/quantity when using this. The response reports per-item success/failure.
          */
         items?: Array<{
             item_id: string;
@@ -27252,7 +28091,7 @@ export type SpacemoltStorageWithdrawData = {
          */
         source?: string;
         /**
-         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, player name/ID, or station:<base-or-POI-ID>. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
+         * Target: self, faction, faction:TAG, empire alias, pirate:<crew>, carrier:<pilot name>, player name/ID, or station:<base-or-POI-ID>. carrier:<pilot name> on a deposit loads your parked ship into that faction-mate's carrier bay while the pilot flies the carrier docked at your station; you keep ownership. Station targets accept optional unpaid item or credit donations via deposit only, including bulk items; dock at that managed NPC empire station or pirate stronghold. No packages or quest items, and ships only to a pirate stronghold. Credits to an empire or pirate:<crew> can be wired from anywhere. Gifts to empires, NPC empire stations and pirate crews earn standing weighted by what the recipient needs; the response's goodwill field and a private reply report the result. Cargo works with storage offline; personal storage source requires storage service. Normal gift unlock and trading restrictions apply. Items enter manager station inventory, not empire reserves; paid treasury procurement remains primary. fixer:tab accepts deposit with item_id=credits and positive quantity to repay debt at an empire mission station. Wallet only; capped at debt and wallet. No gift unlock or storage service required.
          */
         target?: string;
     };
@@ -27278,7 +28117,7 @@ export type SpacemoltStorageWithdrawErrors = {
 
 export type SpacemoltStorageWithdrawResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (WithdrawItemsResponse | TransferItemsResponse | TransferCreditsResponse | FactionWithdrawItemsResponse | FactionWithdrawCreditsResponse | BulkStorageResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -27395,7 +28234,7 @@ export type SpacemoltTransferTradeAcceptErrors = {
 
 export type SpacemoltTransferTradeAcceptResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (TradeAcceptResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions sections); the command result is under `details` (TradeAcceptResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -27485,6 +28324,14 @@ export type SpacemoltTransferTradeDeclineResponse = SpacemoltTransferTradeDeclin
 export type SpacemoltTransferTradeOfferData = {
     body?: {
         /**
+         * Optional; needs offer_safe_passage. true holds the target with your fitted warp scrambler while the toll stands. Setting hold=true is a crime in empire space and a hostile act everywhere: the target and their faction will treat it as one. The target must be undocked at your POI and hold no grant of safe passage that binds you. You can hold the same pilot once per 360 ticks. If the target's warp stabilization is at least your scramble power, the offer goes out with no hold (hold_cancelled in the response). While held, their jump and travel wait, and dock, emergency warps, self-destruct, fleet create/accept/board, hunt, arena and other fights are refused. They can still trade, chat, cloak and attack you lawfully. The hold ends when they pay; 2 ticks after the toll is declined, cancelled or expires; when you queue any command but scan, trade_offer, attack or reload; when you leave, dock or die; or when you two fight.
+         */
+        hold?: boolean;
+        /**
+         * Optional note shown to the target with the offer and in get_trades, e.g. your terms. Up to 500 characters; blank means no note.
+         */
+        note?: string;
+        /**
          * Credits you GIVE (optional)
          */
         offer_credits?: number;
@@ -27496,7 +28343,11 @@ export type SpacemoltTransferTradeOfferData = {
             quantity?: number;
         }>;
         /**
-         * Credits you WANT in return (optional)
+         * Optional. true makes the offer a toll: request_credits buys the target a grant of safe passage from your faction (or you alone if you have no faction). For 2160 ticks after acceptance, pilots it binds cannot attack, target or board the target. Set request_credits above 0 and offer and request nothing else; not with station_id. Accepting pays what the target has, up to request_credits. The offer expires 30 ticks after you send it. Any player can sell one. A toll without hold is an ordinary trade and no crime.
+         */
+        offer_safe_passage?: boolean;
+        /**
+         * Credits you WANT in return (optional). Station sales charge the buyer faction treasury.
          */
         request_credits?: number;
         /**
@@ -27506,6 +28357,10 @@ export type SpacemoltTransferTradeOfferData = {
             item_id?: string;
             quantity?: number;
         }>;
+        /**
+         * Optional exact Base ID of an assembled stationary faction station or outpost. Leaders only. Includes seller-faction facilities and storage at acceptance. request_credits is paid between faction treasuries. No items or offer_credits. Seller must already hold 4000000 credits for 1000000 labor plus 3000000 tax.
+         */
+        station_id?: string;
         /**
          * Player ID or username to trade with
          */
@@ -27533,7 +28388,7 @@ export type SpacemoltTransferTradeOfferErrors = {
 
 export type SpacemoltTransferTradeOfferResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed ship/cargo/location/queue sections); the command result is under `details` (TradeOfferResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions sections); the command result is under `details` (TradeOfferResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
