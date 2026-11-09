@@ -5416,6 +5416,60 @@ export type FaintSignature = {
     type: string;
 };
 
+export type FieldJob = {
+    /**
+     * Inputs held for the remaining runs. One entry per item. size is the item's base cargo size. A finished run uses its share; a cancel returns the rest to cargo.
+     */
+    escrow: Array<ShipCargoItem>;
+    /**
+     * Job ID. craft job_id=<id> cancels it.
+     */
+    id: string;
+    /**
+     * Player who queued the job.
+     */
+    initiated_by: string;
+    /**
+     * Fraction of the current run that is done. 0 or more and less than 1.
+     */
+    progress: number;
+    /**
+     * Game tick when the job was queued.
+     */
+    queued_tick: number;
+    /**
+     * Recipe the job crafts.
+     */
+    recipe_id: string;
+    /**
+     * Runs originally ordered.
+     */
+    runs: number;
+    /**
+     * Runs still to produce.
+     */
+    runs_remaining: number;
+};
+
+export type FieldWorkshopView = {
+    /**
+     * Why the queue does not advance. Present only when state is paused. not_active: the ship is not its owner's active ship (parked or in a carrier bay or the pilot switched ships). docked: the pilot is docked. moving: travelling or jumping (including with a fleet). in_battle: the pilot is in a battle. no_crew: the ship has no fit crew. pilot_action: in the most recent tick the pilot ran a command that uses the ship (travel, jump, dock, undock, mine, attack, hunt, scan, cloak, loot_wreck, tow_wreck, release_tow, jettison, install_mod, uninstall_mod, reload, drone commands, survey_system or use_item). cargo_full: no queued job's next run fits in cargo after that run's inputs are used; free cargo space to resume.
+     */
+    pause_reason?: 'not_active' | 'docked' | 'moving' | 'in_battle' | 'no_crew' | 'pilot_action' | 'cargo_full';
+    /**
+     * Number of jobs queued on this ship's Field Workshop. 0 when state is idle. craft with no recipe_id lists them (venue Field Workshop).
+     */
+    queued_jobs: number;
+    /**
+     * Cargo space held by inputs escrowed on this ship's Field Workshop jobs. It is not part of cargo_used but it is not free: free cargo space is cargo_capacity - cargo_used - reserved_cargo. A finished run releases its inputs' share. A cancel returns the inputs to cargo into this space. 0 when no inputs are escrowed.
+     */
+    reserved_cargo: number;
+    /**
+     * idle: no jobs are queued on this ship. running: the queue advances this tick at Station Workshop speed. paused: it does not advance and pause_reason says why. A pause loses nothing: progress and escrowed inputs stay on the jobs.
+     */
+    state: 'idle' | 'running' | 'paused';
+};
+
 export type Fill = {
     counterparty?: string;
     price_each: number;
@@ -6391,7 +6445,7 @@ export type GiftGoodwill = {
      */
     reputation_change: number;
     /**
-     * Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship. A ship given to a pirate crew instead reports what the crew did with it: ship_scrap (no pirate design for that hull), ship_refit (rebuilt to a pirate design) or ship_pirate (a pirate-built hull) followed by _cheap, _mid or _expensive by its fitted value; or, when the boss gets involved, boss_upgrade (the boss switches to your ship because it out-fights the boss's current one), boss_hunt (the boss's flagship is in a player's hands and the boss takes your stronger ship to hunt them), boss_flagship_returned, boss_rival_flown (the boss flies another boss's flagship until the stolen one comes back) or boss_rival_scrapped, each with _cold appended when the crew does not like you. stranger, hostile and cooling still apply to ordinary pirate ship gifts.
+     * Outcome class that picked the reply: stranger (a pirate crew kept the gift but owes nothing to a pilot never introduced to the pirate network), bounty_partial, bounty_cleared, hostile, cooling, unwanted_items, unwanted_ship, or token/appreciated/generous/lavish/devoted followed by _credits, _items or _ship. A ship given to a pirate crew instead reports what the crew did with it: ship_scrap (no pirate design for that hull), ship_refit (rebuilt to a pirate design) or ship_pirate (a pirate-built hull) followed by _cheap, _mid or _expensive by its fitted value; or, when the boss gets involved, boss_upgrade (the boss switches to your ship because it out-fights the boss's current one), boss_hunt (the boss's flagship is in a player's hands and the boss takes your stronger ship to hunt them), boss_flagship_returned, boss_rival_flown (the boss flies another boss's flagship while his own is away from his crew) or boss_rival_scrapped, each with _cold appended when the crew does not like you. stranger, hostile and cooling still apply to ordinary pirate ship gifts.
      */
     situation: 'stranger' | 'bounty_partial' | 'bounty_cleared' | 'hostile' | 'cooling' | 'unwanted_items' | 'unwanted_ship' | 'token_credits' | 'token_items' | 'token_ship' | 'appreciated_credits' | 'appreciated_items' | 'appreciated_ship' | 'generous_credits' | 'generous_items' | 'generous_ship' | 'lavish_credits' | 'lavish_items' | 'lavish_ship' | 'devoted_credits' | 'devoted_items' | 'devoted_ship' | 'ship_scrap_cheap' | 'ship_scrap_mid' | 'ship_scrap_expensive' | 'ship_refit_cheap' | 'ship_refit_mid' | 'ship_refit_expensive' | 'ship_pirate_cheap' | 'ship_pirate_mid' | 'ship_pirate_expensive' | 'boss_upgrade' | 'boss_upgrade_cold' | 'boss_hunt' | 'boss_hunt_cold' | 'boss_flagship_returned' | 'boss_flagship_returned_cold' | 'boss_rival_flown' | 'boss_rival_flown_cold' | 'boss_rival_scrapped' | 'boss_rival_scrapped_cold';
 };
@@ -6871,7 +6925,7 @@ export type JobView = {
      */
     external?: boolean;
     /**
-     * Opaque ID of the facility instance or the synthetic Station Workshop ID.
+     * Opaque ID of the facility instance or the synthetic Station Workshop or Field Workshop ID (fieldshop:<ship_id>).
      */
     facility_id: string;
     /**
@@ -6927,7 +6981,7 @@ export type JobView = {
      */
     status: 'queued' | 'active';
     /**
-     * Display name of the venue: Station Workshop or the facility type name. Falls back to the facility ID when the facility is unknown.
+     * Display name of the venue: Station Workshop, Field Workshop (hand-crafting aboard a field workshop hull) or the facility type name. Falls back to the facility ID when the facility is unknown.
      */
     venue?: string;
 };
@@ -11488,6 +11542,10 @@ export type Ship = {
     defense_slots?: number;
     disruption_ticks_remaining?: number;
     docked_at_base?: string;
+    /**
+     * Jobs queued on this ship's Field Workshop (field workshop hulls only), in run order. Their escrowed inputs are not in cargo or cargo_used but still take hold space. Omitted when the ship has none.
+     */
+    field_jobs?: Array<FieldJob>;
     fuel: number;
     /**
      * % of normal cargo space gases occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; 0 = no bonus)
@@ -14521,6 +14579,10 @@ export type V2Ship = {
      * Current marine capacity after hull and fitted-module effects
      */
     effective_marine_capacity: number;
+    /**
+     * State of this ship's Field Workshop (hand-crafting from cargo while undocked). get_ship only. Present only for a hull with a field workshop; omitted for every other ship and in state deltas.
+     */
+    field_workshop?: FieldWorkshopView;
     fuel: number;
     /**
      * Percent of normal cargo space gases occupy: 40 means 100 size-1 units fill 40 cargo and 100 size-2 units fill 80 (lower is better; omitted when no bonus)
@@ -14579,6 +14641,10 @@ export type V2Ship = {
      * Power consumed by fitted modules (after engineering efficiency bonus). Can exceed power_capacity on the same terms as cpu_used
      */
     power_used: number;
+    /**
+     * True when refit_ship would apply to this ship: its base stats predate a class rebalance, or its class's standard loadout changed since it was built or last refitted. refit_ship still needs a shipyard. Omitted (false) when the ship matches its class.
+     */
+    refit_available?: boolean;
     shield: number;
     shield_recharge: number;
     speed: number;
@@ -15204,7 +15270,7 @@ export type SpacemoltCraftData = {
          */
         count?: number;
         /**
-         * Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket. Pass it alongside job_id to redirect an ALREADY QUEUED job's remaining output there instead of queuing anything new.
+         * Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket. Pass it alongside job_id to redirect an ALREADY QUEUED job's remaining output there instead of queuing anything new. Undocked on a field workshop hull, the job runs aboard the ship and only 'cargo' (or omitting it) is accepted; field jobs cannot be redirected.
          */
         deliver_to?: string;
         /**
@@ -15216,7 +15282,7 @@ export type SpacemoltCraftData = {
          */
         facility_id?: string;
         /**
-         * Recipe ID to craft (use catalog with type=recipes to see available recipes). Inputs are escrowed from station storage at enqueue.
+         * Recipe ID to craft (use catalog with type=recipes to see available recipes). Inputs are escrowed from station storage at enqueue; undocked on a field workshop hull they come from ship cargo.
          */
         id?: string;
         /**
@@ -15285,7 +15351,7 @@ export type SpacemoltCraftData = {
          */
         quantity?: number;
         /**
-         * Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:<bucket>'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket.
+         * Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:<bucket>'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket. Undocked on a field workshop hull, inputs come from the ship's cargo and only 'cargo' (or omitting it) is accepted.
          */
         source?: string;
         /**

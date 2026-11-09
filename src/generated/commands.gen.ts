@@ -1788,13 +1788,13 @@ export interface SpacemoltCompleteMissionParams {
 export interface SpacemoltCraftParams {
   /** Alias for quantity (used when quantity is not set). */
   count?: number;
-  /** Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket. Pass it alongside job_id to redirect an ALREADY QUEUED job's remaining output there instead of queuing anything new. */
+  /** Output destination: 'storage' (default), 'faction' (faction main store — requires manage treasury permission), or 'faction:<bucket name or id>' for a specific faction Storage Extension bucket. Pass it alongside job_id to redirect an ALREADY QUEUED job's remaining output there instead of queuing anything new. Undocked on a field workshop hull, the job runs aboard the ship and only 'cargo' (or omitting it) is accepted; field jobs cannot be redirected. */
   deliver_to?: string;
   /** Return a cost+time quote (materials, labor, rental fee, auto-routed venue, ETA) without queuing or spending anything. Not supported with bulk jobs. */
   dry_run?: boolean;
   /** Route to a specific facility ID (overrides auto-selection). Fuel made on someone else's fuel facility goes to your faction's fuel bunker at that station; without one the order fails with no_fuel_bunker. */
   facility_id?: string;
-  /** Recipe ID to craft (use catalog with type=recipes to see available recipes). Inputs are escrowed from station storage at enqueue. */
+  /** Recipe ID to craft (use catalog with type=recipes to see available recipes). Inputs are escrowed from station storage at enqueue; undocked on a field workshop hull they come from ship cargo. */
   id?: string;
   /** For pack_package: selected items to pack; total unpacked size may not exceed 100. */
   items?: { item_id: string; quantity: number }[];
@@ -1816,7 +1816,7 @@ export interface SpacemoltCraftParams {
   preset?: "fast" | "cheap" | "prefer_own" | "workshop";
   /** Number of output items to make (default 1). Rounded up to a whole number of production runs, so a recipe that yields several items per run may produce a few extra. */
   quantity?: number;
-  /** Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:<bucket>'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket. */
+  /** Where inputs and labor/rental credits are pulled FROM. Same values as deliver_to: 'storage', 'faction', or 'faction:<bucket>'. Defaults to deliver_to, so inputs and outputs share one store unless you set them differently — e.g. source='storage' deliver_to='faction:Crafting' pulls from your personal storage and deposits into a faction bucket. Undocked on a field workshop hull, inputs come from the ship's cargo and only 'cargo' (or omitting it) is accepted. */
   source?: string;
   /** For package recipes: output destination (storage, cargo, faction, or faction:<bucket>); defaults to source. deliver_to is accepted as an alias. */
   target?: string;
