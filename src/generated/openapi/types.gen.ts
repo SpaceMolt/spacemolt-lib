@@ -2033,43 +2033,135 @@ export type CargoItem = {
 };
 
 export type CarrierCapacity = {
-    active_contract_limit?: number;
+    /**
+     * Number of in_transit contracts the carrier holds. Same as the profile's active_contracts.
+     */
     active_contracts: number;
+    /**
+     * Always true: the number of contracts a carrier can hold has no cap. Only liability is limited.
+     */
     active_contracts_unlimited: boolean;
+    /**
+     * Sum in credits of reserved_exposure over the carrier's in_transit contracts.
+     */
     active_liability: number;
+    /**
+     * Largest active_liability in credits the carrier can reach by accepting: 50000 probationary, 100000 licensed, 1000000 trusted. Absent for prime (no limit).
+     */
     aggregate_liability_limit?: number;
+    /**
+     * True for a prime carrier. The liability limits are then absent.
+     */
     liability_unlimited: boolean;
+    /**
+     * aggregate_liability_limit - active_liability, never below 0. Absent for prime.
+     */
     remaining_aggregate_liability?: number;
+    /**
+     * Largest reserved_exposure in credits one accepted contract can have at this tier: 25000 probationary, 50000 licensed, 500000 trusted. Absent for prime (no limit).
+     */
     single_package_liability_limit?: number;
 };
 
 export type CarrierProfile = {
+    /**
+     * Number of in_transit contracts this carrier holds.
+     */
     active_contracts: number;
+    /**
+     * Sum in credits of reserved_exposure over those in_transit contracts.
+     */
     active_liability: number;
+    /**
+     * The player or faction this freight-carrier record belongs to. One record per carrier across the whole galaxy.
+     */
     actor: ShipmentActor;
+    /**
+     * Count of contracts that ended breached.
+     */
     breaches: number;
+    /**
+     * Count of contracts that ended defaulted.
+     */
     defaults: number;
+    /**
+     * Sum in credits of appraised_value over those deliveries.
+     */
     delivered_value: number;
+    /**
+     * Time of the newest late delivery, late return, breach or default. Absent when there has been none.
+     */
     last_consequence_at?: string;
+    /**
+     * Time a debt payment last brought outstanding_debt to 0. Absent when that has never happened.
+     */
     last_recovery_at?: string;
+    /**
+     * Count of deliveries made after deadline_tick but inside the recovery window.
+     */
     late_deliveries: number;
+    /**
+     * Sum in credits of outstanding over this carrier's freight debts. While positive the carrier cannot accept any contract.
+     */
     outstanding_debt: number;
+    /**
+     * How many of those deliveries were priority service delivered at or before target_tick.
+     */
     priority_deliveries: number;
+    /**
+     * Count of packages handed back to the shipper at the origin, on time or late.
+     */
     returns: number;
+    /**
+     * Count of on-time deliveries with reputation_eligible true.
+     */
     successful_deliveries: number;
+    /**
+     * Carrier standing. It sets which risk_band the carrier can accept and its liability limits. An on-time reputation-eligible delivery raises it when both thresholds are met: licensed 5 deliveries and 250 credits delivered, trusted 20 and 250000, prime 50 and 2000000. Each breach or default drops it one tier. A new carrier starts probationary.
+     */
     tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
+    /**
+     * Time the record last changed.
+     */
     updated_at: string;
 };
 
 export type CarrierTierProgress = {
+    /**
+     * True at prime. The required and remaining fields are then 0.
+     */
     at_maximum_tier: boolean;
+    /**
+     * The carrier's tier now.
+     */
     current_tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
+    /**
+     * The profile's delivered_value in credits.
+     */
     delivered_value: number;
+    /**
+     * The tier one step above current_tier. Absent at prime.
+     */
     next_tier?: 'licensed' | 'trusted' | 'prime';
+    /**
+     * required_delivered_value - delivered_value, never below 0. Promotion needs both remainders at 0 and happens on the next on-time reputation-eligible delivery. After a demotion both can already be 0.
+     */
     remaining_delivered_value: number;
+    /**
+     * required_successful_deliveries - successful_deliveries, never below 0. 0 means the threshold is met.
+     */
     remaining_successful_deliveries: number;
+    /**
+     * delivered_value in credits needed for next_tier: 250 for licensed, 250000 for trusted, 2000000 for prime. 0 at prime.
+     */
     required_delivered_value: number;
+    /**
+     * successful_deliveries needed for next_tier: 5 for licensed, 20 for trusted, 50 for prime. 0 at prime.
+     */
     required_successful_deliveries: number;
+    /**
+     * The profile's successful_deliveries.
+     */
     successful_deliveries: number;
 };
 
@@ -5675,29 +5767,92 @@ export type ForumUpvoteResponse = {
 };
 
 export type FreightAppraisalLine = {
+    /**
+     * Appraisal method. Always completed_fill_vwap on an insurable line. Absent when the line is not insurable.
+     */
     basis?: string;
+    /**
+     * Evidence quality. Always useful on an insurable line. Absent when the line is not insurable.
+     */
     confidence?: string;
+    /**
+     * Number of public completed fills behind unit_value. An insurable line needs at least 3. Absent when the line is not insurable.
+     */
     fill_count?: number;
+    /**
+     * True when the market evidence meets every threshold above. The package is insurable only when every line is insurable.
+     */
     insurable: boolean;
+    /**
+     * Item ID of one content line of the sealed package.
+     */
     item_id: string;
+    /**
+     * Time of the most recent fill in that evidence. Absent when the line is not insurable.
+     */
     latest_fill_at?: string;
+    /**
+     * Market window that supplied the evidence: 24h0m0s, 168h0m0s or 720h0m0s. The appraisal tries the shortest window first and uses the first one with enough evidence. Absent when the line is not insurable.
+     */
     lookback?: string;
+    /**
+     * Units of item_id in the package.
+     */
     quantity: number;
+    /**
+     * Appraised credits for the line: unit_value x quantity. 0 when the line is not insurable.
+     */
     total_value: number;
+    /**
+     * Credits traded in those fills. An insurable line needs at least 500. Absent when the line is not insurable.
+     */
     traded_notional?: number;
+    /**
+     * Units traded in those fills. An insurable line needs at least quantity units. Absent when the line is not insurable.
+     */
     traded_units?: number;
+    /**
+     * Why the line failed appraisal. The appraisal stops at the first failing line: later lines that also failed carry insurable false and no reason. Absent on an insurable line.
+     */
     uninsurable_reason?: string;
+    /**
+     * Appraised credits per unit: the volume-weighted average price of public completed exchange fills of this item across the galaxy in the lookback window (floor of total credits / units). Fills priced above the item's 90th-percentile fill price in that window are left out. 0 when the line is not insurable.
+     */
     unit_value: number;
 };
 
 export type FreightDebt = {
+    /**
+     * Time the debt was created.
+     */
     created_at: string;
+    /**
+     * Who receives repayment. Always the contract's origin station (kind station).
+     */
     creditor: ShipmentActor;
+    /**
+     * The carrier that owes the debt: the contract's contractor.
+     */
     debtor: ShipmentActor;
+    /**
+     * Debt ID: freight:<shipment_id>.
+     */
     id: string;
+    /**
+     * Credits owed when the debt was created. For a breach or default it is the contract's failure_debt. For a late delivery or return it is the late fee: 10% of (base_reward + max_speed_bonus) held between 100 and 2500 credits and never above failure_debt / 2.
+     */
     original: number;
+    /**
+     * Credits still owed. pay_debt pays the oldest debts first. While any debt is outstanding the debtor cannot accept contracts.
+     */
     outstanding: number;
+    /**
+     * Time outstanding reached 0. Absent while the debt is still owed.
+     */
     paid_at?: string;
+    /**
+     * Contract that created the debt.
+     */
     shipment_id: string;
 };
 
@@ -11660,28 +11815,76 @@ export type ShipListing = {
 };
 
 export type ShipmentActor = {
+    /**
+     * Actor ID for kind: a player ID, a faction ID, or a station base ID.
+     */
     id: string;
+    /**
+     * Actor type. player and faction can ship, receive and carry freight. station can ship and receive freight but never carry it.
+     */
     kind: 'player' | 'faction' | 'station';
 };
 
 export type ShipmentContract = {
+    /**
+     * Time a carrier accepted the contract. Absent while posted and on a listing canceled before acceptance.
+     */
     accepted_at?: string;
+    /**
+     * Game tick of acceptance. Absent while posted and on a listing canceled before acceptance.
+     */
     accepted_tick?: number;
+    /**
+     * Market value of the package contents in credits at posting: the sum of each line's quantity x completed-fill VWAP. Absent (0) when insurable is false.
+     */
     appraised_value?: number;
+    /**
+     * Credits the shipper offers for an on-time delivery. Always positive. A station supply run prices it from the route and the market.
+     */
     base_reward: number;
+    /**
+     * Time of the breach. Equal to settled_at. Absent unless status is breached.
+     */
     breached_at?: string;
+    /**
+     * Credits paid to the carrier for an on-time delivery: reward_escrow + the speed bonus earned at the delivery tick. Absent before settlement and on every other outcome, including a late delivery.
+     */
     carrier_payout?: number;
+    /**
+     * Credits the insurance paid the shipper. Equal to covered_value when policy_status is claimed. Absent otherwise.
+     */
     claim_paid?: number;
     /**
      * Player or faction carrier that accepted the contract. Absent while the listing is still posted and on a listing canceled or expired before anyone accepted it.
      */
     contractor?: ShipmentActor;
+    /**
+     * Credits the insurance pays the shipper on a breach or default. Equal to appraised_value when insured. Absent when uninsured.
+     */
     covered_value?: number;
+    /**
+     * Last tick for an on-time delivery: accepted_tick + the deadline allowance. The deadline allowance is 540 + 180 x max(route hops, 1) ticks for standard service and two-thirds of that (rounded down) for priority. After it the reward is forfeit. Absent while the listing is posted: acceptance sets it. The board shows the allowance as target_ticks and deadline_ticks.
+     */
     deadline_tick?: number;
+    /**
+     * Time of the hand-over at the destination, on time or late. Equal to settled_at. Absent unless status is delivered.
+     */
     delivered_at?: string;
+    /**
+     * Station where the package must be delivered. Always different from origin_base_id.
+     */
     destination_base_id: string;
+    /**
+     * Freight debt the carrier owes if the contract is breached or defaults. 500 credits when uninsured (and on every station supply run). When insured: covered_value + max(100, covered_value / 10) rounded down. A late delivery or return owes a smaller late fee instead: 10% of (base_reward + max_speed_bonus) held between 100 and 2500 credits and never above failure_debt / 2.
+     */
     failure_debt: number;
+    /**
+     * Shipment contract ID. Pass it to the shipping get, track, accept, deliver, return and cancel actions.
+     */
     id: string;
+    /**
+     * True when every content line had enough public completed-fill market evidence to appraise. Always true on station supply runs. It says the package can be insured, not that it is: see policy_status.
+     */
     insurable: boolean;
     /**
      * Station that insures the cargo: the origin station. It keeps the premium and pays any claim. Absent when the shipment is uninsured.
@@ -11691,170 +11894,531 @@ export type ShipmentContract = {
      * The only player or faction carrier allowed to see and accept this listing. Present only when visibility is invited; absent for public, faction and allies listings.
      */
     invited_carrier?: ShipmentActor;
+    /**
+     * observed_at of the newest tracking event for this contract. Absent until the first event is recorded.
+     */
     latest_beacon_at?: string;
+    /**
+     * fingerprint of the newest tracking event for this contract. Absent until the first event is recorded.
+     */
     latest_beacon_fingerprint?: string;
+    /**
+     * posted_at plus 24 hours. A listing that nobody accepts by then becomes canceled with terminal_reason listing_expired and the shipper gets reward_escrow, speed_bonus_escrow and premium back.
+     */
     listing_expires_at: string;
+    /**
+     * Extra credits the shipper offers for speed. The carrier earns all of it through target_tick. It then falls linearly (rounded down) to 0 at deadline_tick. 0 on station supply runs.
+     */
     max_speed_bonus: number;
+    /**
+     * Station where the contract was posted and where the carrier accepts the package.
+     */
     origin_base_id: string;
+    /**
+     * Sealed package this contract moves. The package travels as the item package_<package_id>.
+     */
     package_id: string;
+    /**
+     * Insurance policy state. none: uninsured (every station supply run). pending: insured and posted. active: insured and in transit. released: delivered. expired: returned, or canceled before acceptance. claimed: breached or defaulted, and the shipper received claim_paid.
+     */
     policy_status: 'none' | 'pending' | 'active' | 'expired' | 'claimed' | 'released';
+    /**
+     * Time the contract was posted.
+     */
     posted_at: string;
+    /**
+     * Insurance premium in credits that the shipper paid at posting: max(1, covered_value x 2% x (1 + 0.075 x route_hops)) rounded down. The insurer station keeps it once a carrier accepts. Reset to 0 when the listing is canceled or expires, because the shipper gets it back. Absent when uninsured.
+     */
     premium?: number;
+    /**
+     * Who receives the package at destination_base_id. A station recipient is always the destination station.
+     */
     recipient: ShipmentActor;
+    /**
+     * Last tick for a late delivery or return: deadline_tick + 2880. After it the contract defaults with terminal_reason deadline_expired. Absent while posted. A contract accepted before this field existed also omits it and uses deadline_tick + 2880.
+     */
     recovery_deadline_tick?: number;
+    /**
+     * Set at acceptance. False when the shipper and carrier are the same party: the same actor, or a player and the faction they belonged to at acceptance. A false value skips the tier and liability-limit checks at acceptance, and an on-time delivery then adds nothing to the carrier record. Late marks, returns, breaches and defaults count either way. Absent before acceptance.
+     */
     reputation_eligible?: boolean;
+    /**
+     * True when the sealed package holds refined radioactive material. The carrier must fly a ship with a lead_lined_cargo_i or lead_lined_cargo_ii module to withdraw it from storage or carry it. Set when the contract posts. Absent or false: no hazmat hold is needed.
+     */
+    requires_hazmat?: boolean;
+    /**
+     * Liability in credits this contract adds to the carrier's active_liability while in transit. Equal to appraised_value when insurable is true. 1000000 when insurable is false. Checked against the carrier tier's single-package and aggregate limits at acceptance.
+     */
     reserved_exposure: number;
+    /**
+     * Credits held for the carrier's base reward. Equal to base_reward until the contract reaches a final status, then 0. An on-time delivery pays it to the carrier. Every other final status refunds it to the shipper.
+     */
     reward_escrow: number;
+    /**
+     * Cargo risk class from appraised_value. probationary: up to 25000 credits. licensed: up to 50000. trusted: up to 500000. prime: above 500000. unpriced: insurable is false. Accepting needs a carrier tier at least equal to the band (unpriced needs prime) unless reputation_eligible is false.
+     */
     risk_band: 'probationary' | 'licensed' | 'trusted' | 'prime' | 'unpriced';
+    /**
+     * Jumps between the origin and destination systems when the contract was posted. Absent when both stations are in the same system. Acceptance measures the route again for target_tick and deadline_tick.
+     */
     route_hops?: number;
     /**
      * Salvage claimant recorded for the package: the insurer station, set when an insured contract posts. No current game action reads it. Absent when the shipment is uninsured.
      */
     salvage_owner?: ShipmentActor;
+    /**
+     * Credits the shipper paid the shipping_house_id station at posting: max(25, (base_reward + max_speed_bonus) / 20) rounded down. Never refunded. 0 on station supply runs.
+     */
     service_fee: number;
+    /**
+     * standard or priority. Priority cuts both time allowances to two-thirds. Station supply runs are always standard.
+     */
     service_level: 'standard' | 'priority';
+    /**
+     * Time the contract reached its final status. Absent while posted or in_transit.
+     */
     settled_at?: string;
+    /**
+     * Who posted the contract and paid its escrow: a player, a faction (paid from the treasury), or a station for an automatic station supply run (kind station: the origin station).
+     */
     shipper: ShipmentActor;
+    /**
+     * Station whose freight service runs the contract. Always origin_base_id. It collects service_fee and counts covered_value against its insurance capacity.
+     */
     shipping_house_id: string;
+    /**
+     * Credits held for the speed bonus. Equal to max_speed_bonus until the contract reaches a final status, then 0. An on-time delivery pays the earned part to the carrier and refunds the rest to the shipper. Every other final status refunds it all.
+     */
     speed_bonus_escrow: number;
+    /**
+     * Lifecycle state. posted: listed and not accepted. in_transit: accepted. delivered: handed over at the destination, on time or late. returned: handed back at the origin. breached: the seal was opened or the carrying ship was captured. defaulted: the package was lost or the recovery window closed. canceled: the shipper canceled or the listing expired before anyone accepted it. All states except posted and in_transit are final.
+     */
     status: 'posted' | 'in_transit' | 'delivered' | 'returned' | 'breached' | 'defaulted' | 'canceled';
+    /**
+     * Last tick that still pays the full speed bonus: accepted_tick + the target allowance. The target allowance is 300 + 90 x max(route hops, 1) ticks for standard service and two-thirds of that (rounded down) for priority. Absent while the listing is posted: acceptance sets it. The board shows the allowance as target_ticks and deadline_ticks.
+     */
     target_tick?: number;
+    /**
+     * Why the contract reached a final status. delivered: delivered_intact, delivered_late, delivered_via_destination_storage or delivered_late_via_destination_storage. returned: returned_intact or returned_late. canceled: canceled_by_shipper or listing_expired. breached: package seal opened or ship_captured. defaulted: deadline_expired or a loss reason such as package destroyed with carrier ship or package seized by customs. Absent while posted or in_transit.
+     */
     terminal_reason?: string;
+    /**
+     * Why the package could not be appraised. Absent when insurable is true.
+     */
     uninsurable_reason?: string;
+    /**
+     * Who can see and accept the listing while it is posted. public: any carrier. faction: members of the shipper faction. allies: members of the shipper faction and its allies. invited: only invited_carrier. faction and allies need a faction shipper. Station supply runs are always public.
+     */
     visibility: 'public' | 'faction' | 'allies' | 'invited';
 };
 
 export type ShipmentTrackingEvent = {
+    /**
+     * Station where the package was at this sample. Absent when it was not at a station (a wreck or a ship in space).
+     */
     base_id?: string;
+    /**
+     * Kind of place that held the package. shipping_house_escrow: the posted listing at the origin. ship: a ship's cargo. player_storage and faction_storage: station storage. faction_bucket: a faction storage bucket. wreck: a wreck's cargo. unpack_job_escrow: an unpack job. No current code path records destroyed or unknown.
+     */
     class: 'shipping_house_escrow' | 'ship' | 'player_storage' | 'faction_storage' | 'faction_bucket' | 'wreck' | 'unpack_job_escrow' | 'destroyed' | 'unknown';
     /**
      * Who held the package at this sample: the storage owner, the owner of the carrying ship, or the recipient or shipper at hand-over or return. Absent when the location names no holder (shipping-house escrow, a wreck or an unknown location).
      */
     custodian?: ShipmentActor;
+    /**
+     * Opaque key for the location. A new event is recorded only when the location's fingerprint differs from the contract's latest_beacon_fingerprint. Compare fingerprints for equality only.
+     */
     fingerprint: string;
+    /**
+     * Tracking event ID.
+     */
     id: string;
+    /**
+     * Time the event was recorded.
+     */
     observed_at: string;
+    /**
+     * Game tick of the sample. For an automatic delivery to destination storage it is the tick the package was first seen there.
+     */
     observed_tick: number;
+    /**
+     * Sealed package the event locates.
+     */
     package_id: string;
     /**
      * POI where the package was at this sample. Absent when the location has no POI or the POI is hidden (the transponder gives only system_id for an uncharted location).
      */
     poi_id?: string;
+    /**
+     * ID of the holder for this class. shipping_house_escrow: the shipment ID. ship: the outermost ship carrying the package. wreck: the wreck ID. unpack_job_escrow: the unpack job ID. On the acceptance, delivery and return events: the custodian as kind:id (for example player:<id>). Absent on a storage sample from the periodic beacon.
+     */
     reference_id?: string;
+    /**
+     * Contract this event belongs to.
+     */
     shipment_id: string;
+    /**
+     * System where the package was at this sample. Absent when the location resolves to no system (for example an unpack job).
+     */
     system_id?: string;
 };
 
 export type ShippingActiveContract = {
+    /**
+     * A posted or in_transit contract you or your faction is party to. The sealed manifest (appraisal_lines) is omitted.
+     */
     contract: ShipmentContract;
+    /**
+     * Name of the destination station. The base ID when the station is unknown.
+     */
     destination_name?: string;
+    /**
+     * Name of the system that holds the destination station. Absent when the server cannot resolve it.
+     */
     destination_system?: string;
+    /**
+     * Same value as contract.failure_debt: the freight debt in credits the carrier owes if it opens or destroys the package or misses the recovery deadline.
+     */
     failure_debt: number;
+    /**
+     * The class of the latest tracking event (for example ship or player_storage), followed by ' at <station name>' when that event names a station. Absent when the contract has no tracking events.
+     */
     last_known_location?: string;
+    /**
+     * True when the current tick is past contract.deadline_tick. The reward is forfeited and a deliver or return now costs late_fee_if_delivered_now. Always false while posted.
+     */
     late: boolean;
+    /**
+     * Late fee in credits a deliver at the current tick creates as freight debt: 10% of (base_reward + max_speed_bonus), at least 100, at most 2500 and never more than half of failure_debt. Present only when late is true.
+     */
     late_fee_if_delivered_now?: number;
+    /**
+     * One plain-language instruction for what to do next with this contract given your role, the clock and where the package is. Always present.
+     */
     next_step: string;
+    /**
+     * Name of the origin station. The base ID when the station is unknown.
+     */
     origin_name?: string;
+    /**
+     * Name of the system that holds the origin station. Absent when the server cannot resolve it.
+     */
     origin_system?: string;
+    /**
+     * True when the sealed package is in your active ship's cargo now. False when it is in storage, on another ship or you fly no ship.
+     */
     package_in_your_cargo: boolean;
+    /**
+     * Credits the carrier gets for a deliver at the current tick: contract.reward_escrow plus the speed bonus earned now (full max_speed_bonus at or before target_tick, decaying linearly and rounded down to 0 at deadline_tick). 0 while posted and once late.
+     */
     payout_if_delivered_now: number;
+    /**
+     * How you or your faction is bound to the contract. Checks your player first, then your faction; for each the first match wins in the order carrier (contractor), shipper, recipient, invited_carrier.
+     */
     role: 'carrier' | 'shipper' | 'recipient' | 'invited_carrier';
+    /**
+     * contract.deadline_tick minus the current tick: ticks left for an on-time delivery. Negative once passed. 0 while the contract is posted.
+     */
     ticks_to_deadline: number;
+    /**
+     * contract.recovery_deadline_tick minus the current tick: ticks left for a late deliver or return before the contract defaults. 0 while the contract is posted.
+     */
     ticks_to_recovery_deadline: number;
+    /**
+     * contract.target_tick minus the current tick: ticks left at the full speed bonus. Negative once passed. 0 while the contract is posted.
+     */
     ticks_to_target: number;
 };
 
 export type ShippingActiveResponse = {
+    /**
+     * Always active.
+     */
     action: 'active';
+    /**
+     * Explains an empty shipments list. Absent when shipments has entries.
+     */
     message?: string;
+    /**
+     * Every posted or in_transit contract you or your faction is party to, soonest deadline_tick first; posted contracts (no deadline yet) come last. Empty, never null, when there are none.
+     */
     shipments: Array<ShippingActiveContract>;
+    /**
+     * The current game tick that every countdown and payout in shipments is computed against.
+     */
     tick: number;
 };
 
 export type ShippingContractResponse = {
+    /**
+     * Which shipping action returned the contract: post (you listed it), get (you looked it up) or accept (you took it as carrier).
+     */
     action: 'post' | 'get' | 'accept';
+    /**
+     * The contract after the action. post: status posted. accept: status in_transit with contractor and the target, deadline and recovery ticks set from the acceptance tick. get: its current state in any status. The sealed manifest (appraisal_lines) is always omitted.
+     */
     contract: ShipmentContract;
 };
 
 export type ShippingDebtPaymentResponse = {
+    /**
+     * Always pay_debt.
+     */
     action: 'pay_debt';
+    /**
+     * Credits taken from the carrier and paid to its creditors. The requested amount capped at the outstanding debt, or all outstanding debt when amount is omitted. Always above 0.
+     */
     amount_paid: number;
+    /**
+     * Active contract count and liability against the limits of the carrier's current tier, derived from profile after the payment.
+     */
     capacity: CarrierCapacity;
+    /**
+     * Names the freight debt in credits that is still unpaid. Present only when debt_blocks_acceptance is true.
+     */
     debt_block_reason?: string;
+    /**
+     * True when profile.outstanding_debt is still above 0 after the payment. The carrier cannot accept any contract until it is 0.
+     */
     debt_blocks_acceptance: boolean;
+    /**
+     * The carrier's freight debts that still have an outstanding amount above 0 after the payment. Empty, never null, when all debt is paid.
+     */
     outstanding_debts: Array<FreightDebt>;
+    /**
+     * Carrier record after the payment.
+     */
     profile: CarrierProfile;
+    /**
+     * Progress toward the next carrier tier, derived from profile after the payment.
+     */
     progression: CarrierTierProgress;
+    /**
+     * The debts this payment reduced, oldest first, with their new outstanding amounts. A debt with outstanding 0 is now fully paid. The payment clears older debts before newer ones.
+     */
     updated_debts: Array<FreightDebt>;
 };
 
 export type ShippingListResponse = {
+    /**
+     * Always list.
+     */
     action: 'list';
+    /**
+     * Human-readable form of empty_reason_code. For no_eligible_shipments it names the first blocker found. Absent when total is above 0.
+     */
     empty_reason?: string;
+    /**
+     * Why total is 0: no_shipments (nothing you can see is posted here), no_matching_shipments (your filters excluded everything) or no_eligible_shipments (you cannot accept any of it now, for example unpaid freight debt or low carrier tier). Absent when total is above 0, including a page past the end.
+     */
     empty_reason_code?: string;
+    /**
+     * Page number served, from 1. A request below 1 serves page 1.
+     */
     page: number;
+    /**
+     * Page size served: 1 to 50. A request outside that range serves 20.
+     */
     per_page: number;
+    /**
+     * One page of the freight board at your docked station: posted contracts the selected carrier can see, that pass the filters and that it can accept. Sorted by sort: reward (base_reward, highest first, the default), distance (route_hops, lowest first) or age (posted_at, oldest first). Empty, never null, when nothing matches or the page is past the end.
+     */
     shipments: Array<ShippingListing>;
+    /**
+     * Number of listings across all pages after filters and eligibility.
+     */
     total: number;
 };
 
 export type ShippingListing = {
+    /**
+     * A contract posted at your docked station. The sealed manifest (appraisal_lines) is omitted.
+     */
     contract: ShipmentContract;
+    /**
+     * Ticks after acceptance until the on-time deadline. Same formula as the quote: standard 540 + 180 x max(route_hops, 1); priority two thirds of that, rounded down.
+     */
     deadline_ticks: number;
-    eligible: boolean;
-    reason?: string;
+    /**
+     * Ticks after the deadline during which a late deliver or return is still accepted for a capped late fee. Always 2880.
+     */
     recovery_ticks: number;
+    /**
+     * Ticks after acceptance that still earn the full max_speed_bonus. Same formula as the quote: standard 300 + 90 x max(route_hops, 1); priority two thirds of that, rounded down.
+     */
     target_ticks: number;
+    /**
+     * A problem with this run for the ship you fly now that you can fix before you accept. Present when contract.requires_hazmat is true and your active ship has no lead_lined_cargo_i or lead_lined_cargo_ii module. Absent when nothing blocks you.
+     */
+    warning?: string;
 };
 
 export type ShippingProfileResponse = {
+    /**
+     * Always profile.
+     */
     action: 'profile';
+    /**
+     * Active contract count and liability against the limits of the carrier's current tier, derived from profile.
+     */
     capacity: CarrierCapacity;
+    /**
+     * Names the unpaid freight debt in credits. Present only when debt_blocks_acceptance is true.
+     */
     debt_block_reason?: string;
+    /**
+     * True when profile.outstanding_debt is above 0. The carrier cannot accept any contract until it pays that debt with pay_debt.
+     */
     debt_blocks_acceptance: boolean;
+    /**
+     * The carrier's freight debts that still have an outstanding amount above 0. Empty, never null, when nothing is owed.
+     */
     debts: Array<FreightDebt>;
+    /**
+     * Carrier record of the selected carrier (you or your faction). A carrier that never hauled freight gets a new probationary record.
+     */
     profile: CarrierProfile;
+    /**
+     * Progress toward the next carrier tier, derived from profile.
+     */
     progression: CarrierTierProgress;
 };
 
 export type ShippingQuote = {
+    /**
+     * The sealed manifest with its appraisal: one line per item entry in the package. Only you see this; contract responses never include it. Never null.
+     */
     appraisal_lines: Array<FreightAppraisalLine>;
+    /**
+     * Market value of the package contents in credits: the sum of total_value over appraisal_lines. 0 when insurable is false.
+     */
     appraised_value: number;
+    /**
+     * Flat reward in credits you offer the carrier for an on-time delivery, as sent in the request. 0 on a quote that only asks for estimated_reward; post rejects 0.
+     */
     base_reward: number;
+    /**
+     * Plain-language summary of the carrier's liability: late delivery, the recovery window and what a breach costs. Always present. The amounts are in failure_debt and recovery_ticks.
+     */
     consequences: string;
+    /**
+     * Credits the origin station insures the cargo for: equal to appraised_value when insurance_selected is true. 0 when the shipment is uninsured.
+     */
     covered_value: number;
+    /**
+     * Ticks after acceptance until the on-time deadline. The speed bonus falls to 0 here and a later delivery forfeits the reward. standard: 540 + 180 x max(route_hops, 1). priority: two thirds of that, rounded down.
+     */
     deadline_ticks: number;
+    /**
+     * Base ID of the destination station. A station POI ID in the request resolves to its base ID. Never the same as origin_base_id.
+     */
     destination_base_id: string;
+    /**
+     * How many delivered contracts estimated_reward is the median of. 0 means there is no market data for this route length yet.
+     */
     estimate_samples: number;
+    /**
+     * Market rate hint in credits: the median base_reward of delivered player and faction contracts whose route_hops is within 1 of this route (the upper middle value for an even count). Station supply contracts and zero-reward contracts are left out. Uses the contracts the server holds in memory: live ones plus up to 500 recent finished ones loaded at startup. 0 when estimate_samples is 0.
+     */
     estimated_reward: number;
+    /**
+     * Freight debt in credits the carrier owes if it opens or destroys the package or holds it past the recovery window. Uninsured: 500. Insured: covered_value + max(100, covered_value / 10) rounded down. The late fee is never more than half of it.
+     */
     failure_debt: number;
+    /**
+     * True when every appraisal line has useful completed-fill market evidence: at least 3 fills, at least 500 credits traded and at least the line quantity traded in the last 24 hours, 7 days or 30 days. False means you can only post uninsured.
+     */
     insurable: boolean;
+    /**
+     * True when the request asked for insurance (insured). A request for insurance on an uninsurable package fails, so true always means insurable is true.
+     */
     insurance_selected: boolean;
     /**
      * The only player or faction carrier allowed to see and accept this listing. Present only when visibility is invited; absent for public, faction and allies listings.
      */
     invited_carrier?: ShipmentActor;
+    /**
+     * Extra credits you offer for a fast delivery, as sent in the request (speed_bonus). The carrier earns all of it at or before the target tick; it decays linearly to 0 at the deadline. 0 when you offer no bonus.
+     */
     max_speed_bonus: number;
+    /**
+     * Base ID of the station you are docked at. Freight always ships from here.
+     */
     origin_base_id: string;
+    /**
+     * Bare ID of the sealed package being quoted. A package:<id> cargo ID in the request is reduced to this form.
+     */
     package_id: string;
+    /**
+     * Insurance premium in credits: max(1, covered_value x 200 x (10000 + 750 x route_hops) / 100000000) rounded down, i.e. 2% of covered_value plus 7.5% of that per hop. 0 when insurance_selected is false. cancel refunds it.
+     */
     premium: number;
+    /**
+     * Who receives the package at the destination. The same as shipper when the request names no recipient. A station recipient is always the destination station.
+     */
     recipient: ShipmentActor;
+    /**
+     * Ticks after the deadline during which a late deliver or return is still accepted for a capped late fee instead of the full failure_debt. Always 2880.
+     */
     recovery_ticks: number;
+    /**
+     * Lowest carrier tier that can accept the contract: the tier with the same name as risk_band, or prime for unpriced. A carrier that is the shipper or shares its faction skips this check.
+     */
     required_carrier_tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
+    /**
+     * True when the sealed package holds refined radioactive material. The contract posts with the same requires_hazmat value: the carrier must fly a ship with a lead_lined_cargo_i or lead_lined_cargo_ii module to withdraw or carry it. Absent or false: no hazmat hold is needed.
+     */
+    requires_hazmat?: boolean;
+    /**
+     * Liability in credits that acceptance adds to the carrier's active_liability and checks against its tier's single-package and aggregate limits: appraised_value, or 1000000 when insurable is false. A carrier that is the shipper or shares its faction skips the limit check.
+     */
     reserved_exposure: number;
+    /**
+     * Risk class from appraised_value whether or not you insure: probationary up to 25000 credits, licensed up to 50000, trusted up to 500000, prime above that. unpriced when insurable is false.
+     */
     risk_band: 'probationary' | 'licensed' | 'trusted' | 'prime' | 'unpriced';
+    /**
+     * Jumps on the shortest route between the origin and destination systems. 0 when both stations are in the same system.
+     */
     route_hops: number;
+    /**
+     * Freight service fee in credits: max(25, (base_reward + max_speed_bonus) / 20) rounded down. The origin station receives it when you post. cancel does not refund it.
+     */
     service_fee: number;
+    /**
+     * Delivery window tier. priority cuts target_ticks and deadline_ticks to two thirds (rounded down). It does not change any price.
+     */
     service_level: 'standard' | 'priority';
+    /**
+     * Who pays and posts the freight: you as a player or your current faction. Never a station.
+     */
     shipper: ShipmentActor;
+    /**
+     * Ticks after acceptance that still earn the full max_speed_bonus. standard: 300 + 90 x max(route_hops, 1). priority: two thirds of that, rounded down.
+     */
     target_ticks: number;
+    /**
+     * Credits taken from the shipper when you post: base_reward + max_speed_bonus + service_fee + premium. Post fails with quote_changed when it is above a positive max_total_cost.
+     */
     total_cost: number;
+    /**
+     * Why the package cannot be insured, naming the first item without useful market evidence. Present only when insurable is false.
+     */
     uninsurable_reason?: string;
+    /**
+     * Who sees the listing on the freight board: public (any carrier), faction (members of the shipper faction), allies (the shipper faction and its allies) or invited (only invited_carrier). faction and allies need a faction shipper.
+     */
     visibility: 'public' | 'faction' | 'allies' | 'invited';
 };
 
 export type ShippingQuoteResponse = {
+    /**
+     * Always quote.
+     */
     action: 'quote';
+    /**
+     * Current terms for posting this package. Nothing is charged or moved. post recalculates the terms.
+     */
     quote: ShippingQuote;
 };
 
@@ -11904,8 +12468,17 @@ export type ShippingSettlementResponse = {
 };
 
 export type ShippingTrackResponse = {
+    /**
+     * Always track.
+     */
     action: 'track';
+    /**
+     * The tracked contract in its current state. The sealed manifest (appraisal_lines) is omitted.
+     */
     contract: ShipmentContract;
+    /**
+     * The most recent package location events for the contract, oldest first. At most limit events: limit defaults to 50 and a value of 0 or less or above 200 also gives 50.
+     */
     events: Array<ShipmentTrackingEvent>;
 };
 
