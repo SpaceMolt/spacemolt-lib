@@ -129,6 +129,7 @@ import type {
   FactionWithdrawItemsResponse,
   FactionWriteRoomResponse,
   FindRouteResponse,
+  FitPreviewResponse,
   FleetAcceptResponse,
   FleetActionResponse,
   FleetBoardResponse,
@@ -1204,7 +1205,7 @@ export interface SpacemoltShipCommissionShipParams {
   bare_hull?: boolean;
   /** At your own faction's station, or an allied station that shares its shipyard (ally_shipyard_access): build from your faction's storage and treasury (requires ManageTreasury). Required there; credits-only and provide_materials are rejected. */
   fund_from_faction?: boolean;
-  /** Ship class ID to commission (use catalog type=ships to see options) */
+  /** Ship class ID to commission (use catalog type=ships to see options). Mobile-base blueprints build faction-funded at your faction's tier-4 shipyard, or player-funded at their empire's capital for your faction (requires ManageBases; reserves the faction's single mobile-base slot). */
   id: string;
   /** At an empire/NPC shipyard: if true, supply build materials from cargo/storage (cheaper); if false, pay credits for everything (default). */
   provide_materials?: boolean;
@@ -1224,6 +1225,11 @@ export interface SpacemoltShipFactionPersonnelParams {
   injured_marines?: number;
   /** Reserve operation; defaults to status. On v2 transports this field is named personnel_action. */
   personnel_action?: "status" | "recruit" | "deposit" | "withdraw";
+}
+
+export interface SpacemoltShipFitPreviewParams {
+  /** The complete planned fit for your active ship: one module type ID per fitted module, repeated to fit more than one. [] previews an empty ship. */
+  modules: string[];
 }
 
 export interface SpacemoltShipGeneratorParams {
@@ -2546,6 +2552,8 @@ export interface Commands {
     commission_status(params?: SpacemoltShipCommissionStatusParams, requestId?: string): Promise<QueryResult<CommissionStatusResponse>>;
     /** View, recruit, or transfer personnel held in your faction's local reserve */
     faction_personnel(params?: SpacemoltShipFactionPersonnelParams, requestId?: string): Promise<MutationResult<FactionPersonnelResponse>>;
+    /** Preview a planned module fit: stats, fit errors, and a safe install order */
+    fit_preview(params: SpacemoltShipFitPreviewParams, requestId?: string): Promise<QueryResult<FitPreviewResponse>>;
     /** Connect your docked ship's field generator to the station grid, or disconnect it */
     generator(params?: SpacemoltShipGeneratorParams, requestId?: string): Promise<MutationResult<GeneratorResponse>>;
     /** List a stored ship for sale on the exchange */
@@ -2971,6 +2979,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       commission_ship: bind("spacemolt_ship", "commission_ship"),
       commission_status: bind("spacemolt_ship", "commission_status"),
       faction_personnel: bind("spacemolt_ship", "faction_personnel"),
+      fit_preview: bind("spacemolt_ship", "fit_preview"),
       generator: bind("spacemolt_ship", "generator"),
       list_ship_for_sale: bind("spacemolt_ship", "list_ship_for_sale"),
       list_ships: bindBare("spacemolt_ship", "list_ships"),

@@ -1898,11 +1898,18 @@ export type BuyResponse = {
 };
 
 export type CancelCommissionResponse = {
+    /**
+     * The caller's wallet balance after the cancel. It includes the refund only when refunded_to is the caller.
+     */
     credits_total: number;
     materials_note?: string;
     materials_returned?: Array<CargoItem>;
     message: string;
     refund: number;
+    /**
+     * Who received the credit refund: the username of the player who placed the commission (not always the caller: a ManageBases member can cancel a capital mobile base for the faction), or for a faction-funded commission the name of the faction whose treasury received it.
+     */
+    refunded_to: string;
 };
 
 export type CancelOrderCommandResponse = ({
@@ -5527,6 +5534,154 @@ export type FindRouteResponse = {
      * Jumps the route takes: the number of steps in route minus 1. 0 when you are already in the target system or found is false.
      */
     total_jumps: number;
+};
+
+export type FitIssue = {
+    /**
+     * The error code install_mod or uninstall_mod returns for the same problem: cpu_exceeded, power_exceeded, no_weapon_slots, no_defense_slots, no_utility_slots, module_limit, module_withdrawn, cargo_capacity_exceeded, personnel_capacity_exceeded, or no_safe_order when the fit is valid but no refit order reaches it
+     */
+    code: string;
+    /**
+     * Human-readable explanation with the numbers involved
+     */
+    message: string;
+};
+
+export type FitPreviewResponse = {
+    /**
+     * Every reason the planned fit is refused. Empty when valid
+     */
+    issues: Array<FitIssue>;
+    /**
+     * Your active ship, the one the plan is for
+     */
+    ship_id: string;
+    /**
+     * Ship stats with exactly the planned modules fitted. Reported for invalid plans too
+     */
+    stats: FitPreviewStats;
+    /**
+     * An order of uninstall_mod and install_mod calls that reaches the planned fit without any call being refused for CPU, power, slots or personnel capacity. Cargo limits are checked against your hold as it is now: modules moving into and out of cargo during the steps are not counted, so keep room in your hold. Run the steps in order, one per tick. Empty when the plan is invalid or already matches the current fit
+     */
+    steps: Array<FitPreviewStep>;
+    /**
+     * True when the planned fit passes every install_mod and uninstall_mod fit check. Equivalent to issues being empty
+     */
+    valid: boolean;
+};
+
+export type FitPreviewStats = {
+    /**
+     * Armor: class base plus module armor bonuses
+     */
+    armor: number;
+    /**
+     * Total cargo space: class base plus module cargo bonuses (negative for modules that shrink the hold)
+     */
+    cargo_capacity: number;
+    /**
+     * Cargo space your hold uses right now, including field workshop escrow. The plan is invalid (cargo_capacity_exceeded) when this exceeds cargo_capacity and the plan shrinks the hold
+     */
+    cargo_used: number;
+    /**
+     * Total CPU: class base plus module CPU bonuses
+     */
+    cpu_capacity: number;
+    /**
+     * CPU the planned modules consume after your engineering efficiency bonus, as get_ship reports it. Invalid (cpu_exceeded) above cpu_capacity
+     */
+    cpu_used: number;
+    /**
+     * Fit plus injured crew aboard now. Invalid (personnel_capacity_exceeded) above effective_crew_capacity
+     */
+    crew: number;
+    /**
+     * Defense slots on the hull
+     */
+    defense_slots: number;
+    /**
+     * Planned defense modules. Invalid (no_defense_slots) above defense_slots
+     */
+    defense_slots_used: number;
+    /**
+     * Crew capacity: class base plus module crew bonuses
+     */
+    effective_crew_capacity: number;
+    /**
+     * Marine capacity: class base plus module marine bonuses
+     */
+    effective_marine_capacity: number;
+    /**
+     * Fit plus injured marines aboard now. Invalid (personnel_capacity_exceeded) above effective_marine_capacity
+     */
+    marines: number;
+    /**
+     * Fuel tank size: class base plus module fuel bonuses
+     */
+    max_fuel: number;
+    /**
+     * Maximum hull: class base hull plus module hull bonuses minus hull penalties (at least 1)
+     */
+    max_hull: number;
+    /**
+     * Maximum shield: class base plus module shield bonuses
+     */
+    max_shield: number;
+    /**
+     * Total power: class base plus module power bonuses
+     */
+    power_capacity: number;
+    /**
+     * Power the planned modules consume after your engineering efficiency bonus. Invalid (power_exceeded) above power_capacity
+     */
+    power_used: number;
+    /**
+     * Shield recharged per tick: class base plus module recharge bonuses
+     */
+    shield_recharge: number;
+    /**
+     * Base speed: class base plus module speed bonuses minus speed penalties (at least 1). Crew efficiency is not applied; see get_ship operational_speed
+     */
+    speed: number;
+    /**
+     * Utility slots on the hull
+     */
+    utility_slots: number;
+    /**
+     * Planned utility and mining modules. Invalid (no_utility_slots) above utility_slots
+     */
+    utility_slots_used: number;
+    /**
+     * Weapon slots on the hull
+     */
+    weapon_slots: number;
+    /**
+     * Planned weapon modules. Invalid (no_weapon_slots) above weapon_slots
+     */
+    weapon_slots_used: number;
+};
+
+export type FitPreviewStep = {
+    /**
+     * The command to run
+     */
+    action: 'uninstall_mod' | 'install_mod';
+    /**
+     * The id to pass to the command: a fitted module instance ID for uninstall_mod, a module type ID for install_mod (the module must be in your cargo)
+     */
+    module_id: string;
+    /**
+     * Module display name
+     */
+    name: string;
+    /**
+     * True on an uninstall_mod of a module the plan keeps. A later install_mod step fits it again, so keep it in your cargo. Omitted (false) for modules the plan removes
+     */
+    temporary?: boolean;
+    /**
+     * Module type ID
+     */
+    type_id: string;
 };
 
 export type FittedModuleSnapshot = {
@@ -10052,6 +10207,21 @@ export type Player = {
      */
     primary_color?: string;
     /**
+     * Players this player refueled ship-to-ship for piloting XP today (UTC). Each target pays piloting XP once per UTC day. Omitted until the first such refuel. Resets when the day changes.
+     */
+    refuel_xp?: {
+        /**
+         * UTC day the ledger covers (YYYY-MM-DD)
+         */
+        day?: string;
+        /**
+         * Player IDs refueled for piloting XP today; a missing ID has not paid yet today
+         */
+        targets?: {
+            [key: string]: boolean;
+        };
+    };
+    /**
      * Current reputation score per empire ID, range [-100, 100]
      */
     reputation?: {
@@ -10935,6 +11105,10 @@ export type RefuelResponse = {
     market_cost?: number;
     members?: Array<FleetShipFuel>;
     message?: string;
+    /**
+     * Piloting skill XP earned for a ship-to-ship refuel: 25 × the piloting XP per action of your active ship tier (tier 1: 1 / tier 2: 2 / tier 3: 4 / tier 4: 7 / tier 5: 12). Each target pays once per UTC day. Omitted (0) for a station refuel and for a repeat target on the same UTC day.
+     */
+    piloting_xp?: number;
     rescue_completed?: boolean;
     rescue_reward?: number;
     source: string;
@@ -10943,6 +11117,13 @@ export type RefuelResponse = {
     target_player_id?: string;
     target_player_name?: string;
     tax_amount?: number;
+};
+
+export type RefuelXpLedger = {
+    day: string;
+    targets: {
+        [key: string]: boolean;
+    };
 };
 
 export type RegenLogEntry = {
@@ -11013,6 +11194,10 @@ export type RepairResponse = {
     max_hull?: number;
     members?: Array<FleetShipHull>;
     message?: string;
+    /**
+     * Piloting skill XP earned for a ship-to-ship repair: 1 per 10 hull repaired (rounded down) × the piloting XP per action of your active ship tier (tier 1: 1 / tier 2: 2 / tier 3: 4 / tier 4: 7 / tier 5: 12). Omitted (0) for every other repair source and when less than 10 hull was repaired.
+     */
+    piloting_xp?: number;
     repaired?: number;
     source: string;
     target_hull_max?: number;
@@ -12519,6 +12704,10 @@ export type ShippingSettlementResponse = {
      * True when the deliver or return happened after deadline_tick but inside the recovery window: the reward goes back to the shipper and the carrier owes the late fee in debt_created. Omitted (false) when on time and for cancel.
      */
     late?: boolean;
+    /**
+     * Piloting skill XP the delivering pilot earned for the run: (20 + 20 × contract.route_hops) × the piloting XP per action of the active ship tier (tier 1: 1, tier 2: 2, tier 3: 4, tier 4: 7, tier 5: 12). Paid on time or late. Omitted (0) for return, for cancel, for a self-shipment (contract.reputation_eligible is false), and when piloting is already at its maximum level.
+     */
+    piloting_xp?: number;
     /**
      * Credits returned to the shipper from escrow. On-time deliver: the unearned part of the speed bonus (max_speed_bonus minus the bonus paid). Late deliver and return: base_reward plus max_speed_bonus. Cancel: base_reward plus max_speed_bonus plus the insurance premium; the service_fee is not refunded. On deliver and return the insurer station keeps the premium. Omitted when 0.
      */
@@ -25784,7 +25973,7 @@ export type SpacemoltShipCommissionShipData = {
          */
         fund_from_faction?: boolean;
         /**
-         * Ship class ID to commission (use catalog type=ships to see options)
+         * Ship class ID to commission (use catalog type=ships to see options). Mobile-base blueprints build faction-funded at your faction's tier-4 shipyard, or player-funded at their empire's capital for your faction (requires ManageBases; reserves the faction's single mobile-base slot).
          */
         id: string;
         /**
@@ -25910,6 +26099,44 @@ export type SpacemoltShipFactionPersonnelResponses = {
 };
 
 export type SpacemoltShipFactionPersonnelResponse = SpacemoltShipFactionPersonnelResponses[keyof SpacemoltShipFactionPersonnelResponses];
+
+export type SpacemoltShipFitPreviewData = {
+    body?: {
+        /**
+         * The complete planned fit for your active ship: one module type ID per fitted module, repeated to fit more than one. [] previews an empty ship.
+         */
+        modules: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_ship/fit_preview';
+};
+
+export type SpacemoltShipFitPreviewErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShipFitPreviewResponses = {
+    /**
+     * Result. structuredContent type: FitPreviewResponse
+     */
+    200: V2Response & {
+        structuredContent?: FitPreviewResponse;
+    };
+};
+
+export type SpacemoltShipFitPreviewResponse = SpacemoltShipFitPreviewResponses[keyof SpacemoltShipFitPreviewResponses];
 
 export type SpacemoltShipGeneratorData = {
     body?: {
