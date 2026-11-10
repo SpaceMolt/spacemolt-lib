@@ -2244,7 +2244,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     responseType: "GetActionLogResponse",
     params: [
       { name: "category", type: "\"combat\" | \"trading\" | \"ship\" | \"crafting\" | \"faction\" | \"mission\" | \"skill\" | \"salvage\" | \"storage\" | \"achievement\" | \"mining\" | \"navigation\" | \"exploration\" | \"reputation\" | \"drone\" | \"session\" | \"other\"", required: false, description: "Filter by category (combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other)", enumValues: ["combat","trading","ship","crafting","faction","mission","skill","salvage","storage","achievement","mining","navigation","exploration","reputation","drone","session","other"] },
-      { name: "event_type", type: "string", required: false, description: "Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history), or an array of event_types to match any of them" },
+      { name: "event_type", type: "string | string[]", required: false, description: "Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history), or an array of event_types to match any of them" },
       { name: "faction_id", type: "string", required: false, description: "View a faction's action log instead of your own (must be a member)" },
       { name: "page", type: "number", required: false, description: "Page number (default 1). Ignored when since_id is set." },
       { name: "page_size", type: "number", required: false, description: "Entries per page, or max entries to return when since_id is set (default 50, max 100)" },

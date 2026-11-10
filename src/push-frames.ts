@@ -50,6 +50,8 @@ export interface OkTravelStarted extends PushBase {
   action: 'travel';
   /** POI ID being travelled to. */
   destination: string;
+  /** Display name of that POI. Omitted by gameserver builds older than this field. */
+  destination_name?: string;
   /** Engine tick the arrival lands on. */
   arrival_tick: number;
 }
@@ -59,6 +61,8 @@ export interface OkJumpStarted extends PushBase {
   action: 'jump';
   /** System ID being jumped to. */
   destination: string;
+  /** Display name of that system. Omitted by gameserver builds older than this field. */
+  destination_name?: string;
   arrival_tick: number;
   /** True when the jump routes through a wormhole rather than a lane. */
   is_wormhole: boolean;
@@ -68,6 +72,8 @@ export interface OkJumpStarted extends PushBase {
 export interface OkFleetTravelStarted extends PushBase {
   action: 'fleet_travel';
   destination: string;
+  /** Display name of that POI. Omitted by gameserver builds older than this field. */
+  destination_name?: string;
   arrival_tick: number;
 }
 
@@ -75,6 +81,8 @@ export interface OkFleetTravelStarted extends PushBase {
 export interface OkFleetJumpStarted extends PushBase {
   action: 'fleet_jump';
   destination: string;
+  /** Display name of that system. Omitted by gameserver builds older than this field. */
+  destination_name?: string;
   arrival_tick: number;
 }
 

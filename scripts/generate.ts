@@ -30,7 +30,8 @@ const OUT_DIR = join(ROOT, 'src', 'generated');
 const COMMANDS_DOC_PATH = join(ROOT, 'COMMANDS.md');
 
 interface OpenAPIProperty {
-  type?: string;
+  /** A list is a JSON Schema type union, e.g. `["string","array"]` for "one value or several". */
+  type?: string | string[];
   description?: string;
   enum?: string[];
   items?: OpenAPIProperty;
@@ -109,8 +110,11 @@ function refBasename(ref: string): string {
   return name;
 }
 
-function tsType(p: OpenAPIProperty): string {
+export function tsType(p: OpenAPIProperty): string {
   if (p.enum?.length) return p.enum.map((v) => JSON.stringify(v)).join(' | ');
+  // A type list is a union too: map each member against the same schema.
+  // Without this, `["string","array"]` fell through to the `string` default.
+  if (Array.isArray(p.type)) return [...new Set(p.type.map((type) => tsType({ ...p, type })))].join(' | ');
   // Union schemas: map each branch and join. Without this, a oneOf/anyOf
   // request property silently fell through to the `string` default.
   const branches = p.oneOf ?? p.anyOf;
@@ -533,10 +537,10 @@ const FIELD_KINDS: Record<string, string> = {
 
 function fieldKind(schemaName: string, field: string, prop: OpenAPIProperty): string {
   if (prop.type === 'array') {
-    const element = prop.items ? FIELD_KINDS[prop.items.type ?? ''] : undefined;
+    const element = typeof prop.items?.type === 'string' ? FIELD_KINDS[prop.items.type] : undefined;
     if (element) return `${element}[]`;
   }
-  const kind = FIELD_KINDS[prop.type ?? ''];
+  const kind = typeof prop.type === 'string' ? FIELD_KINDS[prop.type] : undefined;
   if (!kind) {
     // Silently defaulting would emit a guard that accepts anything for this
     // field. Fail the generate instead, so the gap is visible.

@@ -476,6 +476,9 @@ export class Account {
     this.emitter.on<NotificationMarketUpdate>('market_update', (payload) => this.marketCache.applyUpdate(payload));
     this.emitter.on<NotificationObservationUpdate>('observation_update', (payload) => {
       this.observationCache.applyUpdate(payload);
+      // The server turns the costed active tier off on its own (fuel runs out)
+      // and reports it here; a reconnect must not re-arm a tier that lapsed.
+      if (payload.active_scan === false) this.observationActiveScanState = false;
       this.bridgeObservationToLocation();
     });
   }
@@ -596,7 +599,11 @@ export class Account {
     return this.observationSubscribedState;
   }
 
-  /** The `activeScan` flag passed to the active `subscribeObservation()` call, if any — see `marketSubscribed`. */
+  /**
+   * Whether the active watch runs the active sensor sweep: the flag passed to
+   * `subscribeObservation()`, cleared when an `observation_update` reports the
+   * server turned the sweep off. A reconnect resubscribes with this value.
+   */
   get observationActiveScan(): boolean {
     return this.observationActiveScanState;
   }
@@ -1149,6 +1156,7 @@ export class Account {
           in_transit: true,
           transit_arrival_tick: payload.arrival_tick,
           transit_dest_system_id: payload.destination,
+          transit_dest_system_name: typeof payload.destination_name === 'string' ? payload.destination_name : undefined,
           transit_type: 'jump',
         });
         break;
@@ -1179,6 +1187,7 @@ export class Account {
           in_transit: true,
           transit_arrival_tick: payload.arrival_tick,
           transit_dest_poi_id: payload.destination,
+          transit_dest_poi_name: typeof payload.destination_name === 'string' ? payload.destination_name : undefined,
           transit_type: 'travel',
         });
         break;
