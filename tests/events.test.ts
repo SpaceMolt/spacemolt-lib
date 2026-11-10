@@ -312,6 +312,29 @@ test('the observation bridge does not touch location before it has been seeded',
   expect(account.observation()?.nearby.size).toBe(1); // the separate observation cache still has it
 });
 
+test('an active sweep that shuts itself off is not re-armed on resubscribe', async () => {
+  const { account, socket } = await connected();
+  respondToSubscribeObservation(socket, [], { active_scan: true });
+  await account.subscribeObservation(true);
+  expect(account.observationActiveScan).toBe(true);
+
+  // The server turns the costed tier off when fuel runs out and reports it
+  // with active_scan: false. The flag resubscribe() reads must follow it.
+  socket.serverSend({
+    type: 'observation_update',
+    payload: {
+      poi_id: 'earth_station',
+      system_id: 'sol',
+      tick: 5,
+      unknown_signature: false,
+      active_scan: false,
+    } satisfies NotificationObservationUpdate,
+  });
+
+  expect(account.observation()?.activeScan).toBe(false);
+  expect(account.observationActiveScan).toBe(false);
+});
+
 test('observation() clears once the account leaves the subscribed POI — same silent server-side drop as market subscriptions', async () => {
   const { account, socket } = await connected();
   socket.serverSend({
