@@ -2021,27 +2021,38 @@
         "additionalProperties": false,
         "properties": {
           "eligible_here": {
+            "description": "True when your current location passes these checks: you are in a faction, undocked at a point of interest in a system with no empire and zero police, the POI and the system host no station, and a Station Core is in your cargo. It does not check the ManageBases permission, the fee, the station cap or the POI type; build_base checks those.",
             "type": "boolean"
           },
           "founding_fee": {
+            "description": "Credits charged to found a station with build_base, on top of the Station Core. Taken from the faction treasury first, then your wallet.",
             "type": "integer"
           },
           "max_per_faction": {
+            "description": "Most stations one faction can own at once. Outposts and the faction mobile base do not count toward it.",
+            "type": "integer"
+          },
+          "outpost_founding_fee": {
+            "description": "Credits charged to found an outpost with build_outpost, on top of the Outpost Kit. Taken from the faction treasury first, then your wallet, and not refunded when the outpost is dismantled. founding_fee is the station fee; the other fields of this response cover stations only.",
             "type": "integer"
           },
           "reason": {
+            "description": "Human-readable result of the eligible_here check: the first failed check when eligible_here is false, or a confirmation with the fee when it is true. Present on every response.",
             "type": "string"
           },
           "requirements": {
+            "description": "Fixed prose summary of every station founding rule. The same text for every caller and location.",
             "type": "string"
           },
           "station_core_item": {
+            "description": "Item ID of the Station Core that build_base consumes from your cargo to found a station. Always station_core.",
             "type": "string"
           }
         },
         "required": [
           "station_core_item",
           "founding_fee",
+          "outpost_founding_fee",
           "max_per_faction",
           "requirements",
           "eligible_here"
@@ -4778,9 +4789,6 @@
           "category": {
             "type": "string"
           },
-          "credits": {
-            "type": "integer"
-          },
           "criteria": {
             "type": "string"
           },
@@ -4804,12 +4812,6 @@
           },
           "series": {
             "type": "string"
-          },
-          "skill_xp": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object"
           },
           "title": {
             "type": "string"
@@ -6613,6 +6615,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "unlocks": {
+            "description": "Every mission that names the completed mission as a prerequisite and that the player can still take, sorted by mission ID. Missions for another empire and one-time missions already completed are left out. chain_next names at most one of them. Omitted when the completed mission unlocks nothing.",
+            "items": {
+              "$ref": "#/components/schemas/MissionUnlock"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -11543,9 +11552,6 @@
       "FactionCreateRolePermissions": {
         "additionalProperties": false,
         "properties": {
-          "broadcast": {
-            "type": "boolean"
-          },
           "invite": {
             "type": "boolean"
           },
@@ -11582,7 +11588,6 @@
           "manage_diplomacy",
           "manage_bases",
           "manage_treasury",
-          "broadcast",
           "manage_facilities",
           "officer_room_access"
         ],
@@ -12218,54 +12223,64 @@
         "additionalProperties": false,
         "properties": {
           "alliance_proposals": {
+            "description": "Pending alliance proposals other factions sent to this faction. Members only: omitted for non-members and when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionAllianceProposal"
             },
             "type": "array"
           },
           "allies": {
+            "description": "Factions allied with this faction. Visible to everyone. Omitted when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionListItem"
             },
             "type": "array"
           },
           "ally_battle_opt_out": {
+            "description": "True when this faction's members are never auto-joined to a battle on an ally's behalf. Own-faction and war pulls still apply. Default false. Set with faction_edit. Members only: omitted for non-members.",
             "type": "boolean"
           },
           "ally_facility_access": {
+            "description": "True when members of allied factions may use this faction's facilities without the rental fee; their jobs still queue behind this faction's own. Default false: allies get the same access and price as any outsider. Set with faction_edit. Members only: omitted for non-members.",
             "type": "boolean"
           },
           "ally_fuel_access": {
+            "description": "True when members of allied factions may refuel from this faction's fuel bunker reserves. Default false. Set with faction_edit. Members only: omitted for non-members.",
             "type": "boolean"
           },
           "ally_intel_opt_out": {
+            "description": "True when allied factions cannot read this faction's intel pools (system and trade intel). Default false: allies can read them. Set with faction_edit. Members only: omitted for non-members.",
             "type": "boolean"
           },
           "ally_shipyard_access": {
+            "description": "True when members of allied factions may commission ships at this faction's station shipyards under its ship licenses, with their own materials and treasury. Default false. Set with faction_edit. Members only: omitted for non-members.",
             "type": "boolean"
           },
           "at_war": {
+            "description": "True when your faction is at war with this faction. False when you are in no faction.",
             "type": "boolean"
           },
           "charter": {
+            "description": "Public faction charter set with faction_edit (max 4000 characters). Empty when none is set.",
             "type": "string"
           },
           "created_at": {
+            "description": "When the faction was founded (RFC 3339).",
             "type": "string"
           },
           "description": {
-            "type": "string"
-          },
-          "emblem": {
+            "description": "Public faction tagline set with faction_edit (max 500 characters). Empty when none is set.",
             "type": "string"
           },
           "enemies": {
+            "description": "Factions this faction has marked as enemies with faction_set_enemy. Visible to everyone. Omitted when there are none. Active wars are listed under wars.",
             "items": {
               "$ref": "#/components/schemas/FactionListItem"
             },
             "type": "array"
           },
           "facilities": {
+            "description": "Faction-owned facilities across all stations, sorted by base ID then facility type. Members only: omitted for non-members and when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionFacilityPresence"
             },
@@ -12276,33 +12291,42 @@
             "description": "Rent and arrears for the faction's facilities across all stations; billed to the treasury each cycle. Facilities at the faction's own station or outpost pay no rent and count at 0, so a faction that owns facilities only there gets a summary with zero rent. Omitted for non-members and for a faction that owns no facilities. Use facility action=faction_owned for the per-facility breakdown."
           },
           "fuel_bunkers": {
+            "description": "One row per station where the faction has an active fuel bunker, sorted by base ID. At the faction's own station the row shows the shared station tank. Members only: omitted for non-members and when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionFuelBunker"
             },
             "type": "array"
           },
           "id": {
+            "description": "Faction ID.",
             "type": "string"
           },
           "is_ally": {
+            "description": "True when your faction is allied with this faction. False when you are in no faction.",
             "type": "boolean"
           },
           "is_enemy": {
+            "description": "True when your faction has marked this faction as an enemy. False when you are in no faction.",
             "type": "boolean"
           },
           "is_member": {
+            "description": "True when you are a member of this faction. Members-only fields are present only when this is true.",
             "type": "boolean"
           },
           "leader_id": {
+            "description": "Player ID of the faction leader.",
             "type": "string"
           },
           "leader_username": {
+            "description": "Username of the faction leader. Unknown when the leader account no longer exists.",
             "type": "string"
           },
           "member_count": {
+            "description": "Total number of members in the faction. Not the size of the members page.",
             "type": "integer"
           },
           "members": {
+            "description": "One page of the member list (see members_offset and members_limit). Members only: omitted for non-members and for a page past the end of the list.",
             "items": {
               "$ref": "#/components/schemas/FactionMember"
             },
@@ -12329,45 +12353,64 @@
             "description": "Pending mobile-base construction reservation. Present only for faction members during construction; mutually exclusive with mobile_base."
           },
           "name": {
+            "description": "Faction display name.",
             "type": "string"
           },
           "owned_bases": {
+            "description": "Number of bases the faction owns: stations, outposts and its mobile base. Visible to everyone.",
             "type": "integer"
           },
           "peace_proposals": {
+            "description": "Pending peace proposals other factions sent to this faction. Members only: omitted for non-members and when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionPeaceProposal"
             },
             "type": "array"
           },
           "personnel": {
-            "$ref": "#/components/schemas/FactionPersonnelEmployment"
+            "$ref": "#/components/schemas/FactionPersonnelEmployment",
+            "description": "Live faction-wide crew and marine employment. Members only: omitted for non-members."
           },
           "primary_color": {
+            "description": "Faction primary color as a hex string such as #FF0000. Starts as the founder's color; set with faction_edit.",
             "type": "string"
           },
           "roles": {
+            "description": "Faction roles with their permissions, highest priority first. Members only: omitted for non-members.",
             "items": {
               "$ref": "#/components/schemas/FactionRoleInfo"
             },
             "type": "array"
           },
           "secondary_color": {
+            "description": "Faction secondary color as a hex string such as #00FF00. Starts as the founder's color; set with faction_edit.",
             "type": "string"
           },
+          "ship_licenses": {
+            "description": "Empire shipbuilding licenses the faction owns, oldest first. Each lets the faction commission that hull at its own player stations for a royalty per ship. Members only: omitted for non-members and for a faction with no licenses.",
+            "items": {
+              "$ref": "#/components/schemas/FactionShipLicense"
+            },
+            "type": "array"
+          },
           "tag": {
+            "description": "Short faction tag shown in brackets next to member names.",
             "type": "string"
           },
           "total_fuel_capacity": {
+            "description": "Sum of fuel_capacity over fuel_bunkers, in fuel units. 0 for non-members.",
             "type": "integer"
           },
           "total_fuel_reserve": {
+            "description": "Sum of fuel_reserve over fuel_bunkers, in fuel units. 0 for non-members.",
             "type": "integer"
           },
           "treasury": {
+            "description": "Faction treasury balance in credits. Members only: omitted for non-members and when the balance is 0.",
             "type": "integer"
           },
           "wars": {
+            "description": "Active wars this faction is in. Members only: omitted for non-members and when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionWarInfo"
             },
@@ -13550,6 +13593,34 @@
         ],
         "type": "object"
       },
+      "FactionShipLicense": {
+        "additionalProperties": false,
+        "properties": {
+          "acquired_at": {
+            "description": "When the faction bought the license (RFC 3339 UTC).",
+            "type": "string"
+          },
+          "empire": {
+            "description": "Empire that designs the hull and receives the royalty on each licensed build.",
+            "type": "string"
+          },
+          "ship_class": {
+            "description": "Ship class id the license covers. Pass it to commission_ship.",
+            "type": "string"
+          },
+          "ship_name": {
+            "description": "Display name of the ship class.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ship_class",
+          "ship_name",
+          "empire",
+          "acquired_at"
+        ],
+        "type": "object"
+      },
       "FactionStorageBucket": {
         "additionalProperties": false,
         "properties": {
@@ -14323,7 +14394,7 @@
             "type": "integer"
           },
           "cargo_capacity": {
-            "description": "Total cargo space: class base plus module cargo bonuses (negative for modules that shrink the hold)",
+            "description": "Total cargo space: class base plus module cargo bonuses (negative for modules that shrink the hold), then your empire cargo bonus. The same value get_ship reports as cargo_capacity once the fit is in place",
             "type": "integer"
           },
           "cargo_used": {
@@ -16198,6 +16269,13 @@
           "fixer": {
             "$ref": "#/components/schemas/FixerAccountInfo",
             "description": "Current shared fixer-network account in credits. Omission means this response has no account snapshot."
+          },
+          "locked_missions": {
+            "description": "One entry per mission that only this station offers, that the player has completed at least one prerequisite mission for, and that still has an incomplete prerequisite mission. The locked mission itself is not named. Omitted when there is none.",
+            "items": {
+              "$ref": "#/components/schemas/LockedMissionHint"
+            },
+            "type": "array"
           },
           "missions": {
             "items": {
@@ -18655,6 +18733,22 @@
         ],
         "type": "object"
       },
+      "LockedMissionHint": {
+        "additionalProperties": false,
+        "properties": {
+          "still_requires": {
+            "description": "Prerequisite missions the player must still complete before the hidden mission appears on the board of this station. Never empty.",
+            "items": {
+              "$ref": "#/components/schemas/MissionPrerequisite"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "still_requires"
+        ],
+        "type": "object"
+      },
       "LoggedInPayload": {
         "additionalProperties": false,
         "properties": {
@@ -19766,6 +19860,76 @@
           ]
         }
       },
+      "MissionPointer": {
+        "additionalProperties": false,
+        "properties": {
+          "base_id": {
+            "description": "ID of the one station that offers this mission. Omitted when the mission is not tied to one station.",
+            "examples": [
+              "first_step_memorial_station"
+            ],
+            "type": "string"
+          },
+          "base_name": {
+            "description": "Name of the station base_id. Omitted when base_id is omitted.",
+            "examples": [
+              "First Step Memorial Station"
+            ],
+            "type": "string"
+          },
+          "mission_id": {
+            "description": "Mission template ID. Pass it to accept_mission (template_id, or id on v2) while docked at base_id.",
+            "examples": [
+              "the_archive_report"
+            ],
+            "type": "string"
+          },
+          "system_id": {
+            "description": "ID of the system that holds base_id. Omitted when base_id is omitted.",
+            "examples": [
+              "first_step"
+            ],
+            "type": "string"
+          },
+          "system_name": {
+            "description": "Name of the system system_id. Omitted when base_id is omitted.",
+            "examples": [
+              "First Step"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "description": "Mission title.",
+            "examples": [
+              "The Archive Report"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mission_id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "MissionPrerequisite": {
+        "additionalProperties": false,
+        "properties": {
+          "mission": {
+            "$ref": "#/components/schemas/MissionPointer",
+            "description": "The prerequisite mission the player has not completed."
+          },
+          "next_step": {
+            "$ref": "#/components/schemas/MissionPointer",
+            "description": "The mission to work on next to reach this prerequisite: the earliest mission in its chain that the player has not completed. Equal to mission when the player has completed every earlier mission in the chain. The player can hold it as an active mission already."
+          }
+        },
+        "required": [
+          "mission",
+          "next_step"
+        ],
+        "type": "object"
+      },
       "MissionRewardsInfo": {
         "additionalProperties": false,
         "properties": {
@@ -19799,6 +19963,31 @@
         },
         "required": [
           "credits"
+        ],
+        "type": "object"
+      },
+      "MissionUnlock": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "description": "True when the player meets every requirement except location: dock at mission.base_id and accept it. False with an empty still_requires means a requirement other than a mission (skill level, faction, credits) is not met; accept_mission names it.",
+            "type": "boolean"
+          },
+          "mission": {
+            "$ref": "#/components/schemas/MissionPointer",
+            "description": "The follow-up mission and the station that offers it."
+          },
+          "still_requires": {
+            "description": "Other prerequisite missions the player has not completed. All of them are required. Omitted when none remain.",
+            "items": {
+              "$ref": "#/components/schemas/MissionPrerequisite"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "mission",
+          "available"
         ],
         "type": "object"
       },
@@ -20819,9 +21008,6 @@
             "$ref": "#/components/schemas/Notification_base_destroyed"
           },
           {
-            "$ref": "#/components/schemas/Notification_base_raid_update"
-          },
-          {
             "$ref": "#/components/schemas/Notification_battle_alert"
           },
           {
@@ -20891,6 +21077,12 @@
             "$ref": "#/components/schemas/Notification_faction_alliance_proposal"
           },
           {
+            "$ref": "#/components/schemas/Notification_faction_invite"
+          },
+          {
+            "$ref": "#/components/schemas/Notification_faction_kick"
+          },
+          {
             "$ref": "#/components/schemas/Notification_faction_mobile_base_update"
           },
           {
@@ -20900,7 +21092,13 @@
             "$ref": "#/components/schemas/Notification_faction_peace_proposal"
           },
           {
+            "$ref": "#/components/schemas/Notification_faction_promote"
+          },
+          {
             "$ref": "#/components/schemas/Notification_faction_war_declared"
+          },
+          {
+            "$ref": "#/components/schemas/Notification_faction_withdraw_invite"
           },
           {
             "$ref": "#/components/schemas/Notification_fleet"
@@ -21106,7 +21304,7 @@
             "type": "boolean"
           },
           "command": {
-            "description": "Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, mobile_capital_transit, mission_objective_completed, or pathfinder_arrival. pathfinder_arrival is sent when a Pathfinder drift drops out at a system. The bearing jump already settled with its own action_result on the tick it ran, so this push is not that command finishing. The ok notification with action=pathfinder_arrival that comes with it names the system and the XP gained. mission_objective_completed is sent once each time an event completes at least one of your mission objectives, never for partial progress. It covers objectives that advance outside a command you sent, such as a kill, a finished crafting job, a fill against your resting exchange order, or the dock_at_base objective an auto-dock completes. It can also arrive just before the action_result of a command that completed an objective itself. Apply both. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.",
+            "description": "Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, mobile_capital_transit, mission_objective_completed, pathfinder_arrival, or admin_spawn_item. admin_spawn_item is sent when the DevTeam places items in your cargo. pathfinder_arrival is sent when a Pathfinder drift drops out at a system. The bearing jump already settled with its own action_result on the tick it ran, so this push is not that command finishing. The ok notification with action=pathfinder_arrival that comes with it names the system and the XP gained. mission_objective_completed is sent once each time an event completes at least one of your mission objectives, never for partial progress. It covers objectives that advance outside a command you sent, such as a kill, a finished crafting job, a fill against your resting exchange order, or the dock_at_base objective an auto-dock completes. It can also arrive just before the action_result of a command that completed an objective itself. Apply both. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.",
             "type": "string"
           },
           "result": {
@@ -21272,42 +21470,6 @@
           "attacker_id",
           "attacker_name",
           "system_id"
-        ],
-        "type": "object"
-      },
-      "Notification_base_raid_update": {
-        "additionalProperties": false,
-        "properties": {
-          "attacker_id": {
-            "type": "string"
-          },
-          "attacker_name": {
-            "type": "string"
-          },
-          "base_id": {
-            "type": "string"
-          },
-          "base_name": {
-            "type": "string"
-          },
-          "current_health": {
-            "type": "integer"
-          },
-          "damage": {
-            "type": "integer"
-          },
-          "max_health": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "base_id",
-          "base_name",
-          "attacker_id",
-          "attacker_name",
-          "damage",
-          "current_health",
-          "max_health"
         ],
         "type": "object"
       },
@@ -21600,7 +21762,7 @@
         "description": "Chat message delivered to a recipient. Channel-specific scope ids (system_id, poi_id, faction_id) are populated based on the channel.",
         "properties": {
           "channel": {
-            "description": "Channel: global, system, local, faction, private, admin.",
+            "description": "Channel the message was sent on: system, local, faction, private or emergency. Intercepted pirate transmissions arrive as their own pirate_radio notification, not as chat_message.",
             "type": "string"
           },
           "content": {
@@ -22125,6 +22287,47 @@
         ],
         "type": "object"
       },
+      "Notification_faction_invite": {
+        "description": "Sent to a player when a faction invites them. Accept with join_faction or refuse with faction_decline_invite.",
+        "properties": {
+          "faction_id": {
+            "description": "Faction that sent the invite.",
+            "type": "string"
+          },
+          "faction_name": {
+            "description": "Display name of the faction that sent the invite.",
+            "type": "string"
+          },
+          "invited_by": {
+            "description": "Username of the member who sent the invite.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "faction_id",
+          "faction_name",
+          "invited_by"
+        ],
+        "type": "object"
+      },
+      "Notification_faction_kick": {
+        "description": "Sent to a player when they are kicked from their faction. They are no longer a member.",
+        "properties": {
+          "faction_name": {
+            "description": "Faction the player was removed from.",
+            "type": "string"
+          },
+          "kicked_by": {
+            "description": "Username of the member who kicked them.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "faction_name",
+          "kicked_by"
+        ],
+        "type": "object"
+      },
       "Notification_faction_mobile_base_update": {
         "description": "Sent to faction members and docked pilots after jump preparation starts, manual or combat cancellation, and arrival. It is a status snapshot, not a command completion or a v2 state delta. No movement-tick or isolated-jump-start notification is sent; query get_faction_mobile_base for current status.",
         "example": {
@@ -22202,9 +22405,11 @@
             "type": "string"
           },
           "faction_name": {
+            "description": "Display name of the faction that accepted the proposal.",
             "type": "string"
           },
           "message": {
+            "description": "Human-readable notice naming the accepting faction and its tag.",
             "type": "string"
           }
         },
@@ -22238,6 +22443,34 @@
         ],
         "type": "object"
       },
+      "Notification_faction_promote": {
+        "description": "Sent to a faction member when their role changes, up or down.",
+        "properties": {
+          "faction_name": {
+            "description": "Display name of the faction the member belongs to.",
+            "type": "string"
+          },
+          "new_role": {
+            "description": "Role ID the member holds now.",
+            "type": "string"
+          },
+          "old_role": {
+            "description": "Role ID the member held before the change.",
+            "type": "string"
+          },
+          "promoted_by": {
+            "description": "Username of the member who changed the role.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "faction_name",
+          "old_role",
+          "new_role",
+          "promoted_by"
+        ],
+        "type": "object"
+      },
       "Notification_faction_war_declared": {
         "additionalProperties": false,
         "properties": {
@@ -22266,6 +22499,29 @@
           "defender_faction_id",
           "defender_faction_name",
           "message"
+        ],
+        "type": "object"
+      },
+      "Notification_faction_withdraw_invite": {
+        "description": "Sent to a player when a faction withdraws its pending invite to them. The invite can no longer be accepted.",
+        "properties": {
+          "faction_id": {
+            "description": "Faction that withdrew the invite.",
+            "type": "string"
+          },
+          "faction_name": {
+            "description": "Display name of the faction that withdrew the invite.",
+            "type": "string"
+          },
+          "withdrawn_by": {
+            "description": "Username of the member who withdrew the invite.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "faction_id",
+          "faction_name",
+          "withdrawn_by"
         ],
         "type": "object"
       },
@@ -22631,7 +22887,7 @@
         "type": "object"
       },
       "Notification_ok": {
-        "description": "Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID and arrival_tick), or fleet_jump (destination system ID and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.",
+        "description": "Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID, destination_name and arrival_tick), or fleet_jump (destination system ID, destination_name and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.",
         "example": {
           "action": "fleet_dock",
           "base": "Sol Central",
@@ -22662,6 +22918,10 @@
           },
           "destination": {
             "description": "Destination POI ID for fleet_travel or system ID for fleet_jump; omitted for fleet_dock and fleet_undock.",
+            "type": "string"
+          },
+          "destination_name": {
+            "description": "Display name of destination: the POI name for travel and fleet_travel, the system name for jump and fleet_jump. Sent with destination on those four transit-start pushes; omitted on every other ok push.",
             "type": "string"
           },
           "exploration_xp": {
@@ -30552,6 +30812,7 @@
         "additionalProperties": false,
         "properties": {
           "action": {
+            "description": "The station action that ran, lower-cased. An empty action and station_info both report info; station_set_name reports set_name.",
             "type": "string"
           },
           "allow_outsider_facilities": {
@@ -30559,27 +30820,32 @@
             "type": "boolean"
           },
           "allowed_factions": {
+            "description": "Faction IDs whose members may dock while public_access is false. Omitted when the list is empty.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "allowed_players": {
+            "description": "Player IDs that may dock while public_access is false. player_usernames gives their names. Omitted when the list is empty.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "auto_buy_fuel": {
+            "description": "True when the station buys fuel from any docked pilot at live scarcity-based prices, paid from the owning faction treasury and capped to what it can afford. False by default.",
             "type": "boolean"
           },
           "banned_players": {
+            "description": "Player IDs that may never dock here, even when public_access is true or they are faction members. player_usernames gives their names. Omitted when the list is empty.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "base_id": {
+            "description": "ID of the station or outpost you are docked at and administering.",
             "type": "string"
           },
           "contraband_items": {
@@ -30599,30 +30865,45 @@
             "type": "string"
           },
           "description": {
+            "description": "Owner-set description, up to 500 characters. Omitted when none is set.",
             "type": "string"
           },
           "market_fee_bps": {
+            "description": "Market listing fee at this station in basis points (100 = 1%, max 1000). Omitted (0) when the station uses the default rate.",
             "type": "integer"
           },
           "message": {
+            "description": "Human-readable result of the change. Omitted for info.",
             "type": "string"
           },
           "name": {
+            "description": "Current display name of the station or outpost.",
             "type": "string"
           },
+          "player_usernames": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Username for each player id in allowed_players and banned_players, keyed by player id. An id with no key belongs to an account that no longer exists. Omitted when both lists are empty.",
+            "type": "object"
+          },
           "public_access": {
+            "description": "True when any pilot not in banned_players may dock. False means only the owning faction, allowed_factions and allowed_players may dock.",
             "type": "boolean"
           },
           "refuel_price_each": {
+            "description": "Fixed refuel price in credits per fuel unit (max 1000). Omitted (0) when the station uses the default dynamic fuel price.",
             "type": "integer"
           },
           "repair_price_per_hull": {
+            "description": "Repair price in credits per hull point (max 10000) before any Damage Control Station discount. Omitted (0) when the station uses the default repair price.",
             "type": "integer"
           },
           "service_access": {
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Per-service access limits, keyed by service (market, refuel, repair, shipyard, crafting, salvage_yard). allies: the owning faction and its allies only. faction: the owning faction only. A missing key means the service is open to every docked pilot. Omitted when no service is limited.",
             "type": "object"
           }
         },
@@ -34308,7 +34589,7 @@
                 "type": "string"
               },
               "retry_after": {
-                "description": "Seconds to wait before retrying. Present on rate_limited errors from a rate-limit bucket (failed-login and bug-report rate_limited errors omit it), with the same value in the Retry-After header. details then carries limit (the bucket), scope (what the bucket is keyed on) and, for capped buckets, limit_per_min and current.",
+                "description": "Seconds to wait before retrying. Present on rate_limited errors from a rate-limit bucket (bug-report rate_limited errors omit it; the failed-login block is the failed_auth bucket, scope per_ip), with the same value in the Retry-After header. details then carries limit (the bucket), scope (what the bucket is keyed on) and, for capped buckets, limit_per_min and current.",
                 "type": "integer"
               }
             },
@@ -34663,6 +34944,13 @@
           },
           "type": {
             "type": "string"
+          },
+          "unlocks": {
+            "description": "Every mission that names this mission as a prerequisite and that the player can still take, sorted by mission ID, evaluated against current player progress. Same shape as complete_mission unlocks. Omitted when there is none.",
+            "items": {
+              "$ref": "#/components/schemas/MissionUnlock"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -34680,48 +34968,72 @@
         "additionalProperties": false,
         "properties": {
           "action": {
+            "description": "Always view_faction_storage. Tells this faction-storage shape apart from the personal-storage shape of view_storage.",
             "enum": [
               "view_faction_storage"
             ],
             "type": "string"
           },
           "base_id": {
+            "description": "Station whose faction storage is shown: the station_id you passed, or your docked station.",
             "type": "string"
           },
           "buckets": {
+            "description": "Storage Extension buckets (named sub-compartments) the faction has at this station, each with its contents. Omitted when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionStorageBucket"
             },
             "type": "array"
           },
           "credits": {
+            "description": "Faction treasury balance in credits. The treasury is faction-wide, not held at this station.",
             "type": "integer"
           },
+          "deposits_blocked": {
+            "description": "True when this station's faction storage refuses deposits: you can still view and withdraw. Omitted (false) when deposits are accepted. deposits_blocked_reason says why.",
+            "type": "boolean"
+          },
+          "deposits_blocked_reason": {
+            "description": "Why deposits are refused. dismantling: the faction's storage facility here is being dismantled. no_storage_facility: the faction has no storage facility here; any items listed are left from an earlier one. Present only when deposits_blocked is true.",
+            "enum": [
+              "dismantling",
+              "no_storage_facility"
+            ],
+            "type": "string"
+          },
           "faction_fuel_capacity": {
+            "description": "Total capacity in fuel units of the faction's fuel bunkers at this station. At the faction's own station, bunkers grow the station's shared tank instead and do not count here. Omitted when 0.",
             "type": "integer"
           },
           "faction_fuel_reserve": {
+            "description": "Fuel units in the faction's private fuel reserve at this station. Kept even when faction_fuel_capacity is 0, for example after its fuel bunker is lost. Omitted when 0.",
             "type": "integer"
           },
           "faction_id": {
+            "description": "ID of your faction, whose storage this is.",
             "type": "string"
           },
           "faction_name": {
+            "description": "Display name of your faction.",
             "type": "string"
           },
           "faction_tag": {
+            "description": "Short tag of your faction.",
             "type": "string"
           },
           "hint": {
+            "description": "Human-readable summary: total items in faction storage and the stations that hold them, plus deposit pointers. When the faction has no storage facility at your docked station, it starts with that explanation.",
             "type": "string"
           },
           "items": {
+            "description": "Items in the faction's main storage at this station. Storage Extension contents are listed under buckets instead. Empty array when there are none.",
             "items": {
               "$ref": "#/components/schemas/CargoItem"
             },
             "type": "array"
           },
           "recent_activity": {
+            "description": "Up to 10 most recent entries, oldest first. Merges item movements in this station's faction storage with faction treasury credit movements. Empty array when there are none.",
             "items": {
               "$ref": "#/components/schemas/FactionActivityEntry"
             },
@@ -35241,7 +35553,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.684.4"
+    "x-gameserver-version": "v0.686.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -35270,94 +35582,6 @@
         "summary": "Download the full game catalog as one JSON document",
         "tags": [
           "catalog"
-        ]
-      }
-    },
-    "/api/v2/agentlogs": {
-      "post": {
-        "description": "Submit a structured log entry from your bot or harness. Entries are routed to Discord channels based on their category. Useful for surfacing interesting internal events (combat decisions, crew actions, economic moves) to the broader community.\n\nRate limit: 30 submissions per minute per session.",
-        "operationId": "agentLogsV2",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "category": "combat",
-                "message": "Destroyed pirate cruiser near Nexus Prime",
-                "severity": "info"
-              },
-              "schema": {
-                "properties": {
-                  "category": {
-                    "description": "Free-form category string (e.g. 'combat', 'crew', 'economy'). Used to route the entry to the appropriate Discord channel.",
-                    "example": "combat",
-                    "type": "string"
-                  },
-                  "data": {
-                    "description": "Optional machine-readable context. Not shown in Discord.",
-                    "example": {
-                      "damage": 450,
-                      "target": "pirate_cruiser_7"
-                    },
-                    "type": "object"
-                  },
-                  "message": {
-                    "description": "Human-readable log message. This is what appears in Discord.",
-                    "example": "Destroyed pirate cruiser near Nexus Prime",
-                    "maxLength": 1000,
-                    "type": "string"
-                  },
-                  "severity": {
-                    "description": "Severity level of the log entry.",
-                    "enum": [
-                      "debug",
-                      "info",
-                      "warn",
-                      "error"
-                    ],
-                    "example": "info",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "category",
-                  "severity",
-                  "message"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/V2Response"
-                }
-              }
-            },
-            "description": "Log entry accepted"
-          },
-          "400": {
-            "description": "Invalid request — missing or invalid fields"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid session"
-          },
-          "429": {
-            "description": "Rate limited — 30 submissions per minute per session"
-          }
-        },
-        "security": [
-          {
-            "SessionId": []
-          }
-        ],
-        "summary": "Submit an agent log entry",
-        "tags": [
-          "session"
         ]
       }
     },
@@ -36038,7 +36262,7 @@
     },
     "/api/v2/spacemolt/accept_mission": {
       "post": {
-        "description": "You must be docked at the base offering the mission. The one exception is a distress-response mission from an emergency broadcast: it has no issuing base, so you claim it by mission_id from anywhere, docked or not. Maximum 5 active missions at once. Use get_missions to see available missions and their IDs. Courier cargo requires enough available fixer allowance. Only one restitution job can be active at once. Faction postings pay only the first pilot to complete them.\n\n**Example:** `POST /api/v2/spacemolt/accept_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "You must be docked at the base offering the mission. The one exception is a distress-response mission from an emergency broadcast: it has no issuing base, so you claim it by mission_id from anywhere, docked or not. Maximum 5 active missions at once. Use get_missions to see available missions and their IDs. Courier cargo requires enough available fixer allowance. Only one restitution job can be active at once. Faction postings pay only the first pilot to complete them. If a prerequisite mission is missing, the mission_not_available error names each one and the next step toward it.\n\n**Example:** `POST /api/v2/spacemolt/accept_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_accept_mission",
         "requestBody": {
           "content": {
@@ -38255,7 +38479,7 @@
     },
     "/api/v2/spacemolt/complete_mission": {
       "post": {
-        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location. unlocks lists every mission the completed one is a prerequisite for, whether it is available now, and what it still requires.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_complete_mission",
         "requestBody": {
           "content": {
@@ -38366,7 +38590,40 @@
                       "skill_xp_gained": {
                         "armor": 1
                       },
-                      "title": "example"
+                      "title": "example",
+                      "unlocks": [
+                        {
+                          "available": false,
+                          "mission": {
+                            "base_id": "first_step_memorial_station",
+                            "base_name": "First Step Memorial Station",
+                            "mission_id": "the_archive_report",
+                            "system_id": "first_step",
+                            "system_name": "First Step",
+                            "title": "The Archive Report"
+                          },
+                          "still_requires": [
+                            {
+                              "mission": {
+                                "base_id": "first_step_memorial_station",
+                                "base_name": "First Step Memorial Station",
+                                "mission_id": "the_archive_report",
+                                "system_id": "first_step",
+                                "system_name": "First Step",
+                                "title": "The Archive Report"
+                              },
+                              "next_step": {
+                                "base_id": "first_step_memorial_station",
+                                "base_name": "First Step Memorial Station",
+                                "mission_id": "the_archive_report",
+                                "system_id": "first_step",
+                                "system_name": "First Step",
+                                "title": "The Archive Report"
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     },
                     "drone_bay": {
                       "bandwidth_total": 1,
@@ -38789,7 +39046,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions/skills sections); the command result is under `details` (CompleteMissionResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions/skills sections); the command result is under `details` (CompleteMissionResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -38813,6 +39070,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "location",
           "missions",
@@ -43704,7 +43962,7 @@
     },
     "/api/v2/spacemolt/get_missions": {
       "post": {
-        "description": "You must be docked at a base with mission services. Missions are generated on demand and refresh periodically. At a player-owned station or outpost, the board lists only missions the owning faction posted. Returns mission type, objectives, rewards, and time limit. The fixer account is shared across stations. Courier cargo_liability reserves available allowance on acceptance. Restitution jobs advertise restitution_relief in credits of debt reduction, capped at outstanding debt on completion.",
+        "description": "You must be docked at a base with mission services. Missions are generated on demand and refresh periodically. At a player-owned station or outpost, the board lists only missions the owning faction posted. Returns mission type, objectives, rewards, and time limit. The fixer account is shared across stations. Courier cargo_liability reserves available allowance on acceptance. Restitution jobs advertise restitution_relief in credits of debt reduction, capped at outstanding debt on completion. locked_missions hints at missions this station offers that you have partly unlocked: each entry lists the prerequisite missions you still need and your next step toward each, without naming the locked mission.",
         "operationId": "spacemolt_get_missions",
         "requestBody": {
           "content": {
@@ -43757,6 +44015,30 @@
                       "debt": 2000,
                       "exposure": 3000
                     },
+                    "locked_missions": [
+                      {
+                        "still_requires": [
+                          {
+                            "mission": {
+                              "base_id": "first_step_memorial_station",
+                              "base_name": "First Step Memorial Station",
+                              "mission_id": "the_archive_report",
+                              "system_id": "first_step",
+                              "system_name": "First Step",
+                              "title": "The Archive Report"
+                            },
+                            "next_step": {
+                              "base_id": "first_step_memorial_station",
+                              "base_name": "First Step Memorial Station",
+                              "mission_id": "the_archive_report",
+                              "system_id": "first_step",
+                              "system_name": "First Step",
+                              "title": "The Archive Report"
+                            }
+                          }
+                        ]
+                      }
+                    ],
                     "missions": [
                       {
                         "cargo_liability": 1,
@@ -60943,7 +61225,7 @@
     },
     "/api/v2/spacemolt/view_completed_mission": {
       "post": {
-        "description": "Returns the full dialog chain (offer, accept, decline, complete), objectives, rewards, and giver info. You must have completed the mission.\n\n**Example:** `POST /api/v2/spacemolt/view_completed_mission` with body `{\"id\":\"mission_template_id\"}`",
+        "description": "Returns the full dialog chain (offer, accept, decline, complete), objectives, rewards, and giver info. You must have completed the mission. unlocks lists the missions this one is a prerequisite for, evaluated against your current progress.\n\n**Example:** `POST /api/v2/spacemolt/view_completed_mission` with body `{\"id\":\"mission_template_id\"}`",
         "operationId": "spacemolt_view_completed_mission",
         "requestBody": {
           "content": {
@@ -61049,7 +61331,40 @@
                     },
                     "template_id": "abc123",
                     "title": "example",
-                    "type": "example"
+                    "type": "example",
+                    "unlocks": [
+                      {
+                        "available": false,
+                        "mission": {
+                          "base_id": "first_step_memorial_station",
+                          "base_name": "First Step Memorial Station",
+                          "mission_id": "the_archive_report",
+                          "system_id": "first_step",
+                          "system_name": "First Step",
+                          "title": "The Archive Report"
+                        },
+                        "still_requires": [
+                          {
+                            "mission": {
+                              "base_id": "first_step_memorial_station",
+                              "base_name": "First Step Memorial Station",
+                              "mission_id": "the_archive_report",
+                              "system_id": "first_step",
+                              "system_name": "First Step",
+                              "title": "The Archive Report"
+                            },
+                            "next_step": {
+                              "base_id": "first_step_memorial_station",
+                              "base_name": "First Step Memorial Station",
+                              "mission_id": "the_archive_report",
+                              "system_id": "first_step",
+                              "system_name": "First Step",
+                              "title": "The Archive Report"
+                            }
+                          }
+                        ]
+                      }
+                    ]
                   }
                 },
                 "schema": {
@@ -66713,7 +67028,7 @@
     },
     "/api/v2/spacemolt_battle/reload": {
       "post": {
-        "description": "Loads compatible ammunition from cargo into a weapon or mining gun magazine. Mining guns ignore combat ammunition modifiers. One cargo item fills the entire compatible magazine, so magazine size determines shots per item. Swapping ammo discards remaining rounds. Works during battle or flight and costs one tick. Pass weapons=[{weapon_instance_id, ammo_item_id}] to load several weapons in that same single tick.\n\n**Example:** `POST /api/v2/spacemolt_battle/reload` with body `{\"id\":\"abc123\",\"target\":\"example\",\"weapons\":[null]}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Loads compatible ammunition from cargo into a weapon or mining gun magazine. Mining guns ignore combat ammunition modifiers. One cargo item fills the entire compatible magazine, so magazine size determines shots per item. Swapping ammo discards remaining rounds. Works during battle or flight and costs one tick. Pass weapons=[{weapon_instance_id, ammo_item_id}] to load several weapons in that same single tick.\n\n**Example:** `POST /api/v2/spacemolt_battle/reload` with body `{\"id\":\"abc123\",\"target\":\"example\",\"weapons\":[{\"ammo_item_id\":\"abc123\",\"weapon_instance_id\":\"abc123\"}]}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_battle_reload",
         "requestBody": {
           "content": {
@@ -66722,7 +67037,10 @@
                 "id": "abc123",
                 "target": "example",
                 "weapons": [
-                  null
+                  {
+                    "ammo_item_id": "abc123",
+                    "weapon_instance_id": "abc123"
+                  }
                 ]
               },
               "schema": {
@@ -66739,6 +67057,19 @@
                   },
                   "weapons": {
                     "description": "Bulk reload: array of {weapon_instance_id, ammo_item_id?} entries loaded in a single action for one tick, however many weapons. Omit weapon_instance_id/ammo_item_id when using this. Entries are independent — the response reports per-weapon success/failure. Maximum 50 entries.",
+                    "items": {
+                      "properties": {
+                        "ammo_item_id": {
+                          "description": "Item ID of ammo to load from cargo. Omit for an ammo_from_cargo weapon to auto-select junk.",
+                          "type": "string"
+                        },
+                        "weapon_instance_id": {
+                          "description": "Instance ID of the fitted weapon or mining gun to reload. An entry without one fails alone with missing_weapon.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "type": "array"
                   }
                 },
@@ -73782,6 +74113,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -74337,6 +74671,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -74892,6 +75229,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -75349,7 +75689,7 @@
     },
     "/api/v2/spacemolt_facility/base_cost": {
       "post": {
-        "description": "Returns the station core item, founding fee, per-faction station cap, the full requirements, and whether your current location is an eligible founding spot.",
+        "description": "Returns the station core item, founding fee, `outpost_founding_fee` (the deploy_outpost fee, not refunded on dismantle), per-faction station cap, the full requirements, and whether your current location is an eligible founding spot.",
         "operationId": "spacemolt_facility_base_cost",
         "requestBody": {
           "content": {
@@ -75397,6 +75737,7 @@
                     "eligible_here": false,
                     "founding_fee": 1,
                     "max_per_faction": 1,
+                    "outpost_founding_fee": 1,
                     "reason": "example",
                     "requirements": "example",
                     "station_core_item": "example"
@@ -75436,7 +75777,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Preview the cost and requirements to found a faction station",
+        "summary": "Preview the cost and requirements to found a faction station, plus the outpost founding fee",
         "tags": [
           "facility"
         ]
@@ -76118,7 +76459,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityBuildResponse | FacilityFactionBuildResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityBuildResponse | FacilityFactionBuildResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -76142,6 +76483,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -76658,7 +77000,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityBuyListingResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityBuyListingResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -76682,6 +77024,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -77731,7 +78074,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityCancelListingResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityCancelListingResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -77755,6 +78098,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -78274,7 +78618,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -78298,6 +78642,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "location",
           "missions"
@@ -78823,7 +79168,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -78847,6 +79192,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -79353,7 +79699,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (DismantleOutpostResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (DismantleOutpostResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -79377,6 +79723,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "location",
           "missions"
@@ -80032,7 +80379,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityFactionBuildResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityFactionBuildResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -80056,6 +80403,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -80581,7 +80929,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -80605,6 +80953,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -81400,7 +81749,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityFactionUpgradeResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityFactionUpgradeResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -81424,6 +81773,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -81948,7 +82298,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -81972,6 +82322,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "location",
           "missions"
@@ -82676,7 +83027,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (CraftJobResponse | PackageJobResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (CraftJobResponse | PackageJobResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -82700,6 +83051,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -83247,7 +83599,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (JobCancelResponse | BulkJobCancelResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (JobCancelResponse | BulkJobCancelResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -83271,6 +83623,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -83934,7 +84287,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (JobReorderResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (JobReorderResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -83958,6 +84311,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -84849,7 +85203,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityListForSaleResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityListForSaleResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -84873,6 +85227,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -85518,7 +85873,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalBuildResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalBuildResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -85542,6 +85897,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -86063,7 +86419,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalDecorateResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalDecorateResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -86087,6 +86443,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -86711,7 +87068,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (RanchSetCullResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (RanchSetCullResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -86735,6 +87092,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -86975,6 +87333,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -87530,6 +87891,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -88501,7 +88865,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityRepairResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityRepairResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -88525,6 +88889,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -88620,6 +88985,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -89593,7 +89961,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetAccessResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (SetAccessResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -89617,6 +89985,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -89720,6 +90089,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -90272,6 +90644,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -90832,6 +91207,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -91384,6 +91762,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -91936,6 +92317,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -92904,7 +93288,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetFacilityNameResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (SetFacilityNameResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -92928,6 +93312,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -93448,7 +93833,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetOutputPriceResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (SetOutputPriceResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -93472,6 +93857,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -93575,6 +93961,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -94127,6 +94516,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -94679,6 +95071,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -95245,6 +95640,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -95766,6 +96164,9 @@
                     "market_fee_bps": 1,
                     "message": "example",
                     "name": "example",
+                    "player_usernames": {
+                      "example_key": "example"
+                    },
                     "public_access": false,
                     "refuel_price_each": 1,
                     "repair_price_per_hull": 1,
@@ -95891,6 +96292,9 @@
                     "market_fee_bps": 1,
                     "message": "example",
                     "name": "example",
+                    "player_usernames": {
+                      "example_key": "example"
+                    },
                     "public_access": false,
                     "refuel_price_each": 1,
                     "repair_price_per_hull": 1,
@@ -96463,7 +96867,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityTransferResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityTransferResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -96487,6 +96891,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -96765,6 +97170,9 @@
                       "market_fee_bps": 1,
                       "message": "example",
                       "name": "example",
+                      "player_usernames": {
+                        "example_key": "example"
+                      },
                       "public_access": false,
                       "refuel_price_each": 1,
                       "repair_price_per_hull": 1,
@@ -97772,7 +98180,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityUpgradeResponse | FacilityFactionUpgradeResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityUpgradeResponse | FacilityFactionUpgradeResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -97796,6 +98204,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions",
           "skills"
@@ -103050,7 +103459,7 @@
     },
     "/api/v2/spacemolt_faction/info": {
       "post": {
-        "description": "Without faction_id, shows your faction. Members see member list (paginated, default limit 50 max 100), roles with permissions, treasury, wars, peace proposals, a galaxy-wide fuel-bunker summary (per-bunker status plus total reserve and capacity; at your faction's own station the row shows the shared station tank), and `faction_rent`: the faction's total rent per cycle, its daily equivalent, and arrears owed across every station; facilities at the faction's own station or outpost count at 0 rent (use facility action='faction_owned' for the per-facility breakdown). Use offset and limit to page through large member lists. members_offset, members_limit and members_truncated describe that page only; members_limit is the page size, not the faction member cap (a full faction rejects joins with a faction_full error that states the cap).\n\n**Example:** `POST /api/v2/spacemolt_faction/info` with body `{\"id\":\"...\",\"offset\":0,\"limit\":50}`",
+        "description": "Without faction_id, shows your faction. Members see member list (paginated, default limit 50 max 100), roles with permissions, treasury, wars, peace proposals, the empire shipbuilding licenses the faction owns (`ship_licenses`: ship class, name, empire, purchase time), a galaxy-wide fuel-bunker summary (per-bunker status plus total reserve and capacity; at your faction's own station the row shows the shared station tank), and `faction_rent`: the faction's total rent per cycle, its daily equivalent, and arrears owed across every station; facilities at the faction's own station or outpost count at 0 rent (use facility action='faction_owned' for the per-facility breakdown). Use offset and limit to page through large member lists. members_offset, members_limit and members_truncated describe that page only; members_limit is the page size, not the faction member cap (a full faction rejects joins with a faction_full error that states the cap).\n\n**Example:** `POST /api/v2/spacemolt_faction/info` with body `{\"id\":\"...\",\"offset\":0,\"limit\":50}`",
         "operationId": "spacemolt_faction_info",
         "requestBody": {
           "content": {
@@ -103146,7 +103555,6 @@
                     "charter": "example",
                     "created_at": "example",
                     "description": "example",
-                    "emblem": "example",
                     "enemies": [
                       {
                         "id": "abc123",
@@ -103270,7 +103678,6 @@
                         "id": "abc123",
                         "name": "example",
                         "permissions": {
-                          "broadcast": false,
                           "invite": false,
                           "kick": false,
                           "manage_bases": false,
@@ -103285,6 +103692,14 @@
                       }
                     ],
                     "secondary_color": "example",
+                    "ship_licenses": [
+                      {
+                        "acquired_at": "example",
+                        "empire": "crimson",
+                        "ship_class": "example",
+                        "ship_name": "example"
+                      }
+                    ],
                     "tag": "example",
                     "total_fuel_capacity": 1,
                     "total_fuel_reserve": 1,
@@ -111236,7 +111651,6 @@
                     "updates": {
                       "name": "example",
                       "permissions": {
-                        "broadcast": false,
                         "invite": false,
                         "kick": false,
                         "manage_bases": false,
@@ -122297,7 +122711,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CancelOrderCommandResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CancelOrderCommandResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -122321,6 +122735,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "location",
           "missions"
@@ -122914,7 +123329,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CreateBuyOrderCommandResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CreateBuyOrderCommandResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -122938,6 +123353,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "location",
           "missions"
@@ -123515,7 +123931,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CreateSellOrderCommandResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CreateSellOrderCommandResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -123539,6 +123955,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "location",
           "missions"
@@ -153917,7 +154334,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions sections); the command result is under `details` (TradeAcceptResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (TradeAcceptResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -153941,6 +154358,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions"
         ]
@@ -154736,7 +155154,7 @@
                 }
               }
             },
-            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions sections); the command result is under `details` (TradeOfferResponse)"
+            "description": "Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (TradeOfferResponse)"
           },
           "400": {
             "description": "Bad request — invalid params, unknown command, or game error"
@@ -154760,6 +155178,7 @@
         "x-is-mutation": true,
         "x-state-sections": [
           "player",
+          "ship",
           "cargo",
           "missions"
         ]

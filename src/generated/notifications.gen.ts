@@ -11,7 +11,6 @@ import type {
   NotificationArenaChallenge,
   NotificationArenaObjective,
   NotificationBaseDestroyed,
-  NotificationBaseRaidUpdate,
   NotificationBattleAlert,
   NotificationBattleDamage,
   NotificationBattleEnded,
@@ -35,10 +34,14 @@ import type {
   NotificationFactionAllianceBroken,
   NotificationFactionAllianceFormed,
   NotificationFactionAllianceProposal,
+  NotificationFactionInvite,
+  NotificationFactionKick,
   NotificationFactionMobileBaseUpdate,
   NotificationFactionPeaceAccepted,
   NotificationFactionPeaceProposal,
+  NotificationFactionPromote,
   NotificationFactionWarDeclared,
+  NotificationFactionWithdrawInvite,
   NotificationFleet,
   NotificationGiftReceived,
   NotificationHoldUpdate,
@@ -77,7 +80,6 @@ export type TypedNotificationType =
   | "arena_challenge"
   | "arena_objective"
   | "base_destroyed"
-  | "base_raid_update"
   | "battle_alert"
   | "battle_damage"
   | "battle_ended"
@@ -101,10 +103,14 @@ export type TypedNotificationType =
   | "faction_alliance_broken"
   | "faction_alliance_formed"
   | "faction_alliance_proposal"
+  | "faction_invite"
+  | "faction_kick"
   | "faction_mobile_base_update"
   | "faction_peace_accepted"
   | "faction_peace_proposal"
+  | "faction_promote"
   | "faction_war_declared"
+  | "faction_withdraw_invite"
   | "fleet"
   | "gift_received"
   | "hold_update"
@@ -142,7 +148,6 @@ export interface NotificationPayloads {
   "arena_challenge": NotificationArenaChallenge;
   "arena_objective": NotificationArenaObjective;
   "base_destroyed": NotificationBaseDestroyed;
-  "base_raid_update": NotificationBaseRaidUpdate;
   "battle_alert": NotificationBattleAlert;
   "battle_damage": NotificationBattleDamage;
   "battle_ended": NotificationBattleEnded;
@@ -166,10 +171,14 @@ export interface NotificationPayloads {
   "faction_alliance_broken": NotificationFactionAllianceBroken;
   "faction_alliance_formed": NotificationFactionAllianceFormed;
   "faction_alliance_proposal": NotificationFactionAllianceProposal;
+  "faction_invite": NotificationFactionInvite;
+  "faction_kick": NotificationFactionKick;
   "faction_mobile_base_update": NotificationFactionMobileBaseUpdate;
   "faction_peace_accepted": NotificationFactionPeaceAccepted;
   "faction_peace_proposal": NotificationFactionPeaceProposal;
+  "faction_promote": NotificationFactionPromote;
   "faction_war_declared": NotificationFactionWarDeclared;
+  "faction_withdraw_invite": NotificationFactionWithdrawInvite;
   "fleet": NotificationFleet;
   "gift_received": NotificationGiftReceived;
   "hold_update": NotificationHoldUpdate;
@@ -208,7 +217,6 @@ export const TYPED_NOTIFICATION_TYPES = [
   "arena_challenge",
   "arena_objective",
   "base_destroyed",
-  "base_raid_update",
   "battle_alert",
   "battle_damage",
   "battle_ended",
@@ -232,10 +240,14 @@ export const TYPED_NOTIFICATION_TYPES = [
   "faction_alliance_broken",
   "faction_alliance_formed",
   "faction_alliance_proposal",
+  "faction_invite",
+  "faction_kick",
   "faction_mobile_base_update",
   "faction_peace_accepted",
   "faction_peace_proposal",
+  "faction_promote",
   "faction_war_declared",
+  "faction_withdraw_invite",
   "fleet",
   "gift_received",
   "hold_update",

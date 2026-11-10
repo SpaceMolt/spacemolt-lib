@@ -338,7 +338,7 @@ export interface SpacemoltBattleReloadParams {
   /** Item ID of ammo to load from cargo (must match the module's ammo type). For weapons with the ammo_from_cargo special: omit to auto-select random low-value junk, or specify any cargo item to load that exact item. */
   target?: string;
   /** Bulk reload: array of {weapon_instance_id, ammo_item_id?} entries loaded in a single action for one tick, however many weapons. Omit weapon_instance_id/ammo_item_id when using this. Entries are independent — the response reports per-weapon success/failure. Maximum 50 entries. */
-  weapons?: string[];
+  weapons?: { ammo_item_id?: string; weapon_instance_id?: string }[];
 }
 
 export interface SpacemoltBattleStanceParams {
@@ -2254,7 +2254,7 @@ export interface Commands {
     allow_player(params: SpacemoltFacilityAllowPlayerParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     ban(params: SpacemoltFacilityBanParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
-    /** Preview the cost and requirements to found a faction station */
+    /** Preview the cost and requirements to found a faction station, plus the outpost founding fee */
     base_cost(requestId?: string): Promise<QueryResult<BaseCostResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     browse_for_sale(params?: SpacemoltFacilityBrowseForSaleParams, requestId?: string): Promise<QueryResult<FacilityBrowseForSaleResponse>>;

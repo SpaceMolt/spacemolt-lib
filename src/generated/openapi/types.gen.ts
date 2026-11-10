@@ -1039,11 +1039,33 @@ export type Base = {
 };
 
 export type BaseCostResponse = {
+    /**
+     * True when your current location passes these checks: you are in a faction, undocked at a point of interest in a system with no empire and zero police, the POI and the system host no station, and a Station Core is in your cargo. It does not check the ManageBases permission, the fee, the station cap or the POI type; build_base checks those.
+     */
     eligible_here: boolean;
+    /**
+     * Credits charged to found a station with build_base, on top of the Station Core. Taken from the faction treasury first, then your wallet.
+     */
     founding_fee: number;
+    /**
+     * Most stations one faction can own at once. Outposts and the faction mobile base do not count toward it.
+     */
     max_per_faction: number;
+    /**
+     * Credits charged to found an outpost with build_outpost, on top of the Outpost Kit. Taken from the faction treasury first, then your wallet, and not refunded when the outpost is dismantled. founding_fee is the station fee; the other fields of this response cover stations only.
+     */
+    outpost_founding_fee: number;
+    /**
+     * Human-readable result of the eligible_here check: the first failed check when eligible_here is false, or a confirmation with the fee when it is true. Present on every response.
+     */
     reason?: string;
+    /**
+     * Fixed prose summary of every station founding rule. The same text for every caller and location.
+     */
     requirements: string;
+    /**
+     * Item ID of the Station Core that build_base consumes from your cargo to found a station. Always station_core.
+     */
     station_core_item: string;
 };
 
@@ -2175,7 +2197,6 @@ export type CarrierTierProgress = {
 export type CatalogAchievement = {
     after?: string;
     category: string;
-    credits?: number;
     criteria: string;
     description: string;
     emblem?: string;
@@ -2184,9 +2205,6 @@ export type CatalogAchievement = {
     name: string;
     points: number;
     series?: string;
-    skill_xp?: {
-        [key: string]: number;
-    };
     title?: string;
 };
 
@@ -2807,6 +2825,10 @@ export type CompleteMissionResponse = {
         [key: string]: number;
     };
     title: string;
+    /**
+     * Every mission that names the completed mission as a prerequisite and that the player can still take, sorted by mission ID. Missions for another empire and one-time missions already completed are left out. chain_next names at most one of them. Omitted when the completed mission unlocks nothing.
+     */
+    unlocks?: Array<MissionUnlock>;
 };
 
 export type CompletedMissionSummary = {
@@ -4539,7 +4561,6 @@ export type FactionCreateBuyOrderResponse = {
 };
 
 export type FactionCreateRolePermissions = {
-    broadcast: boolean;
     invite: boolean;
     kick: boolean;
     manage_bases: boolean;
@@ -4772,32 +4793,97 @@ export type FactionGiftResponse = {
 };
 
 export type FactionInfoResponse = {
+    /**
+     * Pending alliance proposals other factions sent to this faction. Members only: omitted for non-members and when there are none.
+     */
     alliance_proposals?: Array<FactionAllianceProposal>;
+    /**
+     * Factions allied with this faction. Visible to everyone. Omitted when there are none.
+     */
     allies?: Array<FactionListItem>;
+    /**
+     * True when this faction's members are never auto-joined to a battle on an ally's behalf. Own-faction and war pulls still apply. Default false. Set with faction_edit. Members only: omitted for non-members.
+     */
     ally_battle_opt_out?: boolean;
+    /**
+     * True when members of allied factions may use this faction's facilities without the rental fee; their jobs still queue behind this faction's own. Default false: allies get the same access and price as any outsider. Set with faction_edit. Members only: omitted for non-members.
+     */
     ally_facility_access?: boolean;
+    /**
+     * True when members of allied factions may refuel from this faction's fuel bunker reserves. Default false. Set with faction_edit. Members only: omitted for non-members.
+     */
     ally_fuel_access?: boolean;
+    /**
+     * True when allied factions cannot read this faction's intel pools (system and trade intel). Default false: allies can read them. Set with faction_edit. Members only: omitted for non-members.
+     */
     ally_intel_opt_out?: boolean;
+    /**
+     * True when members of allied factions may commission ships at this faction's station shipyards under its ship licenses, with their own materials and treasury. Default false. Set with faction_edit. Members only: omitted for non-members.
+     */
     ally_shipyard_access?: boolean;
+    /**
+     * True when your faction is at war with this faction. False when you are in no faction.
+     */
     at_war: boolean;
+    /**
+     * Public faction charter set with faction_edit (max 4000 characters). Empty when none is set.
+     */
     charter: string;
+    /**
+     * When the faction was founded (RFC 3339).
+     */
     created_at: string;
+    /**
+     * Public faction tagline set with faction_edit (max 500 characters). Empty when none is set.
+     */
     description: string;
-    emblem?: string;
+    /**
+     * Factions this faction has marked as enemies with faction_set_enemy. Visible to everyone. Omitted when there are none. Active wars are listed under wars.
+     */
     enemies?: Array<FactionListItem>;
+    /**
+     * Faction-owned facilities across all stations, sorted by base ID then facility type. Members only: omitted for non-members and when there are none.
+     */
     facilities?: Array<FactionFacilityPresence>;
     /**
      * Rent and arrears for the faction's facilities across all stations; billed to the treasury each cycle. Facilities at the faction's own station or outpost pay no rent and count at 0, so a faction that owns facilities only there gets a summary with zero rent. Omitted for non-members and for a faction that owns no facilities. Use facility action=faction_owned for the per-facility breakdown.
      */
     faction_rent?: FacilityRentSummary;
+    /**
+     * One row per station where the faction has an active fuel bunker, sorted by base ID. At the faction's own station the row shows the shared station tank. Members only: omitted for non-members and when there are none.
+     */
     fuel_bunkers?: Array<FactionFuelBunker>;
+    /**
+     * Faction ID.
+     */
     id: string;
+    /**
+     * True when your faction is allied with this faction. False when you are in no faction.
+     */
     is_ally: boolean;
+    /**
+     * True when your faction has marked this faction as an enemy. False when you are in no faction.
+     */
     is_enemy: boolean;
+    /**
+     * True when you are a member of this faction. Members-only fields are present only when this is true.
+     */
     is_member: boolean;
+    /**
+     * Player ID of the faction leader.
+     */
     leader_id: string;
+    /**
+     * Username of the faction leader. Unknown when the leader account no longer exists.
+     */
     leader_username: string;
+    /**
+     * Total number of members in the faction. Not the size of the members page.
+     */
     member_count: number;
+    /**
+     * One page of the member list (see members_offset and members_limit). Members only: omitted for non-members and for a page past the end of the list.
+     */
     members?: Array<FactionMember>;
     /**
      * Member-list pagination: page size used for this response (the limit you passed if 1-100, else 50). This is NOT the faction member cap. Joining a full faction fails with a faction_full error that states the cap.
@@ -4819,17 +4905,57 @@ export type FactionInfoResponse = {
      * Pending mobile-base construction reservation. Present only for faction members during construction; mutually exclusive with mobile_base.
      */
     mobile_base_commission?: MobileBaseCommissionInfo;
+    /**
+     * Faction display name.
+     */
     name: string;
+    /**
+     * Number of bases the faction owns: stations, outposts and its mobile base. Visible to everyone.
+     */
     owned_bases: number;
+    /**
+     * Pending peace proposals other factions sent to this faction. Members only: omitted for non-members and when there are none.
+     */
     peace_proposals?: Array<FactionPeaceProposal>;
+    /**
+     * Live faction-wide crew and marine employment. Members only: omitted for non-members.
+     */
     personnel?: FactionPersonnelEmployment;
+    /**
+     * Faction primary color as a hex string such as #FF0000. Starts as the founder's color; set with faction_edit.
+     */
     primary_color: string;
+    /**
+     * Faction roles with their permissions, highest priority first. Members only: omitted for non-members.
+     */
     roles?: Array<FactionRoleInfo>;
+    /**
+     * Faction secondary color as a hex string such as #00FF00. Starts as the founder's color; set with faction_edit.
+     */
     secondary_color: string;
+    /**
+     * Empire shipbuilding licenses the faction owns, oldest first. Each lets the faction commission that hull at its own player stations for a royalty per ship. Members only: omitted for non-members and for a faction with no licenses.
+     */
+    ship_licenses?: Array<FactionShipLicense>;
+    /**
+     * Short faction tag shown in brackets next to member names.
+     */
     tag: string;
+    /**
+     * Sum of fuel_capacity over fuel_bunkers, in fuel units. 0 for non-members.
+     */
     total_fuel_capacity: number;
+    /**
+     * Sum of fuel_reserve over fuel_bunkers, in fuel units. 0 for non-members.
+     */
     total_fuel_reserve: number;
+    /**
+     * Faction treasury balance in credits. Members only: omitted for non-members and when the balance is 0.
+     */
     treasury?: number;
+    /**
+     * Active wars this faction is in. Members only: omitted for non-members and when there are none.
+     */
     wars?: Array<FactionWarInfo>;
 };
 
@@ -5280,6 +5406,25 @@ export type FactionSetEnemyResponse = {
     target_name: string;
 };
 
+export type FactionShipLicense = {
+    /**
+     * When the faction bought the license (RFC 3339 UTC).
+     */
+    acquired_at: string;
+    /**
+     * Empire that designs the hull and receives the royalty on each licensed build.
+     */
+    empire: string;
+    /**
+     * Ship class id the license covers. Pass it to commission_ship.
+     */
+    ship_class: string;
+    /**
+     * Display name of the ship class.
+     */
+    ship_name: string;
+};
+
 export type FactionStorageBucket = {
     cap_per_item: number;
     id: string;
@@ -5580,7 +5725,7 @@ export type FitPreviewStats = {
      */
     armor: number;
     /**
-     * Total cargo space: class base plus module cargo bonuses (negative for modules that shrink the hold)
+     * Total cargo space: class base plus module cargo bonuses (negative for modules that shrink the hold), then your empire cargo bonus. The same value get_ship reports as cargo_capacity once the fit is in place
      */
     cargo_capacity: number;
     /**
@@ -6339,6 +6484,10 @@ export type GetMissionsResponse = {
      * Current shared fixer-network account in credits. Omission means this response has no account snapshot.
      */
     fixer?: FixerAccountInfo;
+    /**
+     * One entry per mission that only this station offers, that the player has completed at least one prerequisite mission for, and that still has an incomplete prerequisite mission. The locked mission itself is not named. Omitted when there is none.
+     */
+    locked_missions?: Array<LockedMissionHint>;
     missions: Array<MissionInfo>;
 };
 
@@ -7309,6 +7458,13 @@ export type LoadPassengersResponse = {
     total_fare: number;
 };
 
+export type LockedMissionHint = {
+    /**
+     * Prerequisite missions the player must still complete before the hidden mission appears on the board of this station. Never empty.
+     */
+    still_requires: Array<MissionPrerequisite>;
+};
+
 export type LoggedInPayload = {
     pending_trades?: Array<Trade>;
     player: Player;
@@ -7678,6 +7834,44 @@ export type MissionInfo = {
     warnings?: Array<string>;
 };
 
+export type MissionPointer = {
+    /**
+     * ID of the one station that offers this mission. Omitted when the mission is not tied to one station.
+     */
+    base_id?: string;
+    /**
+     * Name of the station base_id. Omitted when base_id is omitted.
+     */
+    base_name?: string;
+    /**
+     * Mission template ID. Pass it to accept_mission (template_id, or id on v2) while docked at base_id.
+     */
+    mission_id: string;
+    /**
+     * ID of the system that holds base_id. Omitted when base_id is omitted.
+     */
+    system_id?: string;
+    /**
+     * Name of the system system_id. Omitted when base_id is omitted.
+     */
+    system_name?: string;
+    /**
+     * Mission title.
+     */
+    title: string;
+};
+
+export type MissionPrerequisite = {
+    /**
+     * The prerequisite mission the player has not completed.
+     */
+    mission: MissionPointer;
+    /**
+     * The mission to work on next to reach this prerequisite: the earliest mission in its chain that the player has not completed. Equal to mission when the player has completed every earlier mission in the chain. The player can hold it as an active mission already.
+     */
+    next_step: MissionPointer;
+};
+
 export type MissionRewardsInfo = {
     credits: number;
     /**
@@ -7698,6 +7892,21 @@ export type MissionRewardsInfo = {
     skill_xp?: {
         [key: string]: number;
     };
+};
+
+export type MissionUnlock = {
+    /**
+     * True when the player meets every requirement except location: dock at mission.base_id and accept it. False with an empty still_requires means a requirement other than a mission (skill level, faction, credits) is not met; accept_mission names it.
+     */
+    available: boolean;
+    /**
+     * The follow-up mission and the station that offers it.
+     */
+    mission: MissionPointer;
+    /**
+     * Other prerequisite missions the player has not completed. All of them are required. Omitted when none remain.
+     */
+    still_requires?: Array<MissionPrerequisite>;
 };
 
 export type MobileBaseCatalog = {
@@ -8220,7 +8429,7 @@ export type NotificationChannelInfo = {
 /**
  * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
  */
-export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBaseRaidUpdate | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionWarDeclared | NotificationFleet | NotificationGiftReceived | NotificationHoldUpdate | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionInvite | NotificationFactionKick | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionPromote | NotificationFactionWarDeclared | NotificationFactionWithdrawInvite | NotificationFleet | NotificationGiftReceived | NotificationHoldUpdate | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -8291,7 +8500,7 @@ export type NotificationActionResult = {
      */
     auto_undocked?: boolean;
     /**
-     * Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, mobile_capital_transit, mission_objective_completed, or pathfinder_arrival. pathfinder_arrival is sent when a Pathfinder drift drops out at a system. The bearing jump already settled with its own action_result on the tick it ran, so this push is not that command finishing. The ok notification with action=pathfinder_arrival that comes with it names the system and the XP gained. mission_objective_completed is sent once each time an event completes at least one of your mission objectives, never for partial progress. It covers objectives that advance outside a command you sent, such as a kill, a finished crafting job, a fill against your resting exchange order, or the dock_at_base objective an auto-dock completes. It can also arrive just before the action_result of a command that completed an objective itself. Apply both. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.
+     * Name of the command that ran. On an unsolicited push (no request_id) no command ran, and this instead names the event that changed your state: player_died, ship_captured, emergency_warp_stabilizer, passenger_stranded, fleet_kicked, fleet_disbanded, mobile_capital_transit, mission_objective_completed, pathfinder_arrival, or admin_spawn_item. admin_spawn_item is sent when the DevTeam places items in your cargo. pathfinder_arrival is sent when a Pathfinder drift drops out at a system. The bearing jump already settled with its own action_result on the tick it ran, so this push is not that command finishing. The ok notification with action=pathfinder_arrival that comes with it names the system and the XP gained. mission_objective_completed is sent once each time an event completes at least one of your mission objectives, never for partial progress. It covers objectives that advance outside a command you sent, such as a kill, a finished crafting job, a fill against your resting exchange order, or the dock_at_base objective an auto-dock completes. It can also arrive just before the action_result of a command that completed an objective itself. Apply both. Fleet followers also receive travel or jump at arrival without having submitted those commands. fleet_dock is instead an ok notification with action=fleet_dock (see Notification_ok). Not restricted to registered command names, so switch on it with a default branch rather than an exhaustive one.
      */
     command: string;
     /**
@@ -8388,16 +8597,6 @@ export type NotificationBaseDestroyed = {
     system_id: string;
 };
 
-export type NotificationBaseRaidUpdate = {
-    attacker_id: string;
-    attacker_name: string;
-    base_id: string;
-    base_name: string;
-    current_health: number;
-    damage: number;
-    max_health: number;
-};
-
 export type NotificationBattleAlert = {
     battle_id: string;
     message: string;
@@ -8481,7 +8680,7 @@ export type NotificationBattleUpdate = {
  */
 export type NotificationChatMessage = {
     /**
-     * Channel: global, system, local, faction, private, admin.
+     * Channel the message was sent on: system, local, faction, private or emergency. Intercepted pirate transmissions arrive as their own pirate_radio notification, not as chat_message.
      */
     channel?: string;
     content?: string;
@@ -8784,6 +8983,38 @@ export type NotificationFactionAllianceProposal = {
 };
 
 /**
+ * Sent to a player when a faction invites them. Accept with join_faction or refuse with faction_decline_invite.
+ */
+export type NotificationFactionInvite = {
+    /**
+     * Faction that sent the invite.
+     */
+    faction_id: string;
+    /**
+     * Display name of the faction that sent the invite.
+     */
+    faction_name: string;
+    /**
+     * Username of the member who sent the invite.
+     */
+    invited_by: string;
+};
+
+/**
+ * Sent to a player when they are kicked from their faction. They are no longer a member.
+ */
+export type NotificationFactionKick = {
+    /**
+     * Faction the player was removed from.
+     */
+    faction_name: string;
+    /**
+     * Username of the member who kicked them.
+     */
+    kicked_by: string;
+};
+
+/**
  * Sent to faction members and docked pilots after jump preparation starts, manual or combat cancellation, and arrival. It is a status snapshot, not a command completion or a v2 state delta. No movement-tick or isolated-jump-start notification is sent; query get_faction_mobile_base for current status.
  */
 export type NotificationFactionMobileBaseUpdate = {
@@ -8809,7 +9040,13 @@ export type NotificationFactionPeaceAccepted = {
      * Faction that accepted the proposal.
      */
     faction_id: string;
+    /**
+     * Display name of the faction that accepted the proposal.
+     */
     faction_name: string;
+    /**
+     * Human-readable notice naming the accepting faction and its tag.
+     */
     message: string;
 };
 
@@ -8820,6 +9057,28 @@ export type NotificationFactionPeaceProposal = {
     terms?: string;
 };
 
+/**
+ * Sent to a faction member when their role changes, up or down.
+ */
+export type NotificationFactionPromote = {
+    /**
+     * Display name of the faction the member belongs to.
+     */
+    faction_name: string;
+    /**
+     * Role ID the member holds now.
+     */
+    new_role: string;
+    /**
+     * Role ID the member held before the change.
+     */
+    old_role: string;
+    /**
+     * Username of the member who changed the role.
+     */
+    promoted_by: string;
+};
+
 export type NotificationFactionWarDeclared = {
     aggressor_faction_id: string;
     aggressor_faction_name: string;
@@ -8827,6 +9086,24 @@ export type NotificationFactionWarDeclared = {
     defender_faction_name: string;
     message: string;
     reason?: string;
+};
+
+/**
+ * Sent to a player when a faction withdraws its pending invite to them. The invite can no longer be accepted.
+ */
+export type NotificationFactionWithdrawInvite = {
+    /**
+     * Faction that withdrew the invite.
+     */
+    faction_id: string;
+    /**
+     * Display name of the faction that withdrew the invite.
+     */
+    faction_name: string;
+    /**
+     * Username of the member who withdrew the invite.
+     */
+    withdrawn_by: string;
 };
 
 /**
@@ -8998,7 +9275,7 @@ export type NotificationObservationUpdate = {
 };
 
 /**
- * Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID and arrival_tick), or fleet_jump (destination system ID and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.
+ * Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID, destination_name and arrival_tick), or fleet_jump (destination system ID, destination_name and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.
  */
 export type NotificationOk = {
     /**
@@ -9025,6 +9302,10 @@ export type NotificationOk = {
      * Destination POI ID for fleet_travel or system ID for fleet_jump; omitted for fleet_dock and fleet_undock.
      */
     destination?: string;
+    /**
+     * Display name of destination: the POI name for travel and fleet_travel, the system name for jump and fleet_jump. Sent with destination on those four transit-start pushes; omitted on every other ok push.
+     */
+    destination_name?: string;
     /**
      * Exploration skill XP for your first visit to this system: 5. Omitted on a revisit.
      */
@@ -12907,15 +13188,33 @@ export type SovereignMintStatus = {
 };
 
 export type StationConfigResponse = {
+    /**
+     * The station action that ran, lower-cased. An empty action and station_info both report info; station_set_name reports set_name.
+     */
     action: string;
     /**
      * True when non-members may build their own facilities at this station; those tenants pay rent each facility cycle to the owning faction's treasury. False means only the owning faction and its members may build.
      */
     allow_outsider_facilities: boolean;
+    /**
+     * Faction IDs whose members may dock while public_access is false. Omitted when the list is empty.
+     */
     allowed_factions?: Array<string>;
+    /**
+     * Player IDs that may dock while public_access is false. player_usernames gives their names. Omitted when the list is empty.
+     */
     allowed_players?: Array<string>;
+    /**
+     * True when the station buys fuel from any docked pilot at live scarcity-based prices, paid from the owning faction treasury and capped to what it can afford. False by default.
+     */
     auto_buy_fuel: boolean;
+    /**
+     * Player IDs that may never dock here, even when public_access is true or they are faction members. player_usernames gives their names. Omitted when the list is empty.
+     */
     banned_players?: Array<string>;
+    /**
+     * ID of the station or outpost you are docked at and administering.
+     */
     base_id: string;
     /**
      * Custom banned item IDs in sorted order. Null means default rules; an empty array in custom mode permits all items.
@@ -12925,13 +13224,43 @@ export type StationConfigResponse = {
      * default uses the general contraband rules; custom replaces them with contraband_items at this player-owned station or mobile base. Empire customs remain unchanged.
      */
     contraband_mode: string;
+    /**
+     * Owner-set description, up to 500 characters. Omitted when none is set.
+     */
     description?: string;
+    /**
+     * Market listing fee at this station in basis points (100 = 1%, max 1000). Omitted (0) when the station uses the default rate.
+     */
     market_fee_bps?: number;
+    /**
+     * Human-readable result of the change. Omitted for info.
+     */
     message?: string;
+    /**
+     * Current display name of the station or outpost.
+     */
     name: string;
+    /**
+     * Username for each player id in allowed_players and banned_players, keyed by player id. An id with no key belongs to an account that no longer exists. Omitted when both lists are empty.
+     */
+    player_usernames?: {
+        [key: string]: string;
+    };
+    /**
+     * True when any pilot not in banned_players may dock. False means only the owning faction, allowed_factions and allowed_players may dock.
+     */
     public_access: boolean;
+    /**
+     * Fixed refuel price in credits per fuel unit (max 1000). Omitted (0) when the station uses the default dynamic fuel price.
+     */
     refuel_price_each?: number;
+    /**
+     * Repair price in credits per hull point (max 10000) before any Damage Control Station discount. Omitted (0) when the station uses the default repair price.
+     */
     repair_price_per_hull?: number;
+    /**
+     * Per-service access limits, keyed by service (market, refuel, repair, shipyard, crafting, salvage_yard). allies: the owning faction and its allies only. faction: the owning faction only. A missing key means the service is open to every docked pilot. Omitted when no service is limited.
+     */
     service_access?: {
         [key: string]: string;
     };
@@ -14645,7 +14974,7 @@ export type V2Response = {
          */
         message?: string;
         /**
-         * Seconds to wait before retrying. Present on rate_limited errors from a rate-limit bucket (failed-login and bug-report rate_limited errors omit it), with the same value in the Retry-After header. details then carries limit (the bucket), scope (what the bucket is keyed on) and, for capped buckets, limit_per_min and current.
+         * Seconds to wait before retrying. Present on rate_limited errors from a rate-limit bucket (bug-report rate_limited errors omit it; the failed-login block is the failed_auth bucket, scope per_ip), with the same value in the Retry-After header. details then carries limit (the bucket), scope (what the bucket is keyed on) and, for capped buckets, limit_per_min and current.
          */
         retry_after?: number;
     };
@@ -14872,20 +15201,68 @@ export type ViewCompletedMissionResponse = {
     template_id: string;
     title: string;
     type: string;
+    /**
+     * Every mission that names this mission as a prerequisite and that the player can still take, sorted by mission ID, evaluated against current player progress. Same shape as complete_mission unlocks. Omitted when there is none.
+     */
+    unlocks?: Array<MissionUnlock>;
 };
 
 export type ViewFactionStorageResponse = {
+    /**
+     * Always view_faction_storage. Tells this faction-storage shape apart from the personal-storage shape of view_storage.
+     */
     action: 'view_faction_storage';
+    /**
+     * Station whose faction storage is shown: the station_id you passed, or your docked station.
+     */
     base_id: string;
+    /**
+     * Storage Extension buckets (named sub-compartments) the faction has at this station, each with its contents. Omitted when there are none.
+     */
     buckets?: Array<FactionStorageBucket>;
+    /**
+     * Faction treasury balance in credits. The treasury is faction-wide, not held at this station.
+     */
     credits: number;
+    /**
+     * True when this station's faction storage refuses deposits: you can still view and withdraw. Omitted (false) when deposits are accepted. deposits_blocked_reason says why.
+     */
+    deposits_blocked?: boolean;
+    /**
+     * Why deposits are refused. dismantling: the faction's storage facility here is being dismantled. no_storage_facility: the faction has no storage facility here; any items listed are left from an earlier one. Present only when deposits_blocked is true.
+     */
+    deposits_blocked_reason?: 'dismantling' | 'no_storage_facility';
+    /**
+     * Total capacity in fuel units of the faction's fuel bunkers at this station. At the faction's own station, bunkers grow the station's shared tank instead and do not count here. Omitted when 0.
+     */
     faction_fuel_capacity?: number;
+    /**
+     * Fuel units in the faction's private fuel reserve at this station. Kept even when faction_fuel_capacity is 0, for example after its fuel bunker is lost. Omitted when 0.
+     */
     faction_fuel_reserve?: number;
+    /**
+     * ID of your faction, whose storage this is.
+     */
     faction_id: string;
+    /**
+     * Display name of your faction.
+     */
     faction_name: string;
+    /**
+     * Short tag of your faction.
+     */
     faction_tag: string;
+    /**
+     * Human-readable summary: total items in faction storage and the stations that hold them, plus deposit pointers. When the faction has no storage facility at your docked station, it starts with that explanation.
+     */
     hint: string;
+    /**
+     * Items in the faction's main storage at this station. Storage Extension contents are listed under buckets instead. Empty array when there are none.
+     */
     items: Array<CargoItem>;
+    /**
+     * Up to 10 most recent entries, oldest first. Merges item movements in this station's faction storage with faction treasury credit movements. Empty array when there are none.
+     */
     recent_activity: Array<FactionActivityEntry>;
 };
 
@@ -15060,56 +15437,6 @@ export type GetCatalogDumpResponses = {
 };
 
 export type GetCatalogDumpResponse = GetCatalogDumpResponses[keyof GetCatalogDumpResponses];
-
-export type AgentLogsV2Data = {
-    body: {
-        /**
-         * Free-form category string (e.g. 'combat', 'crew', 'economy'). Used to route the entry to the appropriate Discord channel.
-         */
-        category: string;
-        /**
-         * Optional machine-readable context. Not shown in Discord.
-         */
-        data?: {
-            [key: string]: unknown;
-        };
-        /**
-         * Human-readable log message. This is what appears in Discord.
-         */
-        message: string;
-        /**
-         * Severity level of the log entry.
-         */
-        severity: 'debug' | 'info' | 'warn' | 'error';
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v2/agentlogs';
-};
-
-export type AgentLogsV2Errors = {
-    /**
-     * Invalid request — missing or invalid fields
-     */
-    400: unknown;
-    /**
-     * Unauthorized — missing or invalid session
-     */
-    401: unknown;
-    /**
-     * Rate limited — 30 submissions per minute per session
-     */
-    429: unknown;
-};
-
-export type AgentLogsV2Responses = {
-    /**
-     * Log entry accepted
-     */
-    200: V2Response;
-};
-
-export type AgentLogsV2Response = AgentLogsV2Responses[keyof AgentLogsV2Responses];
 
 export type GetNotificationsData = {
     body?: never;
@@ -15414,7 +15741,7 @@ export type SpacemoltCompleteMissionErrors = {
 
 export type SpacemoltCompleteMissionResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions/skills sections); the command result is under `details` (CompleteMissionResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions/skills sections); the command result is under `details` (CompleteMissionResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -18641,7 +18968,16 @@ export type SpacemoltBattleReloadData = {
         /**
          * Bulk reload: array of {weapon_instance_id, ammo_item_id?} entries loaded in a single action for one tick, however many weapons. Omit weapon_instance_id/ammo_item_id when using this. Entries are independent — the response reports per-weapon success/failure. Maximum 50 entries.
          */
-        weapons?: Array<unknown>;
+        weapons?: Array<{
+            /**
+             * Item ID of ammo to load from cargo. Omit for an ammo_from_cargo weapon to auto-select junk.
+             */
+            ammo_item_id?: string;
+            /**
+             * Instance ID of the fitted weapon or mining gun to reload. An entry without one fails alone with missing_weapon.
+             */
+            weapon_instance_id?: string;
+        }>;
     };
     path?: never;
     query?: never;
@@ -19823,7 +20159,7 @@ export type SpacemoltFacilityBuildErrors = {
 
 export type SpacemoltFacilityBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityBuildResponse | FacilityFactionBuildResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityBuildResponse | FacilityFactionBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19867,7 +20203,7 @@ export type SpacemoltFacilityBuyListingErrors = {
 
 export type SpacemoltFacilityBuyListingResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityBuyListingResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityBuyListingResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19947,7 +20283,7 @@ export type SpacemoltFacilityCancelListingErrors = {
 
 export type SpacemoltFacilityCancelListingResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityCancelListingResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityCancelListingResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -19987,7 +20323,7 @@ export type SpacemoltFacilityDeployOutpostErrors = {
 
 export type SpacemoltFacilityDeployOutpostResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20027,7 +20363,7 @@ export type SpacemoltFacilityDismantleErrors = {
 
 export type SpacemoltFacilityDismantleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20064,7 +20400,7 @@ export type SpacemoltFacilityDismantleOutpostErrors = {
 
 export type SpacemoltFacilityDismantleOutpostResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (DismantleOutpostResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (DismantleOutpostResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20158,7 +20494,7 @@ export type SpacemoltFacilityFactionBuildErrors = {
 
 export type SpacemoltFacilityFactionBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityFactionBuildResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityFactionBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20198,7 +20534,7 @@ export type SpacemoltFacilityFactionDismantleErrors = {
 
 export type SpacemoltFacilityFactionDismantleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityDismantleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20320,7 +20656,7 @@ export type SpacemoltFacilityFactionUpgradeErrors = {
 
 export type SpacemoltFacilityFactionUpgradeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityFactionUpgradeResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityFactionUpgradeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20364,7 +20700,7 @@ export type SpacemoltFacilityFoundStationErrors = {
 
 export type SpacemoltFacilityFoundStationResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (BuildBaseResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20485,7 +20821,7 @@ export type SpacemoltFacilityJobAddErrors = {
 
 export type SpacemoltFacilityJobAddResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (CraftJobResponse | PackageJobResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (CraftJobResponse | PackageJobResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20533,7 +20869,7 @@ export type SpacemoltFacilityJobCancelErrors = {
 
 export type SpacemoltFacilityJobCancelResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (JobCancelResponse | BulkJobCancelResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (JobCancelResponse | BulkJobCancelResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20623,7 +20959,7 @@ export type SpacemoltFacilityJobReorderErrors = {
 
 export type SpacemoltFacilityJobReorderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (JobReorderResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (JobReorderResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20706,7 +21042,7 @@ export type SpacemoltFacilityListForSaleErrors = {
 
 export type SpacemoltFacilityListForSaleResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityListForSaleResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityListForSaleResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20781,7 +21117,7 @@ export type SpacemoltFacilityPersonalBuildErrors = {
 
 export type SpacemoltFacilityPersonalBuildResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalBuildResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalBuildResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20825,7 +21161,7 @@ export type SpacemoltFacilityPersonalDecorateErrors = {
 
 export type SpacemoltFacilityPersonalDecorateResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalDecorateResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityPersonalDecorateResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -20907,7 +21243,7 @@ export type SpacemoltFacilityRanchSetCullErrors = {
 
 export type SpacemoltFacilityRanchSetCullResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (RanchSetCullResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (RanchSetCullResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21065,7 +21401,7 @@ export type SpacemoltFacilityRepairErrors = {
 
 export type SpacemoltFacilityRepairResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityRepairResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityRepairResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21146,7 +21482,7 @@ export type SpacemoltFacilitySetAccessErrors = {
 
 export type SpacemoltFacilitySetAccessResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetAccessResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (SetAccessResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21390,7 +21726,7 @@ export type SpacemoltFacilitySetNameErrors = {
 
 export type SpacemoltFacilitySetNameResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetFacilityNameResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (SetFacilityNameResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21434,7 +21770,7 @@ export type SpacemoltFacilitySetOutputPriceErrors = {
 
 export type SpacemoltFacilitySetOutputPriceResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (SetOutputPriceResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (SetOutputPriceResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21719,7 +22055,7 @@ export type SpacemoltFacilityTransferErrors = {
 
 export type SpacemoltFacilityTransferResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityTransferResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityTransferResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -21875,7 +22211,7 @@ export type SpacemoltFacilityUpgradeErrors = {
 
 export type SpacemoltFacilityUpgradeResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions/skills sections); the command result is under `details` (FacilityUpgradeResponse | FacilityFactionUpgradeResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions/skills sections); the command result is under `details` (FacilityUpgradeResponse | FacilityFactionUpgradeResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24731,7 +25067,7 @@ export type SpacemoltMarketCancelOrderErrors = {
 
 export type SpacemoltMarketCancelOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CancelOrderCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CancelOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24792,7 +25128,7 @@ export type SpacemoltMarketCreateBuyOrderErrors = {
 
 export type SpacemoltMarketCreateBuyOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CreateBuyOrderCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CreateBuyOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -24848,7 +25184,7 @@ export type SpacemoltMarketCreateSellOrderErrors = {
 
 export type SpacemoltMarketCreateSellOrderResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/location/missions sections); the command result is under `details` (CreateSellOrderCommandResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions sections); the command result is under `details` (CreateSellOrderCommandResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -29108,7 +29444,7 @@ export type SpacemoltTransferTradeAcceptErrors = {
 
 export type SpacemoltTransferTradeAcceptResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions sections); the command result is under `details` (TradeAcceptResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (TradeAcceptResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
@@ -29262,7 +29598,7 @@ export type SpacemoltTransferTradeOfferErrors = {
 
 export type SpacemoltTransferTradeOfferResponses = {
     /**
-     * Result. structuredContent: V2GameState post-mutation delta (changed player/cargo/missions sections); the command result is under `details` (TradeOfferResponse)
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (TradeOfferResponse)
      */
     200: V2Response & {
         structuredContent?: V2GameState & {
