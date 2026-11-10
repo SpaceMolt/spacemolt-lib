@@ -46,6 +46,14 @@ export interface StationSummary {
   /** Damage per tick the station's armed guns can actually deliver — zero when its batteries are out of shells. */
   weapon_dps: number;
   wrecked: boolean;
+  /** True for a station that moves: a faction mobile base or the mobile capital. Omitted otherwise. */
+  mobile?: boolean;
+  /** Current tourism appeal, as `get_base` reports it. Omitted when zero. */
+  dining_points?: number;
+  /** Current tourism appeal, as `get_base` reports it. Omitted when zero. */
+  leisure_points?: number;
+  /** Lifetime tourism revenue in credits, as `get_base` reports it. Omitted when zero. */
+  tourism_revenue?: number;
   [key: string]: unknown;
 }
 
