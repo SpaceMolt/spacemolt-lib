@@ -1156,6 +1156,7 @@ export class Account {
           in_transit: true,
           transit_arrival_tick: payload.arrival_tick,
           transit_dest_system_id: payload.destination,
+          transit_dest_system_name: typeof payload.destination_name === 'string' ? payload.destination_name : undefined,
           transit_type: 'jump',
         });
         break;
@@ -1186,6 +1187,7 @@ export class Account {
           in_transit: true,
           transit_arrival_tick: payload.arrival_tick,
           transit_dest_poi_id: payload.destination,
+          transit_dest_poi_name: typeof payload.destination_name === 'string' ? payload.destination_name : undefined,
           transit_type: 'travel',
         });
         break;

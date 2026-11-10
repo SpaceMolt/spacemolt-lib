@@ -660,6 +660,33 @@ test('a fleet transit start no longer costs a get_status', async () => {
   expect(statusCalls).toBe(0);
 });
 
+test('transit-start pushes fill the destination name when the server sends one', async () => {
+  const { account, socket } = await seededAccount();
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'fleet_travel',
+      destination: 'earth_orbital_yard',
+      destination_name: 'Earth Orbital Yard',
+      arrival_tick: 42,
+      message: 'Your fleet is traveling.',
+    },
+  });
+  expect(account.location?.transit_dest_poi_name).toBe('Earth Orbital Yard');
+
+  socket.serverSend({
+    type: 'ok',
+    payload: {
+      action: 'jump',
+      destination: 'alpha_centauri',
+      destination_name: 'Alpha Centauri',
+      arrival_tick: 50,
+      is_wormhole: false,
+    },
+  });
+  expect(account.location?.transit_dest_system_name).toBe('Alpha Centauri');
+});
+
 // A follower's arrival now arrives as an unsolicited action_result. It carries
 // no request_id because the follower never made a request — that is not a
 // timed-out caller, and the cache must take it without a reconcile.
