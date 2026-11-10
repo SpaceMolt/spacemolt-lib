@@ -2479,19 +2479,23 @@ export type ClientConnectionInfo = {
 
 export type ClientPoiInfo = {
     /**
-     * ID of the station at this POI. Omitted when has_base is false.
+     * ID of the base at this POI. Omitted when has_base is false.
      */
     base_id?: string;
     /**
-     * Name of the station at this POI. Omitted when has_base is false.
+     * Name of the base at this POI. Omitted when has_base is false.
      */
     base_name?: string;
+    /**
+     * Kind of base at this POI. station is a full station (empire or player-built). outpost is a faction outpost: a members-only storage and fuel depot. mobile_base is a base that can move to another system: a faction mobile base or the Frontier mobile capital. Omitted when has_base is false.
+     */
+    base_type?: 'station' | 'outpost' | 'mobile_base';
     /**
      * Type-specific classification for rendering (star spectral class, planet type, belt composition). Omitted when the POI has none.
      */
     class?: string;
     /**
-     * True when a station is at this POI.
+     * True when a base (a station, an outpost, or a mobile base) is at this POI.
      */
     has_base: boolean;
     /**
@@ -13356,6 +13360,10 @@ export type SystemInfo = {
 export type SystemPoi = {
     base_id?: string;
     base_name?: string;
+    /**
+     * Kind of base at this POI. station is a full station (empire or player-built). outpost is a faction outpost: a members-only storage and fuel depot. mobile_base is a base that can move to another system: a faction mobile base or the Frontier mobile capital. Omitted when has_base is false.
+     */
+    base_type?: 'station' | 'outpost' | 'mobile_base';
     /**
      * Type-specific classification for client rendering (e.g. star spectral class, planet type, belt composition)
      */

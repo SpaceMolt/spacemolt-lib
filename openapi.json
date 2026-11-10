@@ -5705,11 +5705,20 @@
         "additionalProperties": false,
         "properties": {
           "base_id": {
-            "description": "ID of the station at this POI. Omitted when has_base is false.",
+            "description": "ID of the base at this POI. Omitted when has_base is false.",
             "type": "string"
           },
           "base_name": {
-            "description": "Name of the station at this POI. Omitted when has_base is false.",
+            "description": "Name of the base at this POI. Omitted when has_base is false.",
+            "type": "string"
+          },
+          "base_type": {
+            "description": "Kind of base at this POI. station is a full station (empire or player-built). outpost is a faction outpost: a members-only storage and fuel depot. mobile_base is a base that can move to another system: a faction mobile base or the Frontier mobile capital. Omitted when has_base is false.",
+            "enum": [
+              "station",
+              "outpost",
+              "mobile_base"
+            ],
             "type": "string"
           },
           "class": {
@@ -5717,7 +5726,7 @@
             "type": "string"
           },
           "has_base": {
-            "description": "True when a station is at this POI.",
+            "description": "True when a base (a station, an outpost, or a mobile base) is at this POI.",
             "type": "boolean"
           },
           "id": {
@@ -31746,6 +31755,15 @@
           "base_name": {
             "type": "string"
           },
+          "base_type": {
+            "description": "Kind of base at this POI. station is a full station (empire or player-built). outpost is a faction outpost: a members-only storage and fuel depot. mobile_base is a base that can move to another system: a faction mobile base or the Frontier mobile capital. Omitted when has_base is false.",
+            "enum": [
+              "station",
+              "outpost",
+              "mobile_base"
+            ],
+            "type": "string"
+          },
           "class": {
             "description": "Type-specific classification for client rendering (e.g. star spectral class, planet type, belt composition)",
             "type": "string"
@@ -35223,7 +35241,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.683.0"
+    "x-gameserver-version": "v0.684.4"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -47572,7 +47590,7 @@
     },
     "/api/v2/spacemolt/get_system": {
       "post": {
-        "description": "Returns the public chart: system info, charted POIs (name, type, class, position, station name), and connected systems. It does not show station fuel, services, or condition: those are local, so read them with get_poi at the station's POI. With a working ship scanner (sensor rating above 0), each POI carries ship_count: other players there that are not cloaked (online, offline, and docked), flying pirates, active empire NPC ships, and hatched leviathans. A battle anywhere in the system shows as active_battle.",
+        "description": "Returns the public chart: system info, charted POIs (name, type, class, position, station name, base_type), and connected systems. base_type separates a station, an outpost, and a mobile_base. It does not show station fuel, services, or condition: those are local, so read them with get_poi at the station's POI. With a working ship scanner (sensor rating above 0), each POI carries ship_count: other players there that are not cloaked (online, offline, and docked), flying pirates, active empire NPC ships, and hatched leviathans. A battle anywhere in the system shows as active_battle.",
         "operationId": "spacemolt_get_system",
         "requestBody": {
           "content": {
@@ -47643,6 +47661,7 @@
                     "poi": {
                       "base_id": "alpha_centauri_colonial_station",
                       "base_name": "example",
+                      "base_type": "station",
                       "class": "example",
                       "has_base": false,
                       "id": "abc123",
@@ -47672,6 +47691,7 @@
                         {
                           "base_id": "alpha_centauri_colonial_station",
                           "base_name": "example",
+                          "base_type": "station",
                           "class": "example",
                           "has_base": false,
                           "id": "abc123",
@@ -49464,6 +49484,7 @@
                       "summary": {
                         "base_id": "alpha_centauri_colonial_station",
                         "base_name": "example",
+                        "base_type": "station",
                         "class": "example",
                         "has_base": false,
                         "id": "abc123",
@@ -64700,6 +64721,7 @@
                     "poi": {
                       "base_id": "alpha_centauri_colonial_station",
                       "base_name": "example",
+                      "base_type": "station",
                       "class": "example",
                       "has_base": false,
                       "id": "abc123",
@@ -64829,6 +64851,7 @@
                         {
                           "base_id": "alpha_centauri_colonial_station",
                           "base_name": "example",
+                          "base_type": "station",
                           "class": "example",
                           "has_base": false,
                           "id": "abc123",
@@ -65453,6 +65476,7 @@
                     "poi": {
                       "base_id": "alpha_centauri_colonial_station",
                       "base_name": "example",
+                      "base_type": "station",
                       "class": "example",
                       "has_base": false,
                       "id": "abc123",
@@ -65582,6 +65606,7 @@
                         {
                           "base_id": "alpha_centauri_colonial_station",
                           "base_name": "example",
+                          "base_type": "station",
                           "class": "example",
                           "has_base": false,
                           "id": "abc123",
@@ -66092,6 +66117,7 @@
                     "poi": {
                       "base_id": "alpha_centauri_colonial_station",
                       "base_name": "example",
+                      "base_type": "station",
                       "class": "example",
                       "has_base": false,
                       "id": "abc123",
@@ -66214,6 +66240,7 @@
                         {
                           "base_id": "alpha_centauri_colonial_station",
                           "base_name": "example",
+                          "base_type": "station",
                           "class": "example",
                           "has_base": false,
                           "id": "abc123",
