@@ -6,38 +6,23 @@ submission as upstream bug reports. A "gap" is a place where the spec does not
 match what the server actually accepts or returns — codegen bugs in *our*
 generator are not listed here.
 
-**Spec version observed:** `v0.466.0`
+**Spec version observed:** `v0.684.4`
 
 ---
 
-## 1. `StorageResponse` view branch omits `credits` while `additionalProperties: false`
+No open gaps.
 
-**Status:** REPORTED upstream (2026-07-03). Verified against live server.
+## Resolved
 
-**Endpoint:** `POST /api/v2/spacemolt_storage/view` (the storage `view` action;
-returns `StorageResponse`).
-
-**Schema location:** `components.schemas.StorageResponse.oneOf[0]` — the "view"
-branch (the member with an `items` array).
-
-**What the spec declares:** properties `[base_id, gifts, hint, items, messages,
-ships]`, with `additionalProperties: false`.
-
-**What the server returns:** for `target=faction`, the response additionally
-includes a top-level **`credits`** field (the faction treasury balance).
-Verified live. (It may also include other faction-only fields such as
-`buckets`/`faction_id`, but those are unconfirmed.)
-
-**Impact:**
-- A strict validator (`additionalProperties: false`) rejects a *valid* server
-  response.
-- Generated clients never see `credits`, so consumers must hand-augment the
-  type to read a value the server really sends.
-
-**Suggested fix:** declare `credits` on the view branch (and any other
-faction-only fields it omits), or relax `additionalProperties` for that branch,
-or split faction-storage view into its own branch that declares the extra
-fields.
+- **`StorageResponse` view branch omitted `credits`** (reported 2026-07-03).
+  Resolved by v0.684.4: faction storage view is its own branch,
+  `ViewFactionStorageResponse`, which declares `credits`, `buckets`,
+  `faction_id` and the other faction fields. Personal `ViewStorageResponse`
+  never carried `credits`.
+- **`reload` `weapons` was an array with no `items`**, so it generated as
+  `string[]`; the server takes `{weapon_instance_id, ammo_item_id?}` objects.
+  Fixed on the gameserver (items schema published); the type corrects itself
+  on the next spec sync after that deploy.
 
 ---
 

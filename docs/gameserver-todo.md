@@ -20,7 +20,16 @@ Baseline spec when this file started: gameserver **v0.452.0**.
 ---
 
 ## 1. Publish payload schemas for the untyped push frames
-**Status:** done (live in v0.573.1) — but 8 frames remain · **Needed by:** M3 (typed push events) · **Priority:** medium
+**Status:** done (v0.684.4 publishes 62) · **Needed by:** M3 (typed push events) · **Priority:** —
+
+> **Update (2026-11-10):** The 8 frames below are all published as of v0.684.4.
+> A gameserver audit found four more pushes with no schema —
+> `faction_invite`, `faction_withdraw_invite`, `faction_kick`,
+> `faction_promote` (map literals in `internal/handlers/faction.go`). A
+> gameserver change adds them; they reach `notifications.gen.ts` through the
+> spec sync after it deploys. The same change set removes
+> `Notification_base_raid_update`, which no code path sent. Every other
+> `Notification_*` schema matches a frame the server sends.
 
 > **Update (2026-08-31):** Deployed and verified against the live spec: **39**
 > `Notification_*` schemas are published, and every frame the list below named
@@ -235,7 +244,7 @@ becomes a pure fallback.
 ---
 
 ## 7. Publish the station directory schemas (`GET /api/stations`)
-**Status:** todo · **Needed by:** station bindings in `src/data/stations.ts` · **Priority:** low
+**Status:** todo (still unpublished as of v0.684.4) · **Needed by:** station bindings in `src/data/stations.ts` · **Priority:** low
 
 `src/data/stations.ts` binds the public station directory with hand-written
 types (`StationSummary`, `StationEmpire`) mirrored from the server's
@@ -399,7 +408,9 @@ so it is the join between the directory and live state, and it is *not* the
 same as `id`. Added by hand for now.
 
 This is the drift #7 predicts: a hand-written mirror rots silently because
-nothing typechecks it against the server. Publishing `stationListEntry` through
+nothing typechecks it against the server. It happened again: by v0.684.4
+`stationListEntry` also sends `mobile`, `dining_points`, `leisure_points`
+and `tourism_revenue` (all `omitempty`). Added by hand (2026-11-10). Publishing `stationListEntry` through
 `BulkDataSchemas()` (per #7) is the actual fix.
 
 ---
@@ -491,7 +502,11 @@ comment.
 
 ## 14. `ObservationUpdatePayload.ActiveScan` is `omitempty`, so it can never turn off
 
-**Status:** todo · **Needed by:** `account.observation().activeScan` being trustworthy · **Priority:** medium
+**Status:** done (gameserver 8cdae71e2, "always send active_scan on observation_update") · **Priority:** —
+
+Done: `active_scan` is always sent. The lib now also clears
+`account.observationActiveScan` when an update reports `false`, so a reconnect
+no longer re-arms a sweep that lapsed.
 
 ``ActiveScan bool `json:"active_scan,omitempty"` `` means the key is dropped
 exactly when the value is `false` — which is the only moment the flag carries
@@ -505,6 +520,16 @@ lapse.
 `UnknownSignature` in the same struct already omits `omitempty` for this exact
 reason. Drop it from `ActiveScan` to match. One-word server fix; no client
 change can substitute for it.
+
+## 16. Transit-start pushes named only the destination ID
+
+**Status:** done server-side (pending deploy) · **Priority:** low
+
+The `travel`, `jump`, `fleet_travel` and `fleet_jump` `ok` pushes carried only
+`destination` (an ID), so `transit_dest_poi_name` / `transit_dest_system_name`
+stayed blank until arrival. The gameserver now adds `destination_name`. The lib
+reads it when present (`applyMovementPush`); older servers leave the name blank
+as before.
 
 ## 15. `ship_name` means different things in the watch and in `V2Location`
 
