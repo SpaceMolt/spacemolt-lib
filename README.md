@@ -171,10 +171,11 @@ view?.empireNpcs;                                // empire NPCs, keyed by npc_id
 view?.creatures;                                 // wildlife, keyed by creature_id
 view?.prizes;                                    // intact captured ships, keyed by prize_id
 view?.arenaNpcs;                                 // arena challenge enemies, keyed by npc_id
+view?.repeaters;                                 // frontier Repeaters, keyed by repeater_id
 view?.shipCounts;                                // ship scanner only: ship count per charted POI in your system
 ```
 
-The watch is not players only. It covers all six of `get_nearby`'s classes, and
+The watch is not players only. It covers all seven of `get_nearby`'s classes, and
 every class except wildlife and arena NPCs is also mirrored into
 `account.state.location`. It is scoped to your POI: there is no system-wide
 player list. With a ship scanner, `shipCounts` gives the count at every other

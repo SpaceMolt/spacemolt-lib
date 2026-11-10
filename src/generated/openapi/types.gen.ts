@@ -20,6 +20,10 @@ export type AcceptMissionResponse = {
     fixer?: FixerAccountInfo;
     message: string;
     mission_id: string;
+    /**
+     * True for missions with no deadline. Then expires_at is empty. Omitted means the mission uses its expires_at deadline.
+     */
+    no_expiry?: boolean;
     replacement_cost?: number;
     template_id?: string;
     title: string;
@@ -121,6 +125,10 @@ export type ActiveMissionInfo = {
     issuing_system_id?: string;
     issuing_system_name?: string;
     mission_id: string;
+    /**
+     * True for missions with no deadline. Then expires_in_ticks is zero. Omitted means expires_in_ticks is the remaining deadline.
+     */
+    no_expiry?: boolean;
     objectives?: Array<ObjectiveProgressInfo>;
     percent_complete: number;
     /**
@@ -894,7 +902,7 @@ export type AttackNpcResponse = {
      */
     target_name: string;
     /**
-     * Target combatant type: pirate/empire_npc/creature/station/prize
+     * Target combatant type: pirate/empire_npc/creature/station/prize/repeater
      */
     target_type: string;
     /**
@@ -995,6 +1003,43 @@ export type Base = {
      * Current fuel reserves in the station's fuel tank
      */
     fuel?: number;
+    /**
+     * Present only when this outpost is one end of a player-built jump gate; omitted otherwise. The owning faction's station info action describes it in full.
+     */
+    gate?: {
+        /**
+         * True when only the owning faction may cross; omitted when public
+         */
+        faction_only?: boolean;
+        /**
+         * System the other end of the gate stands in
+         */
+        far_system_id?: string;
+        /**
+         * True once the owners were warned that this end holds fewer than 3 cycles of upkeep, or while building that it stalled; omitted otherwise
+         */
+        low_supply_warned?: boolean;
+        /**
+         * True while the gate is open for jump; omitted when closed
+         */
+        online?: boolean;
+        /**
+         * Base id of the other end; omitted until that end is founded
+         */
+        partner_base_id?: string;
+        /**
+         * Construction phases this end has completed (0-4); 4 means built
+         */
+        phase?: number;
+        /**
+         * While building: facility cycles of the current phase done. Once built: upkeep cycles paid so far
+         */
+        phase_cycles?: number;
+        /**
+         * Credits per ship charged to pilots outside the owning faction; omitted when free
+         */
+        toll?: number;
+    };
     id: string;
     /**
      * Owner-set market listing fee in basis points (player station); 0 = default
@@ -1193,6 +1238,10 @@ export type BattleLogEntry = {
     joins?: Array<JoinLogEntry>;
     kills?: Array<KillLogEntry>;
     personnel_casualties?: Array<PersonnelCasualtyLogEntry>;
+    /**
+     * True for a battle in a frontier system. It stays off the public battle list; its own pilots still read its log. Omitted for every other battle.
+     */
+    private?: boolean;
     recovered_summary?: RecoveredBattleSummary;
     regen?: Array<RegenLogEntry>;
     snapshots: Array<ParticipantSnapshot>;
@@ -2282,6 +2331,10 @@ export type CatalogRecipe = {
      * Ids of the facility definitions that can run this recipe forward, each matching an entry in this dump's facilities list. Sorted by facility level then name. Always present, never omitted: an empty list means no facility definition runs it, which for a hand_craftable recipe is normal (the Station Workshop is then the only venue) and for a recipe with hand_craftable false means it has no player-reachable venue at all. Owning or renting one of these facilities is what craft auto-routes to.
      */
     produced_by_facility_ids: Array<string>;
+    /**
+     * True when a pilot must first earn this recipe from a quest: crafting it fails with recipe_locked until a completed mission's unlock_recipes reward grants it. Absent on every recipe anyone can craft.
+     */
+    requires_unlock?: boolean;
 };
 
 export type CatalogResponse = {
@@ -2517,6 +2570,10 @@ export type ClientPoiInfo = {
      */
     has_base: boolean;
     /**
+     * Environmental hazard at this POI (type and severity). Omitted when there is none. Shields absorb a dose first and resistance to its damage type reduces it; an emptied hull is a lost ship.
+     */
+    hazard?: PoiHazard;
+    /**
      * POI ID. Pass it to travel or find_route.
      */
     id: string;
@@ -2542,6 +2599,10 @@ export type ClientSystemInfo = {
     connections: Array<ClientConnectionInfo>;
     description?: string;
     empire?: string;
+    /**
+     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Revealed only after entry or receipt of charted faction intel.
+     */
+    frontier_tier?: number;
     id: string;
     is_stronghold: boolean;
     name: string;
@@ -2818,6 +2879,10 @@ export type CompleteMissionResponse = {
     };
     message: string;
     mission_id: string;
+    /**
+     * Recipe IDs this completion taught you. You can craft them from now on. Omitted when the mission teaches none or you already knew them.
+     */
+    recipes_unlocked?: Array<string>;
     reputation_changes?: {
         [key: string]: number;
     };
@@ -4961,6 +5026,9 @@ export type FactionInfoResponse = {
 
 export type FactionIntelStatusResponse = {
     contributors?: number;
+    /**
+     * Percentage (0-100) of known-space systems the faction pool has intel on. Frontier systems are left out.
+     */
     coverage_pct: number;
     intel_level: number;
     most_recent_tick?: number;
@@ -4968,6 +5036,9 @@ export type FactionIntelStatusResponse = {
     systems_known: number;
     top_contributions?: number;
     top_contributor?: string;
+    /**
+     * Number of known-space systems. Frontier systems are not counted.
+     */
     total_systems?: number;
 };
 
@@ -6237,6 +6308,79 @@ export type GaragedShipEntry = {
     ship_id: string;
 };
 
+export type GateStatus = {
+    /**
+     * True when this end has finished all construction phases. The gate opens only when both ends are built and both can pay upkeep.
+     */
+    built: boolean;
+    /**
+     * Upkeep cycles until this end takes its next entangler from faction storage: 1 means the next cycle that pays upkeep. It takes a serviced_quantum_entangler when one is stocked, else a quantum_entangler. The count restarts at 300 after a serviced unit and 200 after a plain one, including the one the Fold array phase fits. Cycles the gate is closed do not count. Present only once built.
+     */
+    entangler_due_in_cycles?: number;
+    /**
+     * True when only members of the owning faction may cross. Kept the same at both ends.
+     */
+    faction_only: boolean;
+    /**
+     * System the other end of this gate stands in.
+     */
+    far_system_id: string;
+    /**
+     * Display name of far_system_id.
+     */
+    far_system_name: string;
+    /**
+     * True when the gate is open and jump can cross it. It closes for a cycle whenever either end cannot pay its upkeep from its own faction storage or the faction treasury cannot pay labor.
+     */
+    online: boolean;
+    /**
+     * Base id of the other end. Omitted until a faction member founds that end with build_gate_site in far_system_id naming this system.
+     */
+    partner_base_id?: string;
+    /**
+     * True when the other end has finished all construction phases. False when it is still building or not founded yet.
+     */
+    partner_built: boolean;
+    /**
+     * Construction phase this end is in (1 to phases_total). Omitted once built.
+     */
+    phase?: number;
+    /**
+     * Facility cycles the current phase takes in total. Omitted once built.
+     */
+    phase_cycles?: number;
+    /**
+     * Facility cycles of the current phase completed so far. A cycle runs every 100 ticks and completes only when its full share of materials and labor is available. Omitted once built or when 0.
+     */
+    phase_cycles_done?: number;
+    /**
+     * Credits the current phase takes from the faction treasury each facility cycle as labor, paid to the nearest station's citizens. A cycle the treasury cannot pay stalls. Omitted once built.
+     */
+    phase_labor_per_cycle?: number;
+    /**
+     * Item id to the quantity of it the current phase still needs beyond what is already in this end's faction storage. Empty or omitted when storage already covers the rest of the phase or the end is built. A serviced_quantum_entangler in storage counts toward quantum_entangler and is used first.
+     */
+    phase_materials_left?: {
+        [key: string]: number;
+    };
+    /**
+     * Name of the current construction phase. Omitted once built.
+     */
+    phase_name?: string;
+    /**
+     * Number of construction phases each end goes through.
+     */
+    phases_total: number;
+    /**
+     * Credits charged per ship to pilots outside the owning faction for each crossing. 0 means free. Paid into the owning faction treasury. Kept the same at both ends.
+     */
+    toll: number;
+    /**
+     * How many more facility cycles of upkeep items this end's faction storage holds (counted up to 1000). Present only once built; omitted when 0. Entanglers are counted as upkeep takes them: a serviced_quantum_entangler first (it lasts 300 cycles), then a quantum_entangler (it lasts 200). Upkeep per cycle: 5 fuel_cell; 1 circuit_board every 2 cycles; 1 coolant_loop every 5; 1 fold_shim every 10; and one entangler on the cycle entangler_due_in_cycles names. A cycle missing any of it closes the gate and takes nothing. Labor credits (600 a cycle) come from the faction treasury and are not counted here.
+     */
+    upkeep_cycles_covered?: number;
+};
+
 export type GeneratorResponse = {
     /**
      * True when the engine docked you automatically before running this command, because the command requires being docked. Omitted when no automatic dock happened.
@@ -6502,7 +6646,7 @@ export type GetNearbyResponse = {
     arena_npcs: Array<ArenaNpcInfo>;
     count: number;
     /**
-     * Total wildlife creatures at this POI. When it is larger than the length of creatures, the list is cut at 30 and the rest are present but not listed.
+     * Total wildlife at this POI that your sensors resolve. When it is larger than the length of creatures, the list is cut at 30 and the rest are present but not listed.
      */
     creature_count: number;
     /**
@@ -6518,6 +6662,14 @@ export type GetNearbyResponse = {
     poi_id: string;
     prize_count: number;
     prizes: Array<PrizeInfo>;
+    /**
+     * Number of entries in repeaters.
+     */
+    repeater_count: number;
+    /**
+     * Frontier Repeaters at this POI. Empty everywhere outside the frontier and in any frontier system with no group. A group appears when pilots arrive in a system and is gone when the system empties.
+     */
+    repeaters: Array<RepeaterInfo>;
     unknown_signature?: boolean;
 };
 
@@ -6553,6 +6705,10 @@ export type GetPoiResponse = {
     fuel_price?: number;
     fuel_price_all_in?: number;
     fuel_tax_per_unit?: number;
+    /**
+     * Private interaction prompt available only at the pilot's current charted archive. Omitted at other POIs. This read does not copy data or complete a mission.
+     */
+    interaction?: PoiInteractionInfo;
     kind: 'normal';
     poi: Poi;
     resources?: Array<ResourceInfo>;
@@ -6570,8 +6726,14 @@ export type GetPoiTransitResponse = {
     in_transit: boolean;
     kind: 'transit';
     message: string;
+    /**
+     * Ticks until arrival; -1 for a blind Pathfinder drift whose arrival time is unknown
+     */
     ticks_remaining: number;
     to_poi?: string;
+    /**
+     * Destination system ID; omitted for intra-system travel or a blind Pathfinder drift or an uncharted frontier wormhole destination
+     */
     to_system?: string;
     transit_type: string;
 };
@@ -6616,7 +6778,13 @@ export type GetSystemTransitResponse = {
     in_transit: boolean;
     kind: 'transit';
     message: string;
+    /**
+     * Ticks until arrival; -1 for a blind Pathfinder drift whose arrival time is unknown
+     */
     ticks_remaining: number;
+    /**
+     * Destination system ID; empty for a blind Pathfinder drift or an uncharted frontier wormhole destination
+     */
     to_system: string;
     transit_type: string;
 };
@@ -7024,6 +7192,39 @@ export type IntelResource = {
     richness: number;
 };
 
+export type InteractPoiResponse = {
+    /**
+     * One-time completion receipt with earned XP and recovered navigation text. Omitted when this interaction does not complete a mission. Read the retained text with view_completed_mission after completion.
+     */
+    completion?: CompleteMissionResponse;
+    /**
+     * True when this pilot retains this archive's data. The copy survives abandonment and ship loss. Omitted for interactions that do not copy an archive.
+     */
+    data_copied?: boolean;
+    /**
+     * Items this interaction moved into your cargo, keyed by item ID with quantities: a mission's data-recovery objective at this site handed them over. Omitted when nothing was recovered. Each objective hands its items over once.
+     */
+    items_recovered?: {
+        [key: string]: number;
+    };
+    /**
+     * Result of this archive interaction. It contains recovered account text only when the corresponding interaction succeeds.
+     */
+    message: string;
+    /**
+     * Local mission offer when this pilot can accept one. Acceptance remains a separate accept_mission action.
+     */
+    mission?: MissionInfo;
+    /**
+     * People this interaction seated in your ship's passenger berths: a mission's data-recovery objective at this site carries them. Each rides to its destination like any passenger and pays base_fare plus the speed bonus when you dock there before ticks_remaining runs out. base_fare is 0 when the destination cannot fund the fare. Omitted when nobody boarded. Each objective seats its passengers once. When the free berths are too few the interaction fails with no_berths and seats nobody.
+     */
+    passengers_boarded?: Array<PassengerView>;
+    /**
+     * ID of the charted POI where this pilot is currently present. Remote and uncharted interactions are rejected.
+     */
+    poi_id: string;
+};
+
 export type Item = {
     base_value: number;
     category: string;
@@ -7346,6 +7547,10 @@ export type JumpResponse = {
      */
     poi?: string;
     /**
+     * Environmental hazard at the arrival POI (type and severity). Omitted when there is none. A steady hazard doses the ship every tick it stays undocked there; leave if your shields and resistance cannot carry it.
+     */
+    poi_hazard?: PoiHazard;
+    /**
      * Display name of the system you arrived in.
      */
     system: string;
@@ -7629,6 +7834,10 @@ export type MapSystem = {
     connections?: Array<string>;
     description?: string;
     empire?: string;
+    /**
+     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Uncharted frontier systems are excluded from maps and search.
+     */
+    frontier_tier?: number;
     is_stronghold?: boolean;
     name: string;
     poi_count?: number;
@@ -7645,6 +7854,10 @@ export type MapSystemInfo = {
     connections: Array<string>;
     description?: string;
     empire?: string;
+    /**
+     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Uncharted frontier systems are excluded from maps and search.
+     */
+    frontier_tier?: number;
     is_stronghold?: boolean;
     name: string;
     poi_count: number;
@@ -7892,6 +8105,10 @@ export type MissionRewardsInfo = {
     skill_xp?: {
         [key: string]: number;
     };
+    /**
+     * Recipe IDs this mission teaches on completion. They are requires_unlock recipes: crafting them fails with recipe_locked until a mission grants them. Omitted when the mission teaches none.
+     */
+    unlock_recipes?: Array<string>;
 };
 
 export type MissionUnlock = {
@@ -8429,7 +8646,7 @@ export type NotificationChannelInfo = {
 /**
  * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
  */
-export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionInvite | NotificationFactionKick | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionPromote | NotificationFactionWarDeclared | NotificationFactionWithdrawInvite | NotificationFleet | NotificationGiftReceived | NotificationHoldUpdate | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionInvite | NotificationFactionKick | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionPromote | NotificationFactionWarDeclared | NotificationFactionWithdrawInvite | NotificationFleet | NotificationGiftReceived | NotificationHazardWarning | NotificationHoldUpdate | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPathfinderStorm | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -9166,6 +9383,37 @@ export type NotificationGiftReceived = {
     timestamp: string;
 };
 
+export type NotificationHazardWarning = {
+    /**
+     * Share of maximum hull (percent) one dose takes before shields and resistance. Steady hazards dose every tick the ship stays undocked at the POI; mining hazards dose on each mining action.
+     */
+    dose_pct: number;
+    /**
+     * The hazard at the POI: its type and severity.
+     */
+    hazard: PoiHazard;
+    /**
+     * Hull points left after the dose that triggered this warning.
+     */
+    hull: number;
+    /**
+     * Maximum hull points of the ship.
+     */
+    max_hull: number;
+    /**
+     * Plain-language warning. The ship is lost if its hull reaches 0 here.
+     */
+    message: string;
+    /**
+     * POI whose hazard is damaging the ship.
+     */
+    poi_id: string;
+    /**
+     * Display name of that POI.
+     */
+    poi_name: string;
+};
+
 /**
  * Pushed to both the holder and the held pilot when a hold starts or ends. A hold is a crime in empire space and a hostile act everywhere.
  */
@@ -9264,6 +9512,14 @@ export type NotificationObservationUpdate = {
     prizes_changed?: Array<PrizeInfo>;
     prizes_departed?: Array<string>;
     /**
+     * Frontier Repeaters that arrived at the watched POI or whose visible state (hull, shield, in_battle) changed this tick. Omitted when none changed.
+     */
+    repeaters_changed?: Array<RepeaterInfo>;
+    /**
+     * IDs of Repeaters gone from the watched POI: destroyed, moved away or despawned. Omitted when none departed.
+     */
+    repeaters_departed?: Array<string>;
+    /**
      * Replacement ship scanner count map for your system, keyed by POI ID (see ship_counts in subscribe_observation). Omitted means unchanged. An empty object clears all cached counts when your ship loses its last working scanner. When the scanner resumes, the full current map is sent again.
      */
     ship_counts?: {
@@ -9348,6 +9604,17 @@ export type NotificationOk = {
     xp_gained?: {
         [key: string]: number;
     };
+};
+
+export type NotificationPathfinderStorm = {
+    /**
+     * True when the storm turned the ship off its plotted bearing. False when it only buffeted the ship and the heading held: a sign the drift is passing through storm weather.
+     */
+    deflected: boolean;
+    /**
+     * Plain-language notice. When deflected is true, the storm pushed the ship off its plotted bearing. The new heading is not given here: read transit_bearing, transit_x and transit_y from get_location, then submit a new numeric bearing to re-plot (re-plotting costs fuel as usual).
+     */
+    message: string;
 };
 
 export type NotificationPersonnelUpdate = {
@@ -9531,7 +9798,10 @@ export type NotificationPirateRadio = {
  * Your ship was destroyed. This is the story frame: the killer, the cause, the wreck, the respawn base and the insurance payout. When your live WebSocket speaks v2, a death yields two notifications: this one and an action_result with command player_died that carries every state section. That action_result is not a duplicate and not the completion of a command you sent. Apply its delta. Read this frame for the cause. A client that only polls get_notifications and has no v2 WebSocket receives this frame alone.
  */
 export type NotificationPlayerDied = {
-    cause?: string;
+    /**
+     * What destroyed the ship: combat (another player), police, pirate, wildlife, self_destruct, or hazard (an environmental hazard at the POI; the killer name is the hazard, for example Radiation).
+     */
+    cause?: 'combat' | 'police' | 'pirate' | 'wildlife' | 'self_destruct' | 'hazard';
     clone_cost: number;
     combat_log?: CombatLogSummary;
     insurance_payout: number;
@@ -10003,6 +10273,19 @@ export type Poi = {
      */
     class?: string;
     description?: string;
+    /**
+     * Environmental hazard at this POI. Omitted when there is none. Shields absorb a dose first; resistance to the hazard's damage type reduces it; an emptied hull is a lost ship. Docked, offline and in-battle pilots are not dosed.
+     */
+    hazard?: {
+        /**
+         * 1 low, 2 moderate, 3 high, 4 lethal. One dose takes 1%, 3%, 8% or 25% of maximum hull before shields and resistance.
+         */
+        severity: number;
+        /**
+         * radiation (thermal), tidal_shear (kinetic) and scar_dust (kinetic) dose every tick an undocked ship stays. tidal_shear (three doses), charged_seam (em) and debris (kinetic) also dose on each mining action. charged_seam, scar_dust and ion_storm lower scan and survey power here.
+         */
+        type: 'radiation' | 'tidal_shear' | 'charged_seam' | 'debris' | 'scar_dust' | 'ion_storm';
+    };
     hidden?: boolean;
     id: string;
     name: string;
@@ -10022,6 +10305,32 @@ export type Poi = {
      * POI type: planet, asteroid_belt, moon, nebula, etc.
      */
     type: string;
+};
+
+export type PoiHazard = {
+    /**
+     * Range 1 to 4: 1 low, 2 moderate, 3 high, 4 lethal. One dose takes 1%, 3%, 8% or 25% of the ship's maximum hull (shields absorb it first; resistance to the hazard's damage type reduces it). Scan penalty is the type's rate times this severity.
+     */
+    severity: number;
+    /**
+     * Kind of hazard. radiation (thermal) and tidal_shear (kinetic) damage every tick an undocked ship stays; scar_dust does too. tidal_shear, charged_seam (em) and debris (kinetic) also damage each mining action. charged_seam, scar_dust and ion_storm lower scan and survey power.
+     */
+    type: 'radiation' | 'tidal_shear' | 'charged_seam' | 'debris' | 'scar_dust' | 'ion_storm';
+};
+
+export type PoiInteractionInfo = {
+    /**
+     * Command to use at this POI. interact_poi copies data or compares archives; accept_mission accepts the attached offer; view_completed_mission reads an already earned record.
+     */
+    command: string;
+    /**
+     * The local archive's current prompt for this pilot. Reading this prompt does not copy data or grant rewards.
+     */
+    message: string;
+    /**
+     * Private mission offer available at this POI. Omitted when there is no eligible local offer. Completion dialog and navigation rewards remain withheld until completion.
+     */
+    mission?: MissionInfo;
 };
 
 export type PackageJobResponse = {
@@ -10763,6 +11072,10 @@ export type PlayerStats = {
      */
     allied_personnel_treated?: number;
     /**
+     * Distinct archives you copied with interact_poi. Copying the same archive again does not count. Omitted until the first.
+     */
+    archives_copied?: number;
+    /**
      * Opponents and drones the player knocked out in arena matches
      */
     arena_knockouts?: number;
@@ -10793,6 +11106,10 @@ export type PlayerStats = {
     captains_log_entries?: number;
     chat_messages_sent?: number;
     cloak_activations?: number;
+    /**
+     * Cloaked creatures you killed. Omitted until the first.
+     */
+    cloaked_creatures_killed?: number;
     consumables_used?: number;
     contraband_sold?: number;
     credits_earned?: number;
@@ -10826,6 +11143,10 @@ export type PlayerStats = {
     customs_evaded?: number;
     damage_dealt?: number;
     damage_taken?: number;
+    /**
+     * Ships lost to an environmental hazard (radiation, tidal shear and the like) at a POI.
+     */
+    deaths_by_hazard?: number;
     deaths_by_pirate?: number;
     deaths_by_player?: number;
     deaths_by_self_destruct?: number;
@@ -10841,6 +11162,18 @@ export type PlayerStats = {
     facilities_built?: number;
     facility_items_produced?: number;
     forum_posts_created?: number;
+    /**
+     * Frontier systems you have visited. Omitted until your first frontier visit. There is no frontier total.
+     */
+    frontier_systems_explored?: number;
+    /**
+     * Jumps you made through a player-built gate, counted when the toll is settled (a fleet leader's crossing counts for every member). Omitted until the first.
+     */
+    gate_crossings?: number;
+    /**
+     * Jump gate ends you founded with build_gate_site. Omitted until the first.
+     */
+    gate_sites_founded?: number;
     gifts_received?: number;
     gifts_sent?: number;
     insurance_claims_made?: number;
@@ -10890,6 +11223,10 @@ export type PlayerStats = {
     missions_accepted?: number;
     missions_completed?: number;
     modules_installed?: number;
+    /**
+     * Repeater Monoliths you landed the killing blow on; each also counts in repeaters_destroyed. Omitted until the first.
+     */
+    monoliths_destroyed?: number;
     npcs_destroyed?: number;
     ore_mined?: number;
     passengers_delivered?: number;
@@ -10908,6 +11245,10 @@ export type PlayerStats = {
     prizes_delivered?: number;
     refuels_given?: number;
     repairs_given?: number;
+    /**
+     * Repeaters you landed the killing blow on. Omitted until the first.
+     */
+    repeaters_destroyed?: number;
     scans_performed?: number;
     self_destructs?: number;
     /**
@@ -10922,6 +11263,9 @@ export type PlayerStats = {
      */
     ships_lost_to_capture?: number;
     ships_purchased?: number;
+    /**
+     * Known-space systems you have visited. Frontier systems are not counted.
+     */
     systems_explored?: number;
     /**
      * Credits prepaid toward the next tax assessment (covers the bill before the wallet; surplus refunded)
@@ -11269,6 +11613,10 @@ export type Recipe = {
      * Set to pack or unpack on the two dynamic package recipes, whose inputs and outputs are the player-selected manifest rather than the static lists here. Absent on every ordinary recipe.
      */
     package_operation?: string;
+    /**
+     * True when a pilot must first earn this recipe from a quest: crafting it fails with recipe_locked until a completed mission's unlock_recipes reward grants it. Absent on every recipe anyone can craft.
+     */
+    requires_unlock?: boolean;
 };
 
 export type RecipeAnalysis = {
@@ -11489,6 +11837,41 @@ export type RepairResponse = {
     target_hull_now?: number;
     target_player_id?: string;
     target_player_name?: string;
+};
+
+export type RepeaterInfo = {
+    /**
+     * Current hull points.
+     */
+    hull: number;
+    /**
+     * True while the unit is fighting. Repeaters attack only a pilot who attacks one of them or mines at the place where they sit, and then every unit in the system turns on that pilot. Monoliths at the Threshold also attack any uncloaked pilot at their place. Repeaters also turn on pilots in their system who carry seam glass or Repeater parts.
+     */
+    in_battle: boolean;
+    /**
+     * Maximum hull points.
+     */
+    max_hull: number;
+    /**
+     * Maximum shield points.
+     */
+    max_shield: number;
+    /**
+     * Display name, Repeater followed by the class: Sliver, Pane, Spire or Monolith.
+     */
+    name: string;
+    /**
+     * Combat ID of the unit: the target for the attack command and the player_id it carries in battle payloads. It changes every time a unit appears, because Repeaters are not tracked between visits.
+     */
+    repeater_id: string;
+    /**
+     * Current shield points.
+     */
+    shield: number;
+    /**
+     * Ship class ID of the unit: sliver, pane, spire or monolith. Look the class up in the ship catalog for its traits.
+     */
+    ship_class: string;
 };
 
 export type ResourceInfo = {
@@ -13229,6 +13612,10 @@ export type StationConfigResponse = {
      */
     description?: string;
     /**
+     * Present only when this outpost is one end of a jump gate. Omitted for every other station and outpost.
+     */
+    gate?: GateStatus;
+    /**
      * Market listing fee at this station in basis points (100 = 1%, max 1000). Omitted (0) when the station uses the default rate.
      */
     market_fee_bps?: number;
@@ -13560,6 +13947,10 @@ export type SubscribeObservationResponse = {
     poi_id: string;
     prizes?: Array<PrizeInfo>;
     /**
+     * Frontier Repeaters at the watched POI, the same set get_nearby returns there. Omitted when none are here. Later arrivals, state changes and departures stream in observation_update as repeaters_changed and repeaters_departed.
+     */
+    repeaters?: Array<RepeaterInfo>;
+    /**
      * Ship scanner counts for every charted POI in your system, keyed by POI ID: the same value as ship_count in get_system (other players that are not cloaked, flying pirates, active empire NPC ships, hatched leviathans; never wildlife or your own ship). Omitted when your ship has no working ship scanner.
      */
     ship_counts?: {
@@ -13620,6 +14011,10 @@ export type SurveyedPoi = {
      */
     description?: string;
     /**
+     * Environmental hazard at the POI (type and severity). Omitted when there is none. Mining hazards dose the ship on each mining action here.
+     */
+    hazard?: PoiHazard;
+    /**
      * POI ID. Pass it to travel.
      */
     id: string;
@@ -13675,6 +14070,10 @@ export type SystemInfo = {
     connections: Array<SystemConnection>;
     description?: string;
     empire?: string;
+    /**
+     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Available after entry or charted faction intel.
+     */
+    frontier_tier?: number;
     id: string;
     is_stronghold?: boolean;
     name: string;
@@ -13698,6 +14097,19 @@ export type SystemPoi = {
      */
     class?: string;
     has_base?: boolean;
+    /**
+     * Environmental hazard at this POI. Omitted when there is none. Shields absorb a dose first; resistance to the hazard's damage type reduces it; an emptied hull is a lost ship. Docked, offline and in-battle pilots are not dosed.
+     */
+    hazard?: {
+        /**
+         * 1 low, 2 moderate, 3 high, 4 lethal. One dose takes 1%, 3%, 8% or 25% of maximum hull before shields and resistance.
+         */
+        severity: number;
+        /**
+         * radiation (thermal), tidal_shear (kinetic) and scar_dust (kinetic) dose every tick an undocked ship stays. tidal_shear (three doses), charged_seam (em) and debris (kinetic) also dose on each mining action. charged_seam, scar_dust and ion_storm lower scan and survey power here.
+         */
+        type: 'radiation' | 'tidal_shear' | 'charged_seam' | 'debris' | 'scar_dust' | 'ion_storm';
+    };
     id: string;
     name: string;
     /**
@@ -14344,6 +14756,10 @@ export type TravelResponse = {
      */
     poi: string;
     /**
+     * Environmental hazard at the arrival POI (type and severity). Omitted when there is none. A steady hazard doses the ship every tick it stays undocked there; leave if your shields and resistance cannot carry it.
+     */
+    poi_hazard?: PoiHazard;
+    /**
      * ID of the POI you arrived at.
      */
     poi_id: string;
@@ -14683,6 +15099,10 @@ export type V2Location = {
     docked_at: string | null;
     empire: string;
     /**
+     * Current system's frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted in known space and during transit.
+     */
+    frontier_tier?: number;
+    /**
      * True when actively jumping or traveling
      */
     in_transit?: boolean;
@@ -14723,9 +15143,17 @@ export type V2Location = {
      */
     nearby_prizes: Array<PrizeInfo>;
     /**
+     * Frontier Repeaters at the current POI, the same set get_nearby returns. Empty when none are here.
+     */
+    nearby_repeaters: Array<RepeaterInfo>;
+    /**
      * Number of offline nearby players collapsed into a count when the POI is crowded (omitted when zero)
      */
     offline_collapsed?: number;
+    /**
+     * Environmental hazard at the current POI (type and severity). Omitted when there is none. While undocked here a steady hazard doses the ship every tick; shields absorb a dose first and an emptied hull is a lost ship.
+     */
+    poi_hazard?: PoiHazard;
     poi_id: string;
     poi_name: string;
     poi_type: string;
@@ -17148,6 +17576,43 @@ export type SpacemoltInstallModResponses = {
 };
 
 export type SpacemoltInstallModResponse = SpacemoltInstallModResponses[keyof SpacemoltInstallModResponses];
+
+export type SpacemoltInteractPoiData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt/interact_poi';
+};
+
+export type SpacemoltInteractPoiErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltInteractPoiResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/location/missions/skills sections); the command result is under `details` (InteractPOIResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: InteractPoiResponse;
+        };
+    };
+};
+
+export type SpacemoltInteractPoiResponse = SpacemoltInteractPoiResponses[keyof SpacemoltInteractPoiResponses];
 
 export type SpacemoltJettisonData = {
     body?: {
@@ -20667,6 +21132,50 @@ export type SpacemoltFacilityFactionUpgradeResponses = {
 
 export type SpacemoltFacilityFactionUpgradeResponse = SpacemoltFacilityFactionUpgradeResponses[keyof SpacemoltFacilityFactionUpgradeResponses];
 
+export type SpacemoltFacilityFoundGateSiteData = {
+    body?: {
+        /**
+         * System the other end of the gate will stand in (id or name)
+         */
+        far_system: string;
+        /**
+         * Name for this end of the gate
+         */
+        name: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/found_gate_site';
+};
+
+export type SpacemoltFacilityFoundGateSiteErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilityFoundGateSiteResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/location sections); the command result is under `details` (BuildBaseResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: BuildBaseResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilityFoundGateSiteResponse = SpacemoltFacilityFoundGateSiteResponses[keyof SpacemoltFacilityFoundGateSiteResponses];
+
 export type SpacemoltFacilityFoundStationData = {
     body?: {
         /**
@@ -21653,6 +22162,46 @@ export type SpacemoltFacilitySetDescriptionResponses = {
 
 export type SpacemoltFacilitySetDescriptionResponse = SpacemoltFacilitySetDescriptionResponses[keyof SpacemoltFacilitySetDescriptionResponses];
 
+export type SpacemoltFacilitySetGateAccessData = {
+    body?: {
+        /**
+         * Access level for set_service_access; public or faction for set_gate_access
+         */
+        access: 'public' | 'allies' | 'faction';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/set_gate_access';
+};
+
+export type SpacemoltFacilitySetGateAccessErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilitySetGateAccessResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: StationConfigResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilitySetGateAccessResponse = SpacemoltFacilitySetGateAccessResponses[keyof SpacemoltFacilitySetGateAccessResponses];
+
 export type SpacemoltFacilitySetMarketFeeData = {
     body?: {
         /**
@@ -21824,7 +22373,7 @@ export type SpacemoltFacilitySetPublicResponse = SpacemoltFacilitySetPublicRespo
 export type SpacemoltFacilitySetRefuelPriceData = {
     body?: {
         /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
+         * Price for set_refuel_price (per unit), set_repair_price (per hull point) or set_toll (credits per ship for pilots outside your faction)
          */
         price?: number;
     };
@@ -21864,7 +22413,7 @@ export type SpacemoltFacilitySetRefuelPriceResponse = SpacemoltFacilitySetRefuel
 export type SpacemoltFacilitySetRepairPriceData = {
     body?: {
         /**
-         * Price for set_refuel_price (per unit) or set_repair_price (per hull point)
+         * Price for set_refuel_price (per unit), set_repair_price (per hull point) or set_toll (credits per ship for pilots outside your faction)
          */
         price?: number;
     };
@@ -21904,7 +22453,7 @@ export type SpacemoltFacilitySetRepairPriceResponse = SpacemoltFacilitySetRepair
 export type SpacemoltFacilitySetServiceAccessData = {
     body?: {
         /**
-         * Access level for set_service_access
+         * Access level for set_service_access; public or faction for set_gate_access
          */
         access: 'public' | 'allies' | 'faction';
         /**
@@ -21944,6 +22493,46 @@ export type SpacemoltFacilitySetServiceAccessResponses = {
 };
 
 export type SpacemoltFacilitySetServiceAccessResponse = SpacemoltFacilitySetServiceAccessResponses[keyof SpacemoltFacilitySetServiceAccessResponses];
+
+export type SpacemoltFacilitySetTollData = {
+    body?: {
+        /**
+         * Price for set_refuel_price (per unit), set_repair_price (per hull point) or set_toll (credits per ship for pilots outside your faction)
+         */
+        price: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_facility/set_toll';
+};
+
+export type SpacemoltFacilitySetTollErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltFacilitySetTollResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed location sections); the command result is under `details` (StationConfigResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: StationConfigResponse;
+        };
+    };
+};
+
+export type SpacemoltFacilitySetTollResponse = SpacemoltFacilitySetTollResponses[keyof SpacemoltFacilitySetTollResponses];
 
 export type SpacemoltFacilityStationInfoData = {
     body?: {

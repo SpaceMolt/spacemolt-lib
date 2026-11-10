@@ -173,6 +173,7 @@ import type {
   HuntResponse,
   InspectResponse,
   InstallModResponse,
+  InteractPoiResponse,
   JettisonCommandResponse,
   JobCancelResponse,
   JobReorderResponse,
@@ -510,6 +511,13 @@ export interface SpacemoltFacilityFactionUpgradeParams {
   package_ids?: string[];
 }
 
+export interface SpacemoltFacilityFoundGateSiteParams {
+  /** System the other end of the gate will stand in (id or name) */
+  far_system: string;
+  /** Name for this end of the gate */
+  name: string;
+}
+
 export interface SpacemoltFacilityFoundStationParams {
   /** Name for the new faction station */
   name: string;
@@ -641,6 +649,11 @@ export interface SpacemoltFacilitySetDescriptionParams {
   description?: string;
 }
 
+export interface SpacemoltFacilitySetGateAccessParams {
+  /** Access level for set_service_access; public or faction for set_gate_access */
+  access: "public" | "allies" | "faction";
+}
+
 export interface SpacemoltFacilitySetMarketFeeParams {
   /** Market listing fee percent 0-10 (set_market_fee) */
   fee_percent?: number;
@@ -666,20 +679,25 @@ export interface SpacemoltFacilitySetPublicParams {
 }
 
 export interface SpacemoltFacilitySetRefuelPriceParams {
-  /** Price for set_refuel_price (per unit) or set_repair_price (per hull point) */
+  /** Price for set_refuel_price (per unit), set_repair_price (per hull point) or set_toll (credits per ship for pilots outside your faction) */
   price?: number;
 }
 
 export interface SpacemoltFacilitySetRepairPriceParams {
-  /** Price for set_refuel_price (per unit) or set_repair_price (per hull point) */
+  /** Price for set_refuel_price (per unit), set_repair_price (per hull point) or set_toll (credits per ship for pilots outside your faction) */
   price?: number;
 }
 
 export interface SpacemoltFacilitySetServiceAccessParams {
-  /** Access level for set_service_access */
+  /** Access level for set_service_access; public or faction for set_gate_access */
   access: "public" | "allies" | "faction";
   /** Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard, missions) */
   service: string;
+}
+
+export interface SpacemoltFacilitySetTollParams {
+  /** Price for set_refuel_price (per unit), set_repair_price (per hull point) or set_toll (credits per ship for pilots outside your faction) */
+  price: number;
 }
 
 export interface SpacemoltFacilityStationSetNameParams {
@@ -2078,7 +2096,7 @@ export interface Commands {
     get_guide(params?: SpacemoltGetGuideParams, requestId?: string): Promise<QueryResult<GetGuideResponse>>;
     /** Get current location with nearby entities (v2 format) */
     get_location(requestId?: string): Promise<QueryResult<V2GameState>>;
-    /** View all star systems in the galaxy */
+    /** View known space and your charted frontier systems */
     get_map(params?: SpacemoltGetMapParams, requestId?: string): Promise<QueryResult<GetMapCommandResponse>>;
     /** Get available missions at your current base */
     get_missions(requestId?: string): Promise<QueryResult<GetMissionsResponse>>;
@@ -2116,6 +2134,8 @@ export interface Commands {
     inspect(params: SpacemoltInspectParams, requestId?: string): Promise<QueryResult<InspectResponse>>;
     /** Install a module on your ship */
     install_mod(params: SpacemoltInstallModParams, requestId?: string): Promise<MutationResult<InstallModResponse>>;
+    /** Interact with an archive at your current POI */
+    interact_poi(requestId?: string): Promise<MutationResult<InteractPoiResponse>>;
     /** Jettison items from cargo into space */
     jettison(params?: SpacemoltJettisonParams, requestId?: string): Promise<MutationResult<JettisonCommandResponse>>;
     /** Jump to an adjacent star system, or plot a numeric bearing with a Pathfinder Drive */
@@ -2284,6 +2304,8 @@ export interface Commands {
     faction_owned(requestId?: string): Promise<QueryResult<FacilityFactionOwnedResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     faction_upgrade(params: SpacemoltFacilityFactionUpgradeParams, requestId?: string): Promise<MutationResult<FacilityFactionUpgradeResponse>>;
+    /** Found one end of a jump gate at your current point of interest in lawless space */
+    found_gate_site(params: SpacemoltFacilityFoundGateSiteParams, requestId?: string): Promise<MutationResult<BuildBaseResponse>>;
     /** Found a faction-owned station at your current point of interest in lawless space */
     found_station(params: SpacemoltFacilityFoundStationParams, requestId?: string): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
@@ -2329,6 +2351,8 @@ export interface Commands {
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_description(params?: SpacemoltFacilitySetDescriptionParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
+    set_gate_access(params: SpacemoltFacilitySetGateAccessParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
+    /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_market_fee(params?: SpacemoltFacilitySetMarketFeeParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     set_name(params: SpacemoltFacilitySetNameParams, requestId?: string): Promise<MutationResult<SetFacilityNameResponse>>;
@@ -2342,6 +2366,8 @@ export interface Commands {
     set_repair_price(params?: SpacemoltFacilitySetRepairPriceParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     set_service_access(params: SpacemoltFacilitySetServiceAccessParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
+    /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
+    set_toll(params: SpacemoltFacilitySetTollParams, requestId?: string): Promise<MutationResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
     station_info(requestId?: string): Promise<QueryResult<StationConfigResponse>>;
     /** Administer one of your faction's stations or outposts: rename, access control, and build policy */
@@ -2747,6 +2773,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       hunt: bind("spacemolt", "hunt"),
       inspect: bind("spacemolt", "inspect"),
       install_mod: bind("spacemolt", "install_mod"),
+      interact_poi: bindBare("spacemolt", "interact_poi"),
       jettison: bind("spacemolt", "jettison"),
       jump: bind("spacemolt", "jump"),
       list_passengers: bindBare("spacemolt", "list_passengers"),
@@ -2837,6 +2864,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       faction_list: bindBare("spacemolt_facility", "faction_list"),
       faction_owned: bindBare("spacemolt_facility", "faction_owned"),
       faction_upgrade: bind("spacemolt_facility", "faction_upgrade"),
+      found_gate_site: bind("spacemolt_facility", "found_gate_site"),
       found_station: bind("spacemolt_facility", "found_station"),
       job_add: bind("spacemolt_facility", "job_add"),
       job_cancel: bind("spacemolt_facility", "job_cancel"),
@@ -2859,6 +2887,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       set_build_policy: bind("spacemolt_facility", "set_build_policy"),
       set_contraband: bind("spacemolt_facility", "set_contraband"),
       set_description: bind("spacemolt_facility", "set_description"),
+      set_gate_access: bind("spacemolt_facility", "set_gate_access"),
       set_market_fee: bind("spacemolt_facility", "set_market_fee"),
       set_name: bind("spacemolt_facility", "set_name"),
       set_output_price: bind("spacemolt_facility", "set_output_price"),
@@ -2866,6 +2895,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       set_refuel_price: bind("spacemolt_facility", "set_refuel_price"),
       set_repair_price: bind("spacemolt_facility", "set_repair_price"),
       set_service_access: bind("spacemolt_facility", "set_service_access"),
+      set_toll: bind("spacemolt_facility", "set_toll"),
       station_info: bindBare("spacemolt_facility", "station_info"),
       station_set_name: bind("spacemolt_facility", "station_set_name"),
       transfer: bind("spacemolt_facility", "transfer"),
