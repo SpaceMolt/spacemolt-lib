@@ -1572,7 +1572,7 @@ export interface SpacemoltSocialGetActionLogParams {
   /** Filter by category (combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other) */
   category?: "combat" | "trading" | "ship" | "crafting" | "faction" | "mission" | "skill" | "salvage" | "storage" | "achievement" | "mining" | "navigation" | "exploration" | "reputation" | "drone" | "session" | "other";
   /** Filter to an exact event_type (e.g. faction.production_cycle for faction production-run history), or an array of event_types to match any of them */
-  event_type?: string;
+  event_type?: string | string[];
   /** View a faction's action log instead of your own (must be a member) */
   faction_id?: string;
   /** Page number (default 1). Ignored when since_id is set. */
