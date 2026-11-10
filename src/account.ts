@@ -221,6 +221,8 @@ const ARRIVED: Partial<V2Location> = {
   nearby_empire_npcs: undefined,
   nearby_empire_npc_count: undefined,
   nearby_leviathans: undefined,
+  nearby_repeaters: undefined,
+  poi_hazard: undefined,
   offline_collapsed: undefined,
   unknown_signature: undefined,
 };
@@ -238,6 +240,7 @@ const ARRIVED: Partial<V2Location> = {
 const ARRIVED_IN_NEW_SYSTEM: Partial<V2Location> = {
   ...ARRIVED,
   connections: undefined,
+  frontier_tier: undefined,
   empire: undefined,
   security_status: undefined,
 };
@@ -1033,7 +1036,7 @@ export class Account {
    * Mirrors the observation watch's POI-scoped presence into the matching
    * `location` fields in the base state cache, so code reading
    * `account.state.location` (rather than `account.observation()`) sees live
-   * data once subscribed: players, pirates, empire NPCs, intact prizes, their
+   * data once subscribed: players, pirates, empire NPCs, intact prizes, Repeaters, their
    * counts, `offline_collapsed`, and the cloaked-signature hint. Wildlife and
    * arena NPCs have no `location` field — read them from
    * `account.observation()`. The feed carries no leviathans, so
@@ -1060,7 +1063,7 @@ export class Account {
     const view = this.observationCache.current();
     if (!view) return;
     // The feed and `location` share the NearbyPlayer, PirateInfo,
-    // EmpireNpcInfo and PrizeInfo schemas, so entries pass through.
+    // EmpireNpcInfo, PrizeInfo and RepeaterInfo schemas, so entries pass through.
     // Plain string comparison, not localeCompare: the server sorts by bytes.
     const nearbyPlayers = [...view.nearby.values()].sort(
       (a, b) =>
@@ -1076,6 +1079,7 @@ export class Account {
       nearby_empire_npc_count: view.empireNpcs.size,
       nearby_prizes: [...view.prizes.values()],
       nearby_prize_count: view.prizes.size,
+      nearby_repeaters: [...view.repeaters.values()],
       offline_collapsed: view.offlineCollapsed,
       unknown_signature: view.unknownSignature,
     });

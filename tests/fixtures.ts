@@ -122,6 +122,7 @@ export function location(overrides: Partial<V2Location> = {}): V2Location {
     nearby_empire_npcs: [],
     nearby_empire_npc_count: 0,
     nearby_leviathans: [],
+    nearby_repeaters: [],
     ...overrides,
   };
 }

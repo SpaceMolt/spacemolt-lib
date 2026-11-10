@@ -7,9 +7,9 @@
  * cloaked-contact / signature hints are tracked alongside.
  *
  * Not a players-only feed: the baseline and every update also carry the
- * pirate, empire-NPC, wildlife, intact-prize and arena-NPC presence at the
- * watched POI, each with the same changed/departed delta shape as players —
- * all six of `get_nearby`'s classes. The player list matches `get_nearby`:
+ * pirate, empire-NPC, wildlife, intact-prize, arena-NPC and frontier Repeater
+ * presence at the watched POI, each with the same changed/departed delta shape
+ * as players — all seven of `get_nearby`'s classes. The player list matches `get_nearby`:
  * above 10 players, offline ones collapse into `offlineCollapsed`.
  *
  * Nothing here is system-wide except `shipCounts`: with a working ship
@@ -25,6 +25,7 @@ import type {
   NotificationObservationUpdate,
   PirateInfo,
   PrizeInfo,
+  RepeaterInfo,
   SubscribeObservationResponse,
 } from '../generated/openapi/types.gen.ts';
 
@@ -48,6 +49,8 @@ export interface ObservationView {
   prizes: Map<string, PrizeInfo>;
   /** Arena challenge enemies at the watched POI, keyed by npc_id. */
   arenaNpcs: Map<string, ArenaNpcInfo>;
+  /** Frontier Repeaters at the watched POI, keyed by repeater_id. */
+  repeaters: Map<string, RepeaterInfo>;
   /** Offline players at the watched POI not listed in `nearby` (0 when all are listed). */
   offlineCollapsed: number;
   /** Ship scanner counts per charted POI in the system, keyed by POI ID. Empty without a working ship scanner. */
@@ -97,6 +100,7 @@ export class ObservationCache {
       creatures: indexBy(snapshot.creatures, (c) => c.creature_id),
       prizes: indexBy(snapshot.prizes, (p) => p.prize_id),
       arenaNpcs: indexBy(snapshot.arena_npcs, (n) => n.npc_id),
+      repeaters: indexBy(snapshot.repeaters, (r) => r.repeater_id),
       offlineCollapsed: snapshot.offline_collapsed ?? 0,
       shipCounts: new Map(Object.entries(snapshot.ship_counts ?? {})),
       cloaked: indexBy(snapshot.cloaked_contacts, (c) => c.target_id),
@@ -119,6 +123,7 @@ export class ObservationCache {
         creatures: new Map(),
         prizes: new Map(),
         arenaNpcs: new Map(),
+        repeaters: new Map(),
         offlineCollapsed: 0,
         shipCounts: new Map(),
         cloaked: new Map(),
@@ -134,6 +139,7 @@ export class ObservationCache {
     merge(v.creatures, update.creatures_changed, update.creatures_departed, (c) => c.creature_id);
     merge(v.prizes, update.prizes_changed, update.prizes_departed, (p) => p.prize_id);
     merge(v.arenaNpcs, update.arena_npcs_changed, update.arena_npcs_departed, (n) => n.npc_id);
+    merge(v.repeaters, update.repeaters_changed, update.repeaters_departed, (r) => r.repeater_id);
     merge(v.cloaked, update.cloaked_resolved, update.cloaked_lost, (c) => c.target_id);
     if (update.offline_collapsed !== undefined) v.offlineCollapsed = update.offline_collapsed;
     if (update.ship_counts !== undefined) v.shipCounts = new Map(Object.entries(update.ship_counts));

@@ -44,11 +44,13 @@ import type {
   NotificationFactionWithdrawInvite,
   NotificationFleet,
   NotificationGiftReceived,
+  NotificationHazardWarning,
   NotificationHoldUpdate,
   NotificationMarketUpdate,
   NotificationMiningYield,
   NotificationObservationUpdate,
   NotificationOk,
+  NotificationPathfinderStorm,
   NotificationPersonnelUpdate,
   NotificationPilotlessShip,
   NotificationPirateDestroyed,
@@ -113,11 +115,13 @@ export type TypedNotificationType =
   | "faction_withdraw_invite"
   | "fleet"
   | "gift_received"
+  | "hazard_warning"
   | "hold_update"
   | "market_update"
   | "mining_yield"
   | "observation_update"
   | "ok"
+  | "pathfinder_storm"
   | "personnel_update"
   | "pilotless_ship"
   | "pirate_destroyed"
@@ -181,11 +185,13 @@ export interface NotificationPayloads {
   "faction_withdraw_invite": NotificationFactionWithdrawInvite;
   "fleet": NotificationFleet;
   "gift_received": NotificationGiftReceived;
+  "hazard_warning": NotificationHazardWarning;
   "hold_update": NotificationHoldUpdate;
   "market_update": NotificationMarketUpdate;
   "mining_yield": NotificationMiningYield;
   "observation_update": NotificationObservationUpdate;
   "ok": NotificationOk;
+  "pathfinder_storm": NotificationPathfinderStorm;
   "personnel_update": NotificationPersonnelUpdate;
   "pilotless_ship": NotificationPilotlessShip;
   "pirate_destroyed": NotificationPirateDestroyed;
@@ -250,11 +256,13 @@ export const TYPED_NOTIFICATION_TYPES = [
   "faction_withdraw_invite",
   "fleet",
   "gift_received",
+  "hazard_warning",
   "hold_update",
   "market_update",
   "mining_yield",
   "observation_update",
   "ok",
+  "pathfinder_storm",
   "personnel_update",
   "pilotless_ship",
   "pirate_destroyed",

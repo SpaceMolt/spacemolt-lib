@@ -557,6 +557,50 @@ test('ObservationCache tracks arena NPCs, offline_collapsed and replaces ship_co
   expect([...view.shipCounts]).toEqual([['earth_station', 11]]);
 });
 
+test('ObservationCache tracks frontier Repeaters', () => {
+  const repeater = {
+    repeater_id: 'r1',
+    name: 'Repeater Sliver',
+    ship_class: 'sliver',
+    hull: 50,
+    max_hull: 50,
+    shield: 10,
+    max_shield: 10,
+    in_battle: false,
+  };
+  const cache = new ObservationCache();
+  cache.seed({
+    action: 'subscribe_observation',
+    active_scan: false,
+    unknown_signature: false,
+    poi_id: 'rim_point',
+    system_id: 'rim',
+    nearby: [],
+    repeaters: [repeater],
+  } satisfies SubscribeObservationResponse);
+  expect(requireValue(cache.current()).repeaters.get('r1')?.name).toBe('Repeater Sliver');
+
+  cache.applyUpdate({
+    poi_id: 'rim_point',
+    system_id: 'rim',
+    tick: 2,
+    unknown_signature: false,
+    active_scan: false,
+    repeaters_changed: [{ ...repeater, in_battle: true }],
+  } satisfies NotificationObservationUpdate);
+  expect(cache.current()?.repeaters.get('r1')?.in_battle).toBe(true);
+
+  cache.applyUpdate({
+    poi_id: 'rim_point',
+    system_id: 'rim',
+    tick: 3,
+    unknown_signature: false,
+    active_scan: false,
+    repeaters_departed: ['r1'],
+  } satisfies NotificationObservationUpdate);
+  expect(cache.current()?.repeaters.size).toBe(0);
+});
+
 test('the observation bridge orders players online first then by username, and mirrors offline_collapsed', async () => {
   const { account, socket } = await connected();
   socket.serverSend({
@@ -638,6 +682,18 @@ test('the observation bridge mirrors non-player presence into location too', asy
         in_combat: false,
       },
     ],
+    repeaters: [
+      {
+        repeater_id: 'r1',
+        name: 'Repeater Pane',
+        ship_class: 'pane',
+        hull: 90,
+        max_hull: 90,
+        shield: 30,
+        max_shield: 30,
+        in_battle: false,
+      },
+    ],
     unknown_signature: true,
   });
   await account.subscribeObservation();
@@ -663,6 +719,7 @@ test('the observation bridge mirrors non-player presence into location too', asy
   expect(location.nearby_empire_npc_count).toBe(1);
   expect(location.nearby_prizes?.[0]?.prize_id).toBe('z1');
   expect(location.nearby_prize_count).toBe(1);
+  expect(location.nearby_repeaters?.[0]?.repeater_id).toBe('r1');
   expect(location.unknown_signature).toBe(true);
 
   socket.serverSend({
@@ -675,6 +732,7 @@ test('the observation bridge mirrors non-player presence into location too', asy
       active_scan: false,
       pirates_departed: ['k1'],
       prizes_departed: ['z1'],
+      repeaters_departed: ['r1'],
       empire_npcs_changed: [
         { npc_id: 'n1', name: 'Patrol Alpha', role: 'patrol', empire: 'solarian', in_combat: true },
       ],
@@ -697,6 +755,7 @@ test('the observation bridge mirrors non-player presence into location too', asy
   expect(after.nearby_pirate_count).toBe(0);
   expect(after.nearby_prizes).toEqual([]);
   expect(after.nearby_prize_count).toBe(0);
+  expect(after.nearby_repeaters).toEqual([]);
   expect(after.nearby_empire_npcs?.[0]?.in_combat).toBe(true); // upsert reaches location too
   expect(after.unknown_signature).toBe(false);
   // Wildlife has no location field — it must stay observation-only.
