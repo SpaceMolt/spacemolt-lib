@@ -1016,7 +1016,7 @@ export type Base = {
          */
         far_system_id?: string;
         /**
-         * True once the owners were warned that this end holds fewer than 3 cycles of upkeep, or while building that it stalled; omitted otherwise
+         * True while the owners have been warned this end is short of supplies; omitted otherwise
          */
         low_supply_warned?: boolean;
         /**
@@ -1028,11 +1028,11 @@ export type Base = {
          */
         partner_base_id?: string;
         /**
-         * Construction phases this end has completed (0-4); 4 means built
+         * Construction phases this end has completed
          */
         phase?: number;
         /**
-         * While building: facility cycles of the current phase done. Once built: upkeep cycles paid so far
+         * Facility cycles counted for the current phase or upkeep
          */
         phase_cycles?: number;
         /**
@@ -2600,7 +2600,7 @@ export type ClientSystemInfo = {
     description?: string;
     empire?: string;
     /**
-     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Revealed only after entry or receipt of charted faction intel.
+     * Frontier tier of the system. Omitted for known space.
      */
     frontier_tier?: number;
     id: string;
@@ -6310,15 +6310,15 @@ export type GaragedShipEntry = {
 
 export type GateStatus = {
     /**
-     * True when this end has finished all construction phases. The gate opens only when both ends are built and both can pay upkeep.
+     * True when this end is built.
      */
     built: boolean;
     /**
-     * Upkeep cycles until this end takes its next entangler from faction storage: 1 means the next cycle that pays upkeep. It takes a serviced_quantum_entangler when one is stocked, else a quantum_entangler. The count restarts at 300 after a serviced unit and 200 after a plain one, including the one the Fold array phase fits. Cycles the gate is closed do not count. Present only once built.
+     * Upkeep cycles until this end uses its next entangler. Omitted until built.
      */
     entangler_due_in_cycles?: number;
     /**
-     * True when only members of the owning faction may cross. Kept the same at both ends.
+     * True when only the owning faction may cross.
      */
     faction_only: boolean;
     /**
@@ -6330,35 +6330,35 @@ export type GateStatus = {
      */
     far_system_name: string;
     /**
-     * True when the gate is open and jump can cross it. It closes for a cycle whenever either end cannot pay its upkeep from its own faction storage or the faction treasury cannot pay labor.
+     * True when the gate is open.
      */
     online: boolean;
     /**
-     * Base id of the other end. Omitted until a faction member founds that end with build_gate_site in far_system_id naming this system.
+     * Base id of the other end. Omitted until that end is founded.
      */
     partner_base_id?: string;
     /**
-     * True when the other end has finished all construction phases. False when it is still building or not founded yet.
+     * True when the other end is built.
      */
     partner_built: boolean;
     /**
-     * Construction phase this end is in (1 to phases_total). Omitted once built.
+     * Current construction phase. Omitted once built.
      */
     phase?: number;
     /**
-     * Facility cycles the current phase takes in total. Omitted once built.
+     * Facility cycles the current phase takes. Omitted once built.
      */
     phase_cycles?: number;
     /**
-     * Facility cycles of the current phase completed so far. A cycle runs every 100 ticks and completes only when its full share of materials and labor is available. Omitted once built or when 0.
+     * Facility cycles of the current phase done. Omitted once built or when 0.
      */
     phase_cycles_done?: number;
     /**
-     * Credits the current phase takes from the faction treasury each facility cycle as labor, paid to the nearest station's citizens. A cycle the treasury cannot pay stalls. Omitted once built.
+     * Labor credits the current phase takes from the faction treasury per facility cycle. Omitted once built.
      */
     phase_labor_per_cycle?: number;
     /**
-     * Item id to the quantity of it the current phase still needs beyond what is already in this end's faction storage. Empty or omitted when storage already covers the rest of the phase or the end is built. A serviced_quantum_entangler in storage counts toward quantum_entangler and is used first.
+     * Item ID to the quantity the current phase still needs. Omitted once built.
      */
     phase_materials_left?: {
         [key: string]: number;
@@ -6368,15 +6368,15 @@ export type GateStatus = {
      */
     phase_name?: string;
     /**
-     * Number of construction phases each end goes through.
+     * Number of construction phases.
      */
     phases_total: number;
     /**
-     * Credits charged per ship to pilots outside the owning faction for each crossing. 0 means free. Paid into the owning faction treasury. Kept the same at both ends.
+     * Credits per ship charged to pilots outside the owning faction. 0 means free.
      */
     toll: number;
     /**
-     * How many more facility cycles of upkeep items this end's faction storage holds (counted up to 1000). Present only once built; omitted when 0. Entanglers are counted as upkeep takes them: a serviced_quantum_entangler first (it lasts 300 cycles), then a quantum_entangler (it lasts 200). Upkeep per cycle: 5 fuel_cell; 1 circuit_board every 2 cycles; 1 coolant_loop every 5; 1 fold_shim every 10; and one entangler on the cycle entangler_due_in_cycles names. A cycle missing any of it closes the gate and takes nothing. Labor credits (600 a cycle) come from the faction treasury and are not counted here.
+     * Facility cycles of upkeep this end has in faction storage. Omitted when 0 or not built.
      */
     upkeep_cycles_covered?: number;
 };
@@ -6667,7 +6667,7 @@ export type GetNearbyResponse = {
      */
     repeater_count: number;
     /**
-     * Frontier Repeaters at this POI. Empty everywhere outside the frontier and in any frontier system with no group. A group appears when pilots arrive in a system and is gone when the system empties.
+     * Repeaters at this POI. Empty when none are here.
      */
     repeaters: Array<RepeaterInfo>;
     unknown_signature?: boolean;
@@ -6727,12 +6727,12 @@ export type GetPoiTransitResponse = {
     kind: 'transit';
     message: string;
     /**
-     * Ticks until arrival; -1 for a blind Pathfinder drift whose arrival time is unknown
+     * Ticks until arrival; -1 when the arrival time is unknown
      */
     ticks_remaining: number;
     to_poi?: string;
     /**
-     * Destination system ID; omitted for intra-system travel or a blind Pathfinder drift or an uncharted frontier wormhole destination
+     * Destination system ID; omitted for intra-system travel or when the destination is unknown to you
      */
     to_system?: string;
     transit_type: string;
@@ -6779,11 +6779,11 @@ export type GetSystemTransitResponse = {
     kind: 'transit';
     message: string;
     /**
-     * Ticks until arrival; -1 for a blind Pathfinder drift whose arrival time is unknown
+     * Ticks until arrival; -1 when the arrival time is unknown
      */
     ticks_remaining: number;
     /**
-     * Destination system ID; empty for a blind Pathfinder drift or an uncharted frontier wormhole destination
+     * Destination system ID; empty when the destination is unknown to you
      */
     to_system: string;
     transit_type: string;
@@ -7194,33 +7194,33 @@ export type IntelResource = {
 
 export type InteractPoiResponse = {
     /**
-     * One-time completion receipt with earned XP and recovered navigation text. Omitted when this interaction does not complete a mission. Read the retained text with view_completed_mission after completion.
+     * Completion receipt when this interaction completes a mission. Omitted otherwise.
      */
     completion?: CompleteMissionResponse;
     /**
-     * True when this pilot retains this archive's data. The copy survives abandonment and ship loss. Omitted for interactions that do not copy an archive.
+     * True when this pilot keeps this POI's data. Omitted otherwise.
      */
     data_copied?: boolean;
     /**
-     * Items this interaction moved into your cargo, keyed by item ID with quantities: a mission's data-recovery objective at this site handed them over. Omitted when nothing was recovered. Each objective hands its items over once.
+     * Item ID to the quantity this interaction moved into your cargo. Omitted when none.
      */
     items_recovered?: {
         [key: string]: number;
     };
     /**
-     * Result of this archive interaction. It contains recovered account text only when the corresponding interaction succeeds.
+     * Result of this interaction.
      */
     message: string;
     /**
-     * Local mission offer when this pilot can accept one. Acceptance remains a separate accept_mission action.
+     * Mission offer when this pilot can accept one. Omitted otherwise.
      */
     mission?: MissionInfo;
     /**
-     * People this interaction seated in your ship's passenger berths: a mission's data-recovery objective at this site carries them. Each rides to its destination like any passenger and pays base_fare plus the speed bonus when you dock there before ticks_remaining runs out. base_fare is 0 when the destination cannot fund the fare. Omitted when nobody boarded. Each objective seats its passengers once. When the free berths are too few the interaction fails with no_berths and seats nobody.
+     * Passengers this interaction seated in your berths. Omitted when none. Fails with no_berths when the free berths are too few.
      */
     passengers_boarded?: Array<PassengerView>;
     /**
-     * ID of the charted POI where this pilot is currently present. Remote and uncharted interactions are rejected.
+     * POI where the interaction happened.
      */
     poi_id: string;
 };
@@ -7835,7 +7835,7 @@ export type MapSystem = {
     description?: string;
     empire?: string;
     /**
-     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Uncharted frontier systems are excluded from maps and search.
+     * Frontier tier of the system. Omitted for known space.
      */
     frontier_tier?: number;
     is_stronghold?: boolean;
@@ -7855,7 +7855,7 @@ export type MapSystemInfo = {
     description?: string;
     empire?: string;
     /**
-     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Uncharted frontier systems are excluded from maps and search.
+     * Frontier tier of the system. Omitted for known space.
      */
     frontier_tier?: number;
     is_stronghold?: boolean;
@@ -8489,6 +8489,20 @@ export type Module = {
      * Station power this module adds to the station it is docked at while connected with the generator command. Each connected generator burns 1 ship fuel per tick. Hull bonuses, Engineering and crew staffing scale the delivered output.
      */
     generator_output?: number;
+    /**
+     * Percent less hazard damage on each mining action. Only the strongest fitted module counts.
+     */
+    hazard_mining_reduction?: number;
+    /**
+     * Hazard type to percent less damage from that hazard. Adds to resistance against the hazard's damage type; the total caps at 90%.
+     */
+    hazard_resistance?: {
+        [key: string]: number;
+    };
+    /**
+     * Percent of a hazard's scan and survey penalty this module cancels. Only the strongest fitted module counts.
+     */
+    hazard_scan_filter?: number;
     hidden?: boolean;
     hull_bonus?: number;
     hull_penalty?: number;
@@ -9512,7 +9526,7 @@ export type NotificationObservationUpdate = {
     prizes_changed?: Array<PrizeInfo>;
     prizes_departed?: Array<string>;
     /**
-     * Frontier Repeaters that arrived at the watched POI or whose visible state (hull, shield, in_battle) changed this tick. Omitted when none changed.
+     * Repeaters that arrived at the watched POI or changed this tick. Omitted when none.
      */
     repeaters_changed?: Array<RepeaterInfo>;
     /**
@@ -9608,11 +9622,11 @@ export type NotificationOk = {
 
 export type NotificationPathfinderStorm = {
     /**
-     * True when the storm turned the ship off its plotted bearing. False when it only buffeted the ship and the heading held: a sign the drift is passing through storm weather.
+     * True when the storm turned the ship off its plotted bearing.
      */
     deflected: boolean;
     /**
-     * Plain-language notice. When deflected is true, the storm pushed the ship off its plotted bearing. The new heading is not given here: read transit_bearing, transit_x and transit_y from get_location, then submit a new numeric bearing to re-plot (re-plotting costs fuel as usual).
+     * Plain-language notice.
      */
     message: string;
 };
@@ -10309,7 +10323,7 @@ export type Poi = {
 
 export type PoiHazard = {
     /**
-     * Range 1 to 4: 1 low, 2 moderate, 3 high, 4 lethal. One dose takes 1%, 3%, 8% or 25% of the ship's maximum hull (shields absorb it first; resistance to the hazard's damage type reduces it). Scan penalty is the type's rate times this severity.
+     * Range 1 to 4: 1 low, 2 moderate, 3 high, 4 lethal. One dose takes 1%, 3%, 8% or 25% of the ship's maximum hull (shields absorb it first; resistance to the hazard's damage type and hazard gear reduce it). Scan penalty is the type's rate times this severity, less any signal scrubber's share.
      */
     severity: number;
     /**
@@ -10320,15 +10334,15 @@ export type PoiHazard = {
 
 export type PoiInteractionInfo = {
     /**
-     * Command to use at this POI. interact_poi copies data or compares archives; accept_mission accepts the attached offer; view_completed_mission reads an already earned record.
+     * Command to use here: interact_poi, accept_mission or view_completed_mission.
      */
     command: string;
     /**
-     * The local archive's current prompt for this pilot. Reading this prompt does not copy data or grant rewards.
+     * Prompt at this POI for this pilot.
      */
     message: string;
     /**
-     * Private mission offer available at this POI. Omitted when there is no eligible local offer. Completion dialog and navigation rewards remain withheld until completion.
+     * Mission offer at this POI. Omitted when there is none.
      */
     mission?: MissionInfo;
 };
@@ -11224,7 +11238,7 @@ export type PlayerStats = {
     missions_completed?: number;
     modules_installed?: number;
     /**
-     * Repeater Monoliths you landed the killing blow on; each also counts in repeaters_destroyed. Omitted until the first.
+     * Monoliths you landed the killing blow on. Omitted until the first.
      */
     monoliths_destroyed?: number;
     npcs_destroyed?: number;
@@ -11845,7 +11859,7 @@ export type RepeaterInfo = {
      */
     hull: number;
     /**
-     * True while the unit is fighting. Repeaters attack only a pilot who attacks one of them or mines at the place where they sit, and then every unit in the system turns on that pilot. Monoliths at the Threshold also attack any uncloaked pilot at their place. Repeaters also turn on pilots in their system who carry seam glass or Repeater parts.
+     * True while the unit is fighting.
      */
     in_battle: boolean;
     /**
@@ -11857,11 +11871,11 @@ export type RepeaterInfo = {
      */
     max_shield: number;
     /**
-     * Display name, Repeater followed by the class: Sliver, Pane, Spire or Monolith.
+     * Display name of the unit.
      */
     name: string;
     /**
-     * Combat ID of the unit: the target for the attack command and the player_id it carries in battle payloads. It changes every time a unit appears, because Repeaters are not tracked between visits.
+     * Combat ID of the unit: the target for the attack command. It changes each time the unit appears.
      */
     repeater_id: string;
     /**
@@ -11869,7 +11883,7 @@ export type RepeaterInfo = {
      */
     shield: number;
     /**
-     * Ship class ID of the unit: sliver, pane, spire or monolith. Look the class up in the ship catalog for its traits.
+     * Ship class ID of the unit.
      */
     ship_class: string;
 };
@@ -13947,7 +13961,7 @@ export type SubscribeObservationResponse = {
     poi_id: string;
     prizes?: Array<PrizeInfo>;
     /**
-     * Frontier Repeaters at the watched POI, the same set get_nearby returns there. Omitted when none are here. Later arrivals, state changes and departures stream in observation_update as repeaters_changed and repeaters_departed.
+     * Repeaters at the watched POI. Omitted when none are here.
      */
     repeaters?: Array<RepeaterInfo>;
     /**
@@ -14071,7 +14085,7 @@ export type SystemInfo = {
     description?: string;
     empire?: string;
     /**
-     * Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Available after entry or charted faction intel.
+     * Frontier tier of the system. Omitted for known space.
      */
     frontier_tier?: number;
     id: string;
@@ -15099,7 +15113,7 @@ export type V2Location = {
     docked_at: string | null;
     empire: string;
     /**
-     * Current system's frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted in known space and during transit.
+     * Frontier tier of the current system. Omitted in known space and during transit.
      */
     frontier_tier?: number;
     /**
@@ -15143,7 +15157,7 @@ export type V2Location = {
      */
     nearby_prizes: Array<PrizeInfo>;
     /**
-     * Frontier Repeaters at the current POI, the same set get_nearby returns. Empty when none are here.
+     * Repeaters at the current POI. Empty when none are here.
      */
     nearby_repeaters: Array<RepeaterInfo>;
     /**

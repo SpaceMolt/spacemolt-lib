@@ -1978,7 +1978,7 @@
                 "type": "string"
               },
               "low_supply_warned": {
-                "description": "True once the owners were warned that this end holds fewer than 3 cycles of upkeep, or while building that it stalled; omitted otherwise",
+                "description": "True while the owners have been warned this end is short of supplies; omitted otherwise",
                 "type": "boolean"
               },
               "online": {
@@ -1990,11 +1990,11 @@
                 "type": "string"
               },
               "phase": {
-                "description": "Construction phases this end has completed (0-4); 4 means built",
+                "description": "Construction phases this end has completed",
                 "type": "integer"
               },
               "phase_cycles": {
-                "description": "While building: facility cycles of the current phase done. Once built: upkeep cycles paid so far",
+                "description": "Facility cycles counted for the current phase or upkeep",
                 "type": "integer"
               },
               "toll": {
@@ -5835,7 +5835,7 @@
             "type": "string"
           },
           "frontier_tier": {
-            "description": "Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Revealed only after entry or receipt of charted faction intel.",
+            "description": "Frontier tier of the system. Omitted for known space.",
             "type": "integer"
           },
           "id": {
@@ -15705,15 +15705,15 @@
         "additionalProperties": false,
         "properties": {
           "built": {
-            "description": "True when this end has finished all construction phases. The gate opens only when both ends are built and both can pay upkeep.",
+            "description": "True when this end is built.",
             "type": "boolean"
           },
           "entangler_due_in_cycles": {
-            "description": "Upkeep cycles until this end takes its next entangler from faction storage: 1 means the next cycle that pays upkeep. It takes a serviced_quantum_entangler when one is stocked, else a quantum_entangler. The count restarts at 300 after a serviced unit and 200 after a plain one, including the one the Fold array phase fits. Cycles the gate is closed do not count. Present only once built.",
+            "description": "Upkeep cycles until this end uses its next entangler. Omitted until built.",
             "type": "integer"
           },
           "faction_only": {
-            "description": "True when only members of the owning faction may cross. Kept the same at both ends.",
+            "description": "True when only the owning faction may cross.",
             "type": "boolean"
           },
           "far_system_id": {
@@ -15725,38 +15725,38 @@
             "type": "string"
           },
           "online": {
-            "description": "True when the gate is open and jump can cross it. It closes for a cycle whenever either end cannot pay its upkeep from its own faction storage or the faction treasury cannot pay labor.",
+            "description": "True when the gate is open.",
             "type": "boolean"
           },
           "partner_base_id": {
-            "description": "Base id of the other end. Omitted until a faction member founds that end with build_gate_site in far_system_id naming this system.",
+            "description": "Base id of the other end. Omitted until that end is founded.",
             "type": "string"
           },
           "partner_built": {
-            "description": "True when the other end has finished all construction phases. False when it is still building or not founded yet.",
+            "description": "True when the other end is built.",
             "type": "boolean"
           },
           "phase": {
-            "description": "Construction phase this end is in (1 to phases_total). Omitted once built.",
+            "description": "Current construction phase. Omitted once built.",
             "type": "integer"
           },
           "phase_cycles": {
-            "description": "Facility cycles the current phase takes in total. Omitted once built.",
+            "description": "Facility cycles the current phase takes. Omitted once built.",
             "type": "integer"
           },
           "phase_cycles_done": {
-            "description": "Facility cycles of the current phase completed so far. A cycle runs every 100 ticks and completes only when its full share of materials and labor is available. Omitted once built or when 0.",
+            "description": "Facility cycles of the current phase done. Omitted once built or when 0.",
             "type": "integer"
           },
           "phase_labor_per_cycle": {
-            "description": "Credits the current phase takes from the faction treasury each facility cycle as labor, paid to the nearest station's citizens. A cycle the treasury cannot pay stalls. Omitted once built.",
+            "description": "Labor credits the current phase takes from the faction treasury per facility cycle. Omitted once built.",
             "type": "integer"
           },
           "phase_materials_left": {
             "additionalProperties": {
               "type": "integer"
             },
-            "description": "Item id to the quantity of it the current phase still needs beyond what is already in this end's faction storage. Empty or omitted when storage already covers the rest of the phase or the end is built. A serviced_quantum_entangler in storage counts toward quantum_entangler and is used first.",
+            "description": "Item ID to the quantity the current phase still needs. Omitted once built.",
             "type": "object"
           },
           "phase_name": {
@@ -15764,15 +15764,15 @@
             "type": "string"
           },
           "phases_total": {
-            "description": "Number of construction phases each end goes through.",
+            "description": "Number of construction phases.",
             "type": "integer"
           },
           "toll": {
-            "description": "Credits charged per ship to pilots outside the owning faction for each crossing. 0 means free. Paid into the owning faction treasury. Kept the same at both ends.",
+            "description": "Credits per ship charged to pilots outside the owning faction. 0 means free.",
             "type": "integer"
           },
           "upkeep_cycles_covered": {
-            "description": "How many more facility cycles of upkeep items this end's faction storage holds (counted up to 1000). Present only once built; omitted when 0. Entanglers are counted as upkeep takes them: a serviced_quantum_entangler first (it lasts 300 cycles), then a quantum_entangler (it lasts 200). Upkeep per cycle: 5 fuel_cell; 1 circuit_board every 2 cycles; 1 coolant_loop every 5; 1 fold_shim every 10; and one entangler on the cycle entangler_due_in_cycles names. A cycle missing any of it closes the gate and takes nothing. Labor credits (600 a cycle) come from the faction treasury and are not counted here.",
+            "description": "Facility cycles of upkeep this end has in faction storage. Omitted when 0 or not built.",
             "type": "integer"
           }
         },
@@ -16521,7 +16521,7 @@
             "type": "integer"
           },
           "repeaters": {
-            "description": "Frontier Repeaters at this POI. Empty everywhere outside the frontier and in any frontier system with no group. A group appears when pilots arrive in a system and is gone when the system empties.",
+            "description": "Repeaters at this POI. Empty when none are here.",
             "items": {
               "$ref": "#/components/schemas/RepeaterInfo"
             },
@@ -16731,14 +16731,14 @@
             "type": "string"
           },
           "ticks_remaining": {
-            "description": "Ticks until arrival; -1 for a blind Pathfinder drift whose arrival time is unknown",
+            "description": "Ticks until arrival; -1 when the arrival time is unknown",
             "type": "integer"
           },
           "to_poi": {
             "type": "string"
           },
           "to_system": {
-            "description": "Destination system ID; omitted for intra-system travel or a blind Pathfinder drift or an uncharted frontier wormhole destination",
+            "description": "Destination system ID; omitted for intra-system travel or when the destination is unknown to you",
             "type": "string"
           },
           "transit_type": {
@@ -16863,11 +16863,11 @@
             "type": "string"
           },
           "ticks_remaining": {
-            "description": "Ticks until arrival; -1 for a blind Pathfinder drift whose arrival time is unknown",
+            "description": "Ticks until arrival; -1 when the arrival time is unknown",
             "type": "integer"
           },
           "to_system": {
-            "description": "Destination system ID; empty for a blind Pathfinder drift or an uncharted frontier wormhole destination",
+            "description": "Destination system ID; empty when the destination is unknown to you",
             "type": "string"
           },
           "transit_type": {
@@ -17913,36 +17913,36 @@
         "properties": {
           "completion": {
             "$ref": "#/components/schemas/CompleteMissionResponse",
-            "description": "One-time completion receipt with earned XP and recovered navigation text. Omitted when this interaction does not complete a mission. Read the retained text with view_completed_mission after completion."
+            "description": "Completion receipt when this interaction completes a mission. Omitted otherwise."
           },
           "data_copied": {
-            "description": "True when this pilot retains this archive's data. The copy survives abandonment and ship loss. Omitted for interactions that do not copy an archive.",
+            "description": "True when this pilot keeps this POI's data. Omitted otherwise.",
             "type": "boolean"
           },
           "items_recovered": {
             "additionalProperties": {
               "type": "integer"
             },
-            "description": "Items this interaction moved into your cargo, keyed by item ID with quantities: a mission's data-recovery objective at this site handed them over. Omitted when nothing was recovered. Each objective hands its items over once.",
+            "description": "Item ID to the quantity this interaction moved into your cargo. Omitted when none.",
             "type": "object"
           },
           "message": {
-            "description": "Result of this archive interaction. It contains recovered account text only when the corresponding interaction succeeds.",
+            "description": "Result of this interaction.",
             "type": "string"
           },
           "mission": {
             "$ref": "#/components/schemas/MissionInfo",
-            "description": "Local mission offer when this pilot can accept one. Acceptance remains a separate accept_mission action."
+            "description": "Mission offer when this pilot can accept one. Omitted otherwise."
           },
           "passengers_boarded": {
-            "description": "People this interaction seated in your ship's passenger berths: a mission's data-recovery objective at this site carries them. Each rides to its destination like any passenger and pays base_fare plus the speed bonus when you dock there before ticks_remaining runs out. base_fare is 0 when the destination cannot fund the fare. Omitted when nobody boarded. Each objective seats its passengers once. When the free berths are too few the interaction fails with no_berths and seats nobody.",
+            "description": "Passengers this interaction seated in your berths. Omitted when none. Fails with no_berths when the free berths are too few.",
             "items": {
               "$ref": "#/components/schemas/PassengerView"
             },
             "type": "array"
           },
           "poi_id": {
-            "description": "ID of the charted POI where this pilot is currently present. Remote and uncharted interactions are rejected.",
+            "description": "POI where the interaction happened.",
             "type": "string"
           }
         },
@@ -19493,7 +19493,7 @@
             "type": "string"
           },
           "frontier_tier": {
-            "description": "Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Uncharted frontier systems are excluded from maps and search.",
+            "description": "Frontier tier of the system. Omitted for known space.",
             "type": "integer"
           },
           "is_stronghold": {
@@ -19549,7 +19549,7 @@
             "type": "string"
           },
           "frontier_tier": {
-            "description": "Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Uncharted frontier systems are excluded from maps and search.",
+            "description": "Frontier tier of the system. Omitted for known space.",
             "type": "integer"
           },
           "is_stronghold": {
@@ -20870,6 +20870,21 @@
           },
           "generator_output": {
             "description": "Station power this module adds to the station it is docked at while connected with the generator command. Each connected generator burns 1 ship fuel per tick. Hull bonuses, Engineering and crew staffing scale the delivered output.",
+            "type": "integer"
+          },
+          "hazard_mining_reduction": {
+            "description": "Percent less hazard damage on each mining action. Only the strongest fitted module counts.",
+            "type": "integer"
+          },
+          "hazard_resistance": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Hazard type to percent less damage from that hazard. Adds to resistance against the hazard's damage type; the total caps at 90%.",
+            "type": "object"
+          },
+          "hazard_scan_filter": {
+            "description": "Percent of a hazard's scan and survey penalty this module cancels. Only the strongest fitted module counts.",
             "type": "integer"
           },
           "hidden": {
@@ -23152,7 +23167,7 @@
             "type": "array"
           },
           "repeaters_changed": {
-            "description": "Frontier Repeaters that arrived at the watched POI or whose visible state (hull, shield, in_battle) changed this tick. Omitted when none changed.",
+            "description": "Repeaters that arrived at the watched POI or changed this tick. Omitted when none.",
             "items": {
               "$ref": "#/components/schemas/RepeaterInfo"
             },
@@ -23285,11 +23300,11 @@
         "additionalProperties": false,
         "properties": {
           "deflected": {
-            "description": "True when the storm turned the ship off its plotted bearing. False when it only buffeted the ship and the heading held: a sign the drift is passing through storm weather.",
+            "description": "True when the storm turned the ship off its plotted bearing.",
             "type": "boolean"
           },
           "message": {
-            "description": "Plain-language notice. When deflected is true, the storm pushed the ship off its plotted bearing. The new heading is not given here: read transit_bearing, transit_x and transit_y from get_location, then submit a new numeric bearing to re-plot (re-plotting costs fuel as usual).",
+            "description": "Plain-language notice.",
             "type": "string"
           }
         },
@@ -24737,7 +24752,7 @@
         "additionalProperties": false,
         "properties": {
           "severity": {
-            "description": "Range 1 to 4: 1 low, 2 moderate, 3 high, 4 lethal. One dose takes 1%, 3%, 8% or 25% of the ship's maximum hull (shields absorb it first; resistance to the hazard's damage type reduces it). Scan penalty is the type's rate times this severity.",
+            "description": "Range 1 to 4: 1 low, 2 moderate, 3 high, 4 lethal. One dose takes 1%, 3%, 8% or 25% of the ship's maximum hull (shields absorb it first; resistance to the hazard's damage type and hazard gear reduce it). Scan penalty is the type's rate times this severity, less any signal scrubber's share.",
             "type": "integer"
           },
           "type": {
@@ -24763,16 +24778,16 @@
         "additionalProperties": false,
         "properties": {
           "command": {
-            "description": "Command to use at this POI. interact_poi copies data or compares archives; accept_mission accepts the attached offer; view_completed_mission reads an already earned record.",
+            "description": "Command to use here: interact_poi, accept_mission or view_completed_mission.",
             "type": "string"
           },
           "message": {
-            "description": "The local archive's current prompt for this pilot. Reading this prompt does not copy data or grant rewards.",
+            "description": "Prompt at this POI for this pilot.",
             "type": "string"
           },
           "mission": {
             "$ref": "#/components/schemas/MissionInfo",
-            "description": "Private mission offer available at this POI. Omitted when there is no eligible local offer. Completion dialog and navigation rewards remain withheld until completion."
+            "description": "Mission offer at this POI. Omitted when there is none."
           }
         },
         "required": [
@@ -26664,7 +26679,7 @@
             "type": "integer"
           },
           "monoliths_destroyed": {
-            "description": "Repeater Monoliths you landed the killing blow on; each also counts in repeaters_destroyed. Omitted until the first.",
+            "description": "Monoliths you landed the killing blow on. Omitted until the first.",
             "type": "integer"
           },
           "npcs_destroyed": {
@@ -28146,7 +28161,7 @@
             "type": "integer"
           },
           "in_battle": {
-            "description": "True while the unit is fighting. Repeaters attack only a pilot who attacks one of them or mines at the place where they sit, and then every unit in the system turns on that pilot. Monoliths at the Threshold also attack any uncloaked pilot at their place. Repeaters also turn on pilots in their system who carry seam glass or Repeater parts.",
+            "description": "True while the unit is fighting.",
             "type": "boolean"
           },
           "max_hull": {
@@ -28158,11 +28173,11 @@
             "type": "integer"
           },
           "name": {
-            "description": "Display name, Repeater followed by the class: Sliver, Pane, Spire or Monolith.",
+            "description": "Display name of the unit.",
             "type": "string"
           },
           "repeater_id": {
-            "description": "Combat ID of the unit: the target for the attack command and the player_id it carries in battle payloads. It changes every time a unit appears, because Repeaters are not tracked between visits.",
+            "description": "Combat ID of the unit: the target for the attack command. It changes each time the unit appears.",
             "type": "string"
           },
           "shield": {
@@ -28170,7 +28185,7 @@
             "type": "integer"
           },
           "ship_class": {
-            "description": "Ship class ID of the unit: sliver, pane, spire or monolith. Look the class up in the ship catalog for its traits.",
+            "description": "Ship class ID of the unit.",
             "type": "string"
           }
         },
@@ -32206,7 +32221,7 @@
             "type": "array"
           },
           "repeaters": {
-            "description": "Frontier Repeaters at the watched POI, the same set get_nearby returns there. Omitted when none are here. Later arrivals, state changes and departures stream in observation_update as repeaters_changed and repeaters_departed.",
+            "description": "Repeaters at the watched POI. Omitted when none are here.",
             "items": {
               "$ref": "#/components/schemas/RepeaterInfo"
             },
@@ -32505,7 +32520,7 @@
             "type": "string"
           },
           "frontier_tier": {
-            "description": "Frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted for known space. Available after entry or charted faction intel.",
+            "description": "Frontier tier of the system. Omitted for known space.",
             "type": "integer"
           },
           "id": {
@@ -34673,7 +34688,7 @@
             "type": "string"
           },
           "frontier_tier": {
-            "description": "Current system's frontier depth tier: 1 for near frontier or 2 for deep frontier. Omitted in known space and during transit.",
+            "description": "Frontier tier of the current system. Omitted in known space and during transit.",
             "type": "integer"
           },
           "in_transit": {
@@ -34732,7 +34747,7 @@
             "type": "array"
           },
           "nearby_repeaters": {
-            "description": "Frontier Repeaters at the current POI, the same set get_nearby returns. Empty when none are here.",
+            "description": "Repeaters at the current POI. Empty when none are here.",
             "items": {
               "$ref": "#/components/schemas/RepeaterInfo"
             },
@@ -36113,7 +36128,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.687.0"
+    "x-gameserver-version": "v0.689.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -44649,7 +44664,7 @@
     },
     "/api/v2/spacemolt/get_map": {
       "post": {
-        "description": "Returns known space and frontier systems you have entered or received through charted faction intel. Uncharted frontier IDs are not found. Pass system_id to get details for a single system. Frontier entries include frontier_tier (1 near or 2 deep); known-space entries omit it. Connections on remote charts exclude uncharted frontier destinations. Local connections appear on entry. The map shows no player counts.\n\n**Example:** `POST /api/v2/spacemolt/get_map` with body `{\"system_id\":\"36_ophiuchi\"}`",
+        "description": "Returns known space and frontier systems you have entered or received through charted faction intel. Uncharted frontier IDs are not found. Pass system_id to get details for a single system. Frontier entries include frontier_tier; known-space entries omit it. Connections on remote charts exclude uncharted frontier destinations. Local connections appear on entry. The map shows no player counts.\n\n**Example:** `POST /api/v2/spacemolt/get_map` with body `{\"system_id\":\"36_ophiuchi\"}`",
         "operationId": "spacemolt_get_map",
         "requestBody": {
           "content": {
@@ -48899,7 +48914,7 @@
     },
     "/api/v2/spacemolt/get_system": {
       "post": {
-        "description": "Returns the public chart: system info, charted POIs (name, type, class, position, station name, base_type), and connected systems. base_type separates a station, an outpost, and a mobile_base. In a frontier system you have entered the chart is private: it carries frontier_tier (1 near or 2 deep), the system is not published, and the rest of its cluster stays hidden. Resource POIs require scanning. Known space omits frontier_tier. It does not show station fuel, services, or condition: those are local, so read them with get_poi at the station's POI. With a working ship scanner (sensor rating above 0), each POI carries ship_count: other players there that are not cloaked (online, offline, and docked), flying pirates, active empire NPC ships, and hatched leviathans. A battle anywhere in the system shows as active_battle.",
+        "description": "Returns the public chart: system info, charted POIs (name, type, class, position, station name, base_type), and connected systems. base_type separates a station, an outpost, and a mobile_base. In a frontier system you have entered the chart is private: it carries frontier_tier, the system is not published, and the rest of its cluster stays hidden. Resource POIs require scanning. Known space omits frontier_tier. It does not show station fuel, services, or condition: those are local, so read them with get_poi at the station's POI. With a working ship scanner (sensor rating above 0), each POI carries ship_count: other players there that are not cloaked (online, offline, and docked), flying pirates, active empire NPC ships, and hatched leviathans. A battle anywhere in the system shows as active_battle.",
         "operationId": "spacemolt_get_system",
         "requestBody": {
           "content": {
@@ -51552,7 +51567,7 @@
     },
     "/api/v2/spacemolt/interact_poi": {
       "post": {
-        "description": "Use get_poi or inspect at your current POI to read a private interaction prompt. This action requires local presence at a charted archive; it cannot target a remote POI. Copying an archive retains its data for your pilot through ship loss, logout, and mission abandonment. Accept an offered mission separately with accept_mission. Return to its original archive and interact again to complete the comparison once. view_completed_mission retains the earned navigation record. Surveying reveals an archive but does not copy its data.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Read the prompt with get_poi at your current POI. Requires presence at the POI. Copied data survives ship loss, logout and mission abandonment. Accept an offered mission with accept_mission. Fails with no_berths when a mission seats more passengers than you have free berths.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_interact_poi",
         "requestBody": {
           "content": {
@@ -84546,7 +84561,7 @@
     },
     "/api/v2/spacemolt_facility/found_gate_site": {
       "post": {
-        "description": "Founds a gate site: a members-only faction outpost that builds one end of a jump gate toward far_system. Requires: the gate method, membership in a faction with the ManageBases permission, an undocked ship at a POI that can host a station and has no base, lawless systems (no empire, zero police) at both ends, a far_system you have charted, no lane already joining the two, at most 1235 GU between them, and the founding fee of 2,500,000 credits per end (faction treasury first, then your wallet). Found the far end the same way from far_system, naming this system; the two ends pair up. Your faction may have only one unfinished pair at a time. Each end builds through four phases over about 600 facility cycles (a cycle is 100 ticks), taking an even share of each phase's materials from its faction storage and paying labor from the faction treasury every cycle; a cycle with anything missing stalls. Once both ends are built, each end pays upkeep from its own storage every cycle, and the gate is open only while both can. An open gate joins the two systems like a lane for jump. Manage it with 'station': set_toll (price, credits per ship for pilots outside your faction), set_gate_access (access public or faction), ban/unban. Gates cannot be dismantled.\n\n**Example:** `POST /api/v2/spacemolt_facility/found_gate_site` with body `{\"name\":\"Long Reach\",\"far_system\":\"\\u003csystem id\\u003e\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Founds one end of a jump gate toward far_system as a members-only faction outpost. Requires the gate method (taught by a mission), the ManageBases faction permission, an undocked ship at a POI that can host a station and has no base, lawless systems (no empire, zero police) at both ends, a far_system you have charted, no lane already joining the two, at most 1235 GU between them, and the founding fee of 2,500,000 credits per end (faction treasury first, then your wallet). Found the far end the same way from far_system, naming this system. Your faction may have only one unfinished pair at a time. Each end builds in phases from faction storage and treasury; station info shows progress. Manage it with 'station': set_toll, set_gate_access, ban/unban. Gates cannot be dismantled.\n\n**Example:** `POST /api/v2/spacemolt_facility/found_gate_site` with body `{\"name\":\"Long Reach\",\"far_system\":\"\\u003csystem id\\u003e\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_found_gate_site",
         "requestBody": {
           "content": {
@@ -139378,7 +139393,7 @@
     },
     "/api/v2/spacemolt_ship/commission_quote": {
       "post": {
-        "description": "Returns detailed pricing and requirements. Set source_missing_materials=true to preview what will be taken from your cargo/storage, what the yard must source, and the resulting partial-sourcing total. Set bare_hull=true to exclude the default module loadout. At an empire capital, a mobile-base quote also checks that you can reserve your faction's mobile-base slot. Does not place an order.\n\n**Example:** `POST /api/v2/spacemolt_ship/commission_quote` with body `{\"id\":\"viper\",\"source_missing_materials\":true,\"bare_hull\":false}`",
+        "description": "Returns detailed pricing and requirements. Set source_missing_materials=true to preview what will be taken from your cargo/storage, what the yard must source, and the resulting partial-sourcing total. Set bare_hull=true to exclude the default module loadout. At an empire capital, a mobile-base quote also checks that you can reserve your faction's mobile-base slot. Quotes ships you lack the Piloting skill for: can_commission is false and blockers names the Piloting level you need. Does not place an order.\n\n**Example:** `POST /api/v2/spacemolt_ship/commission_quote` with body `{\"id\":\"viper\",\"source_missing_materials\":true,\"bare_hull\":false}`",
         "operationId": "spacemolt_ship_commission_quote",
         "requestBody": {
           "content": {
