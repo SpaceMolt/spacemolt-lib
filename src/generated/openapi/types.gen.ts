@@ -1536,11 +1536,36 @@ export type BoardingStateLogEntry = {
 };
 
 export type BrowseShipsResponse = {
+    /**
+     * Base ID of the station browsed. Empty with all_stations.
+     */
     base_id: string;
+    /**
+     * Name of the station browsed. Empty with all_stations.
+     */
     base_name: string;
     buy_orders?: Array<ShipBuyOrderInfo>;
+    /**
+     * Number of listings in this response.
+     */
     count: number;
     listings: Array<ShipListing>;
+    /**
+     * With all_stations: the 1-based page returned. Omitted otherwise.
+     */
+    page?: number;
+    /**
+     * With all_stations: listings per page (default 50, max 100). Omitted otherwise.
+     */
+    page_size?: number;
+    /**
+     * With all_stations: listings matching the filters across every page. Omitted when nothing matches or without all_stations.
+     */
+    total?: number;
+    /**
+     * With all_stations: number of pages (at least 1). Omitted otherwise.
+     */
+    total_pages?: number;
 };
 
 export type BuildBaseResponse = {
@@ -2582,7 +2607,7 @@ export type ClientPoiInfo = {
      */
     name: string;
     /**
-     * Position in AU from the system center.
+     * Position in AU from the system center. It changes with time.
      */
     position: Position;
     /**
@@ -2879,6 +2904,10 @@ export type CompleteMissionResponse = {
     };
     message: string;
     mission_id: string;
+    /**
+     * Documents this completion added to your notes. Read one with read_note. Omitted when the mission gave none.
+     */
+    notes_received?: Array<MissionNoteReceived>;
     /**
      * Recipe IDs this completion taught you. You can craft them from now on. Omitted when the mission teaches none or you already knew them.
      */
@@ -3328,19 +3357,19 @@ export type DistressSignalResponse = {
      */
     auto_undocked?: boolean;
     /**
-     * The kind of emergency broadcast: "fuel" (stranded without fuel), "repair" (hull critically damaged) or "combat" (under attack). Echoes the requested distress_type, or "fuel" when the request omitted it.
+     * The kind of emergency broadcast: "fuel" (stranded without fuel), "repair" (hull critically damaged), "combat" (under attack) or "tow" (a Salvage Authority tug docks you at the nearest public station). Echoes the requested distress_type, or "fuel" when the request omitted it.
      */
     distress_type: string;
     /**
-     * Seconds until the posted rescue mission expires, measured from when the call was sent. 10800 (3 hours) for a player call. An unclaimed mission is removed at expiry, and is also removed early if you travel away under your own power.
+     * Seconds until the posted rescue mission expires, measured from when the call was sent. 10800 (3 hours) for a player call. An unclaimed mission is removed at expiry, and is also removed early if you travel away under your own power. 0 for a tow.
      */
     expires_seconds: number;
     /**
-     * The broadcast text sent to the emergency chat channel, for example "MAYDAY: Phoenix is stranded at Sol Asteroid Belt in Sol with 0/120 fuel! Any pilots nearby, please help!". Wording depends on distress_type.
+     * The broadcast text sent to the emergency chat channel, for example "MAYDAY: Phoenix is stranded at Sol Asteroid Belt in Sol with 0/120 fuel! Any pilots nearby, please help!". Wording depends on distress_type. For a tow it is the Salvage Authority's reply and is not broadcast.
      */
     message: string;
     /**
-     * ID of the claimable rescue mission this call posted, for example "a3f9c21e8b04". Nobody is assigned it: any pilot who heard the broadcast can take it by calling accept_mission with this ID, docked or not, and the first claim wins. Empty when responders_reached is 0, because no mission is posted when nobody is in range to hear it.
+     * ID of the claimable rescue mission this call posted, for example "a3f9c21e8b04". Nobody is assigned it: any pilot who heard the broadcast can take it by calling accept_mission with this ID, docked or not, and the first claim wins. Empty when responders_reached is 0, because no mission is posted when nobody is in range to hear it. Always empty for a tow.
      */
     mission_id: string;
     /**
@@ -3352,7 +3381,7 @@ export type DistressSignalResponse = {
      */
     poi_name: string;
     /**
-     * Number of online pilots within 5 jumps who received the broadcast. This is how many heard you, not how many are coming: the mission is an offer and nobody is assigned to it. 0 means nobody was in range, and then mission_id is empty because no mission was posted.
+     * Number of online pilots within 5 jumps who received the broadcast. This is how many heard you, not how many are coming: the mission is an offer and nobody is assigned to it. 0 means nobody was in range, and then mission_id is empty because no mission was posted. Always 0 for a tow.
      */
     responders_reached: number;
     /**
@@ -3363,6 +3392,10 @@ export type DistressSignalResponse = {
      * Display name of the system in "system", for example "Sol". Falls back to the system ID when the system is unknown to the server.
      */
     system_name: string;
+    /**
+     * Seconds until the Salvage Authority tug arrives and docks you. Set only for a tow. The tug turns back if on arrival you are docked, away from this POI, traveling, in a battle or held.
+     */
+    tow_arrives_seconds?: number;
 };
 
 export type DockResponse = {
@@ -5792,11 +5825,11 @@ export type FitPreviewResponse = {
 
 export type FitPreviewStats = {
     /**
-     * Armor: class base plus module armor bonuses
+     * Armor with the planned modules fitted
      */
     armor: number;
     /**
-     * Total cargo space: class base plus module cargo bonuses (negative for modules that shrink the hold), then your empire cargo bonus. The same value get_ship reports as cargo_capacity once the fit is in place
+     * Total cargo space with the planned modules fitted (some modules shrink the hold), after your empire cargo bonus. The same value get_ship reports as cargo_capacity once the fit is in place
      */
     cargo_capacity: number;
     /**
@@ -5804,7 +5837,7 @@ export type FitPreviewStats = {
      */
     cargo_used: number;
     /**
-     * Total CPU: class base plus module CPU bonuses
+     * Total CPU with the planned modules fitted
      */
     cpu_capacity: number;
     /**
@@ -5824,31 +5857,43 @@ export type FitPreviewStats = {
      */
     defense_slots_used: number;
     /**
-     * Crew capacity: class base plus module crew bonuses
+     * Crew capacity with the planned modules fitted
      */
     effective_crew_capacity: number;
     /**
-     * Marine capacity: class base plus module marine bonuses
+     * Marine capacity with the planned modules fitted
      */
     effective_marine_capacity: number;
+    /**
+     * Net fuel efficiency of the planned modules in percent. Positive cuts fuel use (at most 80), negative raises it (afterburners)
+     */
+    fuel_efficiency: number;
+    /**
+     * Fuel one jump costs with the planned fit: its speed and fuel efficiency, your hull and your skills. The same value find_route reports as fuel_per_jump once the fit is in place
+     */
+    fuel_per_jump: number;
+    /**
+     * Jumps a full fuel tank covers with the planned fit: max_fuel divided by fuel_per_jump, rounded down. In-system travel uses fuel too
+     */
+    jump_range: number;
     /**
      * Fit plus injured marines aboard now. Invalid (personnel_capacity_exceeded) above effective_marine_capacity
      */
     marines: number;
     /**
-     * Fuel tank size: class base plus module fuel bonuses
+     * Fuel tank size with the planned modules fitted
      */
     max_fuel: number;
     /**
-     * Maximum hull: class base hull plus module hull bonuses minus hull penalties (at least 1)
+     * Maximum hull with the planned modules fitted (at least 1)
      */
     max_hull: number;
     /**
-     * Maximum shield: class base plus module shield bonuses
+     * Maximum shield with the planned modules fitted
      */
     max_shield: number;
     /**
-     * Total power: class base plus module power bonuses
+     * Total power with the planned modules fitted
      */
     power_capacity: number;
     /**
@@ -5856,11 +5901,11 @@ export type FitPreviewStats = {
      */
     power_used: number;
     /**
-     * Shield recharged per tick: class base plus module recharge bonuses
+     * Shield recharged per tick with the planned modules fitted
      */
     shield_recharge: number;
     /**
-     * Base speed: class base plus module speed bonuses minus speed penalties (at least 1). Crew efficiency is not applied; see get_ship operational_speed
+     * Base speed with the planned modules fitted (at least 1). Crew efficiency is not applied; see get_ship operational_speed
      */
     speed: number;
     /**
@@ -7166,7 +7211,7 @@ export type IntelPoi = {
      */
     name: string;
     /**
-     * POI position in the system in AU. Zero on an old or hand-submitted entry that never recorded it.
+     * POI position in the system in AU when the entry was recorded. Zero on an old or hand-submitted entry that never recorded it.
      */
     position: Position;
     /**
@@ -8047,6 +8092,17 @@ export type MissionInfo = {
     warnings?: Array<string>;
 };
 
+export type MissionNoteReceived = {
+    /**
+     * ID of the new note. Pass it to read_note.
+     */
+    note_id: string;
+    /**
+     * Title of the new note.
+     */
+    title: string;
+};
+
 export type MissionPointer = {
     /**
      * ID of the one station that offers this mission. Omitted when the mission is not tied to one station.
@@ -8093,6 +8149,10 @@ export type MissionRewardsInfo = {
     items?: {
         [key: string]: number;
     };
+    /**
+     * Piloting XP paid on completion for flying the route, in your current ship and before the piloting level cap. Not included in skill_xp. Changes if you switch ships. Omitted when zero.
+     */
+    piloting_xp?: number;
     /**
      * Stronghold crew the pirate_rep reward is paid to (e.g. pirate_kael). Empty means the standing is granted with every pirate crew.
      */
@@ -8647,7 +8707,6 @@ export type NoteInfo = {
     created_by: string;
     note_id: string;
     title: string;
-    value: number;
 };
 
 export type NotificationChannelInfo = {
@@ -10199,6 +10258,9 @@ export type ObjectiveProgressInfo = {
     required: number;
     system_id?: string;
     system_name?: string;
+    /**
+     * Base where this objective counts; omitted when the objective is not tied to one base.
+     */
     target_base?: string;
     target_base_name?: string;
     /**
@@ -10303,6 +10365,10 @@ export type Poi = {
     hidden?: boolean;
     id: string;
     name: string;
+    /**
+     * POI in the same system that this POI is attached to. Omitted when it is not attached to another POI.
+     */
+    parent_id?: string;
     position?: {
         x?: number;
         y?: number;
@@ -11569,7 +11635,6 @@ export type ReadNoteResponse = {
     note_id: string;
     title: string;
     updated_at: string;
-    value: number;
 };
 
 export type RecallDroneResponse = {
@@ -12480,7 +12545,7 @@ export type Ship = {
      */
     singleton_instance_key?: string;
     /**
-     * AU per tick
+     * Charged AU per tick for in-system travel; see travel
      */
     speed?: number;
     speed_penalty?: number;
@@ -12722,6 +12787,14 @@ export type ShipLicenseResponse = {
 };
 
 export type ShipListing = {
+    /**
+     * Base ID of the station holding the ship. buy_listed_ship works only while docked there.
+     */
+    base_id: string;
+    /**
+     * Name of the station holding the ship.
+     */
+    base_name: string;
     category?: string;
     class_id: string;
     custom_name?: string;
@@ -14127,7 +14200,7 @@ export type SystemPoi = {
     id: string;
     name: string;
     /**
-     * Position in AU from system center
+     * Position in AU from system center. It changes with time.
      */
     position?: {
         x?: number;
@@ -16403,9 +16476,9 @@ export type SpacemoltDeclineMissionResponse = SpacemoltDeclineMissionResponses[k
 export type SpacemoltDistressSignalData = {
     body?: {
         /**
-         * Type of distress: fuel (out of fuel), repair (hull critically damaged), combat (under attack)
+         * Type of distress: fuel (out of fuel), repair (hull critically damaged), combat (under attack), tow (Salvage Authority tug docks you at the nearest public station after 5 minutes, for a fee)
          */
-        distress_type?: 'fuel' | 'repair' | 'combat';
+        distress_type?: 'fuel' | 'repair' | 'combat' | 'tow';
     };
     path?: never;
     query?: never;
@@ -26660,9 +26733,17 @@ export type SpacemoltSalvageWrecksResponse = SpacemoltSalvageWrecksResponses[key
 export type SpacemoltShipBrowseShipsData = {
     body?: {
         /**
+         * Search every station you have charted instead of one; cheapest first and paged. Cannot be combined with base_id
+         */
+        all_stations?: boolean;
+        /**
          * Station to browse listings at, given by either its Base ID or station POI ID (defaults to current station)
          */
         base_id?: string;
+        /**
+         * Only ships you could buy and fly now (Piloting, reputation, prestige, and the listed fit at your Engineering level)
+         */
+        can_fly?: boolean;
         /**
          * Filter by ship class ID
          */
@@ -26671,6 +26752,14 @@ export type SpacemoltShipBrowseShipsData = {
          * Maximum price filter
          */
         max_price?: number;
+        /**
+         * Page number with all_stations (default 1)
+         */
+        page?: number;
+        /**
+         * Listings per page with all_stations (default 50, max 100)
+         */
+        page_size?: number;
     };
     path?: never;
     query?: never;

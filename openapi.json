@@ -3017,9 +3017,11 @@
         "additionalProperties": false,
         "properties": {
           "base_id": {
+            "description": "Base ID of the station browsed. Empty with all_stations.",
             "type": "string"
           },
           "base_name": {
+            "description": "Name of the station browsed. Empty with all_stations.",
             "type": "string"
           },
           "buy_orders": {
@@ -3029,6 +3031,7 @@
             "type": "array"
           },
           "count": {
+            "description": "Number of listings in this response.",
             "type": "integer"
           },
           "listings": {
@@ -3036,6 +3039,22 @@
               "$ref": "#/components/schemas/ShipListing"
             },
             "type": "array"
+          },
+          "page": {
+            "description": "With all_stations: the 1-based page returned. Omitted otherwise.",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "With all_stations: listings per page (default 50, max 100). Omitted otherwise.",
+            "type": "integer"
+          },
+          "total": {
+            "description": "With all_stations: listings matching the filters across every page. Omitted when nothing matches or without all_stations.",
+            "type": "integer"
+          },
+          "total_pages": {
+            "description": "With all_stations: number of pages (at least 1). Omitted otherwise.",
+            "type": "integer"
           }
         },
         "required": [
@@ -5799,7 +5818,7 @@
           },
           "position": {
             "$ref": "#/components/schemas/Position",
-            "description": "Position in AU from the system center."
+            "description": "Position in AU from the system center. It changes with time."
           },
           "ship_count": {
             "description": "Ships your ship scanner picks up at this POI: other players that are not cloaked (online, offline, and docked alike), flying pirates, active empire NPC ships, and hatched leviathans. Your own ship and wildlife herds are not counted. Omitted when your ship has no working ship scanner (sensor rating 0); 0 means a scanner and no ships.",
@@ -6662,6 +6681,13 @@
           },
           "mission_id": {
             "type": "string"
+          },
+          "notes_received": {
+            "description": "Documents this completion added to your notes. Read one with read_note. Omitted when the mission gave none.",
+            "items": {
+              "$ref": "#/components/schemas/MissionNoteReceived"
+            },
+            "type": "array"
           },
           "recipes_unlocked": {
             "description": "Recipe IDs this completion taught you. You can craft them from now on. Omitted when the mission teaches none or you already knew them.",
@@ -7851,19 +7877,19 @@
             "type": "boolean"
           },
           "distress_type": {
-            "description": "The kind of emergency broadcast: \"fuel\" (stranded without fuel), \"repair\" (hull critically damaged) or \"combat\" (under attack). Echoes the requested distress_type, or \"fuel\" when the request omitted it.",
+            "description": "The kind of emergency broadcast: \"fuel\" (stranded without fuel), \"repair\" (hull critically damaged), \"combat\" (under attack) or \"tow\" (a Salvage Authority tug docks you at the nearest public station). Echoes the requested distress_type, or \"fuel\" when the request omitted it.",
             "type": "string"
           },
           "expires_seconds": {
-            "description": "Seconds until the posted rescue mission expires, measured from when the call was sent. 10800 (3 hours) for a player call. An unclaimed mission is removed at expiry, and is also removed early if you travel away under your own power.",
+            "description": "Seconds until the posted rescue mission expires, measured from when the call was sent. 10800 (3 hours) for a player call. An unclaimed mission is removed at expiry, and is also removed early if you travel away under your own power. 0 for a tow.",
             "type": "integer"
           },
           "message": {
-            "description": "The broadcast text sent to the emergency chat channel, for example \"MAYDAY: Phoenix is stranded at Sol Asteroid Belt in Sol with 0/120 fuel! Any pilots nearby, please help!\". Wording depends on distress_type.",
+            "description": "The broadcast text sent to the emergency chat channel, for example \"MAYDAY: Phoenix is stranded at Sol Asteroid Belt in Sol with 0/120 fuel! Any pilots nearby, please help!\". Wording depends on distress_type. For a tow it is the Salvage Authority's reply and is not broadcast.",
             "type": "string"
           },
           "mission_id": {
-            "description": "ID of the claimable rescue mission this call posted, for example \"a3f9c21e8b04\". Nobody is assigned it: any pilot who heard the broadcast can take it by calling accept_mission with this ID, docked or not, and the first claim wins. Empty when responders_reached is 0, because no mission is posted when nobody is in range to hear it.",
+            "description": "ID of the claimable rescue mission this call posted, for example \"a3f9c21e8b04\". Nobody is assigned it: any pilot who heard the broadcast can take it by calling accept_mission with this ID, docked or not, and the first claim wins. Empty when responders_reached is 0, because no mission is posted when nobody is in range to hear it. Always empty for a tow.",
             "type": "string"
           },
           "poi": {
@@ -7875,7 +7901,7 @@
             "type": "string"
           },
           "responders_reached": {
-            "description": "Number of online pilots within 5 jumps who received the broadcast. This is how many heard you, not how many are coming: the mission is an offer and nobody is assigned to it. 0 means nobody was in range, and then mission_id is empty because no mission was posted.",
+            "description": "Number of online pilots within 5 jumps who received the broadcast. This is how many heard you, not how many are coming: the mission is an offer and nobody is assigned to it. 0 means nobody was in range, and then mission_id is empty because no mission was posted. Always 0 for a tow.",
             "type": "integer"
           },
           "system": {
@@ -7885,6 +7911,10 @@
           "system_name": {
             "description": "Display name of the system in \"system\", for example \"Sol\". Falls back to the system ID when the system is unknown to the server.",
             "type": "string"
+          },
+          "tow_arrives_seconds": {
+            "description": "Seconds until the Salvage Authority tug arrives and docks you. Set only for a tow. The tug turns back if on arrival you are docked, away from this POI, traveling, in a battle or held.",
+            "type": "integer"
           }
         },
         "required": [
@@ -14461,11 +14491,11 @@
         "additionalProperties": false,
         "properties": {
           "armor": {
-            "description": "Armor: class base plus module armor bonuses",
+            "description": "Armor with the planned modules fitted",
             "type": "integer"
           },
           "cargo_capacity": {
-            "description": "Total cargo space: class base plus module cargo bonuses (negative for modules that shrink the hold), then your empire cargo bonus. The same value get_ship reports as cargo_capacity once the fit is in place",
+            "description": "Total cargo space with the planned modules fitted (some modules shrink the hold), after your empire cargo bonus. The same value get_ship reports as cargo_capacity once the fit is in place",
             "type": "integer"
           },
           "cargo_used": {
@@ -14473,7 +14503,7 @@
             "type": "integer"
           },
           "cpu_capacity": {
-            "description": "Total CPU: class base plus module CPU bonuses",
+            "description": "Total CPU with the planned modules fitted",
             "type": "integer"
           },
           "cpu_used": {
@@ -14493,11 +14523,23 @@
             "type": "integer"
           },
           "effective_crew_capacity": {
-            "description": "Crew capacity: class base plus module crew bonuses",
+            "description": "Crew capacity with the planned modules fitted",
             "type": "integer"
           },
           "effective_marine_capacity": {
-            "description": "Marine capacity: class base plus module marine bonuses",
+            "description": "Marine capacity with the planned modules fitted",
+            "type": "integer"
+          },
+          "fuel_efficiency": {
+            "description": "Net fuel efficiency of the planned modules in percent. Positive cuts fuel use (at most 80), negative raises it (afterburners)",
+            "type": "integer"
+          },
+          "fuel_per_jump": {
+            "description": "Fuel one jump costs with the planned fit: its speed and fuel efficiency, your hull and your skills. The same value find_route reports as fuel_per_jump once the fit is in place",
+            "type": "integer"
+          },
+          "jump_range": {
+            "description": "Jumps a full fuel tank covers with the planned fit: max_fuel divided by fuel_per_jump, rounded down. In-system travel uses fuel too",
             "type": "integer"
           },
           "marines": {
@@ -14505,19 +14547,19 @@
             "type": "integer"
           },
           "max_fuel": {
-            "description": "Fuel tank size: class base plus module fuel bonuses",
+            "description": "Fuel tank size with the planned modules fitted",
             "type": "integer"
           },
           "max_hull": {
-            "description": "Maximum hull: class base hull plus module hull bonuses minus hull penalties (at least 1)",
+            "description": "Maximum hull with the planned modules fitted (at least 1)",
             "type": "integer"
           },
           "max_shield": {
-            "description": "Maximum shield: class base plus module shield bonuses",
+            "description": "Maximum shield with the planned modules fitted",
             "type": "integer"
           },
           "power_capacity": {
-            "description": "Total power: class base plus module power bonuses",
+            "description": "Total power with the planned modules fitted",
             "type": "integer"
           },
           "power_used": {
@@ -14525,11 +14567,11 @@
             "type": "integer"
           },
           "shield_recharge": {
-            "description": "Shield recharged per tick: class base plus module recharge bonuses",
+            "description": "Shield recharged per tick with the planned modules fitted",
             "type": "integer"
           },
           "speed": {
-            "description": "Base speed: class base plus module speed bonuses minus speed penalties (at least 1). Crew efficiency is not applied; see get_ship operational_speed",
+            "description": "Base speed with the planned modules fitted (at least 1). Crew efficiency is not applied; see get_ship operational_speed",
             "type": "integer"
           },
           "utility_slots": {
@@ -14556,6 +14598,9 @@
           "armor",
           "speed",
           "max_fuel",
+          "fuel_efficiency",
+          "fuel_per_jump",
+          "jump_range",
           "cargo_capacity",
           "cargo_used",
           "cpu_capacity",
@@ -17853,7 +17898,7 @@
           },
           "position": {
             "$ref": "#/components/schemas/Position",
-            "description": "POI position in the system in AU. Zero on an old or hand-submitted entry that never recorded it."
+            "description": "POI position in the system in AU when the entry was recorded. Zero on an old or hand-submitted entry that never recorded it."
           },
           "read_at_tick": {
             "description": "Game tick at which a faction member's ship read this POI's resources: an Intel Center auto-sync from get_poi, successful mining or survey_system, or the live view when an online faction member is at this POI right now (then it equals current_tick). Omitted (0) when no member's ship has read the resources: a hand-submitted reading from faction_submit_intel is unverified and never carries this field. Compare it against current_tick to judge how stale the resources are.",
@@ -20095,6 +20140,24 @@
           ]
         }
       },
+      "MissionNoteReceived": {
+        "additionalProperties": false,
+        "properties": {
+          "note_id": {
+            "description": "ID of the new note. Pass it to read_note.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title of the new note.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note_id",
+          "title"
+        ],
+        "type": "object"
+      },
       "MissionPointer": {
         "additionalProperties": false,
         "properties": {
@@ -20177,6 +20240,10 @@
             },
             "description": "item_id → quantity",
             "type": "object"
+          },
+          "piloting_xp": {
+            "description": "Piloting XP paid on completion for flying the route, in your current ship and before the piloting level cap. Not included in skill_xp. Changes if you switch ships. Omitted when zero.",
+            "type": "integer"
           },
           "pirate_faction": {
             "description": "Stronghold crew the pirate_rep reward is paid to (e.g. pirate_kael). Empty means the standing is granted with every pirate crew.",
@@ -21189,9 +21256,6 @@
           },
           "title": {
             "type": "string"
-          },
-          "value": {
-            "type": "integer"
           }
         },
         "required": [
@@ -21199,8 +21263,7 @@
           "title",
           "content_length",
           "created_by",
-          "created_at",
-          "value"
+          "created_at"
         ],
         "type": "object",
         "x-display": {
@@ -21212,8 +21275,7 @@
           ],
           "primary": [
             "created_by",
-            "content_length",
-            "value"
+            "content_length"
           ]
         }
       },
@@ -24402,6 +24464,7 @@
             "type": "string"
           },
           "target_base": {
+            "description": "Base where this objective counts; omitted when the objective is not tied to one base.",
             "type": "string"
           },
           "target_base_name": {
@@ -24696,6 +24759,10 @@
             "type": "string"
           },
           "name": {
+            "type": "string"
+          },
+          "parent_id": {
+            "description": "POI in the same system that this POI is attached to. Omitted when it is not attached to another POI.",
             "type": "string"
           },
           "position": {
@@ -27400,9 +27467,6 @@
           },
           "updated_at": {
             "type": "string"
-          },
-          "value": {
-            "type": "integer"
           }
         },
         "required": [
@@ -27411,8 +27475,7 @@
           "content",
           "created_by",
           "created_at",
-          "updated_at",
-          "value"
+          "updated_at"
         ],
         "type": "object"
       },
@@ -29396,7 +29459,7 @@
             "type": "string"
           },
           "speed": {
-            "description": "AU per tick",
+            "description": "Charged AU per tick for in-system travel; see travel",
             "type": "integer"
           },
           "speed_penalty": {
@@ -29814,6 +29877,14 @@
       "ShipListing": {
         "additionalProperties": false,
         "properties": {
+          "base_id": {
+            "description": "Base ID of the station holding the ship. buy_listed_ship works only while docked there.",
+            "type": "string"
+          },
+          "base_name": {
+            "description": "Name of the station holding the ship.",
+            "type": "string"
+          },
           "category": {
             "type": "string"
           },
@@ -29865,7 +29936,9 @@
           "ship_id",
           "class_id",
           "price",
-          "listed_at"
+          "listed_at",
+          "base_id",
+          "base_name"
         ],
         "type": "object",
         "x-display": {
@@ -32614,7 +32687,7 @@
             "type": "string"
           },
           "position": {
-            "description": "Position in AU from system center",
+            "description": "Position in AU from system center. It changes with time.",
             "properties": {
               "x": {
                 "type": "number"
@@ -36128,7 +36201,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.689.0"
+    "x-gameserver-version": "v0.700.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -36588,6 +36661,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -37159,6 +37233,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -37722,6 +37797,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -38327,6 +38403,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -38597,7 +38674,7 @@
     },
     "/api/v2/spacemolt/cloak": {
       "post": {
-        "description": "Requires a cloaking device module or a ship with an integrated cloak. When cloaked, passive views (get_nearby, ship counts, observation, travel arrival) never list you; only an active scan whose power exceeds your total scan defense can resolve you. A battle cannot hold a cloaked ship: you cannot engage a cloak while in a battle (in_battle), and attacking or engaging drops it. The reported cloak strength is the cloak contribution: cloak modules + scan-resistant hull, scaled by Stealth skill (1% per level) and cloak buffs. Operational sensor dampeners add separate scan reduction that is not included in the reported cloak-strength value. You can toggle the cloak mid-jump, mid-travel, and during a Pathfinder drift; it burns 1 fuel per tick while engaged.\n\n**Example:** `POST /api/v2/spacemolt/cloak` with body `{\"enable\":true}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Requires a cloaking device module or a ship with an integrated cloak. When cloaked, passive views (get_nearby, ship counts, observation, travel arrival) never list you; only an active scan whose power exceeds your total scan defense can resolve you. A battle cannot hold a cloaked ship: you cannot engage a cloak while in a battle (in_battle), and attacking, engaging, or a fleet pull into a battle drops it. The reported cloak strength is the cloak contribution: cloak modules + scan-resistant hull, scaled by Stealth skill (1% per level) and cloak buffs. Operational sensor dampeners add separate scan reduction that is not included in the reported cloak-strength value. You can toggle the cloak mid-jump, mid-travel, and during a Pathfinder drift; it burns 1 fuel per tick while engaged.\n\n**Example:** `POST /api/v2/spacemolt/cloak` with body `{\"enable\":true}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_cloak",
         "requestBody": {
           "content": {
@@ -38888,6 +38965,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -39155,7 +39233,7 @@
     },
     "/api/v2/spacemolt/complete_mission": {
       "post": {
-        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location. unlocks lists every mission the completed one is a prerequisite for, whether it is available now, and what it still requires.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Some missions also add documents to your notes (notes_received). Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location. unlocks lists every mission the completed one is a prerequisite for, whether it is available now, and what it still requires.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_complete_mission",
         "requestBody": {
           "content": {
@@ -39260,6 +39338,12 @@
                       },
                       "message": "example",
                       "mission_id": "abc123",
+                      "notes_received": [
+                        {
+                          "note_id": "abc123",
+                          "title": "example"
+                        }
+                      ],
                       "recipes_unlocked": [
                         "example"
                       ],
@@ -39508,6 +39592,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -40364,6 +40449,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -40745,7 +40831,7 @@
     },
     "/api/v2/spacemolt/distress_signal": {
       "post": {
-        "description": "Broadcasts an emergency signal to nearby players and posts one rescue mission they can claim. Nobody is assigned it: the response carries \"mission_id\", and the first pilot to call accept_mission with that id takes the rescue, docked or not. Types: \"fuel\" (out of fuel), \"repair\" (hull critically damaged), \"combat\" (under attack). Cannot be used while docked. Only one active distress signal at a time. The mission expires in 3 hours. 1-hour cooldown between calls. From a hidden POI the broadcast gives the system and calls the location \"an uncharted location\", and poi_name in the response says the same.\n\n**Example:** `POST /api/v2/spacemolt/distress_signal` with body `{\"distress_type\":\"fuel\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Broadcasts an emergency signal to nearby players and posts one rescue mission they can claim. Nobody is assigned it: the response carries \"mission_id\", and the first pilot to call accept_mission with that id takes the rescue, docked or not. Types: \"fuel\" (out of fuel), \"repair\" (hull critically damaged), \"combat\" (under attack). Cannot be used while docked. Only one active distress signal at a time. The mission expires in 3 hours. 1-hour cooldown between calls. From a hidden POI the broadcast gives the system and calls the location \"an uncharted location\", and poi_name in the response says the same. \"tow\" calls a Galactic Salvage Authority tug instead: no broadcast and no cooldown. The tug arrives in 5 minutes and docks you at the nearest public station, for the same fee as an idle-ship recovery. If on arrival you are docked, away from that POI, traveling, in a battle or held by a warp scrambler, the tug turns back. Not available while held.\n\n**Example:** `POST /api/v2/spacemolt/distress_signal` with body `{\"distress_type\":\"fuel\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_distress_signal",
         "requestBody": {
           "content": {
@@ -40756,11 +40842,12 @@
               "schema": {
                 "properties": {
                   "distress_type": {
-                    "description": "Type of distress: fuel (out of fuel), repair (hull critically damaged), combat (under attack)",
+                    "description": "Type of distress: fuel (out of fuel), repair (hull critically damaged), combat (under attack), tow (Salvage Authority tug docks you at the nearest public station after 5 minutes, for a fee)",
                     "enum": [
                       "fuel",
                       "repair",
-                      "combat"
+                      "combat",
+                      "tow"
                     ],
                     "type": "string"
                   }
@@ -40837,7 +40924,8 @@
                       "poi_name": "example",
                       "responders_reached": 1,
                       "system": "example",
-                      "system_name": "example"
+                      "system_name": "example",
+                      "tow_arrives_seconds": 1
                     },
                     "drone_bay": {
                       "bandwidth_total": 1,
@@ -41043,6 +41131,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -41297,7 +41386,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Broadcast a distress signal to nearby players for emergency rescue",
+        "summary": "Broadcast a distress signal to nearby players for emergency rescue, or call a Salvage Authority tow",
         "tags": [
           "gameplay"
         ],
@@ -41735,6 +41824,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -42538,6 +42628,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -43406,6 +43497,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -44414,6 +44506,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -44920,6 +45013,7 @@
                           "items": {
                             "adamant_tooth": 1
                           },
+                          "piloting_xp": 1,
                           "pirate_faction": "example",
                           "pirate_rep": 1,
                           "reputation": 1,
@@ -45583,6 +45677,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -46187,6 +46282,7 @@
                           "items": {
                             "adamant_tooth": 1
                           },
+                          "piloting_xp": 1,
                           "pirate_faction": "example",
                           "pirate_rep": 1,
                           "reputation": 1,
@@ -46219,6 +46315,7 @@
                       "hidden": false,
                       "id": "abc123",
                       "name": "example",
+                      "parent_id": "abc123",
                       "position": {
                         "x": 1,
                         "y": 1
@@ -46571,6 +46668,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -47101,6 +47199,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -47622,6 +47721,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -48143,6 +48243,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -48664,6 +48765,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -49830,6 +49932,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -50852,6 +50955,7 @@
                               "items": {
                                 "adamant_tooth": 1
                               },
+                              "piloting_xp": 1,
                               "pirate_faction": "example",
                               "pirate_rep": 1,
                               "reputation": 1,
@@ -50884,6 +50988,7 @@
                           "hidden": false,
                           "id": "abc123",
                           "name": "example",
+                          "parent_id": "abc123",
                           "position": {
                             "x": 1,
                             "y": 1
@@ -51298,6 +51403,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -51844,6 +51950,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -52436,6 +52543,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -53004,6 +53112,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -53829,6 +53938,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -54383,6 +54493,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -54961,6 +55072,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -55518,6 +55630,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -56147,6 +56260,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -56746,6 +56860,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -57339,6 +57454,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -57980,6 +58096,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -58649,6 +58766,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -59249,6 +59367,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -60131,6 +60250,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -60399,7 +60519,7 @@
     },
     "/api/v2/spacemolt/travel": {
       "post": {
-        "description": "Use get_system to see available POIs. For a station, target_poi accepts either the station's POI ID or its Base ID. Consumes fuel based on ship speed and distance. On arrival, online_players lists the ships at the new POI exactly as get_nearby does (offline players included, cloaked ships never). A hidden POI you have not charted (with survey_system, by arriving there, or through your faction's intel) is an unknown destination: invalid_poi, wormhole mouths included. Arriving at a hidden POI charts it.\n\n**Example:** `POST /api/v2/spacemolt/travel` with body `{\"id\":\"poi_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Use get_system to see available POIs. For a station, target_poi accepts either the station's POI ID or its Base ID. Takes charged distance divided by ship speed, in ticks, rounded up, at least 1 tick, and consumes fuel based on ship speed and charged distance. A trip of up to 4 AU is charged its real distance; a longer trip is charged sqrt(4 × distance) AU, for both time and fuel (30 AU counts as 11 AU, 100 AU as 20 AU). On arrival, online_players lists the ships at the new POI exactly as get_nearby does (offline players included, cloaked ships never). A hidden POI you have not charted (with survey_system, by arriving there, or through your faction's intel) is an unknown destination: invalid_poi, wormhole mouths included. Arriving at a hidden POI charts it.\n\n**Example:** `POST /api/v2/spacemolt/travel` with body `{\"id\":\"poi_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_travel",
         "requestBody": {
           "content": {
@@ -60718,6 +60838,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -61260,6 +61381,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -61824,6 +61946,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -62392,6 +62515,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -63078,6 +63202,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -63445,6 +63570,7 @@
                       "items": {
                         "adamant_tooth": 1
                       },
+                      "piloting_xp": 1,
                       "pirate_faction": "example",
                       "pirate_rep": 1,
                       "reputation": 1,
@@ -63820,6 +63946,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -64363,6 +64490,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -64928,6 +65056,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -65662,6 +65791,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -66260,6 +66390,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -68989,7 +69120,7 @@
     },
     "/api/v2/spacemolt_battle/engage": {
       "post": {
-        "description": "Joins an existing battle already underway in your current system, from any POI. Optional `side_id` picks which side to join; if omitted you're auto-assigned a side based on your faction standing, and a member of a faction whose station is in the battle joins the station's side. A `side_id` that opposes a station owned by your own faction returns `own_faction_station`. Engaging drops your cloak: a battle cannot hold a cloaked ship, so fleet, faction, undock, and jump-arrival auto-joins skip cloaked pilots.\n\n**Example:** `POST /api/v2/spacemolt_battle/engage` with body `{\"side_id\":1}`",
+        "description": "Joins an existing battle already underway in your current system, from any POI. Optional `side_id` picks which side to join; if omitted you're auto-assigned a side based on your faction standing, and a member of a faction whose station is in the battle joins the station's side. A `side_id` that opposes a station owned by your own faction returns `own_faction_station`. Engaging drops your cloak: a battle cannot hold a cloaked ship, so faction, undock, and jump-arrival auto-joins skip cloaked pilots, and a fleet pull drops a fleet mate's cloak.\n\n**Example:** `POST /api/v2/spacemolt_battle/engage` with body `{\"side_id\":1}`",
         "operationId": "spacemolt_battle_engage",
         "requestBody": {
           "content": {
@@ -69622,6 +69753,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -71427,6 +71559,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -72343,6 +72476,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -73001,6 +73135,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -73564,6 +73699,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -74426,6 +74562,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -75094,6 +75231,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -75645,6 +75783,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -76208,6 +76347,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -76804,6 +76944,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -77403,6 +77544,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -78002,6 +78144,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -78807,6 +78950,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -79382,6 +79526,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -79943,6 +80088,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -80496,6 +80642,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -81060,6 +81207,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -81630,6 +81778,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -82181,6 +82330,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -82881,6 +83031,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -83451,6 +83602,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -84291,6 +84443,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -84861,6 +85014,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -85427,6 +85581,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -86159,6 +86314,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -86754,6 +86910,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -87476,6 +87633,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -88412,6 +88570,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -89102,6 +89261,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -89668,6 +89828,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -90337,6 +90498,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -91074,6 +91236,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -91673,6 +91836,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -92236,6 +92400,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -92828,6 +92993,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -93393,6 +93559,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -93993,6 +94160,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -94589,6 +94757,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -95193,6 +95362,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -95789,6 +95959,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -96393,6 +96564,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -96989,6 +97161,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -97549,6 +97722,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -98114,6 +98288,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -98714,6 +98889,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -99310,6 +99486,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -99906,6 +100083,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -100516,6 +100694,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -101115,6 +101294,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -101973,6 +102153,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -102748,6 +102929,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -103333,6 +103515,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -104170,6 +104353,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -104721,6 +104905,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -105275,6 +105460,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -105825,6 +106011,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -106388,6 +106575,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -106953,6 +107141,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -107514,6 +107703,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -108155,6 +108345,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -109611,6 +109802,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -110165,6 +110357,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -110743,6 +110936,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -111296,6 +111490,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -111836,6 +112031,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -112652,6 +112848,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -113208,6 +113405,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -113759,6 +113957,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -114317,6 +114516,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -114869,6 +115069,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -115421,6 +115622,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -116076,6 +116278,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -116856,6 +117059,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -118006,6 +118210,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -118570,6 +118775,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -119314,6 +119520,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -119930,6 +120137,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -120539,6 +120747,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -121098,6 +121307,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -121638,6 +121848,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -122176,6 +122387,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -122714,6 +122926,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -123252,6 +123465,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -123871,6 +124085,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -124421,6 +124636,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -124959,6 +125175,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -125625,6 +125842,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -126732,6 +126950,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -127324,6 +127543,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -127892,6 +128112,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -128658,6 +128879,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -129296,6 +129518,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -129918,6 +130141,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -130703,6 +130927,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -131806,6 +132031,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -132433,6 +132659,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -133006,6 +133233,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -133767,6 +133995,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -134346,6 +134575,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -134906,6 +135136,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -135499,6 +135730,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -136059,6 +136291,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -136622,6 +136855,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -137016,21 +137250,33 @@
     },
     "/api/v2/spacemolt_ship/browse_ships": {
       "post": {
-        "description": "View player-listed ships for sale at the current base, or specify base_id as either the station's Base ID or station POI ID. Filter by class_id or max_price.\n\n**Example:** `POST /api/v2/spacemolt_ship/browse_ships` with body `{\"base_id\":\"alpha_centauri_colonial_station\",\"class_id\":\"absence\",\"max_price\":1}`",
+        "description": "View ships for sale at the current base, or specify base_id as either the station's Base ID or station POI ID. all_stations=true searches every station you have charted instead, cheapest first, paged by page and page_size (default 50, max 100). Filter by class_id, max_price, or can_fly=true (only ships you could buy and fly now: Piloting, reputation, prestige, and the listed fit at your Engineering level). Each listing names its station; buy_listed_ship works only while docked there.\n\n**Example:** `POST /api/v2/spacemolt_ship/browse_ships` with body `{\"all_stations\":false,\"base_id\":\"alpha_centauri_colonial_station\",\"can_fly\":false,\"class_id\":\"absence\",\"max_price\":1,\"page\":1,\"page_size\":1}`",
         "operationId": "spacemolt_ship_browse_ships",
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
+                "all_stations": false,
                 "base_id": "alpha_centauri_colonial_station",
+                "can_fly": false,
                 "class_id": "absence",
-                "max_price": 1
+                "max_price": 1,
+                "page": 1,
+                "page_size": 1
               },
               "schema": {
                 "properties": {
+                  "all_stations": {
+                    "description": "Search every station you have charted instead of one; cheapest first and paged. Cannot be combined with base_id",
+                    "type": "boolean"
+                  },
                   "base_id": {
                     "description": "Station to browse listings at, given by either its Base ID or station POI ID (defaults to current station)",
                     "type": "string"
+                  },
+                  "can_fly": {
+                    "description": "Only ships you could buy and fly now (Piloting, reputation, prestige, and the listed fit at your Engineering level)",
+                    "type": "boolean"
                   },
                   "class_id": {
                     "description": "Filter by ship class ID",
@@ -137038,6 +137284,14 @@
                   },
                   "max_price": {
                     "description": "Maximum price filter",
+                    "type": "integer"
+                  },
+                  "page": {
+                    "description": "Page number with all_stations (default 1)",
+                    "type": "integer"
+                  },
+                  "page_size": {
+                    "description": "Listings per page with all_stations (default 50, max 100)",
                     "type": "integer"
                   }
                 },
@@ -137098,6 +137352,8 @@
                     "count": 1,
                     "listings": [
                       {
+                        "base_id": "alpha_centauri_colonial_station",
+                        "base_name": "example",
                         "category": "example",
                         "class_id": "absence",
                         "custom_name": "example",
@@ -137114,7 +137370,11 @@
                         "ship_name": "example",
                         "tier": 1
                       }
-                    ]
+                    ],
+                    "page": 1,
+                    "page_size": 1,
+                    "total": 1,
+                    "total_pages": 1
                   }
                 },
                 "schema": {
@@ -137452,6 +137712,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -138021,6 +138282,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -138576,6 +138838,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -139130,6 +139393,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -139892,6 +140156,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -140632,6 +140897,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -140900,7 +141166,7 @@
     },
     "/api/v2/spacemolt_ship/fit_preview": {
       "post": {
-        "description": "Read-only. Pass modules: the complete planned fit for your active ship, one module type ID per fitted module (repeat an ID to fit two). Works anywhere: nothing is fitted, bought or moved. Returns stats with exactly those modules fitted (built from the class base, as a refit would), CPU and power used after your Engineering bonus, slots used per type, and valid plus issues: every reason install_mod or uninstall_mod would refuse the fit, with the same error codes (cpu_exceeded, power_exceeded, no_weapon_slots, no_defense_slots, no_utility_slots, module_limit, module_withdrawn, cargo_capacity_exceeded, personnel_capacity_exceeded), or no_safe_order when every module fits but no step order reaches the fit. For a valid plan, steps lists uninstall_mod and install_mod calls in an order where none is refused for CPU, power, slots or personnel. Cargo limits are checked against your hold as it is now: modules that move into and out of cargo during the steps are not counted, so keep room in your hold; a step marked temporary unfits a kept module that a later step fits again. Fitted modules of a planned type are kept; others are removed. Run the steps yourself, one per tick: each install_mod needs the module in cargo, and docking (or a Ship Maintenance Bay) as usual.\n\n**Example:** `POST /api/v2/spacemolt_ship/fit_preview` with body `{\"modules\":[\"pulse_laser_i\",\"shield_booster_i\",\"mining_laser_i\"]}`",
+        "description": "Read-only. Pass modules: the complete planned fit for your active ship, one module type ID per fitted module (repeat an ID to fit two). Works anywhere: nothing is fitted, bought or moved. Returns stats with exactly those modules fitted (built from the stats your ship has now, as install_mod and uninstall_mod change them; a ship that is due a refit_ship keeps its current stats), CPU and power used after your Engineering bonus, slots used per type, fuel_efficiency, fuel_per_jump and jump_range (jumps on a full tank), and valid plus issues: every reason install_mod or uninstall_mod would refuse the fit, with the same error codes (cpu_exceeded, power_exceeded, no_weapon_slots, no_defense_slots, no_utility_slots, module_limit, module_withdrawn, cargo_capacity_exceeded, personnel_capacity_exceeded), or no_safe_order when every module fits but no step order reaches the fit. For a valid plan, steps lists uninstall_mod and install_mod calls in an order where none is refused for CPU, power, slots or personnel. Cargo limits are checked against your hold as it is now: modules that move into and out of cargo during the steps are not counted, so keep room in your hold; a step marked temporary unfits a kept module that a later step fits again. Fitted modules of a planned type are kept; others are removed. Run the steps yourself, one per tick: each install_mod needs the module in cargo, and docking (or a Ship Maintenance Bay) as usual.\n\n**Example:** `POST /api/v2/spacemolt_ship/fit_preview` with body `{\"modules\":[\"pulse_laser_i\",\"shield_booster_i\",\"mining_laser_i\"]}`",
         "operationId": "spacemolt_ship_fit_preview",
         "requestBody": {
           "content": {
@@ -140981,6 +141247,9 @@
                       "defense_slots_used": 1,
                       "effective_crew_capacity": 1,
                       "effective_marine_capacity": 1,
+                      "fuel_efficiency": 1,
+                      "fuel_per_jump": 1,
+                      "jump_range": 1,
                       "marines": 1,
                       "max_fuel": 1,
                       "max_hull": 1,
@@ -141340,6 +141609,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -141975,6 +142245,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -142667,6 +142938,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -143229,6 +143501,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -143778,6 +144051,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -144336,6 +144610,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -144905,6 +145180,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -145469,6 +145745,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -146053,6 +146330,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -146624,6 +146902,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -147207,6 +147486,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -148066,6 +148346,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -148858,6 +149139,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -149475,6 +149757,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -150577,6 +150860,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -151303,6 +151587,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -152339,6 +152624,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -153347,7 +153633,7 @@
     },
     "/api/v2/spacemolt_social/create_note": {
       "post": {
-        "description": "Creates a tradeable text document. Notes can contain messages, secrets, contracts, coordinates, or any text. Max 100 char title, 100,000 char content. Requires docking. Notes take no cargo space.\n\n**Example:** `POST /api/v2/spacemolt_social/create_note` with body `{\"title\":\"My Note\",\"content\":\"Secret coordinates: X=123, Y=456\"}`",
+        "description": "Creates a private text document in your notes: a log, a map, a contract draft, coordinates, or any text. Only you can read your notes, and they cannot be traded or given to another player. Some missions add documents to your notes. Max 100 char title, 100,000 char content. Requires docking. Notes take no cargo space and survive ship loss.\n\n**Example:** `POST /api/v2/spacemolt_social/create_note` with body `{\"title\":\"My Note\",\"content\":\"Secret coordinates: X=123, Y=456\"}`",
         "operationId": "spacemolt_social_create_note",
         "requestBody": {
           "content": {
@@ -153879,6 +154165,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -154429,6 +154716,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -154979,6 +155267,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -156132,6 +156421,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -156688,6 +156978,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -157404,8 +157695,7 @@
                         "created_at": "example",
                         "created_by": "example",
                         "note_id": "abc123",
-                        "title": "example",
-                        "value": 1
+                        "title": "example"
                       }
                     ],
                     "page": 1,
@@ -157868,7 +158158,7 @@
     },
     "/api/v2/spacemolt_social/read_note": {
       "post": {
-        "description": "Returns the full content of a note you own.\n\n**Example:** `POST /api/v2/spacemolt_social/read_note` with body `{\"target\":\"note_uuid\"}`",
+        "description": "Returns the full content of a note you own, with its author. Does not require docking.\n\n**Example:** `POST /api/v2/spacemolt_social/read_note` with body `{\"target\":\"note_uuid\"}`",
         "operationId": "spacemolt_social_read_note",
         "requestBody": {
           "content": {
@@ -157930,8 +158220,7 @@
                     "created_by": "example",
                     "note_id": "abc123",
                     "title": "example",
-                    "updated_at": "example",
-                    "value": 1
+                    "updated_at": "example"
                   }
                 },
                 "schema": {
@@ -159015,6 +159304,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -159591,6 +159881,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -160376,6 +160667,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -161161,6 +161453,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,
@@ -162001,6 +162294,7 @@
                             "items": {
                               "adamant_tooth": 1
                             },
+                            "piloting_xp": 1,
                             "pirate_faction": "example",
                             "pirate_rep": 1,
                             "reputation": 1,

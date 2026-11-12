@@ -1181,12 +1181,20 @@ export interface SpacemoltSalvageTowParams {
 }
 
 export interface SpacemoltShipBrowseShipsParams {
+  /** Search every station you have charted instead of one; cheapest first and paged. Cannot be combined with base_id */
+  all_stations?: boolean;
   /** Station to browse listings at, given by either its Base ID or station POI ID (defaults to current station) */
   base_id?: string;
+  /** Only ships you could buy and fly now (Piloting, reputation, prestige, and the listed fit at your Engineering level) */
+  can_fly?: boolean;
   /** Filter by ship class ID */
   class_id?: string;
   /** Maximum price filter */
   max_price?: number;
+  /** Page number with all_stations (default 1) */
+  page?: number;
+  /** Listings per page with all_stations (default 50, max 100) */
+  page_size?: number;
 }
 
 export interface SpacemoltShipBuyListedShipParams {
@@ -1854,8 +1862,8 @@ export interface SpacemoltDeclineMissionParams {
 }
 
 export interface SpacemoltDistressSignalParams {
-  /** Type of distress: fuel (out of fuel), repair (hull critically damaged), combat (under attack) */
-  distress_type?: "fuel" | "repair" | "combat";
+  /** Type of distress: fuel (out of fuel), repair (hull critically damaged), combat (under attack), tow (Salvage Authority tug docks you at the nearest public station after 5 minutes, for a fee) */
+  distress_type?: "fuel" | "repair" | "combat" | "tow";
 }
 
 export interface SpacemoltFindRouteParams {
@@ -2072,7 +2080,7 @@ export interface Commands {
     craft(params?: SpacemoltCraftParams, requestId?: string): Promise<MutationResult<CraftCommandResponse>>;
     /** Decline a mission and hear the NPC's response */
     decline_mission(params?: SpacemoltDeclineMissionParams, requestId?: string): Promise<QueryResult<DeclineMissionResponse>>;
-    /** Broadcast a distress signal to nearby players for emergency rescue */
+    /** Broadcast a distress signal to nearby players for emergency rescue, or call a Salvage Authority tow */
     distress_signal(params?: SpacemoltDistressSignalParams, requestId?: string): Promise<MutationResult<DistressSignalResponse>>;
     /** Dock at a base */
     dock(requestId?: string): Promise<MutationResult<DockResponse>>;
