@@ -1618,7 +1618,7 @@ export interface SpacemoltSocialGetChatHistoryParams {
   limit?: number;
   /** Chat channel to get history for (system, local, faction, private, emergency) */
   target: "system" | "local" | "faction" | "private" | "emergency";
-  /** Player ID or username for a specific conversation when channel=private. Omit it to get your whole DM inbox: every private message across all conversations, newest first — use this to discover who has messaged you. */
+  /** Player ID or username, or the sender_id of an empire or NPC authority DM (such as the Interstellar Revenue Service), for one conversation when channel=private. Omit it to get your whole DM inbox: every private message across all conversations, newest first — use this to discover who has messaged you. */
   target_id?: string;
 }
 

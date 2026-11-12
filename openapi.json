@@ -21109,6 +21109,9 @@
             "description": "Percentage points subtracted from hostile sensor-dampener reach reduction. Fitted bonuses stack up to the combat resistance cap.",
             "type": "integer"
           },
+          "telescope_grade": {
+            "type": "integer"
+          },
           "tow_speed_penalty": {
             "type": "integer"
           },
@@ -26647,7 +26650,7 @@
             "type": "integer"
           },
           "gate_sites_founded": {
-            "description": "Jump gate ends you founded with build_gate_site. Omitted until the first.",
+            "description": "Jump gate ends you founded with found_gate_site (v1: build_gate_site). Omitted until the first.",
             "type": "integer"
           },
           "gifts_received": {
@@ -31389,6 +31392,29 @@
         ],
         "type": "object"
       },
+      "StarSighting": {
+        "additionalProperties": false,
+        "properties": {
+          "bearing": {
+            "description": "Compass bearing to the star in degrees, in the convention of a numeric jump bearing.",
+            "type": "number"
+          },
+          "brightness": {
+            "description": "Apparent brightness of the star from the current position. Higher is brighter.",
+            "type": "number"
+          },
+          "temperature": {
+            "description": "Surface temperature read from the light of the star, in kelvin.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "bearing",
+          "temperature",
+          "brightness"
+        ],
+        "type": "object"
+      },
       "StationConfigResponse": {
         "additionalProperties": false,
         "properties": {
@@ -34853,6 +34879,13 @@
           "security_status": {
             "type": "string"
           },
+          "star_sightings": {
+            "description": "Stars a fitted telescope resolves from the current position, brightest first. Present only in get_location; omitted when the ship has no working telescope or none is in view.",
+            "items": {
+              "$ref": "#/components/schemas/StarSighting"
+            },
+            "type": "array"
+          },
           "system_id": {
             "type": "string"
           },
@@ -35229,7 +35262,7 @@
                 "type": "string"
               },
               "details": {
-                "description": "Optional structured details about the error. Always an object; its keys vary by error code. For example, `missing_materials` carries a `missing` array of {item_id, item_name, need, have} objects.",
+                "description": "Optional structured details about the error. Always an object; its keys vary by error code. For example, `missing_materials` carries a `missing` array of {item_id, item_name, need, have} objects, and a `safe_passage` refusal from attack or battle carries grantor_id, faction_id, system_id, granted_tick, until_tick and source.",
                 "type": "object"
               },
               "message": {
@@ -36201,7 +36234,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.700.0"
+    "x-gameserver-version": "v0.701.3"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -36591,6 +36624,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -37163,6 +37203,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -37504,7 +37551,7 @@
     },
     "/api/v2/spacemolt/attack": {
       "post": {
-        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. The target must be at your current POI, or already fighting in the battle in your system: starting a battle is local, joining one is system-wide. A target you cannot see (at another POI, cloaked, or an unknown ID) returns invalid_target \"Target not found\"; a docked pilot at your POI returns target_docked, and a station at another charted POI returns out_of_range. A station owned by your own faction cannot be attacked: the command returns own_faction_station. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-applies the reputation penalty with that pirate faction and again summons every combat pirate in the system toward you. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle, and every other pirate combat hull in the system converges on you — it is not a 1v1. Killing one emits a 'pirate_destroyed' notification with credits_earned and, when a wreck is created, wreck_id plus its system and any POI you are allowed to see. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. The target must be at your current POI, or already fighting in the battle in your system: starting a battle is local, joining one is system-wide. A target you cannot see (at another POI, cloaked, or an unknown ID) returns invalid_target \"Target not found\"; a docked pilot at your POI returns target_docked, and a station at another charted POI returns out_of_range. A station owned by your own faction cannot be attacked: the command returns own_faction_station. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-applies the reputation penalty with that pirate faction and again summons every combat pirate in the system toward you. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle, and every other pirate combat hull in the system converges on you — it is not a 1v1. Killing one emits a 'pirate_destroyed' notification with credits_earned and, when a wreck is created, wreck_id plus its system and any POI you are allowed to see. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond. A target whose grant of safe passage binds you returns safe_passage.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_attack",
         "requestBody": {
           "content": {
@@ -37727,6 +37774,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -38333,6 +38387,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -38895,6 +38956,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -39233,7 +39301,7 @@
     },
     "/api/v2/spacemolt/complete_mission": {
       "post": {
-        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Some missions also add documents to your notes (notes_received). Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location. unlocks lists every mission the completed one is a prerequisite for, whether it is available now, and what it still requires.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Some missions also add documents to your notes (notes_received). Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location. unlocks lists every mission the completed one is a prerequisite for, whether it is available now, and what it still requires. Once your objectives are met, a faction posting that another pilot completed first, or whose faction disbanded, returns mission_already_settled; use abandon_mission to clear your copy.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_complete_mission",
         "requestBody": {
           "content": {
@@ -39522,6 +39590,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -40379,6 +40454,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -41061,6 +41143,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -41754,6 +41843,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -42558,6 +42654,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -43427,6 +43530,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -44235,7 +44345,7 @@
     },
     "/api/v2/spacemolt/get_location": {
       "post": {
-        "description": "Returns system, POI, resources, nearby players, and pirates in the v2 state envelope. While moving it adds in_transit and transit_type (jump, travel or pathfinder). A jump adds transit_dest_system_id, transit_dest_system_name and transit_arrival_tick. A travel adds transit_dest_poi_id, transit_dest_poi_name and transit_arrival_tick. A Pathfinder drift has no destination or arrival tick: it adds transit_bearing, transit_x, transit_y and transit_ticks_elapsed, plus void_message beyond the galaxy edge.",
+        "description": "Returns system, POI, resources, nearby players, and pirates in the v2 state envelope. While moving it adds in_transit and transit_type (jump, travel or pathfinder). A jump adds transit_dest_system_id, transit_dest_system_name and transit_arrival_tick. A travel adds transit_dest_poi_id, transit_dest_poi_name and transit_arrival_tick. A Pathfinder drift has no destination or arrival tick: it adds transit_bearing, transit_x, transit_y and transit_ticks_elapsed, plus void_message beyond the galaxy edge. With a telescope module fitted it adds star_sightings: the bearing, temperature and brightness of each star in view, with no name or distance.",
         "operationId": "spacemolt_get_location",
         "requestBody": {
           "content": {
@@ -44436,6 +44546,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -45607,6 +45724,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -46598,6 +46722,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -47129,6 +47260,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -47651,6 +47789,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -48173,6 +48318,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -48695,6 +48847,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -49862,6 +50021,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -51333,6 +51499,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -51880,6 +52053,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -52473,6 +52653,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -53042,6 +53229,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -53868,6 +54062,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -54423,6 +54624,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -55002,6 +55210,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -55560,6 +55775,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -56190,6 +56412,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -56790,6 +57019,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -57384,6 +57620,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -58026,6 +58269,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -58696,6 +58946,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -59297,6 +59554,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -60180,6 +60444,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -60768,6 +61039,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -61311,6 +61589,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -61876,6 +62161,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -62445,6 +62737,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -63132,6 +63431,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -63876,6 +64182,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -64420,6 +64733,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -64986,6 +65306,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -65721,6 +66048,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -66320,6 +66654,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -69120,7 +69461,7 @@
     },
     "/api/v2/spacemolt_battle/engage": {
       "post": {
-        "description": "Joins an existing battle already underway in your current system, from any POI. Optional `side_id` picks which side to join; if omitted you're auto-assigned a side based on your faction standing, and a member of a faction whose station is in the battle joins the station's side. A `side_id` that opposes a station owned by your own faction returns `own_faction_station`. Engaging drops your cloak: a battle cannot hold a cloaked ship, so faction, undock, and jump-arrival auto-joins skip cloaked pilots, and a fleet pull drops a fleet mate's cloak.\n\n**Example:** `POST /api/v2/spacemolt_battle/engage` with body `{\"side_id\":1}`",
+        "description": "Joins an existing battle already underway in your current system, from any POI. Optional `side_id` picks which side to join; if omitted you're auto-assigned a side based on your faction standing, and a member of a faction whose station is in the battle joins the station's side. A `side_id` that opposes a station owned by your own faction returns `own_faction_station`. Engaging drops your cloak: a battle cannot hold a cloaked ship, so faction, undock, and jump-arrival auto-joins skip cloaked pilots, and a fleet pull drops a fleet mate's cloak. Joining against a pilot whose grant of safe passage binds you returns `safe_passage`.\n\n**Example:** `POST /api/v2/spacemolt_battle/engage` with body `{\"side_id\":1}`",
         "operationId": "spacemolt_battle_engage",
         "requestBody": {
           "content": {
@@ -69683,6 +70024,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -70228,7 +70576,7 @@
     },
     "/api/v2/spacemolt_battle/stance": {
       "post": {
-        "description": "Sets your combat posture via `id`: `fire` (100% damage dealt and taken), `evade` (0% dealt / 50% taken, burns extra fuel), `brace` (0% dealt / 25% taken, shields regenerate at 2x), `flee` (0% dealt / 100% taken, escapes after auto-retreat), or `board` (no weapons or defensive reduction; automatically closes for repeated latch attempts). `board` requires `target` and a positive `marines` commitment, and takes an optional `intent`: `capture` (default) or `plunder` (rob another player's cargo; players only); creatures, drones, and stations are not capturable and are rejected immediately. A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records `boarding_rejected` with reason `contested_same_tick`. Changing away from `board` begins a costly, non-instant withdrawal; the requested stance takes effect only after disengagement. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/stance` with body `{\"id\":\"fire\",\"intent\":\"capture\",\"marines\":1,\"target\":\"example\"}`",
+        "description": "Sets your combat posture via `id`: `fire` (100% damage dealt and taken), `evade` (0% dealt / 50% taken, burns extra fuel), `brace` (0% dealt / 25% taken, shields regenerate at 2x), `flee` (0% dealt / 100% taken, escapes after auto-retreat), or `board` (no weapons or defensive reduction; automatically closes for repeated latch attempts). `board` requires `target` and a positive `marines` commitment, and takes an optional `intent`: `capture` (default) or `plunder` (rob another player's cargo; players only); creatures, drones, and stations are not capturable and are rejected immediately. A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records `boarding_rejected` with reason `contested_same_tick`. Changing away from `board` begins a costly, non-instant withdrawal; the requested stance takes effect only after disengagement. `board` against a pilot whose grant of safe passage binds you returns `safe_passage`. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/stance` with body `{\"id\":\"fire\",\"intent\":\"capture\",\"marines\":1,\"target\":\"example\"}`",
         "operationId": "spacemolt_battle_stance",
         "requestBody": {
           "content": {
@@ -70666,7 +71014,7 @@
     },
     "/api/v2/spacemolt_battle/target": {
       "post": {
-        "description": "Focuses your fire on one enemy. `id` is the target's ID or name — any combatant listed in the battle status, including pirates, police, drones, creatures and stations; required. If no target is set, the auto-pilot attacks the nearest enemy. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/target` with body `{\"id\":\"abc123\"}`",
+        "description": "Focuses your fire on one enemy. `id` is the target's ID or name — any combatant listed in the battle status, including pirates, police, drones, creatures and stations; required. If no target is set, the auto-pilot attacks the nearest enemy. A target whose grant of safe passage binds you returns `safe_passage`. Requires being in an active battle.\n\n**Example:** `POST /api/v2/spacemolt_battle/target` with body `{\"id\":\"abc123\"}`",
         "operationId": "spacemolt_battle_target",
         "requestBody": {
           "content": {
@@ -71489,6 +71837,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -72406,6 +72761,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -73065,6 +73427,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -73629,6 +73998,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -74492,6 +74868,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -75161,6 +75544,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -75713,6 +76103,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -76277,6 +76674,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -76874,6 +77278,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -77474,6 +77885,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -78074,6 +78492,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -78880,6 +79305,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -79456,6 +79888,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -80018,6 +80457,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -80572,6 +81018,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -81137,6 +81590,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -81708,6 +82168,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -82260,6 +82727,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -82961,6 +83435,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -83532,6 +84013,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -84373,6 +84861,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -84944,6 +85439,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -85511,6 +86013,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -86244,6 +86753,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -86840,6 +87356,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -87563,6 +88086,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -88500,6 +89030,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -89191,6 +89728,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -89758,6 +90302,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -90428,6 +90979,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -91166,6 +91724,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -91766,6 +92331,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -92330,6 +92902,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -92923,6 +93502,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -93489,6 +94075,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -94090,6 +94683,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -94687,6 +95287,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -95292,6 +95899,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -95889,6 +96503,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -96494,6 +97115,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -97091,6 +97719,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -97652,6 +98287,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -98218,6 +98860,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -98819,6 +99468,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -99416,6 +100072,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -100013,6 +100676,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -100624,6 +101294,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -101224,6 +101901,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -102083,6 +102767,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -102859,6 +103550,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -103445,6 +104143,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -104283,6 +104988,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -104835,6 +105547,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -105390,6 +106109,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -105941,6 +106667,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -106505,6 +107238,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -107071,6 +107811,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -107633,6 +108380,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -108275,6 +109029,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -109732,6 +110493,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -110287,6 +111055,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -110866,6 +111641,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -111420,6 +112202,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -111961,6 +112750,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -112778,6 +113574,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -113335,6 +114138,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -113887,6 +114697,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -114446,6 +115263,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -114999,6 +115823,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -115552,6 +116383,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -116208,6 +117046,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -116989,6 +117834,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -118140,6 +118992,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -118705,6 +119564,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -119450,6 +120316,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -120067,6 +120940,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -120677,6 +121557,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -121237,6 +122124,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -121778,6 +122672,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -122317,6 +123218,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -122856,6 +123764,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -123395,6 +124310,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -124015,6 +124937,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -124566,6 +125495,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -125105,6 +126041,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -125772,6 +126715,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -126880,6 +127830,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -127473,6 +128430,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -128042,6 +129006,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -128809,6 +129780,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -129448,6 +130426,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -130071,6 +131056,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -130857,6 +131849,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -131961,6 +132960,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -132589,6 +133595,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -133163,6 +134176,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -133925,6 +134945,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -134505,6 +135532,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -135066,6 +136100,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -135660,6 +136701,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -136221,6 +137269,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -136785,6 +137840,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -137642,6 +138704,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -138212,6 +139281,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -138768,6 +139844,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -139323,6 +140406,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -140086,6 +141176,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -140827,6 +141924,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -141539,6 +142643,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -142175,6 +143286,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -142868,6 +143986,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -143431,6 +144556,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -143981,6 +145113,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -144540,6 +145679,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -145110,6 +146256,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -145675,6 +146828,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -146260,6 +147420,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -146832,6 +147999,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -147416,6 +148590,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -148276,6 +149457,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -149069,6 +150257,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -149687,6 +150882,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -150790,6 +151992,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -151517,6 +152726,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -152554,6 +153770,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -154095,6 +155318,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -154646,6 +155876,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -155197,6 +156434,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -156351,6 +157595,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -156908,6 +158159,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -157453,7 +158711,7 @@
                     "x-positional-index": 0
                   },
                   "target_id": {
-                    "description": "Player ID or username for a specific conversation when channel=private. Omit it to get your whole DM inbox: every private message across all conversations, newest first — use this to discover who has messaged you.",
+                    "description": "Player ID or username, or the sender_id of an empire or NPC authority DM (such as the Interstellar Revenue Service), for one conversation when channel=private. Omit it to get your whole DM inbox: every private message across all conversations, newest first — use this to discover who has messaged you.",
                     "type": "string"
                   }
                 },
@@ -159234,6 +160492,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -159811,6 +161076,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -160597,6 +161869,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -161383,6 +162662,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,
@@ -162224,6 +163510,13 @@
                         }
                       ],
                       "security_status": "example",
+                      "star_sightings": [
+                        {
+                          "bearing": 1,
+                          "brightness": 1,
+                          "temperature": 1
+                        }
+                      ],
                       "system_id": "36_ophiuchi",
                       "system_name": "example",
                       "transit_arrival_tick": 1,

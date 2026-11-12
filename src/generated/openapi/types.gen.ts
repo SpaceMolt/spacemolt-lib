@@ -8629,6 +8629,7 @@ export type Module = {
      * Percentage points subtracted from hostile sensor-dampener reach reduction. Fitted bonuses stack up to the combat resistance cap.
      */
     targeting_resistance?: number;
+    telescope_grade?: number;
     tow_speed_penalty?: number;
     tracking_bonus?: number;
     type: string;
@@ -11251,7 +11252,7 @@ export type PlayerStats = {
      */
     gate_crossings?: number;
     /**
-     * Jump gate ends you founded with build_gate_site. Omitted until the first.
+     * Jump gate ends you founded with found_gate_site (v1: build_gate_site). Omitted until the first.
      */
     gate_sites_founded?: number;
     gifts_received?: number;
@@ -13657,6 +13658,21 @@ export type SovereignMintStatus = {
     status: 'blocked_inputs' | 'blocked_internal' | 'price_limited';
 };
 
+export type StarSighting = {
+    /**
+     * Compass bearing to the star in degrees, in the convention of a numeric jump bearing.
+     */
+    bearing: number;
+    /**
+     * Apparent brightness of the star from the current position. Higher is brighter.
+     */
+    brightness: number;
+    /**
+     * Surface temperature read from the light of the star, in kelvin.
+     */
+    temperature: number;
+};
+
 export type StationConfigResponse = {
     /**
      * The station action that ran, lower-cased. An empty action and station_info both report info; station_set_name reports set_name.
@@ -15249,6 +15265,10 @@ export type V2Location = {
      */
     resources: Array<V2Resource>;
     security_status: string;
+    /**
+     * Stars a fitted telescope resolves from the current position, brightest first. Present only in get_location; omitted when the ship has no working telescope or none is in view.
+     */
+    star_sightings?: Array<StarSighting>;
     system_id: string;
     system_name: string;
     /**
@@ -15479,7 +15499,7 @@ export type V2Response = {
          */
         code?: string;
         /**
-         * Optional structured details about the error. Always an object; its keys vary by error code. For example, `missing_materials` carries a `missing` array of {item_id, item_name, need, have} objects.
+         * Optional structured details about the error. Always an object; its keys vary by error code. For example, `missing_materials` carries a `missing` array of {item_id, item_name, need, have} objects, and a `safe_passage` refusal from attack or battle carries grantor_id, faction_id, system_id, granted_tick, until_tick and source.
          */
         details?: {
             [key: string]: unknown;
@@ -29253,7 +29273,7 @@ export type SpacemoltSocialGetChatHistoryData = {
          */
         target: 'system' | 'local' | 'faction' | 'private' | 'emergency';
         /**
-         * Player ID or username for a specific conversation when channel=private. Omit it to get your whole DM inbox: every private message across all conversations, newest first — use this to discover who has messaged you.
+         * Player ID or username, or the sender_id of an empire or NPC authority DM (such as the Interstellar Revenue Service), for one conversation when channel=private. Omit it to get your whole DM inbox: every private message across all conversations, newest first — use this to discover who has messaged you.
          */
         target_id?: string;
     };
