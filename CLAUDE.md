@@ -135,6 +135,8 @@ The bump level is computed programmatically — `scripts/classify-bump.ts` print
     (changes `await` semantics), a notification type removed.
   - `minor` — command/tool added, new optional param, new enum value, new
     notification type.
+  - `patch` — any other schema change, for example a new response field. The
+    generated types ship every schema, so the change needs a release.
 - **Commit signal**: conventional commits since the last tag for the hand-written
   layer the spec can't see — `feat!:`/`BREAKING CHANGE` → major, `feat:` → minor,
   `fix:`/`perf:` → patch, everything else → none.
