@@ -29,7 +29,6 @@ import type {
   NotificationDroneUpdate,
   NotificationError,
   NotificationExchangeFill,
-  NotificationFacilityReclaimed,
   NotificationFacilityRentWarning,
   NotificationFactionAllianceBroken,
   NotificationFactionAllianceFormed,
@@ -100,7 +99,6 @@ export type TypedNotificationType =
   | "drone_update"
   | "error"
   | "exchange_fill"
-  | "facility_reclaimed"
   | "facility_rent_warning"
   | "faction_alliance_broken"
   | "faction_alliance_formed"
@@ -170,7 +168,6 @@ export interface NotificationPayloads {
   "drone_update": NotificationDroneUpdate;
   "error": NotificationError;
   "exchange_fill": NotificationExchangeFill;
-  "facility_reclaimed": NotificationFacilityReclaimed;
   "facility_rent_warning": NotificationFacilityRentWarning;
   "faction_alliance_broken": NotificationFactionAllianceBroken;
   "faction_alliance_formed": NotificationFactionAllianceFormed;
@@ -241,7 +238,6 @@ export const TYPED_NOTIFICATION_TYPES = [
   "drone_update",
   "error",
   "exchange_fill",
-  "facility_reclaimed",
   "facility_rent_warning",
   "faction_alliance_broken",
   "faction_alliance_formed",

@@ -3605,6 +3605,10 @@ export type EmpireNpcInfo = {
 
 export type EmpirePolicySnapshot = {
     bounty_attack: number;
+    /**
+     * Bounty in credits issued for evading a customs inspection in policed space.
+     */
+    bounty_customs_evasion: number;
     bounty_hold: number;
     bounty_kill: number;
     bounty_plunder: number;
@@ -3620,7 +3624,6 @@ export type EmpirePolicySnapshot = {
     customs_fine_multiplier_bps: number;
     default_foreign_sales_tax_bps: number;
     empire_id: string;
-    eviction_grace_cycles: number;
     faction_income_tax_bps: number;
     foreign_income_tax_deduction?: {
         [key: string]: number;
@@ -3638,6 +3641,10 @@ export type EmpirePolicySnapshot = {
     rep_baseline_outsider: number;
     rep_decay_amount: number;
     rep_penalty_attack: number;
+    /**
+     * Reputation lost for a customs evasion crime (a positive number applied as a loss).
+     */
+    rep_penalty_customs_evasion: number;
     rep_penalty_hold: number;
     rep_penalty_kill: number;
     rep_penalty_plunder: number;
@@ -4029,7 +4036,7 @@ export type FacilityEntry = {
      */
     maintenance_satisfied?: boolean;
     /**
-     * Facility cycles of rent currently unpaid. Arrears owed for this facility equal rent_per_cycle times missed_rent_cycles. The station repossesses the facility when this reaches the grace_cycles in player_rent or faction_rent. Present only on player_facilities and faction_facilities entries; omitted means 0.
+     * Facility cycles of rent currently unpaid. Arrears owed for this facility equal rent_per_cycle times missed_rent_cycles. While this is above 0 the facility does not work, except storage, fuel bunkers and ship garages. Present only on player_facilities and faction_facilities entries; omitted means 0.
      */
     missed_rent_cycles?: number;
     /**
@@ -4126,6 +4133,9 @@ export type FacilityFactionEntry = {
     medical_capacity?: number;
     medical_refill_per_cycle?: number;
     medical_supply_item?: string;
+    /**
+     * Facility cycles of rent currently unpaid. While this is above 0 the facility does not work, except storage, fuel bunkers and ship garages. Omitted means 0.
+     */
     missed_rent_cycles?: number;
     name: string;
     /**
@@ -4135,7 +4145,7 @@ export type FacilityFactionEntry = {
     rental_fee_per_run?: number;
     repair_complete_tick?: number;
     /**
-     * Only active facilities produce or provide their service; damaged ones need facility action repair; repairing ones are already paid for and come back at repair_complete_tick. Dismantling facilities are offline and will be removed. Rent is paused for every status except active.
+     * Only active facilities produce or provide their service; damaged ones need facility action repair; repairing ones are already paid for and come back at repair_complete_tick. Dismantling facilities are offline and will be removed. Rent is paused for every status except active. An active facility with missed_rent_cycles above 0 also does not work until the arrears are paid, except storage, fuel bunkers and ship garages.
      */
     status: 'under_construction' | 'damaged' | 'repairing' | 'active' | 'dismantling';
     ticks_until_complete?: number;
@@ -4414,10 +4424,6 @@ export type FacilityRentSummary = {
      * Number of owned facilities in this summary including facilities whose billing is paused and facilities at the owner's own faction station or outpost, which pay no rent and count at 0.
      */
     facilities: number;
-    /**
-     * Consecutive unpayable rent cycles allowed before the station repossesses the facility. Arrears still accrue during the grace window. Omitted means the station sets no grace window.
-     */
-    grace_cycles?: number;
     note?: string;
     /**
      * Current rent in credits per facility cycle (100 ticks): sum rent_per_cycle for facilities where damaged and under_construction and dismantling are all false. Missing pause flags mean false. Zero means no current recurring rent; excludes existing arrears. Legacy inactive facilities remain billable.
@@ -8736,7 +8742,7 @@ export type NotificationChannelInfo = {
 /**
  * Frame payload shared by polling and inline notifications. Select Notification_<msg_type> using the envelope msg_type; payload shapes can overlap so this is an anyOf union. Null means the frame supplied no payload.
  */
-export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityReclaimed | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionInvite | NotificationFactionKick | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionPromote | NotificationFactionWarDeclared | NotificationFactionWithdrawInvite | NotificationFleet | NotificationGiftReceived | NotificationHazardWarning | NotificationHoldUpdate | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPathfinderStorm | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
+export type NotificationPayload = NotificationAchievementUnlocked | NotificationActionError | NotificationActionResult | NotificationArenaChallenge | NotificationArenaObjective | NotificationBaseDestroyed | NotificationBattleAlert | NotificationBattleDamage | NotificationBattleEnded | NotificationBattleJoined | NotificationBattleLeft | NotificationBattleStarted | NotificationBattleUpdate | NotificationChatMessage | NotificationCloak | NotificationCompleteMission | NotificationCraftingUpdate | NotificationDroneAdrift | NotificationDroneDestroyed | NotificationDroneScan | NotificationDroneSurvey | NotificationDroneUpdate | NotificationError | NotificationExchangeFill | NotificationFacilityRentWarning | NotificationFactionAllianceBroken | NotificationFactionAllianceFormed | NotificationFactionAllianceProposal | NotificationFactionInvite | NotificationFactionKick | NotificationFactionMobileBaseUpdate | NotificationFactionPeaceAccepted | NotificationFactionPeaceProposal | NotificationFactionPromote | NotificationFactionWarDeclared | NotificationFactionWithdrawInvite | NotificationFleet | NotificationGiftReceived | NotificationHazardWarning | NotificationHoldUpdate | NotificationMarketUpdate | NotificationMiningYield | NotificationObservationUpdate | NotificationOk | NotificationPathfinderStorm | NotificationPersonnelUpdate | NotificationPilotlessShip | NotificationPirateDestroyed | NotificationPirateRadio | NotificationPlayerDied | NotificationPlayerKill | NotificationPrizeUpdate | NotificationRanchPoached | NotificationReconnected | NotificationRefueledBy | NotificationRepairedBy | NotificationScanDetected | NotificationServerRestartWarning | NotificationShipCaptured | NotificationShipCommissionComplete | NotificationSkillLevelUp | NotificationStationRepaired | NotificationTradeCancelled | NotificationTradeComplete | NotificationTradeDeclined | NotificationTradeOfferReceived | null;
 
 export type NotificationSettingsResponse = {
     action: string;
@@ -9223,24 +9229,7 @@ export type NotificationExchangeFill = {
 };
 
 /**
- * Pushed to a facility owner (or all faction members) when the station repossesses facilities for unpaid rent. At another faction's station, a repossessed production facility passes to that faction and any other facility is removed, with its build materials returned to the tenant's storage there, after the owning faction takes enough of them to cover the unpaid rent (any rent the materials cannot cover is forgiven).
- */
-export type NotificationFacilityReclaimed = {
-    base_id: string;
-    base_name: string;
-    /**
-     * Names of the repossessed facilities.
-     */
-    facilities?: Array<string>;
-    /**
-     * Set only on the faction-owned-facility variant.
-     */
-    faction_id?: string;
-    message: string;
-};
-
-/**
- * Pushed to a facility owner (or all faction members for faction-owned facilities) when rent is overdue and repossession is approaching. Sent when any one facility at the base reaches its 1st missed cycle, half of grace_cycles, 86 cycles (about one day) before repossession, or 3 cycles before it. A warning and a facility_reclaimed notice can both arrive in the same cycle. Each warning is also written to the action log as `other.rent_warning` (`faction.rent_warning` for faction-owned facilities) with the same fields.
+ * Pushed to a facility owner (or all faction members for faction-owned facilities) when rent is overdue. A facility with arrears does not work until they are paid, except storage, fuel bunkers, and ship garages. Sent when any one facility at the base reaches its 1st missed cycle, then every 86 missed cycles (about one day). Each warning is also written to the action log as `other.rent_warning` (`faction.rent_warning` for faction-owned facilities) with the same fields.
  */
 export type NotificationFacilityRentWarning = {
     base_id: string;
@@ -9257,13 +9246,9 @@ export type NotificationFacilityRentWarning = {
      * Set only on the faction-owned-facility variant.
      */
     faction_id?: string;
-    /**
-     * Missed cycles at which the station repossesses.
-     */
-    grace_cycles?: number;
     message: string;
     /**
-     * Highest consecutive missed rent cycles among the owner's facilities at this base, not counting a facility repossessed in the same cycle.
+     * Highest consecutive missed rent cycles among the owner's facilities at this base.
      */
     missed_cycles?: number;
 };
@@ -9513,11 +9498,11 @@ export type NotificationHoldUpdate = {
      */
     event: 'started' | 'ended';
     /**
-     * Player whose warp scrambler holds the target.
+     * Player or customs cutter (empire NPC ID) whose warp scrambler holds the target.
      */
     holder_id: string;
     /**
-     * Holder username.
+     * Holder username, or the customs cutter's name.
      */
     holder_name: string;
     /**
@@ -9525,13 +9510,13 @@ export type NotificationHoldUpdate = {
      */
     message: string;
     /**
-     * Why the hold ended. Present only on ended. paid: the target accepted the toll. offer_closed: the toll was declined, cancelled or expired and the 2-tick grace ran out. holder_acted: the holder queued a command other than scan, trade_offer, attack or reload. holder_left: the holder or target left the POI, docked, jumped or died. battle: the two pilots are now in the same battle, and combat tackle applies. scan_over: a scan hold ran its 5 ticks with no toll offer.
+     * Why the hold ended. Present only on ended. paid: the target accepted the toll. offer_closed: the toll was declined, cancelled or expired and the 2-tick grace ran out. holder_acted: the holder queued a command other than scan, trade_offer, attack or reload. holder_left: the holder or target left the POI, docked, jumped or died. battle: the two pilots are now in the same battle, and combat tackle applies. scan_over: a scan hold ran its 5 ticks with no toll offer, or a customs inspection ended.
      */
     reason?: 'paid' | 'offer_closed' | 'holder_acted' | 'holder_left' | 'battle' | 'scan_over';
     /**
-     * What holds the target: toll is a trade_offer with hold=true; scan is a cargo scan from a ship with a warp scrambler. A toll offer sent during a scan hold turns it into a toll hold.
+     * What holds the target: toll is a trade_offer with hold=true; scan is a cargo scan from a ship with a warp scrambler; customs is a customs inspection. A toll offer sent during a scan hold turns it into a toll hold.
      */
-    source: 'toll' | 'scan';
+    source: 'toll' | 'scan' | 'customs';
     /**
      * Tick the hold started.
      */

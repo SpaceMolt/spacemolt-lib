@@ -8350,6 +8350,10 @@
           "bounty_attack": {
             "type": "integer"
           },
+          "bounty_customs_evasion": {
+            "description": "Bounty in credits issued for evading a customs inspection in policed space.",
+            "type": "integer"
+          },
           "bounty_hold": {
             "type": "integer"
           },
@@ -8398,9 +8402,6 @@
           "empire_id": {
             "type": "string"
           },
-          "eviction_grace_cycles": {
-            "type": "integer"
-          },
           "faction_income_tax_bps": {
             "type": "integer"
           },
@@ -8446,6 +8447,10 @@
           "rep_penalty_attack": {
             "type": "integer"
           },
+          "rep_penalty_customs_evasion": {
+            "description": "Reputation lost for a customs evasion crime (a positive number applied as a loss).",
+            "type": "integer"
+          },
           "rep_penalty_hold": {
             "type": "integer"
           },
@@ -8487,7 +8492,6 @@
           "empire_id",
           "listing_fee_bps",
           "ship_listing_fee_bps",
-          "eviction_grace_cycles",
           "sales_tax_bps",
           "default_foreign_sales_tax_bps",
           "stateless_sales_tax_bps",
@@ -8505,6 +8509,8 @@
           "rep_penalty_hold",
           "bounty_plunder",
           "rep_penalty_plunder",
+          "bounty_customs_evasion",
+          "rep_penalty_customs_evasion",
           "shoot_on_sight_threshold",
           "jail_duration_hours",
           "bounty_rep_restoration_bps",
@@ -9527,7 +9533,7 @@
             "type": "boolean"
           },
           "missed_rent_cycles": {
-            "description": "Facility cycles of rent currently unpaid. Arrears owed for this facility equal rent_per_cycle times missed_rent_cycles. The station repossesses the facility when this reaches the grace_cycles in player_rent or faction_rent. Present only on player_facilities and faction_facilities entries; omitted means 0.",
+            "description": "Facility cycles of rent currently unpaid. Arrears owed for this facility equal rent_per_cycle times missed_rent_cycles. While this is above 0 the facility does not work, except storage, fuel bunkers and ship garages. Present only on player_facilities and faction_facilities entries; omitted means 0.",
             "type": "integer"
           },
           "name": {
@@ -9711,6 +9717,7 @@
             "type": "string"
           },
           "missed_rent_cycles": {
+            "description": "Facility cycles of rent currently unpaid. While this is above 0 the facility does not work, except storage, fuel bunkers and ship garages. Omitted means 0.",
             "type": "integer"
           },
           "name": {
@@ -9727,7 +9734,7 @@
             "type": "integer"
           },
           "status": {
-            "description": "Only active facilities produce or provide their service; damaged ones need facility action repair; repairing ones are already paid for and come back at repair_complete_tick. Dismantling facilities are offline and will be removed. Rent is paused for every status except active.",
+            "description": "Only active facilities produce or provide their service; damaged ones need facility action repair; repairing ones are already paid for and come back at repair_complete_tick. Dismantling facilities are offline and will be removed. Rent is paused for every status except active. An active facility with missed_rent_cycles above 0 also does not work until the arrears are paid, except storage, fuel bunkers and ship garages.",
             "enum": [
               "under_construction",
               "damaged",
@@ -10716,10 +10723,6 @@
           },
           "facilities": {
             "description": "Number of owned facilities in this summary including facilities whose billing is paused and facilities at the owner's own faction station or outpost, which pay no rent and count at 0.",
-            "type": "integer"
-          },
-          "grace_cycles": {
-            "description": "Consecutive unpayable rent cycles allowed before the station repossesses the facility. Arrears still accrue during the grace window. Omitted means the station sets no grace window.",
             "type": "integer"
           },
           "note": {
@@ -21400,9 +21403,6 @@
             "$ref": "#/components/schemas/Notification_exchange_fill"
           },
           {
-            "$ref": "#/components/schemas/Notification_facility_reclaimed"
-          },
-          {
             "$ref": "#/components/schemas/Notification_facility_rent_warning"
           },
           {
@@ -22487,39 +22487,8 @@
         ],
         "type": "object"
       },
-      "Notification_facility_reclaimed": {
-        "description": "Pushed to a facility owner (or all faction members) when the station repossesses facilities for unpaid rent. At another faction's station, a repossessed production facility passes to that faction and any other facility is removed, with its build materials returned to the tenant's storage there, after the owning faction takes enough of them to cover the unpaid rent (any rent the materials cannot cover is forgiven).",
-        "properties": {
-          "base_id": {
-            "type": "string"
-          },
-          "base_name": {
-            "type": "string"
-          },
-          "facilities": {
-            "description": "Names of the repossessed facilities.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "faction_id": {
-            "description": "Set only on the faction-owned-facility variant.",
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "base_id",
-          "base_name",
-          "message"
-        ],
-        "type": "object"
-      },
       "Notification_facility_rent_warning": {
-        "description": "Pushed to a facility owner (or all faction members for faction-owned facilities) when rent is overdue and repossession is approaching. Sent when any one facility at the base reaches its 1st missed cycle, half of grace_cycles, 86 cycles (about one day) before repossession, or 3 cycles before it. A warning and a facility_reclaimed notice can both arrive in the same cycle. Each warning is also written to the action log as `other.rent_warning` (`faction.rent_warning` for faction-owned facilities) with the same fields.",
+        "description": "Pushed to a facility owner (or all faction members for faction-owned facilities) when rent is overdue. A facility with arrears does not work until they are paid, except storage, fuel bunkers, and ship garages. Sent when any one facility at the base reaches its 1st missed cycle, then every 86 missed cycles (about one day). Each warning is also written to the action log as `other.rent_warning` (`faction.rent_warning` for faction-owned facilities) with the same fields.",
         "properties": {
           "base_id": {
             "type": "string"
@@ -22540,15 +22509,11 @@
             "description": "Set only on the faction-owned-facility variant.",
             "type": "string"
           },
-          "grace_cycles": {
-            "description": "Missed cycles at which the station repossesses.",
-            "type": "integer"
-          },
           "message": {
             "type": "string"
           },
           "missed_cycles": {
-            "description": "Highest consecutive missed rent cycles among the owner's facilities at this base, not counting a facility repossessed in the same cycle.",
+            "description": "Highest consecutive missed rent cycles among the owner's facilities at this base.",
             "type": "integer"
           }
         },
@@ -23007,11 +22972,11 @@
             "type": "string"
           },
           "holder_id": {
-            "description": "Player whose warp scrambler holds the target.",
+            "description": "Player or customs cutter (empire NPC ID) whose warp scrambler holds the target.",
             "type": "string"
           },
           "holder_name": {
-            "description": "Holder username.",
+            "description": "Holder username, or the customs cutter's name.",
             "type": "string"
           },
           "message": {
@@ -23019,7 +22984,7 @@
             "type": "string"
           },
           "reason": {
-            "description": "Why the hold ended. Present only on ended. paid: the target accepted the toll. offer_closed: the toll was declined, cancelled or expired and the 2-tick grace ran out. holder_acted: the holder queued a command other than scan, trade_offer, attack or reload. holder_left: the holder or target left the POI, docked, jumped or died. battle: the two pilots are now in the same battle, and combat tackle applies. scan_over: a scan hold ran its 5 ticks with no toll offer.",
+            "description": "Why the hold ended. Present only on ended. paid: the target accepted the toll. offer_closed: the toll was declined, cancelled or expired and the 2-tick grace ran out. holder_acted: the holder queued a command other than scan, trade_offer, attack or reload. holder_left: the holder or target left the POI, docked, jumped or died. battle: the two pilots are now in the same battle, and combat tackle applies. scan_over: a scan hold ran its 5 ticks with no toll offer, or a customs inspection ended.",
             "enum": [
               "paid",
               "offer_closed",
@@ -23031,10 +22996,11 @@
             "type": "string"
           },
           "source": {
-            "description": "What holds the target: toll is a trade_offer with hold=true; scan is a cargo scan from a ship with a warp scrambler. A toll offer sent during a scan hold turns it into a toll hold.",
+            "description": "What holds the target: toll is a trade_offer with hold=true; scan is a cargo scan from a ship with a warp scrambler; customs is a customs inspection. A toll offer sent during a scan hold turns it into a toll hold.",
             "enum": [
               "toll",
-              "scan"
+              "scan",
+              "customs"
             ],
             "type": "string"
           },
@@ -36264,7 +36230,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.707.0"
+    "x-gameserver-version": "v0.711.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -37585,7 +37551,7 @@
     },
     "/api/v2/spacemolt/attack": {
       "post": {
-        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. The target must be at your current POI, or already fighting in the battle in your system: starting a battle is local, joining one is system-wide. A target you cannot see (at another POI, cloaked, or an unknown ID) returns invalid_target \"Target not found\"; a docked pilot at your POI returns target_docked, and a station at another charted POI returns out_of_range. A station owned by your own faction cannot be attacked: the command returns own_faction_station. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-applies the reputation penalty with that pirate faction and again summons every combat pirate in the system toward you. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle, and every other pirate combat hull in the system converges on you — it is not a 1v1. Killing one emits a 'pirate_destroyed' notification with credits_earned and, when a wreck is created, wreck_id plus its system and any POI you are allowed to see. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond. A target whose grant of safe passage binds you returns safe_passage.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "target_id accepts a player ID, username, pirate ID, empire NPC ID, wildlife creature ID, intact-prize actor ID, or station/base ID. The target must be at your current POI, or already fighting in the battle in your system: starting a battle is local, joining one is system-wide. A target you cannot see (at another POI, cloaked, or an unknown ID) returns invalid_target \"Target not found\"; a docked pilot at your POI returns target_docked, and a station at another charted POI returns out_of_range. A station owned by your own faction cannot be attacked: the command returns own_faction_station. Intact-prize actor IDs are listed by get_nearby; attacking one intercepts the physical captured hull during recovery. Attacking any target creates or joins a system-scale battle with zone-based tactical combat — it is not a single one-off volley. Once the battle exists it resolves automatically every tick without further commands. Do not re-issue 'attack' on a target you are already fighting: it never fires an extra volley — against a player already in your battle it merely re-points your target (identical to battle action 'target'), and against a pirate it re-points your target, re-applies the reputation penalty with that pirate faction and again summons that pirate's stronghold's combat pirates in the system toward you. Attacking a pirate outside your battle pulls it in and re-points your target to it. Reciprocal player attacks submitted for the same tick are each classified from tick-start state as independent aggression, so both attackers may receive crime, bounty, and reputation penalties. Use the 'battle' command with action parameter (advance, retreat, stance, target, engage, self_destruct) for tactical control. The attack response confirms the engagement only; read the fight through 'status' (free, no battle_id needed — per-participant hull/shield plus your own damage_dealt and kill_count), the per-tick 'battle_damage' and 'battle_update' notifications, and 'summary' for the final tally. Attacking a pirate NPC joins or creates the same shared system battle — it is not a 1v1. Every ship of its stronghold in the system joins the battle, and its stronghold's other combat pirates in the system converge on you; another stronghold's pirates do not. Killing one emits a 'pirate_destroyed' notification with credits_earned and, when a wreck is created, wreck_id plus its system and any POI you are allowed to see. Attacking an empire NPC triggers a battle and applies criminal status. Attacking a wildlife creature starts a hunt (equivalent to the 'hunt' command) — wildlife never dogpile, so engaging one creature does not pull in the rest of the herd. Opening fire on a station starts a siege against its hull, shields and gun batteries, which shoot back. Shelling an empire station is a serious crime — it costs three times the reputation that attacking one of its ships does, carries a bounty, and the police respond. A target whose grant of safe passage binds you returns safe_passage.\n\n**Example:** `POST /api/v2/spacemolt/attack` with body `{\"id\":\"player_id_or_username\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_attack",
         "requestBody": {
           "content": {
@@ -44072,6 +44038,7 @@
                     "empires": [
                       {
                         "bounty_attack": 1,
+                        "bounty_customs_evasion": 1,
                         "bounty_hold": 1,
                         "bounty_kill": 1,
                         "bounty_plunder": 1,
@@ -44089,7 +44056,6 @@
                         "customs_fine_multiplier_bps": 1,
                         "default_foreign_sales_tax_bps": 1,
                         "empire_id": "crimson",
-                        "eviction_grace_cycles": 1,
                         "faction_income_tax_bps": 1,
                         "foreign_income_tax_deduction": {
                           "crimson": 1
@@ -44107,6 +44073,7 @@
                         "rep_baseline_outsider": 1,
                         "rep_decay_amount": 1,
                         "rep_penalty_attack": 1,
+                        "rep_penalty_customs_evasion": 1,
                         "rep_penalty_hold": 1,
                         "rep_penalty_kill": 1,
                         "rep_penalty_plunder": 1,
@@ -49864,7 +49831,7 @@
     },
     "/api/v2/spacemolt/hunt": {
       "post": {
-        "description": "target_id is a creature ID from get_nearby (the 'creatures' list). The creature must be at your current POI; one elsewhere returns invalid_target \"Target not found\". Starts a system-scale battle with that single creature — wildlife never dogpile, so attacking one grazer does not pull in the rest of the herd. Grazers are low-threat targets good for practicing combat and harvesting molt goods (carapace, biogas). Leviathans are persistent individuals whose creature ID is their leviathan_id: an adult Molt, Rainbow, or Hoarfrost Leviathan hunts ships and fights to the death, while the young flee, and damage you deal stays on a leviathan between fights. Killing a creature drops a carcass wreck you can loot. Hunt queues the same action as attack, so any attack target_id works; a non-creature target is attacked exactly as attack would. Use the 'battle' command for tactical control once engaged.\n\n**Example:** `POST /api/v2/spacemolt/hunt` with body `{\"id\":\"creature_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "target_id is a creature ID from get_nearby (the 'creatures' list). The creature must be at your current POI; one elsewhere returns invalid_target \"Target not found\". Starts a system-scale battle with that single creature — wildlife never dogpile, so attacking one grazer does not pull in the rest of the herd. Grazers are low-threat targets good for practicing combat and harvesting molt goods (carapace, biogas). Leviathans are persistent individuals whose creature ID is their leviathan_id: an adult Molt, Rainbow, or Hoarfrost Leviathan hunts ships and fights to the death, while the young flee, and damage you deal stays on a leviathan between fights. Leviathans avoid systems with heavy sustained traffic, but a fleet arriving does not make them leave, and young leviathans may slip away from ships that linger near them. Wildlife never attacks a ship on the tick it arrives at a POI. Killing a creature drops a carcass wreck you can loot. Hunt queues the same action as attack, so any attack target_id works; a non-creature target is attacked exactly as attack would. Use the 'battle' command for tactical control once engaged.\n\n**Example:** `POST /api/v2/spacemolt/hunt` with body `{\"id\":\"creature_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_hunt",
         "requestBody": {
           "content": {
@@ -69579,7 +69546,7 @@
     },
     "/api/v2/spacemolt_battle/engage": {
       "post": {
-        "description": "Joins an existing battle already underway in your current system, from any POI. Optional `side_id` picks which side to join; if omitted you're auto-assigned a side based on your faction standing, and a member of a faction whose station is in the battle joins the station's side. A `side_id` that opposes a station owned by your own faction returns `own_faction_station`. Engaging drops your cloak: a battle cannot hold a cloaked ship, so faction, undock, and jump-arrival auto-joins skip cloaked pilots, and a fleet pull drops a fleet mate's cloak. Joining against a pilot whose grant of safe passage binds you returns `safe_passage`.\n\n**Example:** `POST /api/v2/spacemolt_battle/engage` with body `{\"side_id\":1}`",
+        "description": "Joins an existing battle already underway in your current system, from any POI. Optional `side_id` picks which side to join; if omitted you're auto-assigned a side based on your faction standing, and a member of a faction whose station is in the battle joins the station's side. A `side_id` that opposes a station owned by your own faction returns `own_faction_station`. Engaging calls your fleet, faction and mutual allies undocked in the system to your side. Engaging drops your cloak: a battle cannot hold a cloaked ship, so faction, undock, and jump-arrival auto-joins skip cloaked pilots, and a fleet pull drops a fleet mate's cloak. Joining against a pilot whose grant of safe passage binds you returns `safe_passage`.\n\n**Example:** `POST /api/v2/spacemolt_battle/engage` with body `{\"side_id\":1}`",
         "operationId": "spacemolt_battle_engage",
         "requestBody": {
           "content": {
@@ -84599,7 +84566,6 @@
                       "arrears_owed": 1,
                       "est_rent_per_day": 1,
                       "facilities": 1,
-                      "grace_cycles": 1,
                       "note": "example",
                       "total_rent_per_cycle": 1
                     },
@@ -84726,7 +84692,6 @@
                       "arrears_owed": 1,
                       "est_rent_per_day": 1,
                       "facilities": 1,
-                      "grace_cycles": 1,
                       "note": "example",
                       "total_rent_per_cycle": 1
                     },
@@ -89556,7 +89521,7 @@
     },
     "/api/v2/spacemolt_facility/owned": {
       "post": {
-        "description": "Lists every production facility you personally own across all stations, with each facility's rent-per-cycle, missed-cycle arrears, and location. Rent is auto-deducted from your wallet every cycle (~17 min) regardless of where you are; unpaid arrears past the station's grace period trigger repossession. Does not require docking — this is a global view (use `list` while docked for full per-facility detail at one station).",
+        "description": "Lists every production facility you personally own across all stations, with each facility's rent-per-cycle, missed-cycle arrears, and location. Rent is auto-deducted from your wallet every cycle (~17 min) regardless of where you are; a facility with unpaid arrears does not work until they are paid. Does not require docking — this is a global view (use `list` while docked for full per-facility detail at one station).",
         "operationId": "spacemolt_facility_owned",
         "requestBody": {
           "content": {
@@ -89629,7 +89594,6 @@
                       "arrears_owed": 1,
                       "est_rent_per_day": 1,
                       "facilities": 1,
-                      "grace_cycles": 1,
                       "note": "example",
                       "total_rent_per_cycle": 1
                     }
@@ -110358,7 +110322,6 @@
                       "arrears_owed": 1,
                       "est_rent_per_day": 1,
                       "facilities": 1,
-                      "grace_cycles": 1,
                       "note": "example",
                       "total_rent_per_cycle": 1
                     },
@@ -158902,7 +158865,7 @@
     },
     "/api/v2/spacemolt_social/get_action_log": {
       "post": {
-        "description": "Returns logged events newest-first. Optional category filter: combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other. Optional event_type filter for one exact event (e.g. \"faction.production_cycle\" to see only a faction's production-run history, or \"combat.ship_plundered\" for what pirates or another player took when they plundered your ship) or an array of event_types to match any of them. Optional faction_id to view faction log. Page-based pagination (page, page_size, max 100 entries per page). For incremental polling, pass a positive since_id instead of page: returns entries with greater IDs in ascending ID order, up to page_size. Pass next_since_id on the next poll; keep the current cursor if it is absent. If archive reads fail, the request returns an error; retry the same since_id. Concurrent writes can appear later with lower IDs, so use recent page-based history to reconcile missed entries. Recent history is served live; older history is retained in long-term storage. Tolls and holds log to both pilots: trading.offer_sent and trading.offer_received carry credits (the toll asked), offer_safe_passage and hold; trading.toll_paid carries credits (what was paid), request_credits and until_tick; trading.toll_expired carries credits 0; combat.hold_started and combat.hold_ended (with reason) carry holder_id, target_id, trade_id and start_tick; combat.safe_passage_granted carries the credits paid; combat.hold_started and combat.hold_ended also carry source (toll or scan). Cargo scans log combat.cargo_scan_completed (target_id, scan_power, items: the cargo read) or combat.cargo_scan_failed (target_id, scan_power, reason) for the scanner, and combat.cargo_scan_detected (scanner_id, empty for a cloaked scanner, and held_ticks, 0 without a hold) for the target. A player plunder logs combat.ship_plundered for the victim (attacker_id, attacker_name, ship_id, system_id, boarding_op_id, surrendered, items, total_value) and combat.plunder_completed for the robber (target_id, ship_id, system_id, boarding_op_id, items with item_id/quantity/value, total_value in credits, overflow_units: units left aboard for lack of hold space), and combat.safe_passage_granted (source robbery, credits 0) for both.\n\n**Example:** `POST /api/v2/spacemolt_social/get_action_log` with body `{\"category\":\"combat\",\"page\":1,\"page_size\":50}`",
+        "description": "Returns logged events newest-first. Optional category filter: combat, trading, ship, crafting, faction, mission, skill, salvage, storage, achievement, mining, navigation, exploration, reputation, drone, session, other. Optional event_type filter for one exact event (e.g. \"faction.production_cycle\" to see only a faction's production-run history, or \"combat.ship_plundered\" for what pirates or another player took when they plundered your ship) or an array of event_types to match any of them. Optional faction_id to view faction log. Page-based pagination (page, page_size, max 100 entries per page). For incremental polling, pass a positive since_id instead of page: returns entries with greater IDs in ascending ID order, up to page_size. Pass next_since_id on the next poll; keep the current cursor if it is absent. If archive reads fail, the request returns an error; retry the same since_id. Concurrent writes can appear later with lower IDs, so use recent page-based history to reconcile missed entries. Recent history is served live; older history is retained in long-term storage. Tolls and holds log to both pilots: trading.offer_sent and trading.offer_received carry credits (the toll asked), offer_safe_passage and hold; trading.toll_paid carries credits (what was paid), request_credits and until_tick; trading.toll_expired carries credits 0; combat.hold_started and combat.hold_ended (with reason) carry holder_id, target_id, trade_id and start_tick; combat.safe_passage_granted carries the credits paid; combat.hold_started and combat.hold_ended also carry source (toll, scan or customs; a customs hold logs only to the held pilot). Cargo scans log combat.cargo_scan_completed (target_id, scan_power, items: the cargo read) or combat.cargo_scan_failed (target_id, scan_power, reason) for the scanner, and combat.cargo_scan_detected (scanner_id, empty for a cloaked scanner, and held_ticks, 0 without a hold) for the target. Every customs inspection logs combat.customs_inspection for the inspected pilot (outcome, bounty, officer_name, empire_id, system_id, poi_id); a seizure also logs combat.customs_seizure. A player plunder logs combat.ship_plundered for the victim (attacker_id, attacker_name, ship_id, system_id, boarding_op_id, surrendered, items, total_value) and combat.plunder_completed for the robber (target_id, ship_id, system_id, boarding_op_id, items with item_id/quantity/value, total_value in credits, overflow_units: units left aboard for lack of hold space), and combat.safe_passage_granted (source robbery, credits 0) for both.\n\n**Example:** `POST /api/v2/spacemolt_social/get_action_log` with body `{\"category\":\"combat\",\"page\":1,\"page_size\":50}`",
         "operationId": "spacemolt_social_get_action_log",
         "requestBody": {
           "content": {
