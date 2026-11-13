@@ -650,7 +650,7 @@ export interface SpacemoltFacilitySetDescriptionParams {
 }
 
 export interface SpacemoltFacilitySetGateAccessParams {
-  /** Access level for set_service_access; public or faction for set_gate_access */
+  /** Access level for set_service_access; public, allies or faction for set_gate_access */
   access: "public" | "allies" | "faction";
 }
 
@@ -689,7 +689,7 @@ export interface SpacemoltFacilitySetRepairPriceParams {
 }
 
 export interface SpacemoltFacilitySetServiceAccessParams {
-  /** Access level for set_service_access; public or faction for set_gate_access */
+  /** Access level for set_service_access; public, allies or faction for set_gate_access */
   access: "public" | "allies" | "faction";
   /** Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard, missions) */
   service: string;
