@@ -131,3 +131,12 @@ test('bump is the max across commits', () => {
   const msgs = ['docs: x', 'fix: y', 'feat: z'];
   expect(classifyCommits(msgs).level).toBe('minor');
 });
+
+test('a response schema change with an unchanged command surface is a patch', () => {
+  const oldS = spec([{ tool: 'spacemolt', action: 'jump' }]);
+  const newS = structuredClone(oldS);
+  newS.components.schemas.Ship = { type: 'object', properties: { module_cpu: { type: 'integer' } } };
+  const { level, reasons } = classifyCatalog(oldS, newS);
+  expect(level).toBe('patch');
+  expect(reasons).toEqual(['patch: response or payload schemas changed']);
+});

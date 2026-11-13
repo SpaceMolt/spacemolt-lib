@@ -13,6 +13,7 @@
  *    the last release tag against the current spec. This is fully deterministic
  *    (the surface is structured data we own) and is what classifies the
  *    automated spec syncs that land without human review.
+ *    A schema change with no surface change (a new response field) is a patch.
  *  - **commit signal** — conventional commits since the last tag, for changes to
  *    the hand-written layer the spec can't see (feat! / BREAKING CHANGE → major,
  *    feat → minor, fix / perf → patch).
@@ -99,6 +100,13 @@ export function classifyCatalog(oldSpec: Spec, newSpec: Spec): Classification {
   const strip = (nm: string) => nm.slice('Notification_'.length);
   for (const nm of oldN) if (!newN.has(nm)) bump('major', `notification type removed: ${strip(nm)}`);
   for (const nm of newN) if (!oldN.has(nm)) bump('minor', `notification type added: ${strip(nm)}`);
+
+  // The generated types ship every schema, so a change the checks above cannot
+  // see (a new response field) still needs a release to reach consumers.
+  // ponytail: flat patch for any schema change; diff response fields if a
+  // removed field must count as major.
+  const schemas = (s: Spec) => JSON.stringify(s.components?.schemas ?? {});
+  if (level === 'none' && schemas(oldSpec) !== schemas(newSpec)) bump('patch', 'response or payload schemas changed');
 
   return { level, reasons };
 }
