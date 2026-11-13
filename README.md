@@ -220,8 +220,9 @@ handshake, on by default) is a fallback underneath the batching, in case
 something unexpected still trips the cap (e.g. other traffic sharing the IP).
 This is the path to reach for.
 
-Reconnect is close-code-aware: a `session_replaced` (someone else logged in as
-that player) or a deliberate `close()` is terminal; transient drops reconnect
+Reconnect is close-code-aware: a `session_replaced` (the player opened one
+connection more than the 4 the server allows per account, and this was the
+oldest) or a deliberate `close()` is terminal; transient drops reconnect
 with backoff and restore subscriptions.
 
 ### Getting a Clerk API key
