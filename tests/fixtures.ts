@@ -67,6 +67,8 @@ export function ship(overrides: Partial<V2Ship> = {}): V2Ship {
     cpu_capacity: 100,
     power_used: 0,
     power_capacity: 100,
+    module_cpu: 0,
+    module_power: 0,
     weapon_slots: 1,
     defense_slots: 1,
     utility_slots: 1,

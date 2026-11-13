@@ -1008,6 +1008,10 @@ export type Base = {
      */
     gate?: {
         /**
+         * True when only the owning faction and its allies may cross; omitted otherwise
+         */
+        allies_only?: boolean;
+        /**
          * True when only the owning faction may cross; omitted when public
          */
         faction_only?: boolean;
@@ -4069,6 +4073,10 @@ export type FacilityEntry = {
      */
     service?: string;
     /**
+     * Game ticks left until construction finishes. Present only on player_facilities and faction_facilities entries while under_construction is true; omitted otherwise.
+     */
+    ticks_until_complete?: number;
+    /**
      * True for a dining or leisure venue whose upkeep stock and labor scale with recent paying guests instead of a fixed bill; see maintenance_per_cycle and labor_per_cycle. Omitted means false.
      */
     tourism_upkeep?: boolean;
@@ -5194,6 +5202,10 @@ export type FactionOwnedFacilityEntry = {
     rental_fee_per_run?: number;
     repair_complete_tick?: number;
     system_id?: string;
+    /**
+     * Game ticks left until construction finishes. Present only while under_construction is true; omitted otherwise.
+     */
+    ticks_until_complete?: number;
     type: string;
     under_construction?: boolean;
 };
@@ -6354,6 +6366,10 @@ export type GaragedShipEntry = {
 };
 
 export type GateStatus = {
+    /**
+     * True when only the owning faction and its allies may cross. Omitted otherwise.
+     */
+    allies_only?: boolean;
     /**
      * True when this end is built.
      */
@@ -8779,7 +8795,7 @@ export type NotificationActionError = {
 };
 
 /**
- * A state update from the server. Two producers send it. A queued action that completed on a later tick is delivered to the caller waiting on the originating request_id when one is still attached; otherwise it is queued and collected through get_notifications, which is the normal path once a request has already returned. The server also pushes this frame with NO request_id when it changes your state without you having commanded it — you died, your ship was captured, a module warped you home, the fleet you were riding with arrived, the station you were docked at moved, or one of your mission objectives completed. Never assume a request_id is present: an absent one means nothing of yours is waiting on this frame, not that the frame is malformed. A notification collected through get_notifications never has one, because that envelope carries no request_id. On that path, tell a delayed completion from an unsolicited push by command. A registered command name (mine, dock, buy) is a completion. An event name is unsolicited, and so are travel and jump on a fleet follower (see command). A death or a capture arrives as two notifications. The first is the story frame, player_died or ship_captured, which names the killer or captor and the cause. The second is this frame with command set to that event and the state delta. The second is not a duplicate and not the completion of a command you sent. Apply the delta. Read the story frame for the cause. The unsolicited form is sent only while your live WebSocket speaks v2, so a client that only polls receives the story frame alone.
+ * A state update from the server. Two producers send it. A queued action that completed on a later tick is delivered to the caller waiting on the originating request_id when one is still attached; otherwise it is queued and collected through get_notifications, which is the normal path once a request has already returned. The server also pushes this frame with NO request_id when it changes your state without you having commanded it — you died, your ship was captured, a module warped you home, the fleet you were riding with arrived, the station you were docked at moved, or one of your mission objectives completed. Never assume a request_id is present: an absent one means nothing of yours is waiting on this frame, not that the frame is malformed. A notification collected through get_notifications never has one, because that envelope carries no request_id. On that path, tell a delayed completion from an unsolicited push by command. A registered command name (mine, dock, buy) is a completion. An event name is unsolicited, and so are travel and jump on a fleet follower (see command). Over WebSocket, a registered command name with no request_id is an action that another connection of your account sent. A death or a capture arrives as two notifications. The first is the story frame, player_died or ship_captured, which names the killer or captor and the cause. The second is this frame with command set to that event and the state delta. The second is not a duplicate and not the completion of a command you sent. Apply the delta. Read the story frame for the cause. The unsolicited form is sent only while every live WebSocket of your account speaks v2, so a client that only polls receives the story frame alone.
  */
 export type NotificationActionResult = {
     /**
@@ -10314,6 +10330,10 @@ export type OwnedFacilityEntry = {
     rental_fee_per_run?: number;
     repair_complete_tick?: number;
     system_id?: string;
+    /**
+     * Game ticks left until construction finishes. Present only while under_construction is true; omitted otherwise.
+     */
+    ticks_until_complete?: number;
     type: string;
     under_construction?: boolean;
 };
@@ -15670,6 +15690,14 @@ export type V2Ship = {
      * Fit crew required for full operational efficiency
      */
     minimum_crew: number;
+    /**
+     * CPU the fitted modules draw before the engineering efficiency bonus
+     */
+    module_cpu: number;
+    /**
+     * Power the fitted modules draw before the engineering efficiency bonus
+     */
+    module_power: number;
     /**
      * Display name of the ship (custom name if set, otherwise the class name)
      */
@@ -22272,7 +22300,7 @@ export type SpacemoltFacilitySetDescriptionResponse = SpacemoltFacilitySetDescri
 export type SpacemoltFacilitySetGateAccessData = {
     body?: {
         /**
-         * Access level for set_service_access; public or faction for set_gate_access
+         * Access level for set_service_access; public, allies or faction for set_gate_access
          */
         access: 'public' | 'allies' | 'faction';
     };
@@ -22560,7 +22588,7 @@ export type SpacemoltFacilitySetRepairPriceResponse = SpacemoltFacilitySetRepair
 export type SpacemoltFacilitySetServiceAccessData = {
     body?: {
         /**
-         * Access level for set_service_access; public or faction for set_gate_access
+         * Access level for set_service_access; public, allies or faction for set_gate_access
          */
         access: 'public' | 'allies' | 'faction';
         /**
