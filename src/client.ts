@@ -17,19 +17,38 @@ import {
 } from './auth/credentials.ts';
 import type { WebSocketFactory } from './transport/socket.ts';
 import type { InboundFrame, RawFrame } from './protocol.ts';
-import type { ReconnectOptions, RegisterParams, RegisterResult } from './account.ts';
+import type { AccountOptions, ReconnectOptions, RegisterParams, RegisterResult } from './account.ts';
 import { CatalogCache } from './data/catalog.ts';
 import type { FetchOptions } from './data/http.ts';
-import { notifyListeners } from './events/emitter.ts';
+import { callHook, notifyListeners } from './events/emitter.ts';
 import { MapCache, httpBaseFromWs } from './data/map.ts';
 import { fetchMobileBase, type MobileBaseLocation } from './data/mobile-base.ts';
 import { fetchStations, type StationList } from './data/stations.ts';
 import { ClerkSource, type ClerkPlayer } from './auth/clerk.ts';
-import { CLOSE_CODE, type ConnectionClosedError, retryAfterMsFromClose } from './errors.ts';
+import { ConnectionClosedError, isTerminalClose, retryAfterMsFromClose } from './errors.ts';
 
 const DEFAULT_HTTP_BASE = 'https://game.spacemolt.com';
 
-export interface SpacemoltClientOptions {
+/** Progress of one connection candidate, reported to `onConnectionStage`. */
+export type ConnectionStage = 'connection_open' | 'authentication' | 'authenticated';
+
+/**
+ * `scheduleOpen`, `scheduleSend`, `serializeMutations` and `maxRateLimitRetries`
+ * are forwarded to every managed account; see `AccountOptions`.
+ */
+export interface SpacemoltClientOptions
+  extends Pick<AccountOptions, 'scheduleOpen' | 'scheduleSend' | 'serializeMutations' | 'maxRateLimitRetries'> {
+  /**
+   * Host scheduling around each connection attempt: initial connects, every
+   * connect retry, registrations and reconnects after a drop. When set, it
+   * replaces the SDK start pacing (`connectStaggerMs`/`connectBatchSize`/
+   * `connectBatchWaitMs`). Honor `signal` and await `attempt()`.
+   */
+  scheduleConnection?: <T>(id: string, attempt: () => Promise<T>, signal?: AbortSignal) => Promise<T>;
+  /** Observe each account before any connect/auth/seed work, including failed candidates. */
+  onAccountCreated?: (account: Account) => void;
+  /** Observe connection progress; exceptions from this observer are isolated. */
+  onConnectionStage?: (account: Account, stage: ConnectionStage, error?: unknown) => void;
   /** WebSocket URL of the v2 endpoint. */
   url?: string;
   /** Where credentials live. Defaults to an in-memory store. */
@@ -53,20 +72,19 @@ export interface SpacemoltClientOptions {
    */
   connectStaggerMs?: number;
   /**
-   * Max accounts to connect before pausing for `connectBatchWaitMs`, so a
-   * fleet never actually trips the server's per-IP WS-connection rate limit
+   * Max connection starts in any `connectBatchWaitMs` window, so a fleet
+   * never actually trips the server's per-IP WS-connection rate limit
    * (hitting it risks an IP-level timeout/ban on repeat offense — better to
-   * never ask). Matches the server's default connection cap (100/min), so a
-   * fleet at or under this size behaves exactly like a single stagger pass,
-   * same as before; a larger fleet connects in batches of this size instead.
-   * Default 100.
+   * never ask). Matches the server's default connection cap (100/min). Every
+   * socket open the SDK paces counts: bulk connects, their retries and
+   * reconnects after a drop. Default 100. Set `0` to turn batching off.
    */
   connectBatchSize?: number;
   /**
-   * Pause between batches once `connectBatchSize` is exceeded, letting the
-   * server's per-IP rate-limit window (1 minute by default) fully roll over
-   * before the next batch starts. Default 65000 (65s — a margin over the
-   * server's 1-minute window).
+   * Length of the sliding window that `connectBatchSize` counts starts in.
+   * Default 65000 (65s — a margin over the server's 1-minute window). The
+   * count is shared by every bulk call, retry and reconnect on this client.
+   * A slow authentication does not hold a start slot.
    */
   connectBatchWaitMs?: number;
   /**
@@ -174,11 +192,35 @@ const DEFAULT_CONNECT_RETRY: Required<ReconnectOptions> = { maxRetries: 8, baseD
 /** Assumed length of the server's per-IP WS-connection rate-limit window. */
 const CONNECT_RATE_WINDOW_MS = 60_000;
 
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 
 export class SpacemoltClient {
   private readonly store: CredentialStore;
   private readonly connected = new Map<string, Account>();
+  /** The pending connect or register for each id, and the controller that cancels it. */
+  private readonly pending = new Map<string, { task: Promise<Account>; controller: AbortController }>();
+  /** Reconnect chains in flight, keyed by the exact `Account` they restore. */
+  private readonly reconnects = new Map<Account, AbortController>();
+  /** Times of the starts inside the current `connectBatchWaitMs` window, oldest first. */
+  private readonly recentStarts: number[] = [];
+  private nextConnectStartAt = 0;
+  /** The latest client-initiated credential write per id; see `persist`. */
+  private readonly storeWrites = new Map<string, Promise<void>>();
   private catalogCache?: CatalogCache;
   private catalogFetchedAt = 0;
   private mapCache?: MapCache;
@@ -186,18 +228,9 @@ export class SpacemoltClient {
   private readonly accountConnectedListeners = new Set<(account: Account) => void>();
   private readonly accountReconnectedListeners = new Set<(account: Account) => void>();
   private readonly accountDisconnectedListeners = new Set<(id: string, err: ConnectionClosedError) => void>();
-  /** Paced by connectBatchSize/connectStaggerMs/connectBatchWaitMs — the same limiter drains both the initial fleet connect and later reconnects, see `enqueueRateLimited`. */
-  private readonly rateLimitedQueue: Array<() => Promise<void>> = [];
-  private rateLimitedQueueDraining = false;
-  /**
-   * Ids currently mid-reconnect. Guards against a socket dropping again
-   * *during* `reconnectAccountInPlace` (e.g. another rate-limit close before
-   * auth completes) re-firing `handleAccountDisconnected` and enqueuing a
-   * second, parallel reconnect chain for the same id — the drop instead
-   * surfaces as a failure inside the one already-running `withConnectRetry`
-   * loop, which retries it itself.
-   */
-  private readonly reconnectingIds = new Set<string>();
+  /** Attempts waiting for a start slot; see `startSlot`. */
+  private readonly startQueue: Array<{ start: () => void; signal?: AbortSignal }> = [];
+  private startQueueDraining = false;
 
   constructor(private readonly opts: SpacemoltClientOptions = {}) {
     this.store = opts.store ?? new MemoryCredentialStore();
@@ -326,24 +359,43 @@ export class SpacemoltClient {
   /**
    * Register a brand-new account: connect, register, and persist the generated
    * password as login credentials (keyed by username) for future sessions.
+   * Rejects if the username already has a pending or live connection.
    */
   async register(params: RegisterParams): Promise<{ account: Account; result: RegisterResult }> {
-    const account = this.createAccount(params.username);
-    this.connected.set(params.username, account);
+    const id = params.username;
+    if (this.pending.has(id) || this.connected.has(id))
+      throw new Error(`account "${id}" is already connecting or connected`);
+    return this.trackPending(
+      id,
+      (signal) => this.scheduleConnection(id, () => this.registerAccount(params, signal), signal),
+      ({ account }) => account,
+    );
+  }
+
+  private async registerAccount(
+    params: RegisterParams,
+    signal: AbortSignal,
+  ): Promise<{ account: Account; result: RegisterResult }> {
+    const id = params.username;
+    const account = this.createAccount(id);
+    this.connected.set(id, account);
     try {
       await account.connect();
       const result = await account.register(params);
-      await this.store.put({
-        id: params.username,
-        credentials: { kind: 'login', username: params.username, password: result.password },
+      // Persist before any cancellation check: the player now exists on the
+      // server, and its generated password is shown only once.
+      await this.persist({
+        id,
+        credentials: { kind: 'login', username: id, password: result.password },
         playerId: result.player_id,
       });
-      account.onDisconnected((err) => this.handleAccountDisconnected(params.username, account, err));
+      this.assertCandidate(id, account, signal);
+      account.onDisconnected((err) => this.handleAccountDisconnected(id, account, err));
       this.notifyAccountConnected(account);
       return { account, result };
     } catch (error) {
       account.close();
-      this.connected.delete(params.username);
+      if (this.connected.get(id) === account) this.connected.delete(id);
       throw error;
     }
   }
@@ -359,20 +411,29 @@ export class SpacemoltClient {
    * Retry `attempt` with the shared `connectRetry` backoff, honoring a 4003
    * `connection_rate_limited` close's `retry_after` hint over the
    * exponential fallback. Shared by the initial connect (`connect`) and an
-   * in-place reconnect (`reconnectAccountInPlace`) so both back off
-   * identically.
+   * in-place reconnect (`handleAccountDisconnected`) so both back off
+   * identically. With `paced`, every attempt — retries included — waits for
+   * its own start slot, so retries stay inside the per-IP budget. A
+   * session_replaced or auth_timeout close is terminal and not retried.
    */
-  private async withConnectRetry<T>(attempt: () => Promise<T>): Promise<T> {
+  private async withConnectRetry<T>(
+    attempt: () => Promise<T>,
+    { signal, paced = false }: { signal?: AbortSignal; paced?: boolean } = {},
+  ): Promise<T> {
     const retry = this.connectRetryConfig();
     let lastErr: unknown;
     for (let i = 0; i <= retry.maxRetries; i++) {
+      if (paced) await this.startSlot(signal);
+      else signal?.throwIfAborted();
       try {
         return await attempt();
       } catch (err) {
+        signal?.throwIfAborted();
+        if (isTerminalClose(err)) throw err;
         lastErr = err;
         if (i < retry.maxRetries) {
           const retryAfterMs = retryAfterMsFromClose(err);
-          await delay(retryAfterMs ?? Math.min(retry.baseDelayMs * 2 ** i, retry.maxDelayMs));
+          await delay(retryAfterMs ?? Math.min(retry.baseDelayMs * 2 ** i, retry.maxDelayMs), signal);
         }
       }
     }
@@ -380,7 +441,8 @@ export class SpacemoltClient {
   }
 
   /**
-   * Connect and authenticate one stored account. Idempotent per id.
+   * Connect and authenticate one stored account. Idempotent per id:
+   * concurrent calls share one attempt.
    *
    * Retries the whole connect+authenticate sequence with backoff on failure
    * (see `connectRetry`) — a fleet large enough to exceed the per-IP
@@ -388,42 +450,137 @@ export class SpacemoltClient {
    * which self-heals once the server's rate-limit window rolls over.
    */
   async connect(id: string): Promise<Account> {
+    return this.connectTracked(id, false);
+  }
+
+  private connectTracked(id: string, paced: boolean): Promise<Account> {
+    return (
+      this.pending.get(id)?.task ??
+      this.trackPending(
+        id,
+        (signal) => this.connectAccount(id, signal, paced),
+        (account) => account,
+      )
+    );
+  }
+
+  /** Register one connect/register for `id` so `cancelConnection`/`closeAll` can stop it. */
+  private async trackPending<T>(
+    id: string,
+    run: (signal: AbortSignal) => Promise<T>,
+    toAccount: (value: T) => Account,
+  ): Promise<T> {
+    const controller = new AbortController();
+    const result = run(controller.signal);
+    const task = result.then(toAccount);
+    void task.catch(() => {});
+    this.pending.set(id, { task, controller });
+    try {
+      return await result;
+    } finally {
+      if (this.pending.get(id)?.task === task) this.pending.delete(id);
+    }
+  }
+
+  private async connectAccount(id: string, signal: AbortSignal, paced: boolean): Promise<Account> {
     const existing = this.connected.get(id);
     if (existing) return existing;
     const stored = await this.store.get(id);
     if (!stored) throw new Error(`no stored credentials for account "${id}"`);
+    return this.withConnectRetry(
+      () => this.scheduleConnection(id, () => this.connectCandidate(id, stored, signal), signal),
+      { signal, paced },
+    );
+  }
 
-    return this.withConnectRetry(async () => {
-      const account = this.createAccount(id);
-      this.connected.set(id, account);
-      try {
-        await account.connect();
-        await account.authenticate(stored.credentials);
-        await this.capturePlayerId(stored);
-        // Only start listening for a later drop once the account has
-        // actually completed its first successful connect — a close
-        // *during* this attempt is `connectRetry`'s job (the catch block
-        // below), not a reconnect-after-established-connection event; wiring
-        // this any earlier raced this same attempt's own retry loop with a
-        // second, uncoordinated one triggered by the very close that just
-        // failed it.
-        account.onDisconnected((err) => this.handleAccountDisconnected(id, account, err));
-        this.notifyAccountConnected(account);
-        return account;
-      } catch (err) {
-        this.connected.delete(id);
-        account.close();
-        throw err;
-      }
+  /** One connect+authenticate attempt with a fresh `Account`. */
+  private async connectCandidate(id: string, stored: StoredAccount, signal: AbortSignal): Promise<Account> {
+    const account = this.createAccount(id);
+    this.connected.set(id, account);
+    // A close that does not reject an await (for example one that lands
+    // during credential persistence) still decides whether to retry.
+    let closed: ConnectionClosedError | undefined;
+    const stopWatchingClose = account.onDisconnected((err) => {
+      closed = err;
     });
+    let stage: ConnectionStage = 'connection_open';
+    try {
+      this.connectionStage(account, stage);
+      await account.connect();
+      stage = 'authentication';
+      this.connectionStage(account, stage);
+      await account.authenticate(stored.credentials);
+      this.assertCandidate(id, account, signal, closed);
+      stage = 'authenticated';
+      this.connectionStage(account, stage);
+      await this.capturePlayerId(stored);
+      // Credential persistence may yield while the host cancels or
+      // replaces this candidate. Do not publish it after that await.
+      this.assertCandidate(id, account, signal, closed);
+      stopWatchingClose();
+      // Only start listening for a later drop once the account has
+      // actually completed its first successful connect — a close
+      // *during* this attempt is `connectRetry`'s job (the catch block
+      // below), not a reconnect-after-established-connection event; wiring
+      // this any earlier raced this same attempt's own retry loop with a
+      // second, uncoordinated one triggered by the very close that just
+      // failed it.
+      account.onDisconnected((err) => this.handleAccountDisconnected(id, account, err));
+      this.notifyAccountConnected(account);
+      return account;
+    } catch (err) {
+      stopWatchingClose();
+      this.connectionStage(account, stage, err);
+      if (this.connected.get(id) === account) this.connected.delete(id);
+      account.close();
+      throw err;
+    }
+  }
+
+  /** Throws unless `account` is still the live, wanted candidate for `id`. */
+  private assertCandidate(id: string, account: Account, signal: AbortSignal, closed?: ConnectionClosedError): void {
+    signal.throwIfAborted();
+    if (this.connected.get(id) !== account || !account.authenticated)
+      throw closed ?? new ConnectionClosedError('connection candidate cancelled');
+  }
+
+  private connectionStage(account: Account, stage: ConnectionStage, error?: unknown): void {
+    callHook(this.opts.onConnectionStage, 'onConnectionStage', account, stage, error);
+  }
+
+  /**
+   * Run `attempt` through the host scheduler, if any. Rejects as soon as
+   * `signal` aborts, so a cancelled caller never waits on the host queue;
+   * `attempt` itself refuses to start after that.
+   */
+  private async scheduleConnection<T>(id: string, attempt: () => Promise<T>, signal: AbortSignal): Promise<T> {
+    signal.throwIfAborted();
+    const run = () => {
+      signal.throwIfAborted();
+      return attempt();
+    };
+    const operation = this.opts.scheduleConnection ? this.opts.scheduleConnection(id, run, signal) : run();
+    let abort = () => {};
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+    });
+    try {
+      return await Promise.race([operation, cancelled]);
+    } finally {
+      signal.removeEventListener('abort', abort);
+    }
   }
 
   /** Connect every stored account, staggered to respect rate limits. */
-  async connectAll(opts: { onConnect?: (account: Account) => void } = {}): Promise<Account[]> {
+  async connectAll(
+    opts: { onConnect?: (account: Account) => void; onError?: (id: string, error: unknown) => void } = {},
+  ): Promise<Account[]> {
     const stored = await this.store.list();
     return this.connectIds(
       stored.map((s) => s.id),
       opts.onConnect,
+      opts.onError,
     );
   }
 
@@ -447,7 +604,11 @@ export class SpacemoltClient {
    * has been attempted).
    */
   async connectOwned(
-    opts: { filter?: (player: ClerkPlayer) => boolean; onConnect?: (account: Account) => void } = {},
+    opts: {
+      filter?: (player: ClerkPlayer) => boolean;
+      onConnect?: (account: Account) => void;
+      onError?: (id: string, error: unknown) => void;
+    } = {},
   ): Promise<Account[]> {
     const { source, apiKey } = this.requireClerkAuth();
     const players = await source.listPlayers();
@@ -466,7 +627,7 @@ export class SpacemoltClient {
       });
       ids.push(player.username);
     }
-    return this.connectIds(ids, opts.onConnect);
+    return this.connectIds(ids, opts.onConnect, opts.onError);
   }
 
   private requireClerkAuth(): { source: ClerkSource; apiKey: string } {
@@ -483,35 +644,35 @@ export class SpacemoltClient {
   }
 
   /**
-   * Connect the given stored ids, staggered to respect rate limits. At or
-   * under `connectBatchSize` accounts this is a single stagger pass — the
-   * same behavior as before batching existed. Past that, it pauses for
-   * `connectBatchWaitMs` between batches so the fleet never actually asks
-   * for more connections than the server's per-IP window allows. A single
-   * account failing to connect must not abort the rest of the batch — it's
-   * logged and skipped so the caller still gets every account that succeeded.
+   * Connect the given stored ids. Without `scheduleConnection`, every
+   * attempt (retries included) waits for a start slot under
+   * `connectStaggerMs`/`connectBatchSize`/`connectBatchWaitMs`; with it, the
+   * host schedules the attempts instead. A single account failing to
+   * connect must not abort the rest of the batch — it's logged, reported to
+   * `onError` and skipped, so the caller still gets every account that
+   * succeeded.
    *
    * `onConnect` fires synchronously as each id finishes (success only) so a
    * caller managing many accounts (e.g. indexing them for lookup) doesn't
    * have to wait for the entire — potentially minutes-long — batch before
    * any single account becomes usable.
-   *
-   * Pacing itself is `enqueueRateLimited` — the same queue a later
-   * reconnect (see `handleAccountDisconnected`) competes for a slot in, so a
-   * reconnect landing mid-batch is paced fairly alongside the rest of the
-   * fleet instead of racing it on a separate timer.
    */
-  private async connectIds(ids: string[], onConnect?: (account: Account) => void): Promise<Account[]> {
+  private async connectIds(
+    ids: string[],
+    onConnect?: (account: Account) => void,
+    onError?: (id: string, error: unknown) => void,
+  ): Promise<Account[]> {
     const accounts: Account[] = [];
     await Promise.all(
       ids.map((id) =>
-        this.enqueueRateLimited(() => this.connect(id))
+        this.connectTracked(id, !this.opts.scheduleConnection)
           .then((account) => {
             accounts.push(account);
             onConnect?.(account);
           })
           .catch((err: unknown) => {
             console.warn(`[spacemolt] failed to connect "${id}": ${err}`);
+            callHook(onError, 'onError', id, err);
           }),
       ),
     );
@@ -519,29 +680,34 @@ export class SpacemoltClient {
   }
 
   /**
-   * Enqueues `task`, paced by `connectBatchSize`/`connectStaggerMs`/
-   * `connectBatchWaitMs` — the single rate limiter shared by the initial
-   * fleet connect (`connectIds`) and every later reconnect
+   * Wait for one connection start slot. The single rate limiter shared by
+   * bulk connects (`connectIds`), their retries and every later reconnect
    * (`handleAccountDisconnected`), so the server's per-IP WS-connection cap
-   * is respected by one mechanism, not a parallel one for each case. Returns
-   * a promise settling with `task`'s own outcome once its turn comes up.
+   * is respected by one mechanism. Rejects with the signal's reason if it
+   * aborts first; an aborted waiter takes no slot.
    */
-  private enqueueRateLimited<T>(task: () => Promise<T>): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      this.rateLimitedQueue.push(async () => {
-        try {
-          resolve(await task());
-        } catch (err) {
-          reject(err);
-        }
+  private startSlot(signal?: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const abort = () => reject(signal?.reason);
+      if (signal?.aborted) {
+        abort();
+        return;
+      }
+      signal?.addEventListener('abort', abort, { once: true });
+      this.startQueue.push({
+        signal,
+        start: () => {
+          signal?.removeEventListener('abort', abort);
+          resolve();
+        },
       });
-      void this.drainRateLimitedQueue();
+      void this.drainStartQueue();
     });
   }
 
-  private async drainRateLimitedQueue(): Promise<void> {
-    if (this.rateLimitedQueueDraining) return;
-    this.rateLimitedQueueDraining = true;
+  private async drainStartQueue(): Promise<void> {
+    if (this.startQueueDraining) return;
+    this.startQueueDraining = true;
     // Default stagger is derived from batchSize so a full batch can never
     // finish in under a minute regardless of how fast each connect() call
     // actually completes. A flat 250ms alone doesn't guarantee this: 100
@@ -554,25 +720,30 @@ export class SpacemoltClient {
     // protection entirely.
     const batchSize = this.opts.connectBatchSize ?? 100;
     const stagger = this.opts.connectStaggerMs ?? (batchSize > 0 ? Math.ceil(CONNECT_RATE_WINDOW_MS / batchSize) : 250);
-    const batchWaitMs = this.opts.connectBatchWaitMs ?? 65_000;
-    let ranInCurrentBatch = 0;
-    let isFirst = true;
-    while (this.rateLimitedQueue.length > 0) {
-      if (!isFirst) {
-        if (batchSize > 0 && ranInCurrentBatch >= batchSize) {
-          await delay(batchWaitMs);
-          ranInCurrentBatch = 0;
-        } else if (stagger > 0) {
-          await delay(stagger);
-        }
-      }
-      isFirst = false;
-      const task = this.rateLimitedQueue.shift();
-      if (!task) break;
-      ranInCurrentBatch++;
-      await task();
+    const windowMs = this.opts.connectBatchWaitMs ?? 65_000;
+    for (let next = this.startQueue.shift(); next; next = this.startQueue.shift()) {
+      if (next.signal?.aborted) continue;
+      await this.waitForStartBudget(batchSize, windowMs);
+      if (next.signal?.aborted) continue;
+      const now = Date.now();
+      this.nextConnectStartAt = now + stagger;
+      if (batchSize > 0) this.recentStarts.push(now);
+      next.start();
     }
-    this.rateLimitedQueueDraining = false;
+    this.startQueueDraining = false;
+  }
+
+  /** Wait until the stagger has passed and the sliding window has room for one more start. */
+  private async waitForStartBudget(batchSize: number, windowMs: number): Promise<void> {
+    for (;;) {
+      const now = Date.now();
+      while ((this.recentStarts[0] ?? now) <= now - windowMs) this.recentStarts.shift();
+      const oldest = this.recentStarts[0] ?? now;
+      const windowWait = batchSize > 0 && this.recentStarts.length >= batchSize ? oldest + windowMs - now : 0;
+      const wait = Math.max(this.nextConnectStartAt - now, windowWait);
+      if (wait <= 0) return;
+      await delay(wait);
+    }
   }
 
   // --- access ---
@@ -590,15 +761,47 @@ export class SpacemoltClient {
     return [...this.connected.keys()];
   }
 
+  /**
+   * Cancel the pending connect/register for `id` (queued, retrying or in
+   * flight) and close its current account. Returns once the cancelled call
+   * has settled; an abandoned attempt can no longer publish an account, but
+   * a credential write it already started can still finish. Keeps
+   * credentials. A later `connect(id)` can start a replacement.
+   */
+  async cancelConnection(id: string): Promise<void> {
+    const pending = this.pending.get(id);
+    pending?.controller.abort(new ConnectionClosedError('connection cancelled'));
+    this.pending.delete(id);
+    const account = this.connected.get(id);
+    if (account) this.releaseAccount(account);
+    await pending?.task.catch(() => {});
+  }
+
+  /** Close this exact account without deleting a newer connection or its stored credentials. */
+  releaseAccount(account: Account): void {
+    const { id } = account;
+    if (id !== undefined && this.connected.get(id) === account) {
+      this.pending.get(id)?.controller.abort(new ConnectionClosedError('account released'));
+      this.connected.delete(id);
+    }
+    this.reconnects.get(account)?.abort(new ConnectionClosedError('account released'));
+    account.close();
+  }
+
   /** Close and forget an account, and remove its stored credentials. */
   async remove(id: string): Promise<void> {
-    this.connected.get(id)?.close();
-    this.connected.delete(id);
+    await this.cancelConnection(id);
+    // An abandoned attempt's credential write must not land after the delete.
+    await this.storeWrites.get(id)?.catch(() => {});
     await this.store.remove(id);
   }
 
-  /** Close every connection (credentials remain in the store). */
+  /** Close every connection and cancel every pending connect and reconnect (credentials remain in the store). */
   closeAll(): void {
+    const err = new ConnectionClosedError('client closed');
+    for (const { controller } of this.pending.values()) controller.abort(err);
+    for (const controller of this.reconnects.values()) controller.abort(err);
+    this.pending.clear();
     for (const account of this.connected.values()) account.close();
     this.connected.clear();
   }
@@ -623,32 +826,38 @@ export class SpacemoltClient {
   private handleAccountDisconnected(id: string, account: Account, err: ConnectionClosedError): void {
     // A newer instance (the account was removed) has already superseded
     // this one, or a reconnect is already in flight for it — a socket
-    // dropping again *during* reconnectAccountInPlace (e.g. another
-    // rate-limit close before auth completes) re-fires this same listener
-    // on the same persistent instance; without this check it would enqueue
-    // a second, parallel reconnect chain instead of letting the one already
-    // running retry it.
-    if (this.connected.get(id) !== account || this.reconnectingIds.has(id)) {
+    // dropping again *during* reconnectOnce (e.g. another rate-limit close
+    // before auth completes) re-fires this same listener on the same
+    // persistent instance; without this check it would start a second,
+    // parallel reconnect chain instead of letting the one already running
+    // retry it. Keyed by instance, so a stale chain for a released account
+    // cannot block a newer account with the same id.
+    if (this.connected.get(id) !== account || this.reconnects.has(account)) {
       return;
     }
 
-    // session_replaced: another connection took our slot — reconnecting
-    // would just fight it. auth_timeout: we failed to auth in time. Neither
-    // is worth retrying (mirrors Account.shouldReconnect's old per-account
-    // logic, now made here instead since the client owns this decision).
-    const terminal = err.code === CLOSE_CODE.SESSION_REPLACED || err.code === CLOSE_CODE.AUTH_TIMEOUT;
-    if (terminal || this.opts.reconnect === false) {
+    if (isTerminalClose(err) || this.opts.reconnect === false) {
       this.connected.delete(id);
       this.notifyAccountDisconnected(id, err);
       return;
     }
 
-    this.reconnectingIds.add(id);
-    // remove()/closeAll() can drop the account while this waits in the queue
-    // or retries; from then on there is nothing to reconnect or report.
-    const wanted = (): boolean => this.connected.get(id) === account;
-    void this.enqueueRateLimited(() =>
-      this.withConnectRetry(async () => (wanted() ? account.reconnectOnce() : undefined)),
+    const controller = new AbortController();
+    this.reconnects.set(account, controller);
+    const { signal } = controller;
+    // remove()/releaseAccount()/closeAll() can drop the account while this
+    // waits or retries; from then on there is nothing to reconnect or report.
+    const wanted = (): boolean => !signal.aborted && this.connected.get(id) === account;
+    void this.withConnectRetry(
+      () =>
+        this.scheduleConnection(
+          id,
+          async () => {
+            if (wanted()) await account.reconnectOnce();
+          },
+          signal,
+        ),
+      { signal, paced: !this.opts.scheduleConnection },
     )
       .then(() => {
         if (wanted()) this.notifyAccountReconnected(account);
@@ -657,9 +866,14 @@ export class SpacemoltClient {
         if (!wanted()) return;
         console.warn(`[spacemolt] failed to reconnect "${id}": ${reconnectErr}`);
         this.connected.delete(id);
-        this.notifyAccountDisconnected(id, err);
+        this.notifyAccountDisconnected(
+          id,
+          reconnectErr instanceof ConnectionClosedError && isTerminalClose(reconnectErr) ? reconnectErr : err,
+        );
       })
-      .finally(() => this.reconnectingIds.delete(id));
+      .finally(() => {
+        if (this.reconnects.get(account) === controller) this.reconnects.delete(account);
+      });
   }
 
   private createAccount(id: string): Account {
@@ -670,6 +884,10 @@ export class SpacemoltClient {
       onSend: this.opts.onSend && ((f) => this.opts.onSend?.(id, f)),
       onReceive: this.opts.onReceive && ((f) => this.opts.onReceive?.(id, f)),
       seedState: this.opts.seedState,
+      serializeMutations: this.opts.serializeMutations,
+      scheduleOpen: this.opts.scheduleOpen,
+      scheduleSend: this.opts.scheduleSend,
+      maxRateLimitRetries: this.opts.maxRateLimitRetries,
       // The client owns reconnection for its managed accounts (see
       // handleAccountDisconnected) instead of each Account reconnecting
       // independently — always false here regardless of
@@ -687,14 +905,26 @@ export class SpacemoltClient {
         return stored.credentials;
       },
     });
+    callHook(this.opts.onAccountCreated, 'onAccountCreated', account);
     return account;
   }
 
   private async capturePlayerId(stored: StoredAccount): Promise<void> {
     const playerId = this.connected.get(stored.id)?.player?.id;
     if (playerId && playerId !== stored.playerId) {
-      await this.store.put({ ...stored, playerId });
+      await this.persist({ ...stored, playerId });
     }
+  }
+
+  /** `store.put`, tracked so `remove` can wait for a write still in flight. */
+  private persist(stored: StoredAccount): Promise<void> {
+    const write = this.store.put(stored);
+    this.storeWrites.set(stored.id, write);
+    const forget = () => {
+      if (this.storeWrites.get(stored.id) === write) this.storeWrites.delete(stored.id);
+    };
+    write.then(forget, forget);
+    return write;
   }
 }
 

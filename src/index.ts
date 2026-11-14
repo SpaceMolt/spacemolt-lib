@@ -14,13 +14,15 @@ export * from './protocol.ts';
 export {
   Account,
   type AccountOptions,
+  type TransportAdmissionRequest,
+  type SendAdmissionRequest,
   type ReconnectOptions,
   type RegisterParams,
   type RegisterResult,
   type LoggedInPayload,
   type RateLimitedInfo,
 } from './account.ts';
-export { SpacemoltClient, type SpacemoltClientOptions } from './client.ts';
+export { SpacemoltClient, type SpacemoltClientOptions, type ConnectionStage } from './client.ts';
 export {
   ClerkSource,
   mintWsToken,

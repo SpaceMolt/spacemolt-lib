@@ -106,6 +106,19 @@ export const CLOSE_CODE = {
 } as const;
 
 /**
+ * Closes no reconnect can recover from. session_replaced: another connection
+ * took our slot — reconnecting would just fight it. auth_timeout: we failed to
+ * auth in time. Unlike those two, connection_rate_limited (4003) IS worth
+ * reconnecting after — callers honor its retry_after hint.
+ */
+export function isTerminalClose(err: unknown): boolean {
+  return (
+    err instanceof ConnectionClosedError &&
+    (err.code === CLOSE_CODE.SESSION_REPLACED || err.code === CLOSE_CODE.AUTH_TIMEOUT)
+  );
+}
+
+/**
  * Parses the `retry_after=<seconds>` hint the server includes on a `4003`
  * (connection_rate_limited) close reason. Returns the wait time in
  * milliseconds, or `undefined` if `err` isn't a rate-limited close or carries

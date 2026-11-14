@@ -69,8 +69,11 @@ const status = await account.commands.spacemolt.get_status(); // query
 - **Mutations** queue for the next game tick; `await` resolves when the action
   actually executes (which may be several ticks later for `travel`/`jump`), with
   the local state cache already updated. Mutations are serialized one-in-flight
-  per account and `rate_limited` retries are handled for you — expect a pause
-  between mutations, not an error.
+  per account by default and `rate_limited` retries are handled for you — expect
+  a pause between mutations, not an error. Applications that coordinate
+  concurrency themselves can pass `serializeMutations: false` to `Account` or
+  `SpacemoltClient`; each promise still waits for its own final outcome, and
+  server action limits still apply.
 
 `COMMANDS.md` marks which kind each command is.
 
