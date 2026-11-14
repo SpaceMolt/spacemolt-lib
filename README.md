@@ -225,15 +225,17 @@ const catalog = await client.catalog(); // shared reference data, fetched once o
 Token minting draws on a separate per-user rate budget from gameplay, token
 redemption is rate limited per player rather than per IP (so a fleet
 connecting once each doesn't compete for one shared budget), and `connectOwned`
-staggers the connects on top of that — a fleet up to 100 accounts (the
-server's per-IP WS-connection cap) connects in one pass, exactly as before.
-Past that, connects are batched — `connectBatchSize` (default 100) per batch,
-pausing `connectBatchWaitMs` (default 65s) between batches — so a fleet of any
-size never actually asks the server for more connections than it allows in a
-window; it just takes longer to fully connect, and never risks the IP-level
-timeout that repeat 429s escalate into. `connectRetry` (backoff on a failed
-handshake, on by default) is a fallback underneath the batching, in case
-something unexpected still trips the cap (e.g. other traffic sharing the IP).
+staggers the connects on top of that. Starts are also capped at
+`connectBatchSize` (default 100, the server's per-IP WS-connection cap) in any
+sliding `connectBatchWaitMs` window (default 65s). Every socket open the client
+paces counts against that one budget: bulk connects, their retries and
+reconnects after a drop. So a fleet of any size never actually asks the server
+for more connections than it allows in a window; it just takes longer to fully
+connect, and never risks the IP-level timeout that repeat 429s escalate into.
+`connectRetry` (backoff on a failed handshake, on by default) is a fallback
+underneath the pacing, in case something unexpected still trips the cap (e.g.
+other traffic sharing the IP). A `session_replaced` or `auth_timeout` close is
+never retried.
 This is the path to reach for.
 
 Reconnect is close-code-aware: a `session_replaced` (the player opened one
@@ -332,12 +334,12 @@ keep SDK retries and mutation serialization.
 | --- | --- |
 | `scheduleOpen(request, open)` | Coordinate an actual WebSocket open, including reconnects, and attach session/account identity to transport monitoring. |
 | `scheduleSend(request, send)` | Apply shared admission to each actual frame, including authentication and automatic retries. Scheduling does not consume the server-response timeout. |
-| `scheduleConnection(id, attempt, signal?)` | Schedule each initial connect/auth attempt or registration. Bulk connects bypass the SDK start queue when this hook is present. Socket hooks still cover in-place reconnects. |
+| `scheduleConnection(id, attempt, signal?)` | Schedule each connection attempt: initial connects, every connect retry, registrations and reconnects after a drop. When this hook is present, it replaces the SDK start pacing. |
 | `onAccountCreated(account)` | Install lifetime state/push observers before authentication and the optional initial cache seed. Also sees failed connection candidates. |
 | `onConnectionStage(account, stage, error?)` | Distinguish socket-open, authentication and authenticated progress/failure without parsing log messages. Observer errors do not affect connection work. |
 | `connectAll({ onError })`, `connectOwned({ onError })` | Identify individual failed accounts for independent recovery while retaining successful bulk results. |
 | `maxRateLimitRetries` | Forward the existing account setting to managed accounts; `0` lets the host coordinate retries using shared server feedback. The default remains `5`. |
-| `cancelConnection(id)` | Cancel a pending connection or retry, close its current candidate and keep credentials. A later `connect(id)` can start a replacement. |
+| `cancelConnection(id)` | Cancel a pending connect or registration (queued, retrying or in flight), close its current candidate and keep credentials. A later `connect(id)` can start a replacement. |
 | `releaseAccount(account)` | Dispose of an exact account object without forgetting credentials or deleting a newer connection for the same ID. |
 | `serializeMutations: false` | Send a selected command without waiting for an earlier mutation's final outcome. Callers own dependency ordering and handle server rejection; the default remains `true`. |
 
@@ -348,8 +350,12 @@ socket lifetimes and are not authentication tokens. They change when a socket
 is replaced. Closing/replacing a socket aborts its queued work. Scheduling
 callbacks must honor cancellation, invoke their supplied operation once, and
 resolve only after it has run. A send callback is synchronous; an open or
-connection callback must be awaited. A scheduler that indefinitely defers work
-must provide its own admission deadline; response deadlines start after admission.
+connection callback must be awaited. If an open or send scheduler resolves
+without running its operation, or runs it twice, the request fails instead of
+waiting. If the scheduler throws after the operation ran, the SDK logs the
+error and keeps waiting for the server's response. A scheduler that
+indefinitely defers work must provide its own admission deadline; response
+deadlines start after admission.
 
 For example, a host that already owns recovery can install early observers and
 turn off duplicate SDK retry/mutation coordination:
@@ -370,9 +376,10 @@ const client = new SpacemoltClient({
 ```
 
 Concurrent `connect(id)` calls share one authenticated candidate. The default
-bulk scheduler paces starts without waiting for earlier authentication to
-complete, and retains its batch budget across calls and reconnects. Clerk token
-minting uses the account's `connectTimeoutMs` and is aborted on deliberate close.
+pacing spaces starts without waiting for earlier authentication to complete.
+`closeAll()` and `cancelConnection(id)` also cancel attempts that still wait
+for a start slot. Clerk token minting uses the account's `connectTimeoutMs`
+and is aborted on deliberate close.
 The query/auth response clock starts after the scheduled send; mutation ACK
 and final-outcome deadlines remain separate.
 

@@ -25,8 +25,14 @@ import type {
 } from './generated/openapi/types.gen.ts';
 import type { NotificationPayloads, TypedNotificationType } from './generated/notifications.gen.ts';
 import type { FleetPush, OkPush } from './push-frames.ts';
-import { CLOSE_CODE, ConnectionClosedError, errorFromFrame, retryAfterMsFromClose, SpacemoltError } from './errors.ts';
-import { notifyListeners, TypedEmitter } from './events/emitter.ts';
+import {
+  ConnectionClosedError,
+  errorFromFrame,
+  isTerminalClose,
+  retryAfterMsFromClose,
+  SpacemoltError,
+} from './errors.ts';
+import { callHook, notifyListeners, TypedEmitter } from './events/emitter.ts';
 import { MarketCache, type MarketBook } from './state/market.ts';
 import { ObservationCache, type ObservationView } from './state/observation.ts';
 import type {
@@ -332,6 +338,70 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
+/**
+ * Run `op` through an optional host scheduler. The host must run `op` exactly
+ * once. A skipped or repeated call fails closed instead of leaving a request
+ * without a deadline. A host error after `op` succeeded is logged, because the
+ * socket work already happened and reporting it as a failure would be false.
+ */
+async function admit<R, T>(
+  schedule: ((request: R, op: () => T) => Promise<void>) | undefined,
+  request: R,
+  op: () => T,
+  label: string,
+): Promise<void> {
+  if (!schedule) {
+    await op();
+    return;
+  }
+  let called = false;
+  let done = false;
+  let failure: unknown;
+  const once = (): T => {
+    if (called) throw new Error(`${label} was called more than once`);
+    called = true;
+    try {
+      const result = op();
+      if (!(result instanceof Promise)) {
+        done = true;
+        return result;
+      }
+      return result.then(
+        () => {
+          done = true;
+        },
+        (err: unknown) => {
+          failure = err;
+          throw err;
+        },
+      ) as T;
+    } catch (err) {
+      failure = err;
+      throw err;
+    }
+  };
+  try {
+    await schedule(request, once);
+  } catch (err) {
+    if (!done) throw err;
+    console.warn(`[spacemolt] ${label} scheduler threw after it ran: ${err}`);
+  }
+  if (!done) throw failure ?? new Error(`${label} scheduler resolved without running it`);
+}
+
+/** `AbortSignal.any` for runtimes that lack it (Safari before 17.4). */
+function anySignal(signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      break;
+    }
+    signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
+  }
+  return controller.signal;
+}
+
 function normalizeReconnect(opt: AccountOptions['reconnect']): Required<ReconnectOptions> | null {
   if (!opt) return null;
   const o = typeof opt === 'object' ? opt : {};
@@ -340,16 +410,6 @@ function normalizeReconnect(opt: AccountOptions['reconnect']): Required<Reconnec
     baseDelayMs: o.baseDelayMs ?? 1000,
     maxDelayMs: o.maxDelayMs ?? 30000,
   };
-}
-
-/**
- * Closes no reconnect can recover from. session_replaced: another connection
- * took our slot — reconnecting would just fight it. auth_timeout: we failed to
- * auth in time. Unlike those two, connection_rate_limited (4003) IS worth
- * reconnecting after — `reconnectLoop` honors its retry_after hint.
- */
-function isTerminalClose(err: ConnectionClosedError): boolean {
-  return err.code === CLOSE_CODE.SESSION_REPLACED || err.code === CLOSE_CODE.AUTH_TIMEOUT;
 }
 
 /** Parse a retry interval from a `rate_limited` error (ms). */
@@ -664,13 +724,15 @@ export class Account {
     const socket = this.socket;
     this._welcome = null;
     const signal = this.transportAbort.signal;
-    const open = () => {
-      signal.throwIfAborted();
-      if (this.socket !== socket || this.userClosing) throw new ConnectionClosedError('account was closed');
-      return socket.connect();
-    };
-    if (this.scheduleOpen) await this.scheduleOpen({ accountId: this._id, sessionId: this.sessionId, signal }, open);
-    else await open();
+    await admit(
+      this.scheduleOpen,
+      { accountId: this._id, sessionId: this.sessionId, signal },
+      () => {
+        this.assertTransport(socket, signal);
+        return socket.connect();
+      },
+      'scheduleOpen open()',
+    );
     if (this._welcome) return this._welcome;
     let waiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | undefined;
     const waitForWelcome = new Promise<WelcomeFrame['payload']>((resolve, reject) => {
@@ -773,7 +835,7 @@ export class Account {
             (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
               (this.fetchImpl ?? fetch)(input, {
                 ...init,
-                signal: AbortSignal.any([
+                signal: anySignal([
                   this.transportAbort.signal,
                   AbortSignal.timeout(this.connectTimeoutMs),
                   ...(init?.signal ? [init.signal] : []),
@@ -1432,18 +1494,22 @@ export class Account {
   ): Promise<void> {
     const socket = this.socket;
     const signal = this.transportAbort.signal;
-    const send = () => {
-      signal.throwIfAborted();
-      if (this.socket !== socket || this.userClosing) throw new ConnectionClosedError('account was closed');
-      beforeSend?.();
-      this.sendFrameNow(socket, tool, action, payload, requestId);
-    };
-    if (this.scheduleSend)
-      await this.scheduleSend(
-        { accountId: this._id, sessionId: this.sessionId, signal, tool, action, requestId },
-        send,
-      );
-    else send();
+    await admit(
+      this.scheduleSend,
+      { accountId: this._id, sessionId: this.sessionId, signal, tool, action, requestId },
+      () => {
+        this.assertTransport(socket, signal);
+        beforeSend?.();
+        this.sendFrameNow(socket, tool, action, payload, requestId);
+      },
+      'scheduleSend send()',
+    );
+  }
+
+  /** Throws unless `socket` is still this account's live, wanted transport. */
+  private assertTransport(socket: Socket, signal: AbortSignal): void {
+    signal.throwIfAborted();
+    if (this.socket !== socket || this.userClosing) throw new ConnectionClosedError('account was closed');
   }
 
   private sendFrameNow(
@@ -1466,22 +1532,8 @@ export class Account {
       throw new ConnectionClosedError('cannot send: account is reconnecting');
     }
     const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
-    this.callHook(this.onSend, 'onSend', redactForOnSend(frame));
+    callHook(this.onSend, 'onSend', redactForOnSend(frame));
     socket.send(frame);
-  }
-
-  /**
-   * Calls an optional single-callback hook (`onSend`/`onReceive`), swallowing
-   * a throw so a broken observer can't stop the frame being sent or routed —
-   * same handling as `notifyListeners` for a `Set` of listeners.
-   */
-  private callHook<A extends unknown[]>(hook: ((...args: A) => void) | undefined, label: string, ...args: A): void {
-    if (!hook) return;
-    try {
-      hook(...args);
-    } catch (err) {
-      console.warn(`[spacemolt] ${label} hook threw: ${err}`);
-    }
   }
 
   private nextRequestId(): string {
@@ -1512,7 +1564,7 @@ export class Account {
   }
 
   private routeFrame(frame: RawFrame): void {
-    this.callHook(this.onReceive, 'onReceive', redactForOnReceive(frame));
+    callHook(this.onReceive, 'onReceive', redactForOnReceive(frame));
     // Any frame carrying a numeric `tick` advances the observed game clock.
     if (isRecord(frame.payload)) this.observeTick(frame.payload.tick);
     switch (frame.type) {

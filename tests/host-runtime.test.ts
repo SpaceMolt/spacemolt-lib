@@ -4,7 +4,8 @@ import { SpacemoltClient } from '../src/client.ts';
 import { MemoryCredentialStore } from '../src/auth/credentials.ts';
 import type { StoredAccount } from '../src/auth/credentials.ts';
 import type { InboundFrame, WelcomeFrame } from '../src/protocol.ts';
-import { mockFactory, type MockSocket } from './mock-socket.ts';
+import { ConnectionClosedError } from '../src/errors.ts';
+import { mockFactory, MockSocket } from './mock-socket.ts';
 import { requireValue } from './require-value.ts';
 
 const welcome: WelcomeFrame['payload'] = {
@@ -50,6 +51,25 @@ async function until(condition: () => boolean): Promise<void> {
     await Bun.sleep(1);
   }
   throw new Error('Expected SDK progress did not occur');
+}
+
+/** `wire`, plus the time each socket was created. */
+function timedWire(serve?: (frame: InboundFrame, socket: MockSocket) => void) {
+  const w = wire(serve);
+  const opened: number[] = [];
+  return {
+    ...w,
+    opened,
+    factory: (url: string) => {
+      opened.push(performance.now());
+      return w.factory(url);
+    },
+  };
+}
+
+/** The most socket opens that fall inside any `windowMs` span. */
+function maxInWindow(times: number[], windowMs: number): number {
+  return Math.max(0, ...times.map((start) => times.filter((t) => t >= start && t < start + windowMs).length));
 }
 
 function gate() {
@@ -481,7 +501,9 @@ test('Clerk token minting honors the account connect deadline and deliberate clo
     const options: AccountOptions = {
       seedState: false,
       webSocketFactory: w.factory,
-      connectTimeoutMs: 20,
+      // On the close pass the deadline is far beyond the test timeout, so only
+      // the close signal can settle the mint.
+      connectTimeoutMs: close ? 60_000 : 20,
       fetchImpl,
       maxRateLimitRetries: 0,
     };
@@ -494,6 +516,454 @@ test('Clerk token minting honors the account connect deadline and deliberate clo
     if (close) account.close();
     expect(await auth).toBeInstanceOf(Error);
     expect(signal?.aborted).toBe(true);
+    if (close) expect(signal?.reason).toBeInstanceOf(ConnectionClosedError);
+    else expect(signal?.reason).toMatchObject({ name: 'TimeoutError' });
     account.close();
   }
+});
+
+// --- start pacing: one sliding window shared by every paced socket open ---
+
+test('connect retries each take their own start slot inside the batch window', async () => {
+  const failedOnce = new Set<unknown>();
+  const w = timedWire((frame, socket) => {
+    const username = frame.payload?.username;
+    if (failedOnce.has(username)) socket.serverSend({ type: 'logged_in', payload: {} });
+    else {
+      failedOnce.add(username);
+      socket.serverSend({ type: 'error', payload: { code: 'unavailable', message: 'retry' } });
+    }
+  });
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    connectStaggerMs: 1,
+    connectBatchSize: 2,
+    connectBatchWaitMs: 200,
+    connectRetry: { maxRetries: 1, baseDelayMs: 1 },
+  });
+  await client.addLogin('a', 'fixture');
+  await client.addLogin('b', 'fixture');
+  const accounts = await client.connectAll();
+  expect(accounts.map((account) => account.id).sort()).toEqual(['a', 'b']);
+  expect(w.opened).toHaveLength(4);
+  // Unpaced retries would open two more sockets within a few ms of the first two.
+  expect(maxInWindow(w.opened, 180)).toBe(2);
+  client.closeAll();
+});
+
+test('the batch window slides: starts from an earlier bulk call still count', async () => {
+  const w = timedWire();
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    connectRetry: false,
+    connectStaggerMs: 0,
+    connectBatchSize: 2,
+    connectBatchWaitMs: 200,
+  });
+  await client.addLogin('a', 'fixture');
+  await client.connectAll();
+  await Bun.sleep(150);
+  for (const id of ['b', 'c', 'd']) await client.addLogin(id, 'fixture');
+  const accounts = await client.connectAll();
+  expect(accounts.map((account) => account.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+  expect(w.opened).toHaveLength(4);
+  // Expected opens: a@0, b@150, c@200, d@350. A count reset at the second
+  // call would put b and c together inside a's window.
+  expect(maxInWindow(w.opened, 180)).toBe(2);
+  client.closeAll();
+});
+
+test('the start budget persists across separate connectAll calls', async () => {
+  const w = timedWire();
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    connectRetry: false,
+    connectStaggerMs: 0,
+    connectBatchSize: 2,
+    connectBatchWaitMs: 250,
+  });
+  await client.addLogin('a', 'fixture');
+  await client.addLogin('b', 'fixture');
+  await client.connectAll();
+  await client.addLogin('c', 'fixture');
+  await client.connectAll();
+  expect(w.opened).toHaveLength(3);
+  // c must wait for a's slot to leave the 250ms window; a reset budget opens it at once.
+  expect(requireValue(w.opened[2]) - requireValue(w.opened[0])).toBeGreaterThanOrEqual(200);
+  client.closeAll();
+});
+
+test('closeAll cancels connects still waiting for a start slot', async () => {
+  const w = wire();
+  const connected: (string | undefined)[] = [],
+    failures: string[] = [];
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    connectRetry: false,
+    connectStaggerMs: 0,
+    connectBatchSize: 1,
+    connectBatchWaitMs: 300,
+  });
+  client.onAccountConnected((account) => connected.push(account.id));
+  for (const id of ['a', 'b', 'c']) await client.addLogin(id, 'fixture');
+  const bulk = client.connectAll({ onError: (id) => failures.push(id) });
+  await until(() => client.account('a')?.authenticated === true);
+  client.closeAll();
+  expect(await bulk).toHaveLength(1);
+  await Bun.sleep(400);
+  expect(w.sockets).toHaveLength(1);
+  expect(client.accounts()).toEqual([]);
+  expect(connected).toEqual(['a']);
+  expect(failures.sort()).toEqual(['b', 'c']);
+});
+
+test('cancelConnection cancels one connect still waiting for a start slot', async () => {
+  const w = wire();
+  const failures: string[] = [];
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    connectRetry: false,
+    connectStaggerMs: 0,
+    connectBatchSize: 1,
+    connectBatchWaitMs: 250,
+  });
+  for (const id of ['a', 'b', 'c']) await client.addLogin(id, 'fixture');
+  const bulk = client.connectAll({ onError: (id) => failures.push(id) });
+  await until(() => client.account('a')?.authenticated === true);
+  await client.cancelConnection('c');
+  expect((await bulk).map((account) => account.id).sort()).toEqual(['a', 'b']);
+  // c's slot would have come at ~500ms.
+  await Bun.sleep(350);
+  expect(w.sockets).toHaveLength(2);
+  expect(client.ids().sort()).toEqual(['a', 'b']);
+  expect(failures).toEqual(['c']);
+  client.closeAll();
+});
+
+// --- registration under host scheduling ---
+
+test('register held by the host connection scheduler is cancelled by closeAll or cancelConnection', async () => {
+  for (const cancel of ['closeAll', 'cancelConnection'] as const) {
+    const w = wire();
+    const connected: Account[] = [];
+    let held: (() => Promise<unknown>) | undefined;
+    const client = new SpacemoltClient({
+      webSocketFactory: w.factory,
+      seedState: false,
+      scheduleConnection: (_id, attempt) => {
+        held = attempt;
+        return new Promise<never>(() => {});
+      },
+    });
+    client.onAccountConnected((account) => connected.push(account));
+    const pending = client
+      .register({ username: 'pilot', empire: 'solarian', registration_code: 'fixture' })
+      .catch((error: unknown) => error);
+    await until(() => held !== undefined);
+    if (cancel === 'closeAll') client.closeAll();
+    else await client.cancelConnection('pilot');
+    expect(await pending).toBeInstanceOf(Error);
+    expect(() => requireValue(held)()).toThrow();
+    await Bun.sleep(0);
+    expect(w.sockets).toHaveLength(0);
+    expect(connected).toEqual([]);
+    expect(client.account('pilot')).toBeUndefined();
+    expect(await client.credentialStore.get('pilot')).toBeUndefined();
+  }
+});
+
+test('register rejects while a connect for the same id is pending', async () => {
+  const w = wire();
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    scheduleConnection: () => new Promise<never>(() => {}),
+  });
+  await client.addLogin('pilot', 'fixture');
+  const pending = client.connect('pilot').catch((error: unknown) => error);
+  await expect(
+    client.register({ username: 'pilot', empire: 'solarian', registration_code: 'fixture' }),
+  ).rejects.toThrow('already connecting or connected');
+  client.closeAll();
+  expect(await pending).toBeInstanceOf(Error);
+  expect(w.sockets).toHaveLength(0);
+});
+
+// --- reconnect and candidate identity ---
+
+test('a released account in reconnect backoff does not block reconnects of its replacement', async () => {
+  const w = wire();
+  let created = 0;
+  const factory = (url: string) => {
+    // Socket 1 is the first account's reconnect attempt: it fails, so that
+    // chain sits in a long backoff.
+    if (++created === 2) return new MockSocket(url, { failToOpen: true });
+    return w.factory(url);
+  };
+  const reconnected: Account[] = [];
+  const client = new SpacemoltClient({
+    webSocketFactory: factory,
+    seedState: false,
+    connectStaggerMs: 0,
+    connectRetry: { maxRetries: 5, baseDelayMs: 10_000 },
+  });
+  client.onAccountReconnected((account) => reconnected.push(account));
+  await client.addLogin('pilot', 'fixture');
+  const first = await client.connect('pilot');
+  requireValue(w.sockets[0]).close(1006, 'dropped');
+  await until(() => created === 2);
+  client.releaseAccount(first);
+  const second = await client.connect('pilot');
+  expect(second).not.toBe(first);
+  requireValue(w.sockets[1]).close(1006, 'dropped');
+  await until(() => reconnected.length === 1);
+  expect(reconnected).toEqual([second]);
+  expect(second.authenticated).toBe(true);
+  expect(created).toBe(4);
+  client.closeAll();
+});
+
+test('a terminal close during the initial connect is not retried', async () => {
+  for (const afterLogin of [false, true]) {
+    const w = wire((frame, socket) => {
+      if (frame.action !== 'login') return;
+      if (afterLogin) socket.serverSend({ type: 'logged_in', payload: {} });
+      socket.close(4001, 'session_replaced');
+    });
+    const client = new SpacemoltClient({
+      webSocketFactory: w.factory,
+      seedState: false,
+      connectRetry: { maxRetries: 3, baseDelayMs: 0 },
+    });
+    await client.addLogin('pilot', 'fixture');
+    const error = await client.connect('pilot').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ConnectionClosedError);
+    expect(error).toMatchObject({ code: 4001 });
+    expect(w.sockets).toHaveLength(1);
+    expect(client.account('pilot')).toBeUndefined();
+    client.closeAll();
+  }
+});
+
+test('releasing a stale account does not cancel a newer candidate for the same id', async () => {
+  const w = wire(),
+    g = gate();
+  let opens = 0;
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    connectRetry: false,
+    reconnect: false,
+    scheduleOpen: async (request, open) => {
+      if (++opens > 1) await g.enter(request);
+      await open();
+    },
+  });
+  await client.addLogin('pilot', 'fixture');
+  const stale = await client.connect('pilot');
+  requireValue(w.sockets[0]).close(1006, 'dropped');
+  expect(client.account('pilot')).toBeUndefined();
+  const newer = client.connect('pilot');
+  await until(() => g.entries.length === 1);
+  const candidate = requireValue(client.account('pilot'));
+  client.releaseAccount(stale);
+  const entry = requireValue(g.entries[0]);
+  expect(entry.request.signal.aborted).toBe(false);
+  expect(client.account('pilot')).toBe(candidate);
+  entry.release();
+  expect(await newer).toBe(candidate);
+  expect(candidate.authenticated).toBe(true);
+  client.closeAll();
+});
+
+test('onAccountCreated fires for a candidate that fails authentication', async () => {
+  const w = wire((frame, socket) => {
+    if (frame.action === 'login')
+      socket.serverSend({ type: 'error', payload: { code: 'invalid_credentials', message: 'bad password' } });
+  });
+  const created: Account[] = [];
+  const client = new SpacemoltClient({
+    webSocketFactory: w.factory,
+    seedState: false,
+    connectRetry: false,
+    onAccountCreated: (account) => created.push(account),
+  });
+  await client.addLogin('pilot', 'fixture');
+  await expect(client.connect('pilot')).rejects.toBeDefined();
+  expect(created).toHaveLength(1);
+  expect(requireValue(created[0]).id).toBe('pilot');
+  expect(client.account('pilot')).toBeUndefined();
+});
+
+test('remove during a slow credential write leaves no stored credentials', async () => {
+  const paused = Promise.withResolvers<void>();
+  const entered = Promise.withResolvers<void>();
+  let hold = true;
+  class SlowStore extends MemoryCredentialStore {
+    override async put(account: StoredAccount): Promise<void> {
+      if (account.playerId && hold) {
+        hold = false;
+        entered.resolve();
+        await paused.promise;
+      }
+      await super.put(account);
+    }
+  }
+  const store = new SlowStore();
+  const client = new SpacemoltClient({ store, webSocketFactory: wire().factory, connectRetry: false });
+  await client.addLogin('pilot', 'fixture');
+  const connecting = client.connect('pilot').catch((error: unknown) => error);
+  await entered.promise;
+  const removed = client.remove('pilot');
+  await Bun.sleep(5);
+  paused.resolve();
+  await removed;
+  expect(await connecting).toBeInstanceOf(Error);
+  expect(await store.get('pilot')).toBeUndefined();
+  expect(client.account('pilot')).toBeUndefined();
+});
+
+// --- Account host hooks fail closed ---
+
+/** Login, a mutation that queues then settles, and an ok result for anything else. */
+function serveMutations(frame: InboundFrame, socket: MockSocket): void {
+  if (frame.action === 'login') socket.serverSend({ type: 'logged_in', payload: {} });
+  else if (frame.action === 'mine') {
+    socket.serverSend({
+      type: 'result',
+      request_id: frame.request_id,
+      payload: { result: 'queued', structuredContent: { pending: true, command: 'mine' } },
+    });
+    socket.serverSend({
+      type: 'action_result',
+      request_id: frame.request_id,
+      payload: { command: 'mine', tick: 2, result: { mined: 1 } },
+    });
+  } else socket.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok' } });
+}
+
+test('a scheduleSend that never calls send() rejects promptly and does not wedge the mutation lane', async () => {
+  const w = wire(serveMutations);
+  const skip = new Set(['get_status', 'mine']);
+  const account = new Account({
+    seedState: false,
+    webSocketFactory: w.factory,
+    queryTimeoutMs: 60_000,
+    fastMutationTimeoutMs: 60_000,
+    scheduleSend: async (request, send) => {
+      if (!skip.delete(request.action)) send();
+    },
+  });
+  await account.connect();
+  try {
+    await account.login({ username: 'pilot', password: 'fixture' });
+    await expect(account.query('spacemolt', 'get_status')).rejects.toThrow('without running');
+    await expect(account.mutate('spacemolt', 'mine')).rejects.toThrow('without running');
+    await account.mutate('spacemolt', 'mine');
+    expect(requireValue(w.sockets[0]).sent.map((frame) => frame.action)).toEqual(['login', 'mine']);
+  } finally {
+    account.close();
+  }
+});
+
+test('a scheduleSend that calls send() twice gets an error and sends one frame', async () => {
+  const w = wire(serveMutations);
+  let second: unknown;
+  const account = new Account({
+    seedState: false,
+    webSocketFactory: w.factory,
+    scheduleSend: async (request, send) => {
+      send();
+      if (request.action !== 'get_status') return;
+      try {
+        send();
+      } catch (error) {
+        second = error;
+      }
+    },
+  });
+  await account.connect();
+  try {
+    await account.login({ username: 'pilot', password: 'fixture' });
+    await account.query('spacemolt', 'get_status');
+    expect(second).toBeInstanceOf(Error);
+    expect(requireValue(w.sockets[0]).sent.map((frame) => frame.action)).toEqual(['login', 'get_status']);
+  } finally {
+    account.close();
+  }
+});
+
+test('a scheduleSend that throws after send() keeps the real mutation result', async () => {
+  const w = wire(serveMutations);
+  const originalWarn = console.warn;
+  const warnings: unknown[] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  const account = new Account({
+    seedState: false,
+    webSocketFactory: w.factory,
+    scheduleSend: async (request, send) => {
+      send();
+      if (request.action === 'mine') throw new Error('host bookkeeping failed');
+    },
+  });
+  try {
+    await account.connect();
+    await account.login({ username: 'pilot', password: 'fixture' });
+    const result = await account.mutate('spacemolt', 'mine');
+    expect(JSON.stringify(result)).toContain('mined');
+    expect(warnings).toHaveLength(1);
+  } finally {
+    console.warn = originalWarn;
+    account.close();
+  }
+});
+
+test('a scheduleOpen that never calls open() rejects connect promptly', async () => {
+  const w = wire();
+  const account = new Account({
+    seedState: false,
+    webSocketFactory: w.factory,
+    connectTimeoutMs: 60_000,
+    scheduleOpen: async () => {},
+  });
+  try {
+    await expect(account.connect()).rejects.toThrow('without running');
+    expect(w.sockets).toHaveLength(0);
+  } finally {
+    account.close();
+  }
+});
+
+test('session ids fall back when crypto.randomUUID is unavailable', async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis.crypto, 'randomUUID');
+  Object.defineProperty(globalThis.crypto, 'randomUUID', { value: undefined, configurable: true });
+  const sessionIds: string[] = [];
+  const accounts: Account[] = [];
+  try {
+    for (let i = 0; i < 2; i++) {
+      const account = new Account({
+        seedState: false,
+        webSocketFactory: wire().factory,
+        scheduleOpen: async (request, open) => {
+          sessionIds.push(request.sessionId);
+          await open();
+        },
+      });
+      accounts.push(account);
+      await account.connect();
+    }
+  } finally {
+    if (original) Object.defineProperty(globalThis.crypto, 'randomUUID', original);
+    else Reflect.deleteProperty(globalThis.crypto, 'randomUUID');
+    for (const account of accounts) account.close();
+  }
+  expect(typeof globalThis.crypto.randomUUID).toBe('function');
+  expect(sessionIds).toHaveLength(2);
+  expect(sessionIds.every((id) => typeof id === 'string' && id.length > 0)).toBe(true);
+  expect(new Set(sessionIds).size).toBe(2);
 });

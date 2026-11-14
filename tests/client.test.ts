@@ -41,6 +41,20 @@ function autoServe(socket: MockSocket, username: string): void {
   };
 }
 
+/** A factory that auto-serves every socket and records when each one was created. */
+function servedFactory() {
+  const sockets: MockSocket[] = [];
+  const openedAt: number[] = [];
+  const factory = (url: string): MockSocket => {
+    const socket = new MockSocket(url);
+    sockets.push(socket);
+    openedAt.push(performance.now());
+    queueMicrotask(() => autoServe(socket, 'pilot'));
+    return socket;
+  };
+  return { factory, sockets, openedAt };
+}
+
 // --- credential stores ---
 
 test('MemoryCredentialStore put/get/list/remove', async () => {
@@ -230,31 +244,27 @@ test('connectIds does not pause between batches at or under connectBatchSize', a
   expect(Date.now() - start).toBeLessThan(500); // well under the batch pause
 });
 
-test('connectIds pauses connectBatchWaitMs between batches for a fleet over connectBatchSize', async () => {
-  const { factory, sockets } = mockFactory();
+test('connectIds measures the batch window from the oldest start, not the latest one', async () => {
+  const { factory, openedAt } = servedFactory();
   const client = new SpacemoltClient({
     webSocketFactory: factory,
-    connectStaggerMs: 1,
+    connectStaggerMs: 80,
     connectBatchSize: 2,
-    connectBatchWaitMs: 150,
+    connectBatchWaitMs: 250,
   });
   await client.addLogin('A', 'pw');
   await client.addLogin('B', 'pw');
-  await client.addLogin('C', 'pw'); // 3rd account starts a new batch
+  await client.addLogin('C', 'pw');
+  await client.connectAll();
 
-  const allP = client.connectAll();
-  const socketCreatedAt: number[] = [];
-  for (let i = 0; i < 3; i++) {
-    while (sockets.length < i + 1) await new Promise((r) => setTimeout(r, 1));
-    socketCreatedAt.push(Date.now());
-    autoServe(requireValue(sockets[i]), `acct${i}`);
-  }
-  await allP;
-
-  const withinBatchGap = requireValue(socketCreatedAt[1]) - requireValue(socketCreatedAt[0]);
-  const acrossBatchGap = requireValue(socketCreatedAt[2]) - requireValue(socketCreatedAt[1]);
-  expect(withinBatchGap).toBeLessThan(100); // just the 1ms stagger, plus test scheduling slop
-  expect(acrossBatchGap).toBeGreaterThanOrEqual(140); // the 150ms batch pause, not the 1ms stagger
+  const [a, b, c] = openedAt;
+  expect(openedAt).toHaveLength(3);
+  expect(requireValue(b) - requireValue(a)).toBeGreaterThanOrEqual(60); // the 80ms stagger
+  // Oldest-start window: C opens at A+250. Latest-start window: B+250 = A+330.
+  // Stagger alone: B+80 = A+160.
+  const gap = requireValue(c) - requireValue(a);
+  expect(gap).toBeGreaterThanOrEqual(230);
+  expect(gap).toBeLessThan(295);
 });
 
 test('connectAll retries a rejected handshake instead of aborting the rest of the fleet', async () => {
@@ -416,47 +426,39 @@ test('remove closes and forgets an account', async () => {
 
 // --- client-driven reconnect (a mass disconnect, e.g. a game-server restart) ---
 
-test('reconnects after a shared disconnect are paced by connectBatchSize/connectStaggerMs, not simultaneous', async () => {
+test('reconnects after a shared disconnect share the start budget of the initial connects', async () => {
   // Regression test for a real incident: a game-server restart closed every
   // connected account's socket near-simultaneously. Each account used to
-  // reconnect on its own independent timer with no coordination — this pins
-  // that reconnection instead goes through the exact same batch/stagger
-  // pacing as the initial connect (connectIds), not a parallel mechanism.
-  const { factory, sockets } = mockFactory();
+  // reconnect on its own independent timer with no coordination. Reconnects
+  // must go through the same sliding window as the initial connect, and that
+  // window must not reset when the connect queue empties.
+  const { factory, sockets, openedAt } = servedFactory();
   const client = new SpacemoltClient({
     webSocketFactory: factory,
-    connectStaggerMs: 1,
+    connectStaggerMs: 80,
     connectBatchSize: 2,
-    connectBatchWaitMs: 150,
+    connectBatchWaitMs: 250,
   });
   await client.addLogin('A', 'pw');
   await client.addLogin('B', 'pw');
-  await client.addLogin('C', 'pw'); // 3rd account starts a new batch
+  await client.connectAll();
 
-  const allP = client.connectAll();
-  for (let i = 0; i < 3; i++) {
-    while (sockets.length < i + 1) await new Promise((r) => setTimeout(r, 1));
-    autoServe(requireValue(sockets[i]), `acct${i}`);
-  }
-  await allP;
+  // Close both at once — the same event a mass disconnect would cause.
+  for (const socket of [...sockets]) socket.close(1006, 'abnormal');
+  while (sockets.length < 4) await Bun.sleep(5);
 
-  const before = sockets.length;
-  const reconnectedAt: number[] = [];
-  // Close all three at once — the same event a mass disconnect would cause.
-  for (let i = 0; i < 3; i++) requireValue(sockets[i]).close(1006, 'abnormal');
-
-  for (let i = 0; i < 3; i++) {
-    while (sockets.length < before + i + 1) await new Promise((r) => setTimeout(r, 1));
-    reconnectedAt.push(Date.now());
-    autoServe(requireValue(sockets[before + i]), `acct${i}`);
-  }
-
-  const withinBatchGap = requireValue(reconnectedAt[1]) - requireValue(reconnectedAt[0]);
-  const acrossBatchGap = requireValue(reconnectedAt[2]) - requireValue(reconnectedAt[1]);
-  // Initial C and the first reconnect consume the two slots in the current
-  // window. Emptying the queue must not reset that shared start budget.
-  expect(withinBatchGap).toBeGreaterThanOrEqual(140);
-  expect(acrossBatchGap).toBeLessThan(100);
+  const [a, b, r1, r2] = openedAt;
+  expect(requireValue(b) - requireValue(a)).toBeGreaterThanOrEqual(60);
+  // Oldest-start window: the first reconnect opens at A+250. A reset budget
+  // opens it at B+80 = A+160; a latest-start window at B+250 = A+330.
+  const first = requireValue(r1) - requireValue(a);
+  expect(first).toBeGreaterThanOrEqual(230);
+  expect(first).toBeLessThan(295);
+  // The second waits for B's slot (B+250 = A+330) and the 80ms stagger, not another full window.
+  const second = requireValue(r2) - requireValue(r1);
+  expect(second).toBeGreaterThanOrEqual(50);
+  expect(second).toBeLessThan(160);
+  client.closeAll();
 }, 5000);
 
 test('onAccountConnected fires only once; onAccountReconnected fires after, with the SAME Account instance', async () => {

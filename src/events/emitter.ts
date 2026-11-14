@@ -8,6 +8,20 @@
 
 import type { RawFrame } from '../protocol.ts';
 
+/** Calls one optional hook, isolating a throw the same way as `notifyListeners`. */
+export function callHook<A extends unknown[]>(
+  hook: ((...args: A) => void) | undefined,
+  label: string,
+  ...args: A
+): void {
+  if (!hook) return;
+  try {
+    hook(...args);
+  } catch (err) {
+    console.warn(`[spacemolt] ${label} hook threw: ${err}`);
+  }
+}
+
 /**
  * Fan an event out to every registered listener. A throwing listener is warned
  * and skipped — a listener is told what already happened, so it must never

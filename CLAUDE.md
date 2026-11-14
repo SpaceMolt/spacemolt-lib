@@ -243,12 +243,13 @@ tests/
 - **M4 (done):** multi-account + resilience. `SpacemoltClient` manages N
   `Account`s, persisting credentials via a pluggable `CredentialStore`
   (`MemoryCredentialStore`, `FileCredentialStore`); `connectAll`/`connectOwned`
-  stagger connects to respect login rate limits, and batch them past
+  stagger connects to respect login rate limits, and cap starts at
   `connectBatchSize` (default 100, matching the server's per-IP WS-connection
-  cap) with a `connectBatchWaitMs` pause (default 65s) between batches — a
+  cap) in any sliding `connectBatchWaitMs` window (default 65s). Every paced
+  socket open counts — bulk connects, their retries and reconnects — so a
   fleet is meant to never actually trip that limit (repeat 429s risk an IP
   timeout), not just recover after tripping it; `connectRetry` (backoff on a
-  failed handshake) is a fallback safety net underneath the batching, not the
+  failed handshake) is a fallback safety net underneath the pacing, not the
   primary defense. Per-account pacing: `rate_limited` auto-retry
   (parses the interval; see gameserver-todo #4) covers `authenticate()` as well
   as `query`/`mutate`, and mutation serialization (one
@@ -303,7 +304,7 @@ throttled. `authenticate()` auto-retries on `rate_limited` (minting a fresh
 token per retry for `clerk` credentials), matching the retry behavior of
 `query`/`mutate`. The WS connection cap itself (checked at the HTTP upgrade,
 before any credentials are read — can't be scoped per player) is a separate,
-per-IP budget (100/min); `connectAll`/`connectOwned` batch connects at
+per-IP budget (100/min); `connectAll`/`connectOwned` pace every attempt at
 `connectBatchSize`/`connectBatchWaitMs` (`src/client.ts`) so a fleet of any
 size never actually asks for more than that in a window, rather than reacting
 after a 429 — repeatedly tripping a rate limit risks an IP-level timeout, not

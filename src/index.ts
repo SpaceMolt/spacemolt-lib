@@ -22,7 +22,7 @@ export {
   type LoggedInPayload,
   type RateLimitedInfo,
 } from './account.ts';
-export { SpacemoltClient, type SpacemoltClientOptions } from './client.ts';
+export { SpacemoltClient, type SpacemoltClientOptions, type ConnectionStage } from './client.ts';
 export {
   ClerkSource,
   mintWsToken,
