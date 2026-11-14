@@ -82,7 +82,31 @@ export interface RateLimitedInfo {
   delayMs: number;
 }
 
+/** Identity and cancellation for one socket lifetime; never contains credentials. */
+export interface TransportAdmissionRequest {
+  accountId?: string;
+  sessionId: string;
+  signal: AbortSignal;
+}
+
+export interface SendAdmissionRequest extends TransportAdmissionRequest {
+  tool: string;
+  action: string;
+  requestId: string;
+}
+
 export interface AccountOptions {
+  /** Optional host scheduling at the actual socket open. Await open() before resolving; honor signal. */
+  scheduleOpen?: (request: TransportAdmissionRequest, open: () => Promise<void>) => Promise<void>;
+  /** Optional host scheduling at each actual frame send, including auth and retries. Call send() once; honor signal. */
+  scheduleSend?: (request: SendAdmissionRequest, send: () => void) => Promise<void>;
+  /**
+   * Wait for each mutation to settle before sending the next one on this
+   * account. Default true. Set false when the caller coordinates overlapping
+   * commands; server action limits and rate-limit retries still apply, and
+   * each mutation still resolves or rejects with its own final outcome.
+   */
+  serializeMutations?: boolean;
   /** WebSocket URL of the v2 endpoint. Defaults to the production server. */
   url?: string;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
@@ -152,8 +176,8 @@ export interface AccountOptions {
    * `fastMutationTimeoutMs`) and uses that much shorter bound instead.
    * Without this, a single silently-dropped outcome frame hangs forever AND
    * wedges every subsequent mutation on this account behind it (mutations
-   * are serialized per account, see `enqueueMutation`). Default 600000 (10
-   * minutes).
+   * are serialized per account by default, see `serializeMutations`). Default
+   * 600000 (10 minutes).
    */
   mutationTimeoutMs?: number;
   /**
@@ -406,6 +430,10 @@ function requireStructuredContent<T>(result: QueryResult<T>, command: string): T
 
 export class Account {
   private socket!: Socket;
+  private readonly scheduleOpen?: AccountOptions['scheduleOpen'];
+  private readonly scheduleSend?: AccountOptions['scheduleSend'];
+  private transportAbort!: AbortController;
+  private sessionId!: string;
   private readonly correlator = new Correlator();
   private readonly cache = new StateCache();
   private readonly emitter = new TypedEmitter();
@@ -445,6 +473,7 @@ export class Account {
   /** The close seen on the current reconnect attempt's socket, if any — the loop reads it to decide whether the attempt really succeeded. */
   private attemptClose: ConnectionClosedError | null = null;
   private mutationLane: Promise<unknown> = Promise.resolve();
+  private readonly serializeMutations: boolean;
   private marketSubscribedState = false;
   private subscribedMarketBaseId: string | undefined;
   private observationSubscribedState = false;
@@ -458,6 +487,9 @@ export class Account {
   private readonly rateLimitedListeners = new Set<(info: RateLimitedInfo) => void>();
 
   constructor(opts: AccountOptions = {}) {
+    this.serializeMutations = opts.serializeMutations ?? true;
+    this.scheduleOpen = opts.scheduleOpen;
+    this.scheduleSend = opts.scheduleSend;
     this.seedState = opts.seedState ?? true;
     this.url = opts.url ?? DEFAULT_URL;
     this.webSocketFactory = opts.webSocketFactory;
@@ -487,6 +519,9 @@ export class Account {
   }
 
   private makeSocket(): void {
+    this.transportAbort?.abort(new ConnectionClosedError('socket replaced'));
+    this.transportAbort = new AbortController();
+    this.sessionId = crypto.randomUUID();
     // A replaced socket can still fire events: a ws.close() against an
     // unresponsive peer reports its close event late, after reconnectOnce has
     // moved on. Only the current socket may touch account state, or that late
@@ -626,7 +661,14 @@ export class Account {
     // connection outright.
     const socket = this.socket;
     this._welcome = null;
-    await socket.connect();
+    const signal = this.transportAbort.signal;
+    const open = () => {
+      signal.throwIfAborted();
+      if (this.socket !== socket || this.userClosing) throw new ConnectionClosedError('account was closed');
+      return socket.connect();
+    };
+    if (this.scheduleOpen) await this.scheduleOpen({ accountId: this._id, sessionId: this.sessionId, signal }, open);
+    else await open();
     if (this._welcome) return this._welcome;
     let waiter: { resolve: (w: WelcomeFrame['payload']) => void; reject: (err: Error) => void } | undefined;
     const waitForWelcome = new Promise<WelcomeFrame['payload']>((resolve, reject) => {
@@ -666,10 +708,12 @@ export class Account {
       // entry (e.g. one `reconnectOnce` started) that happens to occupy
       // `pendingAuth` by the time this call's timeout/error fires.
       if (accepted) authEntry = this.pendingAuth ?? undefined;
-      if (accepted) this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
     });
+    // A close can reject auth while the host is still scheduling the send.
+    void registerPromise.catch(() => {});
     let result: RegisterResult;
     try {
+      if (authEntry) await this.sendFrame('spacemolt_auth', 'register', { ...params }, this.nextRequestId());
       result = await withTimeout(
         registerPromise,
         this.connectTimeoutMs,
@@ -723,7 +767,18 @@ export class Account {
           httpBaseUrl: creds.httpBaseUrl,
           apiKey: creds.apiKey,
           playerId: creds.playerId,
-          fetchImpl: this.fetchImpl,
+          fetchImpl: Object.assign(
+            (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+              (this.fetchImpl ?? fetch)(input, {
+                ...init,
+                signal: AbortSignal.any([
+                  this.transportAbort.signal,
+                  AbortSignal.timeout(this.connectTimeoutMs),
+                  ...(init?.signal ? [init.signal] : []),
+                ]),
+              }),
+            { preconnect: (this.fetchImpl ?? fetch).preconnect },
+          ),
         });
         await this.loginToken(token);
         return;
@@ -789,10 +844,11 @@ export class Account {
     return this.withRateLimitRetry(`${tool}.${action}`, async () => {
       const id = this.claimRequestId(requestId);
       const promise = this.correlator.awaitQuery(id);
+      void promise.catch(() => {});
       try {
         // Inside the try: a closed socket throws here, and an uncancelled entry
         // would block the id and later reject into nothing.
-        this.sendFrame(tool, action, payload, id);
+        await this.sendFrame(tool, action, payload, id);
         return await withTimeout(
           promise,
           this.queryTimeoutMs,
@@ -809,8 +865,8 @@ export class Account {
    * Run a mutation; resolves when the action executes on a later tick (after
    * the immediate pending ack). `onAck` fires when the pending ack arrives.
    *
-   * Mutations are serialized per account — the next is sent only after the
-   * previous resolves — because the server queues one action per tick and
+   * Mutations are serialized per account by default — the next is sent only
+   * after the previous settles — because the server queues one action per tick and
    * rejects a concurrent mutation with `action_pending`. Also auto-retries on
    * `rate_limited`.
    *
@@ -837,7 +893,7 @@ export class Account {
         return this.awaitMutationWithTimeout(
           id,
           mutationTimeoutMs,
-          () => this.sendFrame(tool, action, payload, id),
+          (beforeSend) => this.sendFrame(tool, action, payload, id, beforeSend),
           onAck,
         );
       }),
@@ -860,7 +916,7 @@ export class Account {
   private awaitMutationWithTimeout(
     requestId: string,
     mutationTimeoutMs: number,
-    send: () => void,
+    send: (beforeSend: () => void) => Promise<void>,
     onAck?: (ack: MutationAck) => void,
   ): Promise<MutationResult> {
     return new Promise<MutationResult>((resolve, reject) => {
@@ -872,7 +928,7 @@ export class Account {
           reject(new SpacemoltError('mutation_timeout', message));
         }, ms);
       };
-      arm(this.queryTimeoutMs, `No response to mutation ${requestId} within ${this.queryTimeoutMs}ms`);
+
       this.correlator
         .awaitMutation(requestId, (ack) => {
           arm(mutationTimeoutMs, `No action_result for mutation ${requestId} within ${mutationTimeoutMs}ms of its ack`);
@@ -891,13 +947,13 @@ export class Account {
       // Send last, so the entry and timer exist before any response can
       // arrive — and undo both if a closed socket throws, or this promise is
       // orphaned with a live timer and rejects into nothing.
-      try {
-        send();
-      } catch (err) {
+      void send(() =>
+        arm(this.queryTimeoutMs, `No response to mutation ${requestId} within ${this.queryTimeoutMs}ms`),
+      ).catch((err: unknown) => {
         if (timer) clearTimeout(timer);
         this.correlator.cancel(requestId);
         reject(err instanceof Error ? err : new Error(String(err)));
-      }
+      });
     });
   }
 
@@ -1262,6 +1318,7 @@ export class Account {
   /** Close the connection deliberately. Suppresses auto-reconnect. */
   close(): void {
     this.userClosing = true;
+    this.failPendingWork(new ConnectionClosedError('account was closed'));
     this.socket.close();
   }
 
@@ -1314,10 +1371,11 @@ export class Account {
       // See the matching comment in `register()` — identity, not just
       // "accepted", so this call's catch can't clobber a newer exchange.
       if (accepted) authEntry = this.pendingAuth ?? undefined;
-      if (accepted) this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
     });
+    void authPromise.catch(() => {});
     let state: LoggedInPayload;
     try {
+      if (authEntry) await this.sendFrame('spacemolt_auth', action, payload, this.nextRequestId());
       state = await withTimeout(
         authPromise,
         this.connectTimeoutMs,
@@ -1363,7 +1421,31 @@ export class Account {
     return true;
   }
 
-  private sendFrame(
+  private async sendFrame(
+    tool: string,
+    action: string,
+    payload: Record<string, unknown> | undefined,
+    requestId: string,
+    beforeSend?: () => void,
+  ): Promise<void> {
+    const socket = this.socket;
+    const signal = this.transportAbort.signal;
+    const send = () => {
+      signal.throwIfAborted();
+      if (this.socket !== socket || this.userClosing) throw new ConnectionClosedError('account was closed');
+      beforeSend?.();
+      this.sendFrameNow(socket, tool, action, payload, requestId);
+    };
+    if (this.scheduleSend)
+      await this.scheduleSend(
+        { accountId: this._id, sessionId: this.sessionId, signal, tool, action, requestId },
+        send,
+      );
+    else send();
+  }
+
+  private sendFrameNow(
+    socket: Socket,
     tool: string,
     action: string,
     payload: Record<string, unknown> | undefined,
@@ -1383,7 +1465,7 @@ export class Account {
     }
     const frame: InboundFrame = { tool, action, ...(payload ? { payload } : {}), request_id: requestId };
     this.callHook(this.onSend, 'onSend', redactForOnSend(frame));
-    this.socket.send(frame);
+    socket.send(frame);
   }
 
   /**
@@ -1538,6 +1620,7 @@ export class Account {
    * `reconnectOnce`, which both strand work on a socket that's going away.
    */
   private failPendingWork(err: ConnectionClosedError): void {
+    this.transportAbort.abort(err);
     this._authenticated = false;
     this.correlator.rejectAll(err);
     if (this.welcomeWaiter) {
@@ -1733,8 +1816,9 @@ export class Account {
     }
   }
 
-  /** Serialize mutations: each runs only after the previous settles. */
+  /** Serialize mutations by default; caller-managed concurrency is opt-in. */
   private enqueueMutation<T>(task: () => Promise<T>): Promise<T> {
+    if (!this.serializeMutations) return task();
     const run = this.mutationLane.then(task, task);
     this.mutationLane = run.then(
       () => undefined,

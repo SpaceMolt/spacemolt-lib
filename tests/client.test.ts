@@ -453,8 +453,10 @@ test('reconnects after a shared disconnect are paced by connectBatchSize/connect
 
   const withinBatchGap = requireValue(reconnectedAt[1]) - requireValue(reconnectedAt[0]);
   const acrossBatchGap = requireValue(reconnectedAt[2]) - requireValue(reconnectedAt[1]);
-  expect(withinBatchGap).toBeLessThan(100); // just the 1ms stagger, plus test scheduling slop
-  expect(acrossBatchGap).toBeGreaterThanOrEqual(140); // the 150ms batch pause, not the 1ms stagger
+  // Initial C and the first reconnect consume the two slots in the current
+  // window. Emptying the queue must not reset that shared start budget.
+  expect(withinBatchGap).toBeGreaterThanOrEqual(140);
+  expect(acrossBatchGap).toBeLessThan(100);
 }, 5000);
 
 test('onAccountConnected fires only once; onAccountReconnected fires after, with the SAME Account instance', async () => {
