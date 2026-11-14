@@ -36285,7 +36285,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.713.5"
+    "x-gameserver-version": "v0.715.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -111716,7 +111716,7 @@
     },
     "/api/v2/spacemolt_faction/jump_mobile_base": {
       "post": {
-        "description": "Requires ManageBases. The fully repaired, stationary base may jump only to an adjacent system charted by the commander or the faction. Its archetype-specific jump resource is escrowed for a 90-tick preparation window, then consumed when the base enters a 540-tick isolated jump. Combat during preparation cancels the jump and refunds escrow. During isolation, docking, undocking, and navigation to or from the base are blocked; docked ships ride aboard while undocked and inbound ships are returned to the nearest static origin POI.\n\n**Example:** `POST /api/v2/spacemolt_faction/jump_mobile_base` with body `{\"id\":\"neighbor_system\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Requires ManageBases. The fully repaired, stationary base may jump only to an adjacent system. A frontier destination must be charted by the commander or the faction. Its archetype-specific jump resource is escrowed for a 90-tick preparation window, then consumed when the base enters a 540-tick isolated jump. Combat during preparation cancels the jump and refunds escrow. During isolation, docking, undocking, and navigation to or from the base are blocked; docked ships ride aboard while undocked and inbound ships are returned to the nearest static origin POI.\n\n**Example:** `POST /api/v2/spacemolt_faction/jump_mobile_base` with body `{\"id\":\"neighbor_system\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_faction_jump_mobile_base",
         "requestBody": {
           "content": {
@@ -111727,7 +111727,7 @@
               "schema": {
                 "properties": {
                   "id": {
-                    "description": "Adjacent destination system charted by the commander or the faction",
+                    "description": "Adjacent destination system (a frontier system must be charted by the commander or the faction)",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -148209,7 +148209,7 @@
     },
     "/api/v2/spacemolt_ship/switch_ship": {
       "post": {
-        "description": "Swap your active ship with one stored at this station. Fitted CPU and power must fit your Engineering skill before boarding. Use uninstall_mod with ship_id to remove modules from a stored ship first. Cargo from your current ship is moved to station storage. Modules stay on their ships. Requires shipyard service. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>. Carrier swap in space: while undocked at the same POI as a faction-mate flying a carrier (both out of transit, out of battle, no aggression timer, no tow), ship_id=<your ship in their bay> swaps in one step. Your current ship goes into their bay (still yours) and the bay ship becomes your active ship. No shipyard needed. Each ship keeps its cargo, modules and crew. The bay must have room for your current ship after the swap (bay_full). Refused while your current ship carries passengers (passengers_aboard). Otherwise switch_ship auto-docks at your POI's station.\n\n**Example:** `POST /api/v2/spacemolt_ship/switch_ship` with body `{\"id\":\"ship_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Swap your active ship with one stored at this station. Fitted CPU and power must fit your Engineering skill before boarding. Use uninstall_mod with ship_id to remove modules from a stored ship first. Cargo from your current ship is moved to station storage. Modules stay on their ships. Requires shipyard service. Releases your wreck tow without moving the wreck. Returns already_towing if you tow a ship. Unload that ship first with storage action=withdraw item_id=<ship_id>. Carrier swap in space: while undocked at the same POI as a faction-mate flying a carrier (both out of transit, out of battle, no aggression timer, no tow), ship_id=<your ship in their bay> swaps in one step. Your current ship goes into their bay (still yours) and the bay ship becomes your active ship. No shipyard needed. Each ship keeps its cargo, modules and crew. The bay must have room for your current ship after the swap (bay_full). Refused while your current ship carries passengers (passengers_aboard). Otherwise switch_ship auto-docks at your POI's station. Faction garage: ship_id=<a pooled ship> claims it at that station. No shipyard is needed. A prestige hull refuses with not_qualified unless you meet its garages rule.\n\n**Example:** `POST /api/v2/spacemolt_ship/switch_ship` with body `{\"id\":\"ship_abc123\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_ship_switch_ship",
         "requestBody": {
           "content": {

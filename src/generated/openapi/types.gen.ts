@@ -23731,7 +23731,7 @@ export type SpacemoltFactionJoinResponse = SpacemoltFactionJoinResponses[keyof S
 export type SpacemoltFactionJumpMobileBaseData = {
     body?: {
         /**
-         * Adjacent destination system charted by the commander or the faction
+         * Adjacent destination system (a frontier system must be charted by the commander or the faction)
          */
         id: string;
     };
