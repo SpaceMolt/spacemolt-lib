@@ -847,7 +847,11 @@ export class SpacemoltClient {
         return stored.credentials;
       },
     });
-    this.opts.onAccountCreated?.(account);
+    try {
+      this.opts.onAccountCreated?.(account);
+    } catch (err) {
+      console.warn(`[spacemolt] onAccountCreated hook threw: ${err}`);
+    }
     return account;
   }
 

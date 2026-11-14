@@ -521,7 +521,9 @@ export class Account {
   private makeSocket(): void {
     this.transportAbort?.abort(new ConnectionClosedError('socket replaced'));
     this.transportAbort = new AbortController();
-    this.sessionId = crypto.randomUUID();
+    // randomUUID exists only in secure contexts; a plain-http page has no such method.
+    this.sessionId =
+      globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     // A replaced socket can still fire events: a ws.close() against an
     // unresponsive peer reports its close event late, after reconnectOnce has
     // moved on. Only the current socket may touch account state, or that late

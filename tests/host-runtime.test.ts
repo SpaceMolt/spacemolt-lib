@@ -211,6 +211,7 @@ test('duplicate connects share one authenticated candidate and early observers s
     onAccountCreated: (account) => {
       events.push('created');
       account.onStateChange(() => events.push('seed'));
+      throw new Error('observer failure');
     },
     onConnectionStage: (_account, stage) => {
       events.push(stage);
