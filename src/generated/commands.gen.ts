@@ -924,7 +924,7 @@ export interface SpacemoltFactionJoinParams {
 }
 
 export interface SpacemoltFactionJumpMobileBaseParams {
-  /** Adjacent destination system personally known by the commander */
+  /** Adjacent destination system charted by the commander or the faction */
   id: string;
 }
 

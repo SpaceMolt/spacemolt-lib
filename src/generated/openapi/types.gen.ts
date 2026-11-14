@@ -3828,7 +3828,13 @@ export type FacilityDefSummary = {
     labor_cost: number;
     level: number;
     /**
-     * Item stock this facility type must hold each facility cycle (100 ticks) to count as fully supplied, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and burns in full each cycle.
+     * Average units of each upkeep item this facility destroys per facility cycle (100 ticks), keyed by item ID (fuel for station-tank fuel). Whole units are drawn on rotating cycles. Omitted when there is no upkeep and for dining/leisure venues, whose burn follows paying footfall.
+     */
+    maintenance_average_burn_per_cycle?: {
+        [key: string]: number;
+    };
+    /**
+     * Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.
      */
     maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
@@ -4024,15 +4030,21 @@ export type FacilityEntry = {
      */
     level: number;
     /**
-     * Value-weighted fraction of this cycle's upkeep that storage covered, from 0 to 1 (1 means fully supplied). Present exactly when maintenance_satisfied is present. Dining and leisure venues earn this fraction of their tourism income; other facilities need full supply for their benefit.
+     * Average units of each upkeep item this facility destroys per facility cycle (100 ticks), keyed by item ID (fuel for station-tank fuel). Whole units are drawn on rotating cycles. Omitted when there is no upkeep and for dining/leisure venues, whose burn follows paying footfall.
+     */
+    maintenance_average_burn_per_cycle?: {
+        [key: string]: number;
+    };
+    /**
+     * Value-weighted fraction of this cycle's upkeep draw that storage covered, from 0 to 1 (1 means fully supplied). Present exactly when maintenance_satisfied is present. Dining and leisure venues earn this fraction of their tourism income; other facilities need full supply for their benefit.
      */
     maintenance_level?: number;
     /**
-     * Item stock this facility must hold each facility cycle (100 ticks) to count as fully supplied. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A market's trade_authenticator quantity is its declared stock plus a charge that grows with this station's recent market trade volume; the market burns that charge in full each cycle, and on a player station it goes offline when faction storage cannot cover the whole quantity. A tourism venue's figure scales with recent paying footfall and never drops below 15 percent of its declared menu (at least one of each item); it burns its paying guests' share of its declared menu — about the whole listed stock in a busy cycle and nothing in a cycle no guest paid for.
+     * Listed upkeep of this facility. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A dining/leisure venue must hold this stock to count as fully supplied: it scales with recent paying footfall, never drops below 15 percent of its declared menu (at least one of each item), and the venue burns its paying guests' share of it (nothing in a cycle no guest paid for). Any other facility needs on hand only what it draws each facility cycle (100 ticks): see maintenance_average_burn_per_cycle. A market's trade_authenticator quantity includes a charge that grows with this station's recent market trade volume and is drawn in full each cycle.
      */
     maintenance_per_cycle?: Array<ItemQuantity>;
     /**
-     * Whether the facility's upkeep was fully supplied in its last facility cycle (100 ticks). Present only for facilities with upkeep: service, infrastructure, defense and ranch categories, not recyclers. Omitted for production, faction-category and personal facilities.
+     * Whether storage covered the facility's full upkeep draw in its last facility cycle (100 ticks). A facility that went short comes back once at least one of each upkeep item is in storage. Present only for facilities with upkeep: service, infrastructure, defense and ranch categories, not recyclers. Omitted for production, faction-category and personal facilities.
      */
     maintenance_satisfied?: boolean;
     /**
@@ -4493,7 +4505,13 @@ export type FacilityTypeDetailResponse = {
     level: number;
     lore?: string;
     /**
-     * Item stock this facility type must hold each facility cycle (100 ticks) to count as fully supplied, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and burns in full each cycle.
+     * Average units of each upkeep item this facility destroys per facility cycle (100 ticks), keyed by item ID (fuel for station-tank fuel). Whole units are drawn on rotating cycles. Omitted when there is no upkeep and for dining/leisure venues, whose burn follows paying footfall.
+     */
+    maintenance_average_burn_per_cycle?: {
+        [key: string]: number;
+    };
+    /**
+     * Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.
      */
     maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
@@ -13820,17 +13838,33 @@ export type StationHealth = {
 };
 
 export type StationLifeSupportInput = {
+    /**
+     * Average units of this item destroyed per facility cycle (100 ticks). Whole units are drawn on rotating cycles.
+     */
+    average_burn_per_cycle: number;
     item_id: string;
     name?: string;
+    /**
+     * Listed upkeep of this item. A plant needs on hand only what it draws each cycle, about average_burn_per_cycle units.
+     */
     quantity_per_cycle: number;
 };
 
 export type StationLifeSupportStatus = {
     demand: number;
+    /**
+     * Upkeep of every online life-support plant, summed per item. Omitted when the plants have no upkeep.
+     */
     maintenance?: Array<StationLifeSupportInput>;
+    /**
+     * Ticks between upkeep draws (one facility cycle).
+     */
     maintenance_cycle_ticks: number;
     plants: number;
     remediation?: string;
+    /**
+     * Upkeep of plants that are offline because a draw failed. A plant comes back at the next cycle once at least one unit of each of its items is in storage. Omitted when no plant is short.
+     */
     starved?: Array<StationLifeSupportInput>;
     supply: number;
 };
@@ -13846,8 +13880,15 @@ export type StationPassengersResponse = {
 };
 
 export type StationPowerInput = {
+    /**
+     * Average units of this item destroyed per facility cycle (100 ticks). Whole units are drawn on rotating cycles.
+     */
+    average_burn_per_cycle: number;
     item_id: string;
     name?: string;
+    /**
+     * Listed upkeep of this item. A plant needs on hand only what it draws each cycle, about average_burn_per_cycle units.
+     */
     quantity_per_cycle: number;
 };
 
@@ -23690,7 +23731,7 @@ export type SpacemoltFactionJoinResponse = SpacemoltFactionJoinResponses[keyof S
 export type SpacemoltFactionJumpMobileBaseData = {
     body?: {
         /**
-         * Adjacent destination system personally known by the commander
+         * Adjacent destination system charted by the commander or the faction
          */
         id: string;
     };

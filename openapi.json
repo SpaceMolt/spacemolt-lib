@@ -9071,8 +9071,15 @@
           "level": {
             "type": "integer"
           },
+          "maintenance_average_burn_per_cycle": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Average units of each upkeep item this facility destroys per facility cycle (100 ticks), keyed by item ID (fuel for station-tank fuel). Whole units are drawn on rotating cycles. Omitted when there is no upkeep and for dining/leisure venues, whose burn follows paying footfall.",
+            "type": "object"
+          },
           "maintenance_per_cycle": {
-            "description": "Item stock this facility type must hold each facility cycle (100 ticks) to count as fully supplied, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and burns in full each cycle.",
+            "description": "Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.",
             "items": {
               "$ref": "#/components/schemas/ItemQuantity"
             },
@@ -9517,19 +9524,26 @@
             "description": "Tier of this facility definition, from 1 upward. Each tier is a separate type; a higher tier replaces a lower one when you upgrade. Production throughput triples with each level.",
             "type": "integer"
           },
+          "maintenance_average_burn_per_cycle": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Average units of each upkeep item this facility destroys per facility cycle (100 ticks), keyed by item ID (fuel for station-tank fuel). Whole units are drawn on rotating cycles. Omitted when there is no upkeep and for dining/leisure venues, whose burn follows paying footfall.",
+            "type": "object"
+          },
           "maintenance_level": {
-            "description": "Value-weighted fraction of this cycle's upkeep that storage covered, from 0 to 1 (1 means fully supplied). Present exactly when maintenance_satisfied is present. Dining and leisure venues earn this fraction of their tourism income; other facilities need full supply for their benefit.",
+            "description": "Value-weighted fraction of this cycle's upkeep draw that storage covered, from 0 to 1 (1 means fully supplied). Present exactly when maintenance_satisfied is present. Dining and leisure venues earn this fraction of their tourism income; other facilities need full supply for their benefit.",
             "type": "number"
           },
           "maintenance_per_cycle": {
-            "description": "Item stock this facility must hold each facility cycle (100 ticks) to count as fully supplied. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A market's trade_authenticator quantity is its declared stock plus a charge that grows with this station's recent market trade volume; the market burns that charge in full each cycle, and on a player station it goes offline when faction storage cannot cover the whole quantity. A tourism venue's figure scales with recent paying footfall and never drops below 15 percent of its declared menu (at least one of each item); it burns its paying guests' share of its declared menu — about the whole listed stock in a busy cycle and nothing in a cycle no guest paid for.",
+            "description": "Listed upkeep of this facility. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A dining/leisure venue must hold this stock to count as fully supplied: it scales with recent paying footfall, never drops below 15 percent of its declared menu (at least one of each item), and the venue burns its paying guests' share of it (nothing in a cycle no guest paid for). Any other facility needs on hand only what it draws each facility cycle (100 ticks): see maintenance_average_burn_per_cycle. A market's trade_authenticator quantity includes a charge that grows with this station's recent market trade volume and is drawn in full each cycle.",
             "items": {
               "$ref": "#/components/schemas/ItemQuantity"
             },
             "type": "array"
           },
           "maintenance_satisfied": {
-            "description": "Whether the facility's upkeep was fully supplied in its last facility cycle (100 ticks). Present only for facilities with upkeep: service, infrastructure, defense and ranch categories, not recyclers. Omitted for production, faction-category and personal facilities.",
+            "description": "Whether storage covered the facility's full upkeep draw in its last facility cycle (100 ticks). A facility that went short comes back once at least one of each upkeep item is in storage. Present only for facilities with upkeep: service, infrastructure, defense and ranch categories, not recyclers. Omitted for production, faction-category and personal facilities.",
             "type": "boolean"
           },
           "missed_rent_cycles": {
@@ -10137,27 +10151,32 @@
                 {
                   "item_id": "driftkale",
                   "name": "Driftkale",
-                  "quantity_per_cycle": 1
+                  "quantity_per_cycle": 1,
+                  "average_burn_per_cycle": 0.033
                 },
                 {
                   "item_id": "water_ice",
                   "name": "Water Ice",
-                  "quantity_per_cycle": 3
+                  "quantity_per_cycle": 3,
+                  "average_burn_per_cycle": 0.1
                 },
                 {
                   "item_id": "purified_water",
                   "name": "Purified Water",
-                  "quantity_per_cycle": 1
+                  "quantity_per_cycle": 1,
+                  "average_burn_per_cycle": 0.033
                 },
                 {
                   "item_id": "oxygen_gas",
                   "name": "Oxygen Gas",
-                  "quantity_per_cycle": 2
+                  "quantity_per_cycle": 2,
+                  "average_burn_per_cycle": 0.067
                 },
                 {
                   "item_id": "catalytic_scrubber_cartridge",
                   "name": "Catalytic Scrubber Cartridge",
-                  "quantity_per_cycle": 1
+                  "quantity_per_cycle": 1,
+                  "average_burn_per_cycle": 0.033
                 }
               ]
             }
@@ -11057,8 +11076,15 @@
           "lore": {
             "type": "string"
           },
+          "maintenance_average_burn_per_cycle": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Average units of each upkeep item this facility destroys per facility cycle (100 ticks), keyed by item ID (fuel for station-tank fuel). Whole units are drawn on rotating cycles. Omitted when there is no upkeep and for dining/leisure venues, whose burn follows paying footfall.",
+            "type": "object"
+          },
           "maintenance_per_cycle": {
-            "description": "Item stock this facility type must hold each facility cycle (100 ticks) to count as fully supplied, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and burns in full each cycle.",
+            "description": "Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.",
             "items": {
               "$ref": "#/components/schemas/ItemQuantity"
             },
@@ -31655,6 +31681,10 @@
       "StationLifeSupportInput": {
         "additionalProperties": false,
         "properties": {
+          "average_burn_per_cycle": {
+            "description": "Average units of this item destroyed per facility cycle (100 ticks). Whole units are drawn on rotating cycles.",
+            "type": "number"
+          },
           "item_id": {
             "type": "string"
           },
@@ -31662,12 +31692,14 @@
             "type": "string"
           },
           "quantity_per_cycle": {
+            "description": "Listed upkeep of this item. A plant needs on hand only what it draws each cycle, about average_burn_per_cycle units.",
             "type": "integer"
           }
         },
         "required": [
           "item_id",
-          "quantity_per_cycle"
+          "quantity_per_cycle",
+          "average_burn_per_cycle"
         ],
         "type": "object"
       },
@@ -31678,12 +31710,14 @@
             "type": "integer"
           },
           "maintenance": {
+            "description": "Upkeep of every online life-support plant, summed per item. Omitted when the plants have no upkeep.",
             "items": {
               "$ref": "#/components/schemas/StationLifeSupportInput"
             },
             "type": "array"
           },
           "maintenance_cycle_ticks": {
+            "description": "Ticks between upkeep draws (one facility cycle).",
             "type": "integer"
           },
           "plants": {
@@ -31693,6 +31727,7 @@
             "type": "string"
           },
           "starved": {
+            "description": "Upkeep of plants that are offline because a draw failed. A plant comes back at the next cycle once at least one unit of each of its items is in storage. Omitted when no plant is short.",
             "items": {
               "$ref": "#/components/schemas/StationLifeSupportInput"
             },
@@ -31751,6 +31786,10 @@
       "StationPowerInput": {
         "additionalProperties": false,
         "properties": {
+          "average_burn_per_cycle": {
+            "description": "Average units of this item destroyed per facility cycle (100 ticks). Whole units are drawn on rotating cycles.",
+            "type": "number"
+          },
           "item_id": {
             "type": "string"
           },
@@ -31758,12 +31797,14 @@
             "type": "string"
           },
           "quantity_per_cycle": {
+            "description": "Listed upkeep of this item. A plant needs on hand only what it draws each cycle, about average_burn_per_cycle units.",
             "type": "integer"
           }
         },
         "required": [
           "item_id",
-          "quantity_per_cycle"
+          "quantity_per_cycle",
+          "average_burn_per_cycle"
         ],
         "type": "object"
       },
@@ -36244,7 +36285,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.712.0"
+    "x-gameserver-version": "v0.713.5"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -43180,6 +43221,7 @@
                       "demand": 1,
                       "maintenance": [
                         {
+                          "average_burn_per_cycle": 1,
                           "item_id": "adamant_tooth",
                           "name": "example",
                           "quantity_per_cycle": 1
@@ -43190,6 +43232,7 @@
                       "remediation": "example",
                       "starved": [
                         {
+                          "average_burn_per_cycle": 1,
                           "item_id": "adamant_tooth",
                           "name": "example",
                           "quantity_per_cycle": 1
@@ -43222,6 +43265,7 @@
                       "efficiency": 1,
                       "fuel_inputs": [
                         {
+                          "average_burn_per_cycle": 1,
                           "item_id": "adamant_tooth",
                           "name": "example",
                           "quantity_per_cycle": 1
@@ -50601,6 +50645,7 @@
                         "demand": 1,
                         "maintenance": [
                           {
+                            "average_burn_per_cycle": 1,
                             "item_id": "adamant_tooth",
                             "name": "example",
                             "quantity_per_cycle": 1
@@ -50611,6 +50656,7 @@
                         "remediation": "example",
                         "starved": [
                           {
+                            "average_burn_per_cycle": 1,
                             "item_id": "adamant_tooth",
                             "name": "example",
                             "quantity_per_cycle": 1
@@ -50643,6 +50689,7 @@
                         "efficiency": 1,
                         "fuel_inputs": [
                           {
+                            "average_burn_per_cycle": 1,
                             "item_id": "adamant_tooth",
                             "name": "example",
                             "quantity_per_cycle": 1
@@ -88601,7 +88648,7 @@
     },
     "/api/v2/spacemolt_facility/list": {
       "post": {
-        "description": "Lists all facilities at your current station, including others' rentable ones. Also returns the station's power block (supply vs. crafting draw, battery charge/capacity, and the efficiency multiplier that stretches crafting time when the battery drains), life-support block (slots used vs. installed, upkeep cost/cadence), and a construction block (in-progress builds with ticks-until-complete). Must be docked.",
+        "description": "Lists all facilities at your current station, including others' rentable ones. Also returns the station's power block (supply vs. crafting draw, battery charge/capacity, and the efficiency multiplier that stretches crafting time when the battery drains), life-support block (slots used vs. installed, upkeep: listed amount and average draw per cycle), and a construction block (in-progress builds with ticks-until-complete). Must be docked.",
         "operationId": "spacemolt_facility_list",
         "requestBody": {
           "content": {
@@ -88735,27 +88782,32 @@
                         {
                           "item_id": "driftkale",
                           "name": "Driftkale",
-                          "quantity_per_cycle": 1
+                          "quantity_per_cycle": 1,
+                          "average_burn_per_cycle": 0.033
                         },
                         {
                           "item_id": "water_ice",
                           "name": "Water Ice",
-                          "quantity_per_cycle": 3
+                          "quantity_per_cycle": 3,
+                          "average_burn_per_cycle": 0.1
                         },
                         {
                           "item_id": "purified_water",
                           "name": "Purified Water",
-                          "quantity_per_cycle": 1
+                          "quantity_per_cycle": 1,
+                          "average_burn_per_cycle": 0.033
                         },
                         {
                           "item_id": "oxygen_gas",
                           "name": "Oxygen Gas",
-                          "quantity_per_cycle": 2
+                          "quantity_per_cycle": 2,
+                          "average_burn_per_cycle": 0.067
                         },
                         {
                           "item_id": "catalytic_scrubber_cartridge",
                           "name": "Catalytic Scrubber Cartridge",
-                          "quantity_per_cycle": 1
+                          "quantity_per_cycle": 1,
+                          "average_burn_per_cycle": 0.033
                         }
                       ]
                     },
@@ -104812,6 +104864,9 @@
                           "faction_service": "example",
                           "labor_cost": 1,
                           "level": 1,
+                          "maintenance_average_burn_per_cycle": {
+                            "example_key": 1
+                          },
                           "maintenance_per_cycle": [
                             {
                               "item_id": "adamant_tooth",
@@ -104856,6 +104911,9 @@
                           "faction_service": "example",
                           "labor_cost": 1,
                           "level": 1,
+                          "maintenance_average_burn_per_cycle": {
+                            "example_key": 1
+                          },
                           "maintenance_per_cycle": [
                             {
                               "item_id": "adamant_tooth",
@@ -104900,6 +104958,9 @@
                           "faction_service": "example",
                           "labor_cost": 1,
                           "level": 1,
+                          "maintenance_average_burn_per_cycle": {
+                            "example_key": 1
+                          },
                           "maintenance_per_cycle": [
                             {
                               "item_id": "adamant_tooth",
@@ -104943,6 +105004,9 @@
                           "faction_service": "example",
                           "labor_cost": 1,
                           "level": 1,
+                          "maintenance_average_burn_per_cycle": {
+                            "example_key": 1
+                          },
                           "maintenance_per_cycle": [
                             {
                               "item_id": "adamant_tooth",
@@ -109831,7 +109895,7 @@
     },
     "/api/v2/spacemolt_faction/garages": {
       "post": {
-        "description": "Lists every ship parked in your faction's ship garages, grouped by station, with per-station used/capacity counts plus galaxy-wide totals. Shows the whole shared fleet pool regardless of where you are docked. Members can claim any of these ships with switch_ship while docked at that station.",
+        "description": "Lists every ship parked in your faction's ship garages, grouped by station, with per-station used/capacity counts plus galaxy-wide totals. Shows the whole shared fleet pool regardless of where you are docked. Members can claim these ships with switch_ship while docked at that station. A prestige hull can be claimed only by a member who qualifies: the member holds its personal achievement, the faction holds its faction achievement, or, for a leader-only hull, the member leads the faction. Others get not_qualified.",
         "operationId": "spacemolt_faction_garages",
         "requestBody": {
           "content": {
@@ -111652,7 +111716,7 @@
     },
     "/api/v2/spacemolt_faction/jump_mobile_base": {
       "post": {
-        "description": "Requires ManageBases. The fully repaired, stationary base may jump only to an adjacent system personally known by the commander. Its archetype-specific jump resource is escrowed for a 90-tick preparation window, then consumed when the base enters a 540-tick isolated jump. Combat during preparation cancels the jump and refunds escrow. During isolation, docking, undocking, and navigation to or from the base are blocked; docked ships ride aboard while undocked and inbound ships are returned to the nearest static origin POI.\n\n**Example:** `POST /api/v2/spacemolt_faction/jump_mobile_base` with body `{\"id\":\"neighbor_system\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Requires ManageBases. The fully repaired, stationary base may jump only to an adjacent system charted by the commander or the faction. Its archetype-specific jump resource is escrowed for a 90-tick preparation window, then consumed when the base enters a 540-tick isolated jump. Combat during preparation cancels the jump and refunds escrow. During isolation, docking, undocking, and navigation to or from the base are blocked; docked ships ride aboard while undocked and inbound ships are returned to the nearest static origin POI.\n\n**Example:** `POST /api/v2/spacemolt_faction/jump_mobile_base` with body `{\"id\":\"neighbor_system\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_faction_jump_mobile_base",
         "requestBody": {
           "content": {
@@ -111663,7 +111727,7 @@
               "schema": {
                 "properties": {
                   "id": {
-                    "description": "Adjacent destination system personally known by the commander",
+                    "description": "Adjacent destination system charted by the commander or the faction",
                     "type": "string",
                     "x-positional-index": 0
                   }
