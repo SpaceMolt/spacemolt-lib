@@ -5491,6 +5491,10 @@ export type FactionScanPoiResponse = {
     pirates?: Array<FactionScanPirateContact>;
     poi_id: string;
     poi_name?: string;
+    /**
+     * Repeaters at the POI. Omitted when none are here.
+     */
+    repeaters?: Array<RepeaterInfo>;
     scan_power: number;
     /**
      * True when a cloaked ship or cloaked creature is within one sensor level (10 power) below detection: sensed but not resolved. Omitted when false.
@@ -12140,6 +12144,10 @@ export type ScanResponse = {
      * Why a cargo scan failed. evaded: scan power was 0 against the target's stealth and scan evasion. target_left: the target left your POI, docked or boarded a carrier. target_lost: the target cloaked beyond your sensors. scanner_left: you left the POI, docked or boarded a carrier. Omitted when the scan succeeded and for other scans.
      */
     reason?: 'evaded' | 'target_left' | 'target_lost' | 'scanner_left';
+    /**
+     * Repeaters at the POI. Omitted when none are here.
+     */
+    repeaters?: Array<RepeaterInfo>;
     revealed_info: Array<string>;
     /**
      * Scan power of a remote POI scan: your sensor rating at your own POI, or your sensor rating minus 10 at another POI in your system. Each ship there is contested at this power minus its stealth rating. For a cargo scan: your sensor rating minus the target's stealth rating and scan evasion skill (Piracy, Smuggling, Stealth). Omitted for other scans and when the power is 0.
