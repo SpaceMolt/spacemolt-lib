@@ -30,6 +30,8 @@ import { CLOSE_CODE, type ConnectionClosedError, retryAfterMsFromClose } from '.
 const DEFAULT_HTTP_BASE = 'https://game.spacemolt.com';
 
 export interface SpacemoltClientOptions {
+  /** Serialize mutations on each managed account. Default true. See AccountOptions.serializeMutations. */
+  serializeMutations?: boolean;
   /** WebSocket URL of the v2 endpoint. */
   url?: string;
   /** Where credentials live. Defaults to an in-memory store. */
@@ -670,6 +672,7 @@ export class SpacemoltClient {
       onSend: this.opts.onSend && ((f) => this.opts.onSend?.(id, f)),
       onReceive: this.opts.onReceive && ((f) => this.opts.onReceive?.(id, f)),
       seedState: this.opts.seedState,
+      serializeMutations: this.opts.serializeMutations,
       // The client owns reconnection for its managed accounts (see
       // handleAccountDisconnected) instead of each Account reconnecting
       // independently — always false here regardless of
