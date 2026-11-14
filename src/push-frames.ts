@@ -19,7 +19,10 @@
  * does not compile on `OkPush` — guard with `'action' in p` first, or narrow to
  * `OkActionPush` / `OkTypePush`. `FleetPush` has a single key and needs no guard.
  *
- * **The unions are closed**, derived from gameserver v0.596.2. A member typed
+ * **The unions are closed**, with arrival actions checked against the generated
+ * response enums by `tests/push-frames.test.ts`. A spec sync that drops a
+ * documented arrival action must fail typecheck, not hide the contract change.
+ * A member typed
  * `{ action: string }` to absorb later frames would join every literal's
  * narrowing and make all of them useless. The cost is that a variant the server
  * adds after that build still arrives at your `on('ok')` handler — nothing
@@ -138,10 +141,19 @@ export type OkEspionage =
 export type OkArrived = TravelResponse & { action: 'arrived' };
 
 /**
- * A jump or Pathfinder drift completed. `pathfinder_arrival` is the off-network
- * variant. v1 transports only, for the same reason as `OkArrived`.
+ * A jump completed. v1 transports only, for the same reason as `OkArrived`.
+ *
+ * `JumpResponse.action` also includes `pathfinder_arrival`; that push is
+ * documented separately by `OkPathfinderArrival`.
  */
-export type OkJumped = JumpResponse;
+export type OkJumped = JumpResponse & { action: 'jumped' };
+
+/**
+ * A Pathfinder drift dropped out at a system. Unsolicited — no `request_id`, on
+ * every transport — so it is an `ok` push rather than a command result, and it
+ * carries the `JumpResponse` fields (`poi` is the POI ID here).
+ */
+export type OkPathfinderArrival = JumpResponse & { action: 'pathfinder_arrival' };
 
 /** Docking completed. */
 export type OkDocked = DockResponse & { action: 'dock' };
@@ -324,7 +336,7 @@ export interface FleetPassengerDisembarked extends PushBase {
 
 // --- unions ------------------------------------------------------------------
 
-/** Every `ok` push known as of gameserver v0.596.2. */
+/** Every `ok` push represented by this closed union. */
 export type OkPush =
   | OkTravelStarted
   | OkJumpStarted
@@ -337,6 +349,7 @@ export type OkPush =
   | OkEspionage
   | OkArrived
   | OkJumped
+  | OkPathfinderArrival
   | OkDocked
   | OkAttack
   | OkPathfinderPlot
