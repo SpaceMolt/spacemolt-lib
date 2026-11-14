@@ -322,6 +322,60 @@ of being treated as an empty store.
 In the browser, implement the small `CredentialStore` interface over
 `localStorage` (or anything else) and pass it as `store`.
 
+### Host-managed connection and command lifecycles
+
+Long-running fleet hosts can coordinate SDK work without replacing its sockets,
+response correlator or state cache. These hooks are optional; ordinary clients
+keep SDK retries and mutation serialization.
+
+| API | Use in a fleet host |
+| --- | --- |
+| `scheduleOpen(request, open)` | Coordinate an actual WebSocket open, including reconnects, and attach session/account identity to transport monitoring. |
+| `scheduleSend(request, send)` | Apply shared admission to each actual frame, including authentication and automatic retries. Scheduling does not consume the server-response timeout. |
+| `scheduleConnection(id, attempt, signal?)` | Schedule each initial connect/auth attempt or registration. Bulk connects bypass the SDK start queue when this hook is present. Socket hooks still cover in-place reconnects. |
+| `onAccountCreated(account)` | Install lifetime state/push observers before authentication and the optional initial cache seed. Also sees failed connection candidates. |
+| `onConnectionStage(account, stage, error?)` | Distinguish socket-open, authentication and authenticated progress/failure without parsing log messages. Observer errors do not affect connection work. |
+| `connectAll({ onError })`, `connectOwned({ onError })` | Identify individual failed accounts for independent recovery while retaining successful bulk results. |
+| `maxRateLimitRetries` | Forward the existing account setting to managed accounts; `0` lets the host coordinate retries using shared server feedback. The default remains `5`. |
+| `cancelConnection(id)` | Cancel a pending connection or retry, close its current candidate and keep credentials. A later `connect(id)` can start a replacement. |
+| `releaseAccount(account)` | Dispose of an exact account object without forgetting credentials or deleting a newer connection for the same ID. |
+| `serializeMutations: false` | Send a selected command without waiting for an earlier mutation's final outcome. Callers own dependency ordering and handle server rejection; the default remains `true`. |
+
+Transport requests contain `accountId`, an opaque `sessionId`, and an
+`AbortSignal`. Send requests also identify `tool`, `action` and `requestId`;
+they never include the frame payload or credentials. Session IDs identify
+socket lifetimes and are not authentication tokens. They change when a socket
+is replaced. Closing/replacing a socket aborts its queued work. Scheduling
+callbacks must honor cancellation, invoke their supplied operation once, and
+resolve only after it has run. A send callback is synchronous; an open or
+connection callback must be awaited. A scheduler that indefinitely defers work
+must provide its own admission deadline; response deadlines start after admission.
+
+For example, a host that already owns recovery can install early observers and
+turn off duplicate SDK retry/mutation coordination:
+
+```ts
+const client = new SpacemoltClient({
+  reconnect: false,
+  connectRetry: false,
+  maxRateLimitRetries: 0,
+  serializeMutations: false,
+  onAccountCreated: (account) => {
+    account.onStateChange((changed) => console.log(account.id, changed));
+  },
+  onConnectionStage: (account, stage, error) => {
+    console.log(account.id, stage, error);
+  },
+});
+```
+
+Concurrent `connect(id)` calls share one authenticated candidate. The default
+bulk scheduler paces starts without waiting for earlier authentication to
+complete, and retains its batch budget across calls and reconnects. Clerk token
+minting uses the account's `connectTimeoutMs` and is aborted on deliberate close.
+The query/auth response clock starts after the scheduled send; mutation ACK
+and final-outcome deadlines remain separate.
+
 ## Browser
 
 The main entry imports no Node built-ins — bundle it as-is. Provide a

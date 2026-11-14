@@ -14,6 +14,8 @@ export * from './protocol.ts';
 export {
   Account,
   type AccountOptions,
+  type TransportAdmissionRequest,
+  type SendAdmissionRequest,
   type ReconnectOptions,
   type RegisterParams,
   type RegisterResult,
