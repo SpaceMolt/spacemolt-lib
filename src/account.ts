@@ -83,6 +83,13 @@ export interface RateLimitedInfo {
 }
 
 export interface AccountOptions {
+  /**
+   * Wait for each mutation to settle before sending the next one on this
+   * account. Default true. Set false when the caller coordinates overlapping
+   * commands; server action limits and rate-limit retries still apply, and
+   * each mutation still resolves or rejects with its own final outcome.
+   */
+  serializeMutations?: boolean;
   /** WebSocket URL of the v2 endpoint. Defaults to the production server. */
   url?: string;
   /** Inject a WebSocket implementation (tests, custom runtimes). */
@@ -152,8 +159,8 @@ export interface AccountOptions {
    * `fastMutationTimeoutMs`) and uses that much shorter bound instead.
    * Without this, a single silently-dropped outcome frame hangs forever AND
    * wedges every subsequent mutation on this account behind it (mutations
-   * are serialized per account, see `enqueueMutation`). Default 600000 (10
-   * minutes).
+   * are serialized per account by default, see `serializeMutations`). Default
+   * 600000 (10 minutes).
    */
   mutationTimeoutMs?: number;
   /**
@@ -445,6 +452,7 @@ export class Account {
   /** The close seen on the current reconnect attempt's socket, if any — the loop reads it to decide whether the attempt really succeeded. */
   private attemptClose: ConnectionClosedError | null = null;
   private mutationLane: Promise<unknown> = Promise.resolve();
+  private readonly serializeMutations: boolean;
   private marketSubscribedState = false;
   private subscribedMarketBaseId: string | undefined;
   private observationSubscribedState = false;
@@ -458,6 +466,7 @@ export class Account {
   private readonly rateLimitedListeners = new Set<(info: RateLimitedInfo) => void>();
 
   constructor(opts: AccountOptions = {}) {
+    this.serializeMutations = opts.serializeMutations ?? true;
     this.seedState = opts.seedState ?? true;
     this.url = opts.url ?? DEFAULT_URL;
     this.webSocketFactory = opts.webSocketFactory;
@@ -809,8 +818,8 @@ export class Account {
    * Run a mutation; resolves when the action executes on a later tick (after
    * the immediate pending ack). `onAck` fires when the pending ack arrives.
    *
-   * Mutations are serialized per account — the next is sent only after the
-   * previous resolves — because the server queues one action per tick and
+   * Mutations are serialized per account by default — the next is sent only
+   * after the previous settles — because the server queues one action per tick and
    * rejects a concurrent mutation with `action_pending`. Also auto-retries on
    * `rate_limited`.
    *
@@ -1733,8 +1742,9 @@ export class Account {
     }
   }
 
-  /** Serialize mutations: each runs only after the previous settles. */
+  /** Serialize mutations by default; caller-managed concurrency is opt-in. */
   private enqueueMutation<T>(task: () => Promise<T>): Promise<T> {
+    if (!this.serializeMutations) return task();
     const run = this.mutationLane.then(task, task);
     this.mutationLane = run.then(
       () => undefined,

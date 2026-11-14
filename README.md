@@ -84,7 +84,7 @@ Every game command is one of two kinds, classified straight from the spec
   The library hides the two-phase protocol: `await account.commands.spacemolt.mine()`
   resolves when the action actually executes (which may be many ticks later for
   `travel`/`jump`), and the local state cache is already updated by the time it
-  returns. Mutations are serialized per account, matching the server's
+  returns. Mutations are serialized per account by default, matching the server's
   one-action-per-tick rule, and `rate_limited` responses are retried for you.
 
 Call commands three ways — all equivalent, all paced and cached:
@@ -94,6 +94,22 @@ await account.commands.spacemolt.jump({ id: 'sol' }); // generated, typed (recom
 await account.mutate('spacemolt', 'jump', { id: 'sol' });
 await account.send('spacemolt', 'jump', { id: 'sol' }); // auto-routes query/mutation
 ```
+
+Applications that coordinate overlapping commands themselves can disable the
+client-side mutation queue at construction:
+
+```ts
+const account = new Account({ serializeMutations: false });
+// Or apply the setting to every account managed by a client:
+const client = new SpacemoltClient({ serializeMutations: false });
+```
+
+With `serializeMutations: false`, a mutation does not wait for an earlier
+mutation's response before sending. Each promise still waits for its own final
+outcome, with independent response correlation and timeouts. Automatic
+`rate_limited` retries remain enabled, and queries are unaffected. This option
+does not change server action limits: conflicting commands can be rejected with
+`action_pending`, and callers must await prerequisites when command order matters.
 
 Every one of those takes an optional trailing `requestId`. The server echoes it
 back on the response, so you can correlate your own in-flight requests:
