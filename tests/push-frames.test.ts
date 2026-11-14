@@ -75,7 +75,14 @@ test('the exported discriminator lists and the unions cover each other', () => {
   const _okActionsComplete: Assert<Covers<OkActionPush['action'], OkPushAction>> = true;
   const _okTypesComplete: Assert<Covers<OkTypePush['type'], OkPushType>> = true;
   const _fleetComplete: Assert<Covers<FleetPush['action'], FleetPushAction>> = true;
-  expect([_okActionsComplete, _okTypesComplete, _fleetComplete]).toEqual([true, true, true]);
+  // Arrival actions must remain in the generated response enums: jumped and
+  // pathfinder_arrival carry JumpResponse fields, arrived carries TravelResponse
+  // fields, and dock carries DockResponse fields. If a spec sync drops one,
+  // fail typecheck so the contract can be fixed at the source.
+  const _arrivalsComplete: Assert<
+    Covers<'arrived' | 'jumped' | 'pathfinder_arrival' | 'dock', OkActionPush['action']>
+  > = true;
+  expect([_okActionsComplete, _okTypesComplete, _fleetComplete, _arrivalsComplete]).toEqual([true, true, true, true]);
 
   // The other direction: every list entry names a real union member. These
   // assignments only compile while the union carries that literal.
@@ -140,4 +147,22 @@ test('a fleet push narrows to its variant fields', () => {
   };
   if (invite.action !== 'fleet_invite') throw new Error('unreachable');
   expect(invite.leader_name).toBe('Nova');
+});
+
+// JumpResponse.action includes pathfinder_arrival, as documented by
+// Notification_ok for every transport. Guard both construction and narrowing:
+// a spec sync that removes this action must fail typecheck.
+test('the pathfinder arrival push is a jump payload with its own action', () => {
+  const arrival: OkActionPush = {
+    action: 'pathfinder_arrival',
+    system: 'Alpha Centauri',
+    system_id: 'alpha_centauri',
+    from_system: 'Sol',
+    navigation_xp: 3,
+  };
+  function narrow(p: OkPush): string {
+    if ('action' in p && p.action === 'pathfinder_arrival') return p.system_id;
+    return 'unhandled';
+  }
+  expect(narrow(arrival)).toBe('alpha_centauri');
 });
