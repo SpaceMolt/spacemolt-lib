@@ -7247,6 +7247,10 @@ export type IntelPoi = {
      */
     description?: string;
     /**
+     * Environmental hazard at this POI, as get_system shows it. Omitted when the POI has no hazard.
+     */
+    hazard?: PoiHazard;
+    /**
      * POI ID. Always a real POI of this system: a submission drops any ID that is not on the submitter's charts.
      */
     id: string;
@@ -16399,7 +16403,7 @@ export type SpacemoltCraftData = {
          */
         dry_run?: boolean;
         /**
-         * Route to a specific facility ID (overrides auto-selection). Fuel made on someone else's fuel facility goes to your faction's fuel bunker at that station; without one the order fails with no_fuel_bunker.
+         * Route to a specific facility ID (overrides auto-selection). With no recipe_id, lists only your queued jobs at that facility or Station Workshop id. Fuel made on someone else's fuel facility goes to your faction's fuel bunker at that station; without one the order fails with no_fuel_bunker.
          */
         facility_id?: string;
         /**
@@ -20971,7 +20975,7 @@ export type SpacemoltFacilityDeployOutpostResponse = SpacemoltFacilityDeployOutp
 export type SpacemoltFacilityDismantleData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -21052,7 +21056,7 @@ export type SpacemoltFacilityFacilitySetDescriptionData = {
          */
         description?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -21142,7 +21146,7 @@ export type SpacemoltFacilityFactionBuildResponse = SpacemoltFacilityFactionBuil
 export type SpacemoltFacilityFactionDismantleData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -21256,7 +21260,7 @@ export type SpacemoltFacilityFactionUpgradeData = {
          */
         bucket?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -21442,7 +21446,7 @@ export type SpacemoltFacilityJobAddData = {
          */
         direction?: 'forward' | 'reverse';
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -21565,7 +21569,7 @@ export type SpacemoltFacilityJobCancelResponse = SpacemoltFacilityJobCancelRespo
 export type SpacemoltFacilityJobListData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -21603,7 +21607,7 @@ export type SpacemoltFacilityJobListResponse = SpacemoltFacilityJobListResponses
 export type SpacemoltFacilityJobReorderData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -21686,7 +21690,7 @@ export type SpacemoltFacilityListResponse = SpacemoltFacilityListResponses[keyof
 export type SpacemoltFacilityListForSaleData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -21895,7 +21899,7 @@ export type SpacemoltFacilityRanchSetCullData = {
          */
         cull_target: number;
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id?: string;
     };
@@ -21935,7 +21939,7 @@ export type SpacemoltFacilityRanchSetCullResponse = SpacemoltFacilityRanchSetCul
 export type SpacemoltFacilityRanchStatusData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id?: string;
     };
@@ -22053,7 +22057,7 @@ export type SpacemoltFacilityRemovePlayerResponse = SpacemoltFacilityRemovePlaye
 export type SpacemoltFacilityRepairData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -22134,7 +22138,7 @@ export type SpacemoltFacilitySetAccessData = {
          */
         access: 'private' | 'public';
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -22418,7 +22422,7 @@ export type SpacemoltFacilitySetNameData = {
          */
         custom_name?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
     };
@@ -22458,7 +22462,7 @@ export type SpacemoltFacilitySetNameResponse = SpacemoltFacilitySetNameResponses
 export type SpacemoltFacilitySetOutputPriceData = {
     body?: {
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -22783,7 +22787,7 @@ export type SpacemoltFacilityTransferData = {
          */
         direction: 'to_faction' | 'to_player';
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
@@ -22935,7 +22939,7 @@ export type SpacemoltFacilityUpgradeData = {
          */
         bucket?: string;
         /**
-         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list', 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
+         * Facility instance ID (required for 'upgrade', 'dismantle', 'faction_dismantle', 'job_add', 'job_list' (also accepts your own Station Workshop id workshop:<player_id>:<base_id>), 'set_output_price', 'set_access', 'set_name', 'set_description' actions). Use action 'list' to see facility IDs.
          */
         facility_id: string;
         /**
