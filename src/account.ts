@@ -17,8 +17,11 @@ import type { AuthCredentials } from './auth/credentials.ts';
 import { mintWsToken } from './auth/clerk.ts';
 import type {
   LoggedInPayload as LoggedInPayloadSchema,
+  NotificationGiftReceived,
   NotificationMarketUpdate,
   NotificationObservationUpdate,
+  NotificationRefueledBy,
+  NotificationRepairedBy,
   SubscribeMarketResponse,
   SubscribeObservationResponse,
   V2Location,
@@ -576,6 +579,31 @@ export class Account {
       if (payload.active_scan === false) this.observationActiveScanState = false;
       this.bridgeObservationToLocation();
     });
+    // Another player's gift, refuel or repair changes this account's state with
+    // no delta. Refuel and repair carry absolute values; a gift's credits are added.
+    this.emitter.on<NotificationGiftReceived>('gift_received', (payload) => {
+      const credits = this.cache.credits;
+      if (typeof payload.credits === 'number' && credits !== undefined) {
+        this.patchFromPush('player', { credits: credits + payload.credits });
+      }
+    });
+    this.emitter.on<NotificationRefueledBy>('refueled_by', (payload) => {
+      if (typeof payload.fuel_now === 'number' && typeof payload.fuel_max === 'number') {
+        this.patchFromPush('ship', { fuel: payload.fuel_now, max_fuel: payload.fuel_max });
+      }
+    });
+    this.emitter.on<NotificationRepairedBy>('repaired_by', (payload) => {
+      if (typeof payload.hull === 'number' && typeof payload.max_hull === 'number') {
+        this.patchFromPush('ship', { hull: payload.hull, max_hull: payload.max_hull });
+      }
+    });
+  }
+
+  private patchFromPush<S extends StateSection>(section: S, patch: Partial<GameState[S]>): void {
+    const changed = this.cache.patchSection(section, patch);
+    if (!changed.length) return;
+    this.stateRevision++;
+    this.emitStateChange(changed);
   }
 
   private makeSocket(): void {
