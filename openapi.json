@@ -7845,6 +7845,13 @@
           "hint": {
             "type": "string"
           },
+          "items_returned": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Items put in your cargo by the dismantle, by item ID and quantity: one outpost_kit for an outpost, or one lane_anchor for each fully built end of a jump gate. Empty when a gate had no built end.",
+            "type": "object"
+          },
           "kit_item": {
             "type": "string"
           },
@@ -7861,6 +7868,7 @@
           "kit_item",
           "kit_refunded",
           "fee_refunded",
+          "items_returned",
           "hint"
         ],
         "type": "object"
@@ -36289,7 +36297,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.719.0"
+    "x-gameserver-version": "v0.719.3"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -82725,7 +82733,7 @@
     },
     "/api/v2/spacemolt_facility/dismantle_outpost": {
       "post": {
-        "description": "Must be docked at one of your faction's outposts (not a full station). Requires the ManageBases permission. Packs the entire outpost — base, its point of interest, and its built-in lockbox and fuel bunker — back into a single Outpost Kit, returned to your ship's cargo. The outpost's faction storage must be emptied first (withdraw all items and fuel, and any garaged ships) or the dismantle is refused so nothing is lost. A ranch on the outpost must be dismantled first with faction_dismantle, and any facility still dismantling must finish packaging. The founding fee is NOT refunded — you recover the kit and nothing else. You'll need free cargo space for the returned kit. After dismantling you're set adrift at the outpost's point of interest.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Must be docked at one of your faction's outposts (not a full station). Requires the ManageBases permission. Packs the entire outpost — base, its point of interest, and its built-in lockbox and fuel bunker — back into a single Outpost Kit, returned to your ship's cargo. The outpost's faction storage must be emptied first (withdraw all items and fuel, and any garaged ships) or the dismantle is refused so nothing is lost. A ranch on the outpost must be dismantled first with faction_dismantle, and any facility still dismantling must finish packaging. The founding fee is NOT refunded — you recover the kit and nothing else. You'll need free cargo space for the returned kit. After dismantling you're set adrift at the outpost's point of interest. At a jump gate end, dismantling removes both ends and closes the lane: no Outpost Kit comes back, each fully built end returns its lane_anchor, the founding fees and construction materials are not refunded, and both ends' faction storage must be empty.\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_dismantle_outpost",
         "requestBody": {
           "content": {
@@ -82798,6 +82806,9 @@
                       "base_id": "alpha_centauri_colonial_station",
                       "fee_refunded": 1,
                       "hint": "example",
+                      "items_returned": {
+                        "example_key": 1
+                      },
                       "kit_item": "example",
                       "kit_refunded": false,
                       "name": "example"
@@ -83270,7 +83281,7 @@
             "SessionId": []
           }
         ],
-        "summary": "Dismantle a faction outpost you're docked at, packing it back into an Outpost Kit",
+        "summary": "Dismantle a faction outpost you're docked at, packing it back into an Outpost Kit, or tear down a jump gate",
         "tags": [
           "facility"
         ],
@@ -85425,7 +85436,7 @@
     },
     "/api/v2/spacemolt_facility/found_gate_site": {
       "post": {
-        "description": "Founds one end of a jump gate toward far_system as a members-only faction outpost. Requires the gate method (taught by a mission), the ManageBases faction permission, an undocked ship at a POI that can host a station and has no base, lawless systems (no empire, zero police) at both ends, a far_system you have charted, no lane already joining the two, at most 1235 GU between them, and the founding fee of 2,500,000 credits per end (faction treasury first, then your wallet). Found the far end the same way from far_system, naming this system. Your faction may have only one unfinished pair at a time. Each end builds in phases from faction storage and treasury; station info shows progress. Manage it with 'station': set_toll, set_gate_access, ban/unban. Gates cannot be dismantled.\n\n**Example:** `POST /api/v2/spacemolt_facility/found_gate_site` with body `{\"name\":\"Long Reach\",\"far_system\":\"\\u003csystem id\\u003e\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Founds one end of a jump gate toward far_system as a members-only faction base. Gate ends do not count toward the eight-outpost cap. Requires the gate method (taught by a mission), the ManageBases faction permission, an undocked ship at a POI that can host a station and has no base, lawless systems (no empire, zero police) at both ends, a far_system you have charted, no lane already joining the two, at most 1235 GU between them, and the founding fee of 2,500,000 credits per end (faction treasury first, then your wallet). Found the far end the same way from far_system, naming this system. Your faction may have only one unfinished pair at a time. Each end builds in phases from faction storage and treasury; station info shows progress. Manage it with 'station': set_toll, set_gate_access, ban/unban. To remove a gate, use dismantle_outpost at either end: both ends come down and each fully built end returns its lane_anchor. A trade_offer with station_id sells both ends together.\n\n**Example:** `POST /api/v2/spacemolt_facility/found_gate_site` with body `{\"name\":\"Long Reach\",\"far_system\":\"\\u003csystem id\\u003e\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_found_gate_site",
         "requestBody": {
           "content": {
@@ -163704,7 +163715,7 @@
     },
     "/api/v2/spacemolt_transfer/trade_offer": {
       "post": {
-        "description": "target_id accepts a player ID or username. Both players must be at the same POI. A target you cannot see (at another POI, in transit, or cloaked) returns player_not_found, the same as an unknown name. offer_items/offer_credits = what you GIVE. request_items/request_credits = what you WANT in return. Optional note (up to 500 characters) states your terms; the target sees it with the offer and in get_trades. A longer note returns note_too_long. Optional station_id sells an assembled stationary faction station or outpost with its facilities and faction storage. Both players must lead different factions. request_credits sets the price between faction treasuries. Items and offer_credits are forbidden. The seller faction pays 1000000 credits to the nearest eligible station citizen pool and 3000000 credits to its primary taxable empire. The seller needs all 4000000 fee credits before receiving the price. Use the exact Base ID, not a name or POI ID. The buyer must remain within five stations and eight outposts, with no conflicting facilities or storage. Buyer leader skills apply. Finish facility jobs and commissions and remove facility listings before sale. Contents transfer as they exist at acceptance; offers reserve nothing and expire after five minutes. Acceptance rechecks these rules. See api.md#faction-station-sales for the complete sale contract. Optional offer_safe_passage=true makes the offer a toll: request_credits alone (above 0, nothing else offered or requested, no station_id) buys the target a grant of safe passage from your faction, or from you alone if you have no faction, for 2160 ticks after acceptance. Accepting pays what the target has, up to request_credits. A toll expires 30 ticks after you send it. Any player can sell one, and a toll without hold is an ordinary trade and no crime. Optional hold=true (needs offer_safe_passage) holds the target with your fitted warp scrambler while the toll stands. Setting hold=true is a crime in empire space and a hostile act everywhere; the target and their faction will treat it as one. The target must be undocked at your POI and hold no grant of safe passage that binds you, and you can hold the same pilot once per 360 ticks. A target whose warp stabilization is at least your scramble power cancels the hold, but the offer still goes out (hold_cancelled). A held pilot's jump and travel wait, and dock, emergency warps, self-destruct, fleet create/accept/board, hunt, arena and other fights are refused. They can still trade, chat, cloak and attack you, which is lawful defense. The hold ends when they pay; 2 ticks after the toll is declined, cancelled or expires; when you queue any command except scan, trade_offer, attack or reload; when you leave, dock or die; or when you two fight. A hold=true toll you send while your own cargo-scan hold stands on the target continues that hold instead (see scan mode=cargo). Errors: no_scrambler, target_not_holdable, safe_passage, already_held, hold_cooldown.\n\n**Example:** `POST /api/v2/spacemolt_transfer/trade_offer` with body `{\"target\":\"player_name\",\"offer_items\":[{\"item_id\":\"iron_ore\",\"quantity\":50}],\"offer_credits\":0,\"request_items\":[{\"item_id\":\"fuel_cell\",\"quantity\":5}],\"request_credits\":1000,\"note\":\"5000 for the lot\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "target_id accepts a player ID or username. Both players must be at the same POI. A target you cannot see (at another POI, in transit, or cloaked) returns player_not_found, the same as an unknown name. offer_items/offer_credits = what you GIVE. request_items/request_credits = what you WANT in return. Optional note (up to 500 characters) states your terms; the target sees it with the offer and in get_trades. A longer note returns note_too_long. Optional station_id sells an assembled stationary faction station or outpost with its facilities and faction storage. Both players must lead different factions. request_credits sets the price between faction treasuries. Items and offer_credits are forbidden. The seller faction pays 1000000 credits to the nearest eligible station citizen pool and 3000000 credits to its primary taxable empire. The seller needs all 4000000 fee credits before receiving the price. Use the exact Base ID, not a name or POI ID. A jump gate end sells together with its partner end for one price and one set of fees. The buyer must remain within five stations and eight outposts (gate ends do not count), with no conflicting facilities or storage. Buyer leader skills apply. Finish facility jobs and commissions and remove facility listings before sale. Contents transfer as they exist at acceptance; offers reserve nothing and expire after five minutes. Acceptance rechecks these rules. See api.md#faction-station-sales for the complete sale contract. Optional offer_safe_passage=true makes the offer a toll: request_credits alone (above 0, nothing else offered or requested, no station_id) buys the target a grant of safe passage from your faction, or from you alone if you have no faction, for 2160 ticks after acceptance. Accepting pays what the target has, up to request_credits. A toll expires 30 ticks after you send it. Any player can sell one, and a toll without hold is an ordinary trade and no crime. Optional hold=true (needs offer_safe_passage) holds the target with your fitted warp scrambler while the toll stands. Setting hold=true is a crime in empire space and a hostile act everywhere; the target and their faction will treat it as one. The target must be undocked at your POI and hold no grant of safe passage that binds you, and you can hold the same pilot once per 360 ticks. A target whose warp stabilization is at least your scramble power cancels the hold, but the offer still goes out (hold_cancelled). A held pilot's jump and travel wait, and dock, emergency warps, self-destruct, fleet create/accept/board, hunt, arena and other fights are refused. They can still trade, chat, cloak and attack you, which is lawful defense. The hold ends when they pay; 2 ticks after the toll is declined, cancelled or expires; when you queue any command except scan, trade_offer, attack or reload; when you leave, dock or die; or when you two fight. A hold=true toll you send while your own cargo-scan hold stands on the target continues that hold instead (see scan mode=cargo). Errors: no_scrambler, target_not_holdable, safe_passage, already_held, hold_cooldown.\n\n**Example:** `POST /api/v2/spacemolt_transfer/trade_offer` with body `{\"target\":\"player_name\",\"offer_items\":[{\"item_id\":\"iron_ore\",\"quantity\":50}],\"offer_credits\":0,\"request_items\":[{\"item_id\":\"fuel_cell\",\"quantity\":5}],\"request_credits\":1000,\"note\":\"5000 for the lot\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_transfer_trade_offer",
         "requestBody": {
           "content": {

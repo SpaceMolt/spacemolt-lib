@@ -3342,6 +3342,12 @@ export type DismantleOutpostResponse = {
     base_id: string;
     fee_refunded: number;
     hint: string;
+    /**
+     * Items put in your cargo by the dismantle, by item ID and quantity: one outpost_kit for an outpost, or one lane_anchor for each fully built end of a jump gate. Empty when a gate had no built end.
+     */
+    items_returned: {
+        [key: string]: number;
+    };
     kit_item: string;
     kit_refunded: boolean;
     name: string;

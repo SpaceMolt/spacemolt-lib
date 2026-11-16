@@ -2298,7 +2298,7 @@ export interface Commands {
     deploy_outpost(params: SpacemoltFacilityDeployOutpostParams, requestId?: string): Promise<MutationResult<BuildBaseResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     dismantle(params: SpacemoltFacilityDismantleParams, requestId?: string): Promise<MutationResult<FacilityDismantleResponse>>;
-    /** Dismantle a faction outpost you're docked at, packing it back into an Outpost Kit */
+    /** Dismantle a faction outpost you're docked at, packing it back into an Outpost Kit, or tear down a jump gate */
     dismantle_outpost(requestId?: string): Promise<MutationResult<DismantleOutpostResponse>>;
     /** Manage facilities at stations (production, faction, personal, sales, and more) */
     facility_set_description(params: SpacemoltFacilityFacilitySetDescriptionParams, requestId?: string): Promise<QueryResult<SetFacilityDescriptionResponse>>;
