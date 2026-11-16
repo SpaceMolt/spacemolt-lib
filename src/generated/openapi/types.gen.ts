@@ -14343,11 +14343,11 @@ export type TaxEstimateResponse = {
      */
     action: string;
     /**
-     * Current value in credits per owned ship; an empty list means no assessed ships.
+     * Current value in credits per owned ship; starter ships show 0; an empty list means no assessed ships.
      */
     assessed_property_by_ship: Array<TaxEstimatePropertyShipRow>;
     /**
-     * Total current owned hull and fitted module value in credits; retained when exempt.
+     * Total current owned hull and fitted module value in credits; starter ships count as 0; retained when exempt.
      */
     assessed_property_value: number;
     /**
