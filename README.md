@@ -129,7 +129,8 @@ reuse after its request timed out can settle on the wrong response.
 ### Local state cache
 
 Seeded from `get_status` after auth and updated from the delta on every
-mutation outcome. Read it locally:
+mutation outcome. The `gift_received`, `refueled_by` and `repaired_by` pushes
+also update credits, fuel and hull. Read it locally:
 
 ```ts
 // the 9 sections: player, ship, modules, cargo, location, missions, queue, skills, prize_recoveries

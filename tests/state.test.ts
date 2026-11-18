@@ -798,3 +798,31 @@ test('refresh does not roll the cache back when a newer delta lands before its s
   await account.refresh();
   expect(account.cargo?.[0]?.quantity).toBe(160);
 });
+
+test('gift_received, refueled_by and repaired_by pushes update the cache', async () => {
+  const { account, socket } = await seededAccount();
+  const changes: StateSection[][] = [];
+  account.onStateChange((changed) => changes.push(changed));
+
+  // Credits are an amount added; a gift without credits leaves the balance alone.
+  socket.serverSend({ type: 'gift_received', payload: { sender: 'Friend', credits: 250 } });
+  socket.serverSend({ type: 'gift_received', payload: { sender: 'Friend', base_id: 'earth_station', items: [] } });
+  expect(account.credits).toBe(5250);
+
+  // Fuel and hull are absolute values for the recipient's ship.
+  socket.serverSend({
+    type: 'refueled_by',
+    payload: { source_player_id: 'p2', source_username: 'Friend', fuel: 20, fuel_now: 120, fuel_max: 150 },
+  });
+  expect(account.ship?.fuel).toBe(120);
+  expect(account.ship?.max_fuel).toBe(150);
+
+  socket.serverSend({
+    type: 'repaired_by',
+    payload: { source_player_id: 'p2', source_username: 'Friend', repaired: 30, hull: 80, max_hull: 90 },
+  });
+  expect(account.ship?.hull).toBe(80);
+  expect(account.ship?.max_hull).toBe(90);
+
+  expect(changes).toEqual([['player'], ['ship'], ['ship']]);
+});
