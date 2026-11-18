@@ -155,6 +155,12 @@ export interface AccountOptions {
   fetchImpl?: typeof fetch;
   /** Max automatic retries when a command is `rate_limited`. Default 5. */
   maxRateLimitRetries?: number;
+  /**
+   * Shared per-IP backoff deadline (epoch ms). A `per_ip` rate limit moves it to
+   * `retry_after`, and every account given the same object holds all of its
+   * sends until then. `SpacemoltClient` shares one across its accounts.
+   */
+  ipBackoff?: { until: number };
   /** Stable id this account is managed under (e.g. the credential-store key / username). Exposed as `account.id`. */
   id?: string;
   /**
@@ -319,7 +325,22 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 15_000;
 const DEFAULT_MUTATION_TIMEOUT_MS = 600_000;
 const DEFAULT_FAST_MUTATION_TIMEOUT_MS = 180_000;
 
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+export const delay = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 
 /** Rejects with a `connect_timeout` `SpacemoltError` if `promise` doesn't settle within `ms`. */
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
@@ -508,6 +529,7 @@ export class Account {
   private readonly credentialsProvider?: () => AuthCredentials | Promise<AuthCredentials>;
   private readonly fetchImpl?: typeof fetch;
   private readonly maxRateLimitRetries: number;
+  private readonly ipBackoff: { until: number };
   private readonly connectTimeoutMs: number;
   private readonly queryTimeoutMs: number;
   private readonly mutationTimeoutMs: number;
@@ -558,6 +580,7 @@ export class Account {
     this.credentialsProvider = opts.credentials;
     this.fetchImpl = opts.fetchImpl;
     this.maxRateLimitRetries = opts.maxRateLimitRetries ?? 5;
+    this.ipBackoff = opts.ipBackoff ?? { until: 0 };
     this.connectTimeoutMs = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
     this.queryTimeoutMs = opts.queryTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
     this.mutationTimeoutMs = opts.mutationTimeoutMs ?? DEFAULT_MUTATION_TIMEOUT_MS;
@@ -724,6 +747,8 @@ export class Account {
     const socket = this.socket;
     this._welcome = null;
     const signal = this.transportAbort.signal;
+    // Only await when held: tests and hosts rely on the socket opening synchronously.
+    if (this.ipBackoff.until > Date.now()) await this.waitForIpBackoff(signal);
     await admit(
       this.scheduleOpen,
       { accountId: this._id, sessionId: this.sessionId, signal },
@@ -1494,6 +1519,9 @@ export class Account {
   ): Promise<void> {
     const socket = this.socket;
     const signal = this.transportAbort.signal;
+    // The auth handshake waits before the socket opens instead (see connect):
+    // holding it here would trip the server's auth deadline and close the socket.
+    if (tool !== 'spacemolt_auth' && this.ipBackoff.until > Date.now()) await this.waitForIpBackoff(signal);
     await admit(
       this.scheduleSend,
       { accountId: this._id, sessionId: this.sessionId, signal, tool, action, requestId },
@@ -1504,6 +1532,16 @@ export class Account {
       },
       'scheduleSend send()',
     );
+  }
+
+  /**
+   * A per-IP limit throttles every account on this IP, so hold until it lifts.
+   * Up to 1s of jitter so the fleet does not resume in one burst.
+   */
+  private async waitForIpBackoff(signal: AbortSignal): Promise<void> {
+    for (let waitMs = this.ipBackoff.until - Date.now(); waitMs > 0; waitMs = this.ipBackoff.until - Date.now()) {
+      await delay(waitMs + Math.random() * 1000, signal);
+    }
   }
 
   /** Throws unless `socket` is still this account's live, wanted transport. */
@@ -1643,6 +1681,10 @@ export class Account {
         if (!isErrorFrame(frame)) {
           if (!this.correlator.handle(frame)) this.warnMalformedFrame(frame);
           return;
+        }
+        const details = frame.payload.details;
+        if (details?.scope === 'per_ip' && typeof details.retry_after === 'number') {
+          this.ipBackoff.until = Math.max(this.ipBackoff.until, Date.now() + details.retry_after * 1000);
         }
         if (this.correlator.handle(frame)) return;
         const auth = this.pendingAuth;

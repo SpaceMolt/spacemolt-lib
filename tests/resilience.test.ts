@@ -1213,3 +1213,25 @@ test('a late close event from an abandoned reconnect attempt does not disturb th
   live.serverSend({ type: 'result', request_id: live.lastRequestId(), payload: { result: 'ok' } });
   expect((await q).result).toBe('ok');
 });
+
+test('a held per-IP backoff delays the socket open, not the auth frame behind it', async () => {
+  const { factory, sockets } = mockFactory();
+  const ipBackoff = { until: Date.now() + 300 };
+  const account = new Account({ url: 'ws://m/ws/v2', webSocketFactory: factory, ipBackoff, seedState: false });
+  const start = Date.now();
+  const connectP = account.connect();
+  while (sockets.length === 0) await new Promise((r) => setTimeout(r, 5));
+  expect(Date.now() - start).toBeGreaterThanOrEqual(290);
+  const socket = requireValue(sockets[0]);
+  socket.serverSend({ type: 'welcome', payload: welcomePayload() });
+  await connectP;
+
+  // A new block after the socket opened must not hold the login frame.
+  ipBackoff.until = Date.now() + 60_000;
+  socket.onClientSend = (frame, s) =>
+    s.serverSend({ type: 'logged_in', request_id: frame.request_id, payload: { player: { username: 'Nova' } } });
+  await account.login({ username: 'Nova', password: 'pw' });
+  expect(socket.sent.some((f) => f.action === 'login')).toBe(true);
+  ipBackoff.until = 0;
+  account.close();
+}, 3000);

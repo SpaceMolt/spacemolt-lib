@@ -708,3 +708,40 @@ test('closeAll during a pending reconnect leaves the account closed', async () =
   // zombie session would replace any later connect() for the same player.
   expect(account.authenticated).toBe(false);
 });
+
+test('a per_ip rate limit on one account holds every managed account until retry_after', async () => {
+  const { factory, sockets } = mockFactory();
+  const client = new SpacemoltClient({ webSocketFactory: factory, connectStaggerMs: 0, maxRateLimitRetries: 0 });
+  await client.addLogin('Nova', 'pw');
+  await client.addLogin('Rex', 'pw');
+  const allP = client.connectAll();
+  for (const [i, name] of ['Nova', 'Rex'].entries()) {
+    while (sockets.length <= i) await new Promise((r) => setTimeout(r, 1));
+    autoServe(requireValue(sockets[i]), name);
+  }
+  await allP;
+  const [nova, rex] = [requireValue(sockets[0]), requireValue(sockets[1])];
+
+  nova.onClientSend = (frame, s) =>
+    s.serverSend({
+      type: 'error',
+      request_id: frame.request_id,
+      payload: {
+        code: 'rate_limited',
+        message: 'Rate limit reached. Retry in 1 seconds.',
+        details: { limit: 'game_query', scope: 'per_ip', retry_after: 1 },
+      },
+    });
+  let rexSentAt: number | undefined;
+  rex.onClientSend = (frame, s) => {
+    rexSentAt = Date.now();
+    s.serverSend({ type: 'result', request_id: frame.request_id, payload: { result: 'ok', structuredContent: {} } });
+  };
+
+  const start = Date.now();
+  await expect(requireValue(client.account('Nova')).query('spacemolt', 'get_status')).rejects.toMatchObject({
+    code: 'rate_limited',
+  });
+  await requireValue(client.account('Rex')).query('spacemolt', 'get_status');
+  expect(requireValue(rexSentAt) - start).toBeGreaterThanOrEqual(900);
+}, 6000);

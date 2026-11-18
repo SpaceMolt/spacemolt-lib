@@ -86,6 +86,8 @@ Every game command is one of two kinds, classified straight from the spec
   `travel`/`jump`), and the local state cache is already updated by the time it
   returns. Mutations are serialized per account by default, matching the server's
   one-action-per-tick rule, and `rate_limited` responses are retried for you.
+  A `per_ip` rate limit pauses every account on the same client until its
+  `retry_after` passes, so sibling accounts do not escalate it to an IP timeout.
 
 Call commands three ways — all equivalent, all paced and cached:
 

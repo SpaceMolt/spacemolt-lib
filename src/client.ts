@@ -8,7 +8,7 @@
  * pattern is: add accounts once, `connectAll()` at startup, keep them open.
  */
 
-import { Account } from './account.ts';
+import { Account, delay } from './account.ts';
 import {
   type AuthCredentials,
   type CredentialStore,
@@ -192,26 +192,11 @@ const DEFAULT_CONNECT_RETRY: Required<ReconnectOptions> = { maxRetries: 8, baseD
 /** Assumed length of the server's per-IP WS-connection rate-limit window. */
 const CONNECT_RATE_WINDOW_MS = 60_000;
 
-const delay = (ms: number, signal?: AbortSignal): Promise<void> =>
-  new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(signal.reason);
-      return;
-    }
-    const abort = () => {
-      clearTimeout(timer);
-      reject(signal?.reason);
-    };
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', abort);
-      resolve();
-    }, ms);
-    signal?.addEventListener('abort', abort, { once: true });
-  });
-
 export class SpacemoltClient {
   private readonly store: CredentialStore;
   private readonly connected = new Map<string, Account>();
+  /** One per-IP backoff deadline for every managed account; see `AccountOptions.ipBackoff`. */
+  private readonly ipBackoff = { until: 0 };
   /** The pending connect or register for each id, and the controller that cancels it. */
   private readonly pending = new Map<string, { task: Promise<Account>; controller: AbortController }>();
   /** Reconnect chains in flight, keyed by the exact `Account` they restore. */
@@ -888,6 +873,7 @@ export class SpacemoltClient {
       scheduleOpen: this.opts.scheduleOpen,
       scheduleSend: this.opts.scheduleSend,
       maxRateLimitRetries: this.opts.maxRateLimitRetries,
+      ipBackoff: this.ipBackoff,
       // The client owns reconnection for its managed accounts (see
       // handleAccountDisconnected) instead of each Account reconnecting
       // independently — always false here regardless of
