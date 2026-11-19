@@ -955,6 +955,10 @@ export type AutoPilotLogEntry = {
  */
 export type Base = {
     /**
+     * Whether allied factions' pilots may build facilities rent-free at this player station
+     */
+    allow_ally_facilities?: boolean;
+    /**
      * Whether non-owning-faction pilots may build facilities at this player station
      */
     allow_outsider_facilities?: boolean;
@@ -1190,7 +1194,7 @@ export type BattleCombatState = {
 };
 
 export type BattleCommandResponse = ({
-    action: 'advance' | 'engage' | 'retreat' | 'self_destruct' | 'stance' | 'target';
+    action: 'advance' | 'default_stance' | 'engage' | 'retreat' | 'self_destruct' | 'stance' | 'target';
 } & BattleResponse) | ({
     action: 'help';
 } & CommandHelpResponse);
@@ -1340,7 +1344,7 @@ export type BattleResponse = {
     /**
      * The battle action the request asked for. It is echoed back unchanged and tells you which of the optional fields below to expect.
      */
-    action: 'advance' | 'retreat' | 'stance' | 'target' | 'engage' | 'self_destruct';
+    action: 'advance' | 'retreat' | 'stance' | 'target' | 'engage' | 'self_destruct' | 'default_stance';
     /**
      * Battle the command applied to. Omitted when the command did not resolve against a specific battle.
      */
@@ -1361,9 +1365,9 @@ export type BattleResponse = {
      */
     self_destruct_countdown?: number;
     /**
-     * Combat stance requested by action=stance. Ordinary stance changes apply on the next battle tick. A queued board request becomes exclusive and suppresses your weapons only if it wins any same-tick hull conflict; deterministic boarding initiative selects one physical link and the battle log records rejected contenders. Switching away from an active board stance begins a multi-tick withdrawal that costs marines — the requested replacement stance applies once disengagement finishes.
+     * Combat stance requested by action=stance, or the default stance set by action=default_stance (auto included). Ordinary stance changes apply on the next battle tick. A queued board request becomes exclusive and suppresses your weapons only if it wins any same-tick hull conflict; deterministic boarding initiative selects one physical link and the battle log records rejected contenders. Switching away from an active board stance begins a multi-tick withdrawal that costs marines — the requested replacement stance applies once disengagement finishes.
      */
-    stance?: 'fire' | 'evade' | 'brace' | 'flee' | 'board';
+    stance?: 'fire' | 'evade' | 'brace' | 'flee' | 'board' | 'auto';
     /**
      * Combatant this command aimed at — the ship being boarded on a board stance, or your new focus-fire target on action=target. Present on those actions only.
      */
@@ -3846,7 +3850,7 @@ export type FacilityDefSummary = {
     name: string;
     recipe_id?: string;
     /**
-     * Rent quote in credits per facility cycle (100 ticks) for the requesting player at this station. 0 at their own faction's player station or outpost, where members pay no rent; an outsider there is quoted the tenant rent paid to the owning faction.
+     * Rent quote in credits per facility cycle (100 ticks) for the requesting player at this station. 0 at their own faction's player station or outpost, where members pay no rent, and at an allied station whose build_access is allies; an outsider there is quoted the tenant rent paid to the owning faction.
      */
     rent_per_cycle: number;
     type_id: string;
@@ -4525,7 +4529,7 @@ export type FacilityTypeDetailResponse = {
     recipe?: FacilityRecipeInfo;
     recipe_id?: string;
     /**
-     * Rent quote in credits per facility cycle (100 ticks) for the requesting player at their docked station. 0 at their own faction's player station or outpost, where members pay no rent; an outsider there is quoted the tenant rent paid to the owning faction.
+     * Rent quote in credits per facility cycle (100 ticks) for the requesting player at their docked station. 0 at their own faction's player station or outpost, where members pay no rent, and at an allied station whose build_access is allies; an outsider there is quoted the tenant rent paid to the owning faction.
      */
     rent_per_cycle: number;
     requires_service_name?: string;
@@ -5777,6 +5781,9 @@ export type FieldWorkshopView = {
 };
 
 export type Fill = {
+    /**
+     * Who took the other side of the fill: the trader's username, the station's name for a station-run order, or Station Market for a legacy market order.
+     */
     counterparty?: string;
     price_each: number;
     quantity: number;
@@ -7903,6 +7910,10 @@ export type MapData = {
         [key: string]: string;
     };
     /**
+     * Player-built jump gates whose two ends are both on this map. Empty when there are none.
+     */
+    gates: Array<MapGate>;
+    /**
      * Every system in the galaxy, with static position and connection data.
      */
     systems: Array<MapDataSystem>;
@@ -7913,6 +7924,10 @@ export type MapDataSystem = {
     connections: Array<string>;
     empire?: string;
     empire_color?: string;
+    /**
+     * Frontier tier of the system. Omitted for known space.
+     */
+    frontier_tier?: number;
     has_battle?: boolean;
     id: string;
     is_home?: boolean;
@@ -7921,6 +7936,32 @@ export type MapDataSystem = {
     online: number;
     x: number;
     y: number;
+};
+
+export type MapGate = {
+    /**
+     * System at one end of the gate.
+     */
+    from_system: string;
+    /**
+     * True when the gate is open for jumps. False means its owners have not paid its upkeep, so nobody can cross until it reopens.
+     */
+    online: boolean;
+    /**
+     * System at the other end of the gate.
+     */
+    to_system: string;
+};
+
+export type MapGateLink = {
+    /**
+     * True when the gate is open for jumps. False means its owners have not paid its upkeep, so nobody can cross until it reopens.
+     */
+    online: boolean;
+    /**
+     * System at the far end of the gate.
+     */
+    system_id: string;
 };
 
 /**
@@ -7937,6 +7978,10 @@ export type MapSystem = {
      * Frontier tier of the system. Omitted for known space.
      */
     frontier_tier?: number;
+    /**
+     * Player-built jump gates from this system. An online gate is also listed in connections. Omitted when there are none.
+     */
+    gate_connections?: Array<MapGateLink>;
     is_stronghold?: boolean;
     name: string;
     poi_count?: number;
@@ -7957,6 +8002,10 @@ export type MapSystemInfo = {
      * Frontier tier of the system. Omitted for known space.
      */
     frontier_tier?: number;
+    /**
+     * Player-built jump gates from this system. An online gate is also listed in connections. Omitted when there are none.
+     */
+    gate_connections?: Array<MapGateLink>;
     is_stronghold?: boolean;
     name: string;
     poi_count: number;
@@ -9230,6 +9279,10 @@ export type NotificationExchangeFill = {
      * Station whose exchange the fill happened on.
      */
     base_id: string;
+    /**
+     * Who took the other side of the fill: the trader's username, the station's name for a station-run order, or Station Market for a legacy market order.
+     */
+    counterparty?: string;
     /**
      * Item traded.
      */
@@ -12058,6 +12111,10 @@ export type RouteStep = {
      */
     entrance_poi?: string;
     /**
+     * Credits the gate charges you for this hop. Omitted when the hop is free.
+     */
+    gate_toll?: number;
+    /**
      * Jumps from your current system to this step: 0 for the first step, then 1, 2 and so on. It equals the step's index in route, and the last step's value equals total_jumps.
      */
     jumps: number;
@@ -12069,6 +12126,10 @@ export type RouteStep = {
      * System ID of this step. The first step is your current system and the last is target_system.
      */
     system_id: string;
+    /**
+     * True when the hop into this step crosses a player-built jump gate. Take it with a normal jump to system_id. Omitted for lanes and wormholes.
+     */
+    via_gate?: boolean;
     /**
      * True when the hop into this step uses a known wormhole shortcut from the previous step's system instead of a normal connection. Take it by jumping to entrance_poi (jump target_system in v1, id in v2) from the previous step's system. Omitted means a normal jump to system_id.
      */
@@ -12513,6 +12574,10 @@ export type Ship = {
      */
     custom_name?: string;
     damage_penalty?: number;
+    /**
+     * Stance this ship opens at when a fight it did not choose pulls it in (set with battle action=default_stance); omitted means auto: fire with a weapon or remote repairer, else flee
+     */
+    default_stance?: 'fire' | 'evade' | 'brace' | 'flee';
     defense_slots?: number;
     disruption_ticks_remaining?: number;
     docked_at_base?: string;
@@ -13241,15 +13306,15 @@ export type ShippingDebtPaymentResponse = {
 
 export type ShippingListResponse = {
     /**
-     * Always list.
+     * The action called: list (your docked station's board) or list_all (every station).
      */
-    action: 'list';
+    action: 'list' | 'list_all';
     /**
      * Human-readable form of empty_reason_code. For no_eligible_shipments it names the first blocker found. Absent when total is above 0.
      */
     empty_reason?: string;
     /**
-     * Why total is 0: no_shipments (nothing you can see is posted here), no_matching_shipments (your filters excluded everything) or no_eligible_shipments (you cannot accept any of it now, for example unpaid freight debt or low carrier tier). Absent when total is above 0, including a page past the end.
+     * Why total is 0: no_shipments (nothing you can see is posted here, or anywhere for list_all), no_matching_shipments (your filters excluded everything) or no_eligible_shipments (you cannot accept any of it now, for example unpaid freight debt or low carrier tier). Absent when total is above 0, including a page past the end.
      */
     empty_reason_code?: string;
     /**
@@ -13261,24 +13326,32 @@ export type ShippingListResponse = {
      */
     per_page: number;
     /**
-     * One page of the freight board at your docked station: posted contracts the selected carrier can see, that pass the filters and that it can accept. Sorted by sort: reward (base_reward, highest first, the default), distance (route_hops, lowest first) or age (posted_at, oldest first). Empty, never null, when nothing matches or the page is past the end.
+     * One page of the freight board: posted contracts the selected carrier can see, that pass the filters and that it can accept (or all of them with include_ineligible=true). list covers your docked station. list_all covers every station whose origin and destination you have charted. Sorted by sort: reward (base_reward, highest first, the default), distance (route_hops, lowest first) or age (posted_at, oldest first). Empty, never null, when nothing matches or the page is past the end.
      */
     shipments: Array<ShippingListing>;
     /**
-     * Number of listings across all pages after filters and eligibility.
+     * Number of listings across all pages after filters and, unless include_ineligible=true, eligibility.
      */
     total: number;
 };
 
 export type ShippingListing = {
     /**
-     * A contract posted at your docked station. The sealed manifest (appraisal_lines) is omitted.
+     * A posted contract: at your docked station for list, at contract.origin_base_id for list_all. The sealed manifest (appraisal_lines) is omitted.
      */
     contract: ShipmentContract;
     /**
      * Ticks after acceptance until the on-time deadline. Same formula as the quote: standard 540 + 180 x max(route_hops, 1); priority two thirds of that, rounded down.
      */
     deadline_ticks: number;
+    /**
+     * Whether the eligible_as carrier can accept this contract now. false appears only with include_ineligible=true.
+     */
+    eligible: boolean;
+    /**
+     * Why eligible is false: unpaid freight debt, carrier tier below the risk band, a liability limit, or no faction Market Runner at the origin. Absent when eligible is true.
+     */
+    ineligible_reason?: string;
     /**
      * Ticks after the deadline during which a late deliver or return is still accepted for a capped late fee. Always 2880.
      */
@@ -13467,7 +13540,7 @@ export type ShippingResponse = ({
 } & ShippingQuoteResponse) | ({
     action: 'accept' | 'get' | 'post';
 } & ShippingContractResponse) | ({
-    action: 'list';
+    action: 'list' | 'list_all';
 } & ShippingListResponse) | ({
     action: 'active';
 } & ShippingActiveResponse) | ({
@@ -13720,7 +13793,7 @@ export type StationConfigResponse = {
      */
     action: string;
     /**
-     * True when non-members may build their own facilities at this station; those tenants pay rent each facility cycle to the owning faction's treasury. False means only the owning faction and its members may build.
+     * True when non-members may build their own facilities at this station; those tenants pay rent each facility cycle to the owning faction's treasury. False under build_access allies or faction.
      */
     allow_outsider_facilities: boolean;
     /**
@@ -13743,6 +13816,10 @@ export type StationConfigResponse = {
      * ID of the station or outpost you are docked at and administering.
      */
     base_id: string;
+    /**
+     * Who may build their own facilities here. public: anyone (outsiders pay rent). allies: the owning faction and its allies (allies pay no rent). faction: the owning faction only.
+     */
+    build_access: 'public' | 'allies' | 'faction';
     /**
      * Custom banned item IDs in sorted order. Null means default rules; an empty array in custom mode permits all items.
      */
@@ -14708,6 +14785,10 @@ export type TradeAcceptResponse = {
 };
 
 export type TradeFillNotification = {
+    /**
+     * Who took the other side of the fill: the trader's username, the station's name for a station-run order, or Station Market for a legacy market order.
+     */
+    counterparty?: string;
     item_id: string;
     item_name: string;
     price_each: number;
@@ -15688,6 +15769,10 @@ export type V2Ship = {
      * Damage reduction multiplier from EM disruption, 0.0-1.0 (omitted when not disrupted)
      */
     damage_penalty?: number;
+    /**
+     * Stance this ship opens at when a fight it did not choose pulls it in (set with battle action=default_stance). Omitted means auto: fire with a weapon or remote repairer, else flee.
+     */
+    default_stance?: 'fire' | 'evade' | 'brace' | 'flee';
     /**
      * Number of defense module slots
      */
@@ -19469,6 +19554,44 @@ export type SpacemoltBattleAdvanceResponses = {
 
 export type SpacemoltBattleAdvanceResponse = SpacemoltBattleAdvanceResponses[keyof SpacemoltBattleAdvanceResponses];
 
+export type SpacemoltBattleDefaultStanceData = {
+    body?: {
+        /**
+         * Default stance: auto, fire, evade, brace or flee.
+         */
+        id: 'auto' | 'fire' | 'evade' | 'brace' | 'flee';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_battle/default_stance';
+};
+
+export type SpacemoltBattleDefaultStanceErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltBattleDefaultStanceResponses = {
+    /**
+     * Result. structuredContent type: BattleResponse
+     */
+    200: V2Response & {
+        structuredContent?: BattleResponse;
+    };
+};
+
+export type SpacemoltBattleDefaultStanceResponse = SpacemoltBattleDefaultStanceResponses[keyof SpacemoltBattleDefaultStanceResponses];
+
 export type SpacemoltBattleEngageData = {
     body?: {
         /**
@@ -19729,7 +19852,7 @@ export type SpacemoltBattleSelfDestructResponse = SpacemoltBattleSelfDestructRes
 export type SpacemoltBattleStanceData = {
     body?: {
         /**
-         * Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records reason contested_same_tick. Changing away from board begins non-instant withdrawal.
+         * Stance: fire, evade, brace, flee or board.
          */
         id: 'fire' | 'evade' | 'brace' | 'flee' | 'board';
         /**
@@ -22224,6 +22347,10 @@ export type SpacemoltFacilitySetAutoBuyFuelResponse = SpacemoltFacilitySetAutoBu
 export type SpacemoltFacilitySetBuildPolicyData = {
     body?: {
         /**
+         * Access level for set_service_access; public, allies or faction for set_gate_access and set_build_policy
+         */
+        access?: 'public' | 'allies' | 'faction';
+        /**
          * Whether non-members may build facilities here (set_build_policy)
          */
         allow_outsiders?: boolean;
@@ -22344,7 +22471,7 @@ export type SpacemoltFacilitySetDescriptionResponse = SpacemoltFacilitySetDescri
 export type SpacemoltFacilitySetGateAccessData = {
     body?: {
         /**
-         * Access level for set_service_access; public, allies or faction for set_gate_access
+         * Access level for set_service_access; public, allies or faction for set_gate_access and set_build_policy
          */
         access: 'public' | 'allies' | 'faction';
     };
@@ -22632,7 +22759,7 @@ export type SpacemoltFacilitySetRepairPriceResponse = SpacemoltFacilitySetRepair
 export type SpacemoltFacilitySetServiceAccessData = {
     body?: {
         /**
-         * Access level for set_service_access; public, allies or faction for set_gate_access
+         * Access level for set_service_access; public, allies or faction for set_gate_access and set_build_policy
          */
         access: 'public' | 'allies' | 'faction';
         /**
@@ -28165,6 +28292,10 @@ export type SpacemoltShippingListData = {
          */
         filter_shipper?: string;
         /**
+         * For list or list_all, also show contracts the eligible_as carrier cannot accept now, each with eligible=false and ineligible_reason.
+         */
+        include_ineligible?: boolean;
+        /**
          * List page (default 1).
          */
         page?: number;
@@ -28207,6 +28338,76 @@ export type SpacemoltShippingListResponses = {
 };
 
 export type SpacemoltShippingListResponse = SpacemoltShippingListResponses[keyof SpacemoltShippingListResponses];
+
+export type SpacemoltShippingListAllData = {
+    body?: {
+        /**
+         * For list, show contracts you may accept personally (player, default) or for your current faction.
+         */
+        eligible_as?: 'player' | 'faction';
+        /**
+         * For list, only show runs bound for this destination station, given by either its Base ID or station POI ID.
+         */
+        filter_destination?: string;
+        /**
+         * For list_all, only show runs posted at this origin station, given by either its Base ID or station POI ID.
+         */
+        filter_origin?: string;
+        /**
+         * For list, only show runs of this service tier.
+         */
+        filter_service_level?: 'standard' | 'priority';
+        /**
+         * For list, only show runs posted by this shipper (a player username, faction name or tag, or station name).
+         */
+        filter_shipper?: string;
+        /**
+         * For list or list_all, also show contracts the eligible_as carrier cannot accept now, each with eligible=false and ineligible_reason.
+         */
+        include_ineligible?: boolean;
+        /**
+         * List page (default 1).
+         */
+        page?: number;
+        /**
+         * Contracts per page (default 20, max 50).
+         */
+        per_page?: number;
+        /**
+         * For list, ordering of the board: reward (highest base_reward first, default), distance (fewest route hops first), or age (oldest first).
+         */
+        sort?: 'reward' | 'distance' | 'age';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/list_all';
+};
+
+export type SpacemoltShippingListAllErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingListAllResponses = {
+    /**
+     * Result. structuredContent type: ShippingListResponse
+     */
+    200: V2Response & {
+        structuredContent?: ShippingListResponse;
+    };
+};
+
+export type SpacemoltShippingListAllResponse = SpacemoltShippingListAllResponses[keyof SpacemoltShippingListAllResponses];
 
 export type SpacemoltShippingPayDebtData = {
     body?: {

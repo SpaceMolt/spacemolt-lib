@@ -102,6 +102,7 @@ test('fetchMap validates and sanitizes external JSON', async () => {
     '/api/map': {
       systems: [null, { id: 'sol' }, 'bad'],
       empires: { solarian: '#ffd700', invalid: 42 },
+      gates: [{ from_system: 'sol', to_system: 'alpha_centauri', online: true }, 'bad'],
     },
   });
   // fetchMap only filters non-objects; a well-formed-looking entry is trusted
@@ -109,7 +110,11 @@ test('fetchMap validates and sanitizes external JSON', async () => {
   expect(await fetchMap('https://game.spacemolt.com')).toEqual({
     systems: [{ id: 'sol' } as MapSystem],
     empires: { solarian: '#ffd700' },
+    gates: [{ from_system: 'sol', to_system: 'alpha_centauri', online: true }],
   });
+
+  stubFetch({ '/api/map': { systems: [] } });
+  expect((await fetchMap('https://game.spacemolt.com')).gates).toEqual([]);
 
   stubFetch({ '/api/map': null });
   expect(fetchMap('https://game.spacemolt.com')).rejects.toThrow('map response must be a JSON object');
@@ -119,6 +124,7 @@ test('MapCache indexes systems by id', () => {
   const cache = new MapCache({
     systems: [mapSystem({ id: 'sol', name: 'Sol' }), mapSystem({ id: 'alpha_centauri', name: 'Alpha Centauri' })],
     empires: { solarian: '#ffd700' },
+    gates: [],
   });
   expect(cache.system('sol')?.name).toBe('Sol');
   expect(cache.systems.length).toBe(2);
