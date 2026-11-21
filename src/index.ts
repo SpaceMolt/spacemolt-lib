@@ -97,3 +97,4 @@ export type {
  * not also have to be remembered here.
  */
 export * from './push-frames.ts';
+export * from './gameplay/index.ts';
