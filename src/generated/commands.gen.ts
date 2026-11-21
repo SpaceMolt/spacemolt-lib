@@ -317,6 +317,11 @@ export interface SpacemoltAuthRegisterParams {
   username: string;
 }
 
+export interface SpacemoltBattleDefaultStanceParams {
+  /** Default stance: auto, fire, evade, brace or flee. */
+  id: "auto" | "fire" | "evade" | "brace" | "flee";
+}
+
 export interface SpacemoltBattleEngageParams {
   /** Side to join (optional when you engage — auto-assigned by faction if omitted) */
   side_id?: number;
@@ -343,7 +348,7 @@ export interface SpacemoltBattleReloadParams {
 }
 
 export interface SpacemoltBattleStanceParams {
-  /** Battle stance: fire (100% dmg dealt/taken), evade (0%/50%, costs fuel), brace (0%/25%, shields regen 2x), flee (0%/100%, auto-retreats to escape), or board (0%/100%, automatically closes for repeated latch attempts; requires target_id and marines). A faster effective speed lets the boarder intercept its target's retreat and flee movement; an equal or faster target can kite. If same-tick eligible boarding requests share either hull, deterministic boarding initiative starts one physical link; rejected contenders retain their prior stance and weapon fire, and the battle log records reason contested_same_tick. Changing away from board begins non-instant withdrawal. */
+  /** Stance: fire, evade, brace, flee or board. */
   id: "fire" | "evade" | "brace" | "flee" | "board";
   /** Boarding goal for stance=board: capture (default) takes the intact hull; plunder robs another player's ship of its cargo and leaves the hull with its pilot. Plunder targets only players, never NPCs, prizes or arena opponents. */
   intent?: "capture" | "plunder";
@@ -635,6 +640,8 @@ export interface SpacemoltFacilitySetAutoBuyFuelParams {
 }
 
 export interface SpacemoltFacilitySetBuildPolicyParams {
+  /** Access level for set_service_access; public, allies or faction for set_gate_access and set_build_policy */
+  access?: "public" | "allies" | "faction";
   /** Whether non-members may build facilities here (set_build_policy) */
   allow_outsiders?: boolean;
 }
@@ -650,7 +657,7 @@ export interface SpacemoltFacilitySetDescriptionParams {
 }
 
 export interface SpacemoltFacilitySetGateAccessParams {
-  /** Access level for set_service_access; public, allies or faction for set_gate_access */
+  /** Access level for set_service_access; public, allies or faction for set_gate_access and set_build_policy */
   access: "public" | "allies" | "faction";
 }
 
@@ -689,7 +696,7 @@ export interface SpacemoltFacilitySetRepairPriceParams {
 }
 
 export interface SpacemoltFacilitySetServiceAccessParams {
-  /** Access level for set_service_access; public, allies or faction for set_gate_access */
+  /** Access level for set_service_access; public, allies or faction for set_gate_access and set_build_policy */
   access: "public" | "allies" | "faction";
   /** Service type for set_service_access (market, refuel, repair, shipyard, crafting, salvage_yard, missions) */
   service: string;
@@ -1305,6 +1312,29 @@ export interface SpacemoltShippingListParams {
   filter_service_level?: "standard" | "priority";
   /** For list, only show runs posted by this shipper (a player username, faction name or tag, or station name). */
   filter_shipper?: string;
+  /** For list or list_all, also show contracts the eligible_as carrier cannot accept now, each with eligible=false and ineligible_reason. */
+  include_ineligible?: boolean;
+  /** List page (default 1). */
+  page?: number;
+  /** Contracts per page (default 20, max 50). */
+  per_page?: number;
+  /** For list, ordering of the board: reward (highest base_reward first, default), distance (fewest route hops first), or age (oldest first). */
+  sort?: "reward" | "distance" | "age";
+}
+
+export interface SpacemoltShippingListAllParams {
+  /** For list, show contracts you may accept personally (player, default) or for your current faction. */
+  eligible_as?: "player" | "faction";
+  /** For list, only show runs bound for this destination station, given by either its Base ID or station POI ID. */
+  filter_destination?: string;
+  /** For list_all, only show runs posted at this origin station, given by either its Base ID or station POI ID. */
+  filter_origin?: string;
+  /** For list, only show runs of this service tier. */
+  filter_service_level?: "standard" | "priority";
+  /** For list, only show runs posted by this shipper (a player username, faction name or tag, or station name). */
+  filter_shipper?: string;
+  /** For list or list_all, also show contracts the eligible_as carrier cannot accept now, each with eligible=false and ineligible_reason. */
+  include_ineligible?: boolean;
   /** List page (default 1). */
   page?: number;
   /** Contracts per page (default 20, max 50). */
@@ -2229,6 +2259,8 @@ export interface Commands {
     /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     advance(requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
+    default_stance(params: SpacemoltBattleDefaultStanceParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
+    /** Manage your battle — maneuver, target enemies, adopt combat stances, or self-destruct */
     engage(params?: SpacemoltBattleEngageParams, requestId?: string): Promise<QueryResult<BattleResponse>>;
     /** View the tick-by-tick combat replay of a battle by ID */
     log(params: SpacemoltBattleLogParams, requestId?: string): Promise<QueryResult<GetBattleLogResponse>>;
@@ -2631,6 +2663,8 @@ export interface Commands {
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     list(params?: SpacemoltShippingListParams, requestId?: string): Promise<QueryResult<ShippingListResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    list_all(params?: SpacemoltShippingListAllParams, requestId?: string): Promise<QueryResult<ShippingListResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     pay_debt(params?: SpacemoltShippingPayDebtParams, requestId?: string): Promise<MutationResult<ShippingDebtPaymentResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     post(params: SpacemoltShippingPostParams, requestId?: string): Promise<MutationResult<ShippingContractResponse>>;
@@ -2827,6 +2861,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
     },
     spacemolt_battle: {
       advance: bindBare("spacemolt_battle", "advance"),
+      default_stance: bind("spacemolt_battle", "default_stance"),
       engage: bind("spacemolt_battle", "engage"),
       log: bind("spacemolt_battle", "log"),
       reload: bind("spacemolt_battle", "reload"),
@@ -3040,6 +3075,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       deliver: bind("spacemolt_shipping", "deliver"),
       get: bind("spacemolt_shipping", "get"),
       list: bind("spacemolt_shipping", "list"),
+      list_all: bind("spacemolt_shipping", "list_all"),
       pay_debt: bind("spacemolt_shipping", "pay_debt"),
       post: bind("spacemolt_shipping", "post"),
       profile: bind("spacemolt_shipping", "profile"),

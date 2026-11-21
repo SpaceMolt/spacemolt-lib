@@ -1,12 +1,13 @@
-import type { MapData, MapDataSystem } from '../generated/openapi/types.gen.ts';
+import type { MapData, MapDataSystem, MapGate } from '../generated/openapi/types.gen.ts';
 import { type FetchOptions, httpGet } from './http.ts';
 import { isRecord, requireRecord } from '../validation.ts';
 
 /**
  * Local copy of the static galaxy map (`GET /api/map`).
  *
- * Returns `{ systems, empires }` where `empires` maps an empire id to a display
- * colour. Static per release; the separate `/api/map/activity` overlay (online
+ * Returns `{ systems, empires, gates }` where `empires` maps an empire id to a
+ * display colour and `gates` lists player-built jump gates (empty when there are
+ * none). Static per release; the separate `/api/map/activity` overlay (online
  * counts, battles) changes frequently and is not cached here.
  *
  * Both shapes come from the spec. `MapDataSystem` is the entry this endpoint
@@ -37,7 +38,8 @@ export async function fetchMap(httpBaseUrl: string, opts: FetchOptions = {}): Pr
         Object.entries(data.empires).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
       )
     : {};
-  return { systems, empires };
+  const gates = Array.isArray(data.gates) ? data.gates.filter((gate): gate is MapGate => isRecord(gate)) : [];
+  return { systems, empires, gates };
 }
 
 export class MapCache {
