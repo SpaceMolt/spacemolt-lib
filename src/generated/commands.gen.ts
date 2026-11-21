@@ -662,7 +662,7 @@ export interface SpacemoltFacilitySetGateAccessParams {
 }
 
 export interface SpacemoltFacilitySetMarketFeeParams {
-  /** Market listing fee percent 0-10 (set_market_fee) */
+  /** Market fee percent 0-10 that outside buyers pay on top of the price (set_market_fee; 0 = default 1%) */
   fee_percent?: number;
 }
 
@@ -1108,6 +1108,8 @@ export interface SpacemoltMarketModifyOrderParams {
 }
 
 export interface SpacemoltMarketViewMarketParams {
+  /** Optional: Base ID or station POI ID of another charted station to view while docked anywhere. Omit for your current station. */
+  base_id?: string;
   /** Optional: filter summary by category (e.g., ore, commodity, weapon, module). Use without item_id. */
   category?: string;
   /** Optional: narrow the response to ONLY your faction's private Company Store listings. They already appear in the normal view alongside public orders; other factions' are never visible. Requires faction membership. */
@@ -1825,7 +1827,7 @@ export interface SpacemoltAttackParams {
 }
 
 export interface SpacemoltBuyParams {
-  /** If true, automatically place a buy order for any quantity not filled immediately (1% listing fee applies). */
+  /** If true, automatically place a buy order for any quantity not filled immediately (sales tax or station market fee is escrowed with it). */
   auto_list?: boolean;
   /** Where to deliver purchased items: 'cargo' (default) or 'storage' (station storage, useful when cargo is full). */
   deliver_to?: "cargo" | "storage";
@@ -1971,8 +1973,13 @@ export interface SpacemoltJettisonParams {
 }
 
 export interface SpacemoltJumpParams {
-  /** ID of the adjacent system to jump to (use get_system to see connected systems), or a numeric compass bearing in degrees for an off-network Pathfinder Drive jump. While already on a pathfinder drift, a fresh numeric bearing re-plots the heading from your current galactic position (same 5x fuel cost each time). */
+  /** ID of the adjacent system to jump to (use get_system to see connected systems), or a numeric compass bearing in degrees for an off-network Pathfinder Drive jump. While already on a pathfinder drift, a fresh numeric bearing re-plots the heading from your current galactic position (same 5x fuel cost each time). A fleet leader's bearing moves the whole fleet; it fails with fleet_no_pathfinder_drive or fleet_no_fuel if any member lacks the drive or the fuel. */
   id: string;
+}
+
+export interface SpacemoltListStationPassengersParams {
+  /** Optional: Base ID or station POI ID of another charted station to view while docked anywhere. Omit for your current station. */
+  id?: string;
 }
 
 export interface SpacemoltLoadPassengerParams {
@@ -2046,7 +2053,7 @@ export interface SpacemoltSearchSystemsParams {
 }
 
 export interface SpacemoltSellParams {
-  /** If true, automatically create a sell order for unsold items at the average fill price (1% listing fee applies). */
+  /** If true, automatically create a sell order for unsold items at the average fill price (no listing fee). */
   auto_list?: boolean;
   /** ID of the item to sell (e.g., iron_ore, steel_plate) */
   id: string;
@@ -2180,8 +2187,8 @@ export interface Commands {
     jump(params: SpacemoltJumpParams, requestId?: string): Promise<MutationResult<JumpCommandResponse>>;
     /** List the passengers currently aboard your ship */
     list_passengers(requestId?: string): Promise<QueryResult<ListPassengersResponse>>;
-    /** List citizens waiting for transport at your current station */
-    list_station_passengers(requestId?: string): Promise<QueryResult<StationPassengersResponse>>;
+    /** List citizens waiting for transport at your current station or another charted station */
+    list_station_passengers(params?: SpacemoltListStationPassengersParams, requestId?: string): Promise<QueryResult<StationPassengersResponse>>;
     /** Load all waiting passengers bound for a destination into your passenger berths */
     load_passenger(params: SpacemoltLoadPassengerParams, requestId?: string): Promise<MutationResult<LoadPassengersResponse>>;
     /** Mine resources from asteroids, ice fields, or gas clouds */
@@ -2568,7 +2575,7 @@ export interface Commands {
     subscribe_market(requestId?: string): Promise<QueryResult<SubscribeMarketResponse>>;
     /** Cancel your live market subscription */
     unsubscribe_market(requestId?: string): Promise<QueryResult<UnsubscribeMarketResponse>>;
-    /** View the market at the current station */
+    /** View the market at the current station or another charted station */
     view_market(params?: SpacemoltMarketViewMarketParams, requestId?: string): Promise<QueryResult<ViewMarketResponse>>;
     /** View your own orders at a station */
     view_orders(params?: SpacemoltMarketViewOrdersParams, requestId?: string): Promise<QueryResult<ViewOrdersResponse>>;
@@ -2819,7 +2826,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       jettison: bind("spacemolt", "jettison"),
       jump: bind("spacemolt", "jump"),
       list_passengers: bindBare("spacemolt", "list_passengers"),
-      list_station_passengers: bindBare("spacemolt", "list_station_passengers"),
+      list_station_passengers: bind("spacemolt", "list_station_passengers"),
       load_passenger: bind("spacemolt", "load_passenger"),
       mine: bindBare("spacemolt", "mine"),
       pay_bounty: bind("spacemolt", "pay_bounty"),

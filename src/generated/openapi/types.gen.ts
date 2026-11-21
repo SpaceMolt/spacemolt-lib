@@ -1050,7 +1050,7 @@ export type Base = {
     };
     id: string;
     /**
-     * Owner-set market listing fee in basis points (player station); 0 = default
+     * Owner-set market fee outside buyers pay on top of the price, in basis points (player station); 0 = default (1%)
      */
     market_fee_bps?: number;
     /**
@@ -2309,7 +2309,7 @@ export type CatalogDump = {
 
 export type CatalogRecipe = {
     /**
-     * Grouping label used by the catalog type=recipes category filter. Two values are load-bearing rather than cosmetic: 'Facility Only' and 'Ship Passive' each make the recipe impossible to hand-craft. Prefer hand_craftable, which folds both of those strings together, over comparing this field yourself.
+     * Grouping label for the kind of work the recipe is, used by the catalog type=recipes category filter. One value is load-bearing rather than cosmetic: 'Ship Passive' marks a recipe that runs itself aboard a ship built for it and can never be queued. A recipe can be hand-crafted at the Station Workshop when facility_only is false and the category is not 'Ship Passive'.
      */
     category: string;
     /**
@@ -2321,17 +2321,13 @@ export type CatalogRecipe = {
      */
     description: string;
     /**
-     * True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. It is one of the two inputs to hand_craftable; category is the other. Do not test it alone — a 'Facility Only' or 'Ship Passive' category recipe is equally un-hand-craftable with this field absent.
+     * True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. A 'Ship Passive' category recipe cannot be hand-crafted either, with this field absent.
      */
     facility_only?: boolean;
     /**
      * Units of fuel added straight to the processing ship's tank (not to cargo) per run, when this recipe runs as a Ship Passive recipe aboard a fuel-synthesis module. Absent or zero on every recipe that delivers cargo instead.
      */
     fuel_output?: number;
-    /**
-     * Whether a docked pilot can run this recipe by hand at their Station Workshop, with no facility of any kind. Derived exactly as: facility_only is false AND category is not 'Facility Only' AND category is not 'Ship Passive'. Always present. False means the recipe needs a venue — a 'Ship Passive' recipe runs itself aboard a ship built for it and can never be queued at all, while any other false value must be queued at one of produced_by_facility_ids. True is a venue answer only: inputs, credits and workshop queue space are still checked when you actually craft.
-     */
-    hand_craftable: boolean;
     /**
      * True when the recipe is withheld from the catalog and cannot be crafted. Catalog surfaces omit hidden recipes entirely, so this is absent (false) on every recipe you can actually see.
      */
@@ -2361,7 +2357,7 @@ export type CatalogRecipe = {
      */
     package_operation?: string;
     /**
-     * Ids of the facility definitions that can run this recipe forward, each matching an entry in this dump's facilities list. Sorted by facility level then name. Always present, never omitted: an empty list means no facility definition runs it, which for a hand_craftable recipe is normal (the Station Workshop is then the only venue) and for a recipe with hand_craftable false means it has no player-reachable venue at all. Owning or renting one of these facilities is what craft auto-routes to.
+     * Ids of the facility definitions that can run this recipe forward, each matching an entry in the catalog's facilities list. Sorted by facility level then name. Always present, never omitted. An empty list means no facility definition runs it: the Station Workshop is then the only venue, unless the recipe is facility_only (no player-reachable venue) or in the 'Ship Passive' category (it runs itself aboard a ship built for it). Owning or renting one of these facilities is what craft auto-routes to.
      */
     produced_by_facility_ids: Array<string>;
     /**
@@ -2374,9 +2370,9 @@ export type CatalogResponse = {
     analysis?: RecipeAnalysis;
     estimated_material_cost?: number;
     /**
-     * Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
+     * Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → CatalogRecipe, items → Item or Module, facilities → FacilityDefinition.
      */
-    items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition | MobileBaseShipClass>;
+    items: Array<Item | Module | ShipClass | Skill | CatalogRecipe | FacilityDefinition | MobileBaseShipClass>;
     message: string;
     page: number;
     page_size: number;
@@ -3844,7 +3840,7 @@ export type FacilityDefSummary = {
         [key: string]: number;
     };
     /**
-     * Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.
+     * Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume.
      */
     maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
@@ -3960,7 +3956,7 @@ export type FacilityEntry = {
      */
     bonus_type?: string;
     /**
-     * Size of bonus_type: workshop_speed is a percent added to Station Workshop crafting speed, drone_bandwidth is extra drone bandwidth units and market_fee_discount is a percent taken off market listing fees. Only one facility per bonus type counts per station. Omitted when bonus_type is omitted.
+     * Size of bonus_type: workshop_speed is a percent added to Station Workshop crafting speed, drone_bandwidth is extra drone bandwidth units and market_fee_discount is a percent taken off ship and facility listing fees. Only one facility per bonus type counts per station. Omitted when bonus_type is omitted.
      */
     bonus_value?: number;
     /**
@@ -4050,7 +4046,7 @@ export type FacilityEntry = {
      */
     maintenance_level?: number;
     /**
-     * Listed upkeep of this facility. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A dining/leisure venue must hold this stock to count as fully supplied: it scales with recent paying footfall, never drops below 15 percent of its declared menu (at least one of each item), and the venue burns its paying guests' share of it (nothing in a cycle no guest paid for). Any other facility needs on hand only what it draws each facility cycle (100 ticks): see maintenance_average_burn_per_cycle. A market's trade_authenticator quantity includes a charge that grows with this station's recent market trade volume and is drawn in full each cycle.
+     * Listed upkeep of this facility. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A dining/leisure venue must hold this stock to count as fully supplied: it scales with recent paying footfall, never drops below 15 percent of its declared menu (at least one of each item), and the venue burns its paying guests' share of it (nothing in a cycle no guest paid for). Any other facility needs on hand only what it draws each facility cycle (100 ticks): see maintenance_average_burn_per_cycle. A market's trade_authenticator quantity includes a charge that grows with this station's recent market trade volume.
      */
     maintenance_per_cycle?: Array<ItemQuantity>;
     /**
@@ -4298,6 +4294,10 @@ export type FacilityListResponse = {
      * Facilities the station itself owns at this base: its services, infrastructure, defenses and generic production on-ramps. They bill you no rent; rent fields are omitted on them. Empty when the station owns none.
      */
     station_facilities: Array<FacilityEntry>;
+    /**
+     * Every facility at your faction's player station or outpost owned by a player or faction outside your faction, with its owner and the rent it pays your faction. Present only to members of the owning faction with the ManageBases permission; omitted for everyone else and when there are none.
+     */
+    tenant_facilities?: Array<TenantFacilityEntry>;
 };
 
 export type FacilityListingEntry = {
@@ -4521,7 +4521,7 @@ export type FacilityTypeDetailResponse = {
         [key: string]: number;
     };
     /**
-     * Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.
+     * Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume.
      */
     maintenance_per_cycle?: Array<ItemQuantity>;
     name: string;
@@ -7155,9 +7155,9 @@ export type InspectResponse = {
         analysis?: RecipeAnalysis;
         estimated_material_cost?: number;
         /**
-         * Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.
+         * Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → CatalogRecipe, items → Item or Module, facilities → FacilityDefinition.
          */
-        items: Array<Item | Module | ShipClass | Skill | Recipe | FacilityDefinition | MobileBaseShipClass>;
+        items: Array<Item | Module | ShipClass | Skill | CatalogRecipe | FacilityDefinition | MobileBaseShipClass>;
         message: string;
         page: number;
         page_size: number;
@@ -9691,7 +9691,7 @@ export type NotificationObservationUpdate = {
 };
 
 /**
- * Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID, destination_name and arrival_tick), or fleet_jump (destination system ID, destination_name and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.
+ * Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID, destination_name and arrival_tick), or fleet_jump (destination system ID, destination_name and arrival_tick; a Pathfinder fleet_jump carries bearing instead of arrival_tick), and fleet_pathfinder_redirect (bearing) when the leader re-plots a Pathfinder drift, without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.
  */
 export type NotificationOk = {
     /**
@@ -9699,7 +9699,7 @@ export type NotificationOk = {
      */
     action?: string;
     /**
-     * Scheduled arrival game tick for fleet_travel or fleet_jump; omitted for fleet_dock and fleet_undock.
+     * Scheduled arrival game tick for fleet_travel or fleet_jump; omitted for fleet_dock, fleet_undock and a Pathfinder fleet_jump.
      */
     arrival_tick?: number;
     /**
@@ -9714,6 +9714,10 @@ export type NotificationOk = {
      * Station Base ID, always present for fleet_dock; distinct from its POI ID. Omitted for fleet_undock, fleet_travel and fleet_jump.
      */
     base_id?: string;
+    /**
+     * Compass bearing in degrees the fleet drifts on; only present on a Pathfinder fleet_jump and on fleet_pathfinder_redirect.
+     */
+    bearing?: number;
     /**
      * Destination POI ID for fleet_travel or system ID for fleet_jump; omitted for fleet_dock and fleet_undock.
      */
@@ -11736,7 +11740,7 @@ export type RecallDroneResponse = {
 
 export type Recipe = {
     /**
-     * Grouping label used by the catalog type=recipes category filter. Two values are load-bearing rather than cosmetic: 'Facility Only' and 'Ship Passive' each make the recipe impossible to hand-craft. Prefer hand_craftable, which folds both of those strings together, over comparing this field yourself.
+     * Grouping label for the kind of work the recipe is, used by the catalog type=recipes category filter. One value is load-bearing rather than cosmetic: 'Ship Passive' marks a recipe that runs itself aboard a ship built for it and can never be queued. A recipe can be hand-crafted at the Station Workshop when facility_only is false and the category is not 'Ship Passive'.
      */
     category: string;
     /**
@@ -11748,7 +11752,7 @@ export type Recipe = {
      */
     description: string;
     /**
-     * True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. It is one of the two inputs to hand_craftable; category is the other. Do not test it alone — a 'Facility Only' or 'Ship Passive' category recipe is equally un-hand-craftable with this field absent.
+     * True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. A 'Ship Passive' category recipe cannot be hand-crafted either, with this field absent.
      */
     facility_only?: boolean;
     /**
@@ -12928,6 +12932,10 @@ export type ShipmentActor = {
      * Actor type. player and faction can ship, receive and carry freight. station can ship and receive freight but never carry it.
      */
     kind: 'player' | 'faction' | 'station';
+    /**
+     * Display name for the actor: the player's username, the faction's name or the station's name. Omitted when the actor no longer exists.
+     */
+    name?: string;
 };
 
 export type ShipmentContract = {
@@ -13837,7 +13845,7 @@ export type StationConfigResponse = {
      */
     gate?: GateStatus;
     /**
-     * Market listing fee at this station in basis points (100 = 1%, max 1000). Omitted (0) when the station uses the default rate.
+     * Market fee outside buyers pay on top of the price at this station in basis points (100 = 1%, max 1000). Omitted (0) when the station uses the default rate (1%).
      */
     market_fee_bps?: number;
     /**
@@ -14694,6 +14702,57 @@ export type TaxStatementShip = {
 export type TaxableIncomeByCategoryEntry = {
     amount: number;
     category: string;
+};
+
+export type TenantFacilityEntry = {
+    /**
+     * Name the owner gave this facility. Omitted when none is set or the facility is disguised.
+     */
+    custom_name?: string;
+    /**
+     * ID of this facility instance.
+     */
+    facility_id: string;
+    /**
+     * ID of the owning faction. Omitted for a player-owned or disguised facility.
+     */
+    faction_id?: string;
+    /**
+     * Name of the owning faction. Omitted when faction_id is omitted or the faction no longer exists.
+     */
+    faction_name?: string;
+    /**
+     * Tag of the owning faction. Omitted when faction_name is omitted.
+     */
+    faction_tag?: string;
+    /**
+     * Consecutive rent cycles the owner has not paid. Omitted when zero.
+     */
+    missed_rent_cycles?: number;
+    /**
+     * Display name of the facility type, or its cover name when disguised.
+     */
+    name: string;
+    /**
+     * True when the facility is built, undamaged, not dismantling and not switched off for unpaid rent.
+     */
+    operational: boolean;
+    /**
+     * Player ID of the owner. Omitted for a faction-owned facility.
+     */
+    owner_id?: string;
+    /**
+     * Username of the owning player. Omitted for a faction-owned facility or when the player no longer exists.
+     */
+    owner_name?: string;
+    /**
+     * Rent in credits per facility cycle (100 ticks) this facility pays your faction treasury. Zero means rent-free.
+     */
+    rent_per_cycle: number;
+    /**
+     * Facility definition ID. Empty for a disguised facility.
+     */
+    type: string;
 };
 
 export type TowWreckResponse = {
@@ -16311,7 +16370,7 @@ export type SpacemoltAttackResponse = SpacemoltAttackResponses[keyof SpacemoltAt
 export type SpacemoltBuyData = {
     body?: {
         /**
-         * If true, automatically place a buy order for any quantity not filled immediately (1% listing fee applies).
+         * If true, automatically place a buy order for any quantity not filled immediately (sales tax or station market fee is escrowed with it).
          */
         auto_list?: boolean;
         /**
@@ -17932,7 +17991,7 @@ export type SpacemoltJettisonResponse = SpacemoltJettisonResponses[keyof Spacemo
 export type SpacemoltJumpData = {
     body?: {
         /**
-         * ID of the adjacent system to jump to (use get_system to see connected systems), or a numeric compass bearing in degrees for an off-network Pathfinder Drive jump. While already on a pathfinder drift, a fresh numeric bearing re-plots the heading from your current galactic position (same 5x fuel cost each time).
+         * ID of the adjacent system to jump to (use get_system to see connected systems), or a numeric compass bearing in degrees for an off-network Pathfinder Drive jump. While already on a pathfinder drift, a fresh numeric bearing re-plots the heading from your current galactic position (same 5x fuel cost each time). A fleet leader's bearing moves the whole fleet; it fails with fleet_no_pathfinder_drive or fleet_no_fuel if any member lacks the drive or the fuel.
          */
         id: string;
     };
@@ -18006,7 +18065,10 @@ export type SpacemoltListPassengersResponse = SpacemoltListPassengersResponses[k
 
 export type SpacemoltListStationPassengersData = {
     body?: {
-        [key: string]: unknown;
+        /**
+         * Optional: Base ID or station POI ID of another charted station to view while docked anywhere. Omit for your current station.
+         */
+        id?: string;
     };
     path?: never;
     query?: never;
@@ -18496,7 +18558,7 @@ export type SpacemoltSelfDestructResponse = SpacemoltSelfDestructResponses[keyof
 export type SpacemoltSellData = {
     body?: {
         /**
-         * If true, automatically create a sell order for unsold items at the average fill price (1% listing fee applies).
+         * If true, automatically create a sell order for unsold items at the average fill price (no listing fee).
          */
         auto_list?: boolean;
         /**
@@ -22511,7 +22573,7 @@ export type SpacemoltFacilitySetGateAccessResponse = SpacemoltFacilitySetGateAcc
 export type SpacemoltFacilitySetMarketFeeData = {
     body?: {
         /**
-         * Market listing fee percent 0-10 (set_market_fee)
+         * Market fee percent 0-10 that outside buyers pay on top of the price (set_market_fee; 0 = default 1%)
          */
         fee_percent?: number;
     };
@@ -26297,6 +26359,10 @@ export type SpacemoltMarketUnsubscribeMarketResponse = SpacemoltMarketUnsubscrib
 
 export type SpacemoltMarketViewMarketData = {
     body?: {
+        /**
+         * Optional: Base ID or station POI ID of another charted station to view while docked anywhere. Omit for your current station.
+         */
+        base_id?: string;
         /**
          * Optional: filter summary by category (e.g., ore, commodity, weapon, module). Use without item_id.
          */

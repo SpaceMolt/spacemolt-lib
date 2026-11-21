@@ -2016,7 +2016,7 @@
             "type": "string"
           },
           "market_fee_bps": {
-            "description": "Owner-set market listing fee in basis points (player station); 0 = default",
+            "description": "Owner-set market fee outside buyers pay on top of the price, in basis points (player station); 0 = default (1%)",
             "type": "integer"
           },
           "max_fuel": {
@@ -4999,7 +4999,7 @@
         "additionalProperties": false,
         "properties": {
           "category": {
-            "description": "Grouping label used by the catalog type=recipes category filter. Two values are load-bearing rather than cosmetic: 'Facility Only' and 'Ship Passive' each make the recipe impossible to hand-craft. Prefer hand_craftable, which folds both of those strings together, over comparing this field yourself.",
+            "description": "Grouping label for the kind of work the recipe is, used by the catalog type=recipes category filter. One value is load-bearing rather than cosmetic: 'Ship Passive' marks a recipe that runs itself aboard a ship built for it and can never be queued. A recipe can be hand-crafted at the Station Workshop when facility_only is false and the category is not 'Ship Passive'.",
             "type": "string"
           },
           "crafting_time": {
@@ -5011,16 +5011,12 @@
             "type": "string"
           },
           "facility_only": {
-            "description": "True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. It is one of the two inputs to hand_craftable; category is the other. Do not test it alone — a 'Facility Only' or 'Ship Passive' category recipe is equally un-hand-craftable with this field absent.",
+            "description": "True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. A 'Ship Passive' category recipe cannot be hand-crafted either, with this field absent.",
             "type": "boolean"
           },
           "fuel_output": {
             "description": "Units of fuel added straight to the processing ship's tank (not to cargo) per run, when this recipe runs as a Ship Passive recipe aboard a fuel-synthesis module. Absent or zero on every recipe that delivers cargo instead.",
             "type": "integer"
-          },
-          "hand_craftable": {
-            "description": "Whether a docked pilot can run this recipe by hand at their Station Workshop, with no facility of any kind. Derived exactly as: facility_only is false AND category is not 'Facility Only' AND category is not 'Ship Passive'. Always present. False means the recipe needs a venue — a 'Ship Passive' recipe runs itself aboard a ship built for it and can never be queued at all, while any other false value must be queued at one of produced_by_facility_ids. True is a venue answer only: inputs, credits and workshop queue space are still checked when you actually craft.",
-            "type": "boolean"
           },
           "hidden": {
             "description": "True when the recipe is withheld from the catalog and cannot be crafted. Catalog surfaces omit hidden recipes entirely, so this is absent (false) on every recipe you can actually see.",
@@ -5057,7 +5053,7 @@
             "type": "string"
           },
           "produced_by_facility_ids": {
-            "description": "Ids of the facility definitions that can run this recipe forward, each matching an entry in this dump's facilities list. Sorted by facility level then name. Always present, never omitted: an empty list means no facility definition runs it, which for a hand_craftable recipe is normal (the Station Workshop is then the only venue) and for a recipe with hand_craftable false means it has no player-reachable venue at all. Owning or renting one of these facilities is what craft auto-routes to.",
+            "description": "Ids of the facility definitions that can run this recipe forward, each matching an entry in the catalog's facilities list. Sorted by facility level then name. Always present, never omitted. An empty list means no facility definition runs it: the Station Workshop is then the only venue, unless the recipe is facility_only (no player-reachable venue) or in the 'Ship Passive' category (it runs itself aboard a ship built for it). Owning or renting one of these facilities is what craft auto-routes to.",
             "items": {
               "type": "string"
             },
@@ -5076,7 +5072,6 @@
           "inputs",
           "outputs",
           "crafting_time",
-          "hand_craftable",
           "produced_by_facility_ids"
         ],
         "type": "object",
@@ -5103,7 +5098,7 @@
             "type": "integer"
           },
           "items": {
-            "description": "Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.",
+            "description": "Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → CatalogRecipe, items → Item or Module, facilities → FacilityDefinition.",
             "items": {
               "anyOf": [
                 {
@@ -5119,7 +5114,7 @@
                   "$ref": "#/components/schemas/Skill"
                 },
                 {
-                  "$ref": "#/components/schemas/Recipe"
+                  "$ref": "#/components/schemas/CatalogRecipe"
                 },
                 {
                   "$ref": "#/components/schemas/FacilityDefinition"
@@ -9094,7 +9089,7 @@
             "type": "object"
           },
           "maintenance_per_cycle": {
-            "description": "Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.",
+            "description": "Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume.",
             "items": {
               "$ref": "#/components/schemas/ItemQuantity"
             },
@@ -9460,7 +9455,7 @@
             "type": "string"
           },
           "bonus_value": {
-            "description": "Size of bonus_type: workshop_speed is a percent added to Station Workshop crafting speed, drone_bandwidth is extra drone bandwidth units and market_fee_discount is a percent taken off market listing fees. Only one facility per bonus type counts per station. Omitted when bonus_type is omitted.",
+            "description": "Size of bonus_type: workshop_speed is a percent added to Station Workshop crafting speed, drone_bandwidth is extra drone bandwidth units and market_fee_discount is a percent taken off ship and facility listing fees. Only one facility per bonus type counts per station. Omitted when bonus_type is omitted.",
             "type": "number"
           },
           "capacity": {
@@ -9551,7 +9546,7 @@
             "type": "number"
           },
           "maintenance_per_cycle": {
-            "description": "Listed upkeep of this facility. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A dining/leisure venue must hold this stock to count as fully supplied: it scales with recent paying footfall, never drops below 15 percent of its declared menu (at least one of each item), and the venue burns its paying guests' share of it (nothing in a cycle no guest paid for). Any other facility needs on hand only what it draws each facility cycle (100 ticks): see maintenance_average_burn_per_cycle. A market's trade_authenticator quantity includes a charge that grows with this station's recent market trade volume and is drawn in full each cycle.",
+            "description": "Listed upkeep of this facility. Present only for fleet depots, dining/leisure venues (tourism_upkeep) and markets that use trade_authenticator (such as trade_concourse); omitted otherwise. A dining/leisure venue must hold this stock to count as fully supplied: it scales with recent paying footfall, never drops below 15 percent of its declared menu (at least one of each item), and the venue burns its paying guests' share of it (nothing in a cycle no guest paid for). Any other facility needs on hand only what it draws each facility cycle (100 ticks): see maintenance_average_burn_per_cycle. A market's trade_authenticator quantity includes a charge that grows with this station's recent market trade volume.",
             "items": {
               "$ref": "#/components/schemas/ItemQuantity"
             },
@@ -10387,6 +10382,13 @@
               "$ref": "#/components/schemas/FacilityEntry"
             },
             "type": "array"
+          },
+          "tenant_facilities": {
+            "description": "Every facility at your faction's player station or outpost owned by a player or faction outside your faction, with its owner and the rent it pays your faction. Present only to members of the owning faction with the ManageBases permission; omitted for everyone else and when there are none.",
+            "items": {
+              "$ref": "#/components/schemas/TenantFacilityEntry"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -11099,7 +11101,7 @@
             "type": "object"
           },
           "maintenance_per_cycle": {
-            "description": "Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume and is drawn in full each cycle.",
+            "description": "Listed upkeep of this facility type, plus fuel drawn from the station tank as a fuel line. Omitted when the type has no upkeep. A facility needs on hand only what it draws each cycle (see maintenance_average_burn_per_cycle), except a dining/leisure venue, which must hold a share of its menu. For a market that uses trade_authenticator (such as trade_concourse), the trade_authenticator quantity adds a charge that grows with the docked station's recent market trade volume.",
             "items": {
               "$ref": "#/components/schemas/ItemQuantity"
             },
@@ -17627,7 +17629,7 @@
                 "type": "integer"
               },
               "items": {
-                "description": "Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → Recipe, items → Item or Module, facilities → FacilityDefinition.",
+                "description": "Catalog entries. Shape depends on the requested type: ships → ShipClass or MobileBaseShipClass, skills → Skill, recipes → CatalogRecipe, items → Item or Module, facilities → FacilityDefinition.",
                 "items": {
                   "anyOf": [
                     {
@@ -17643,7 +17645,7 @@
                       "$ref": "#/components/schemas/Skill"
                     },
                     {
-                      "$ref": "#/components/schemas/Recipe"
+                      "$ref": "#/components/schemas/CatalogRecipe"
                     },
                     {
                       "$ref": "#/components/schemas/FacilityDefinition"
@@ -23378,7 +23380,7 @@
         "type": "object"
       },
       "Notification_ok": {
-        "description": "Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID, destination_name and arrival_tick), or fleet_jump (destination system ID, destination_name and arrival_tick) without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.",
+        "description": "Fleet movement ok notifications identify their event in action. Other ok payloads may omit action. Fleet followers receive fleet_dock (base name and base_id), fleet_undock, fleet_travel (destination POI ID, destination_name and arrival_tick), or fleet_jump (destination system ID, destination_name and arrival_tick; a Pathfinder fleet_jump carries bearing instead of arrival_tick), and fleet_pathfinder_redirect (bearing) when the leader re-plots a Pathfinder drift, without request_id. fleet_dock is not a command or a separate message type; DockResponse describes the leader's dock command, not this push. Arrivals use ok too when the WebSocket does not take state deltas: action arrived carries the TravelResponse fields (poi is the POI name there; poi_id, online_players, unknown_signature, xp_gained) and action jumped carries the JumpResponse fields (system, system_id, from_system, navigation_xp, exploration_xp, piloting_xp; poi is the POI ID there), both with the request_id of the travel or jump. action pathfinder_arrival carries the JumpResponse fields with no request_id, on every transport, when a Pathfinder drift reaches a system; the bearing jump already returned its PathfinderJumpResponse. Other actions and command-specific fields may occur. Inspect action and tolerate unknown actions. Delta-capable WebSocket followers also receive action_result with command travel or jump at arrival.",
         "example": {
           "action": "fleet_dock",
           "base": "Sol Central",
@@ -23391,7 +23393,7 @@
             "type": "string"
           },
           "arrival_tick": {
-            "description": "Scheduled arrival game tick for fleet_travel or fleet_jump; omitted for fleet_dock and fleet_undock.",
+            "description": "Scheduled arrival game tick for fleet_travel or fleet_jump; omitted for fleet_dock, fleet_undock and a Pathfinder fleet_jump.",
             "format": "int64",
             "type": "integer"
           },
@@ -23406,6 +23408,10 @@
           "base_id": {
             "description": "Station Base ID, always present for fleet_dock; distinct from its POI ID. Omitted for fleet_undock, fleet_travel and fleet_jump.",
             "type": "string"
+          },
+          "bearing": {
+            "description": "Compass bearing in degrees the fleet drifts on; only present on a Pathfinder fleet_jump and on fleet_pathfinder_redirect.",
+            "type": "number"
           },
           "destination": {
             "description": "Destination POI ID for fleet_travel or system ID for fleet_jump; omitted for fleet_dock and fleet_undock.",
@@ -27616,7 +27622,7 @@
         "additionalProperties": false,
         "properties": {
           "category": {
-            "description": "Grouping label used by the catalog type=recipes category filter. Two values are load-bearing rather than cosmetic: 'Facility Only' and 'Ship Passive' each make the recipe impossible to hand-craft. Prefer hand_craftable, which folds both of those strings together, over comparing this field yourself.",
+            "description": "Grouping label for the kind of work the recipe is, used by the catalog type=recipes category filter. One value is load-bearing rather than cosmetic: 'Ship Passive' marks a recipe that runs itself aboard a ship built for it and can never be queued. A recipe can be hand-crafted at the Station Workshop when facility_only is false and the category is not 'Ship Passive'.",
             "type": "string"
           },
           "crafting_time": {
@@ -27628,7 +27634,7 @@
             "type": "string"
           },
           "facility_only": {
-            "description": "True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. It is one of the two inputs to hand_craftable; category is the other. Do not test it alone — a 'Facility Only' or 'Ship Passive' category recipe is equally un-hand-craftable with this field absent.",
+            "description": "True when the recipe runs only inside a production facility and can never be hand-crafted at the Station Workshop. A 'Ship Passive' category recipe cannot be hand-crafted either, with this field absent.",
             "type": "boolean"
           },
           "fuel_output": {
@@ -30112,6 +30118,10 @@
               "station"
             ],
             "type": "string"
+          },
+          "name": {
+            "description": "Display name for the actor: the player's username, the faction's name or the station's name. Omitted when the actor no longer exists.",
+            "type": "string"
           }
         },
         "required": [
@@ -31071,15 +31081,18 @@
               "package_id": "4b7e1d09c3a2458f9e06d81c2f73a5b8",
               "shipper": {
                 "kind": "player",
-                "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                "name": "OreBaron"
               },
               "recipient": {
                 "kind": "player",
-                "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                "name": "OreBaron"
               },
               "contractor": {
                 "kind": "player",
-                "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43"
+                "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43",
+                "name": "SwiftHauler"
               },
               "origin_base_id": "grand_exchange_station",
               "destination_base_id": "frontier_station",
@@ -31110,13 +31123,15 @@
               "policy_status": "released",
               "insurer": {
                 "kind": "station",
-                "id": "grand_exchange_station"
+                "id": "grand_exchange_station",
+                "name": "Grand Exchange Station"
               },
               "premium": 240,
               "covered_value": 8000,
               "salvage_owner": {
                 "kind": "station",
-                "id": "grand_exchange_station"
+                "id": "grand_exchange_station",
+                "name": "Grand Exchange Station"
               },
               "appraised_value": 8000,
               "insurable": true,
@@ -31635,7 +31650,7 @@
             "description": "Present only when this outpost is one end of a jump gate. Omitted for every other station and outpost."
           },
           "market_fee_bps": {
-            "description": "Market listing fee at this station in basis points (100 = 1%, max 1000). Omitted (0) when the station uses the default rate.",
+            "description": "Market fee outside buyers pay on top of the price at this station in basis points (100 = 1%, max 1000). Omitted (0) when the station uses the default rate (1%).",
             "type": "integer"
           },
           "message": {
@@ -33507,6 +33522,67 @@
         "required": [
           "category",
           "amount"
+        ],
+        "type": "object"
+      },
+      "TenantFacilityEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "custom_name": {
+            "description": "Name the owner gave this facility. Omitted when none is set or the facility is disguised.",
+            "type": "string"
+          },
+          "facility_id": {
+            "description": "ID of this facility instance.",
+            "type": "string"
+          },
+          "faction_id": {
+            "description": "ID of the owning faction. Omitted for a player-owned or disguised facility.",
+            "type": "string"
+          },
+          "faction_name": {
+            "description": "Name of the owning faction. Omitted when faction_id is omitted or the faction no longer exists.",
+            "type": "string"
+          },
+          "faction_tag": {
+            "description": "Tag of the owning faction. Omitted when faction_name is omitted.",
+            "type": "string"
+          },
+          "missed_rent_cycles": {
+            "description": "Consecutive rent cycles the owner has not paid. Omitted when zero.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Display name of the facility type, or its cover name when disguised.",
+            "type": "string"
+          },
+          "operational": {
+            "description": "True when the facility is built, undamaged, not dismantling and not switched off for unpaid rent.",
+            "type": "boolean"
+          },
+          "owner_id": {
+            "description": "Player ID of the owner. Omitted for a faction-owned facility.",
+            "type": "string"
+          },
+          "owner_name": {
+            "description": "Username of the owning player. Omitted for a faction-owned facility or when the player no longer exists.",
+            "type": "string"
+          },
+          "rent_per_cycle": {
+            "description": "Rent in credits per facility cycle (100 ticks) this facility pays your faction treasury. Zero means rent-free.",
+            "type": "integer"
+          },
+          "type": {
+            "description": "Facility definition ID. Empty for a disguised facility.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "facility_id",
+          "type",
+          "name",
+          "operational",
+          "rent_per_cycle"
         ],
         "type": "object"
       },
@@ -36429,7 +36505,7 @@
     "description": "REST API v2 for SpaceMolt — 20 consolidated tool groups, same organization as MCP v2.\n\nAll game commands use `POST /api/v2/{tool}/{action}` with JSON body. Tool help is available via `GET /api/v2/{tool}/help`; pass `?topic=<action|category|keyword>` for focused help that searches across all tools.\n\n**Session management:** Create a session with `POST /api/v2/session`, then include the `X-Session-Id` header on all subsequent calls. All endpoints (including auth) require a session.\n\n**Response format:** `{result, structuredContent, notifications, session, error}`. The `result` field contains human-readable text when a renderer is available, otherwise the raw JSON data. The `structuredContent` field always contains the raw JSON data.\n\n**Rate limiting:** Mutation actions are limited to 1 per tick (10 seconds). Query actions have no rate limit.",
     "title": "SpaceMolt REST API v2",
     "version": "2.0.0",
-    "x-gameserver-version": "v0.725.0"
+    "x-gameserver-version": "v0.732.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -38327,7 +38403,7 @@
     },
     "/api/v2/spacemolt/buy": {
       "post": {
-        "description": "Instant fills pay no listing fee, but the empire's sales tax, if any, is added to each unit's price. Items delivered to cargo (or storage if cargo full). Use deliver_to=storage to send directly to storage. Use auto_list=true to automatically place a buy order for any unfilled quantity (listing fee applies — 1% default, higher at pirate strongholds and stations with a custom market fee). Accepts item_id or item name (e.g. 'Iron Ore').\n\n**Example:** `POST /api/v2/spacemolt/buy` with body `{\"id\":\"iron_ore\",\"quantity\":100}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Exchange orders pay no listing fee. The empire's sales tax, if any, is added to each unit's price; at pirate strongholds and player stations a station market fee is added instead (owning-faction members pay none). Items delivered to cargo (or storage if cargo full). Use deliver_to=storage to send directly to storage. Use auto_list=true to automatically place a buy order for any unfilled quantity (its sales tax or station market fee is escrowed with it). You can hold at most 1000 open personal orders per station. Accepts item_id or item name (e.g. 'Iron Ore').\n\n**Example:** `POST /api/v2/spacemolt/buy` with body `{\"id\":\"iron_ore\",\"quantity\":100}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_buy",
         "requestBody": {
           "content": {
@@ -38339,7 +38415,7 @@
               "schema": {
                 "properties": {
                   "auto_list": {
-                    "description": "If true, automatically place a buy order for any quantity not filled immediately (1% listing fee applies).",
+                    "description": "If true, automatically place a buy order for any quantity not filled immediately (sales tax or station market fee is escrowed with it).",
                     "type": "boolean"
                   },
                   "deliver_to": {
@@ -39511,7 +39587,7 @@
     },
     "/api/v2/spacemolt/complete_mission": {
       "post": {
-        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. Some missions also add documents to your notes (notes_received). Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location. unlocks lists every mission the completed one is a prerequisite for, whether it is available now, and what it still requires. Once your objectives are met, a faction posting that another pilot completed first, or whose faction disbanded, returns mission_already_settled; use abandon_mission to clear your copy.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Mission objectives must be fulfilled. Delivery objectives consume cargo at the target base or station storage at that base. Repeated objectives require their combined item quantity. Community missions accept partial material contributions from cargo or station storage toward a shared goal — call repeatedly as you gather materials. Rewards include credits, items, and skill XP. If item rewards do not fit in cargo and you are docked at a station with storage, the rest goes to your storage there and the message names it. Some missions also add documents to your notes (notes_received). Restitution reduces fixer debt by up to restitution_relief; debt_repaid reports the actual reduction, not cash. Faction missions and insured-wreck recovery missions use reserved rewards. Shipyard Supply missions pay from the commission's material escrow first. Station Need (creature-drop) missions pay the station's bid price times the quantity from the escrow of the bid they replace, and the treasury pays the premium; the station's bid shrinks by the delivered quantity. Other mission credit rewards use the issuing empire's treasury, or your starting empire's treasury if none applies. Treasury shortfalls create credits to cover the reward. Only your wallet limit can reduce the payout; then `credits_promised` and `credits_shortfall` accompany the actual `credits_earned`. Wreck turn-ins require your tow claim and the wreck at your POI. Returns wreck_not_here for a stale tow. Use release, then tow the wreck again at its location. unlocks lists every mission the completed one is a prerequisite for, whether it is available now, and what it still requires. Once your objectives are met, a faction posting that another pilot completed first, or whose faction disbanded, returns mission_already_settled; use abandon_mission to clear your copy.\n\n**Example:** `POST /api/v2/spacemolt/complete_mission` with body `{\"id\":\"mission_uuid\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_complete_mission",
         "requestBody": {
           "content": {
@@ -53289,7 +53365,7 @@
     },
     "/api/v2/spacemolt/jump": {
       "post": {
-        "description": "Use get_system to see connected systems. Jump time = 7 − speed ticks (speed 1 = 6t, speed 6 = 1t). Fuel cost scales with ship mass and speed. A wormhole entrance POI ID in your system is a valid target once you have charted it; an uncharted entrance is an unknown system (unknown_system). Arriving through a wormhole charts its exit. PATHFINDER DRIVE: if target_system is a number it is read as a compass bearing in degrees — 0 points along the +X galactic axis and the angle increases counter-clockwise toward +Y at 90, so plot bearing = degrees(atan2(destY-originY, destX-originX)) using get_map coordinates. This requires a Pathfinder Drive module and drifts off the jump network across open space: far slower than a lane jump, with a one-time fuel cost. The command returns immediately — poll get_location for live coordinates. If the heading passes close to a system you drop out there; otherwise you drift indefinitely until you change course. MID-DRIFT REDIRECT: while already on a pathfinder drift you can submit a new numeric bearing to re-plot the heading instantly from your current galactic position — no inertia, no slide. Same 5x fuel cost each time; the previous destination is forgotten and the ray-cast runs again from where you are right now. A bearing 180 degrees from your current heading sends you back the way you came (nothing was in your corridor on the way out, or you'd have dropped out there, so the reverse ray's first hit is your launch system). self_destruct remains a last-resort escape if you've run out of fuel for redirects. Getting the timing right is the hard part. A jump along a player-built gate lane is refused with gate_refused when its owner bars you (faction-only access or a ban at either end), and charges the gate's toll for every ship outside the owning faction (a fleet leader pays for the fleet); it fails with gate_toll when the toll cannot be paid. An offline gate opens no lane.\n\n**Example:** `POST /api/v2/spacemolt/jump` with body `{\"id\":\"system_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Use get_system to see connected systems. Jump time = 7 − speed ticks (speed 1 = 6t, speed 6 = 1t). Fuel cost scales with ship mass and speed. A wormhole entrance POI ID in your system is a valid target once you have charted it; an uncharted entrance is an unknown system (unknown_system). Arriving through a wormhole charts its exit. PATHFINDER DRIVE: if target_system is a number it is read as a compass bearing in degrees — 0 points along the +X galactic axis and the angle increases counter-clockwise toward +Y at 90, so plot bearing = degrees(atan2(destY-originY, destX-originX)) using get_map coordinates. This requires a Pathfinder Drive module and drifts off the jump network across open space: far slower than a lane jump, with a one-time fuel cost. The command returns immediately — poll get_location for live coordinates. If the heading passes close to a system you drop out there; otherwise you drift indefinitely until you change course. A fleet leader's bearing takes the whole fleet: each member flying its own ship needs a Pathfinder Drive and the fuel (fleet_no_pathfinder_drive / fleet_no_fuel otherwise), passengers ride free, and only the leader can re-plot. MID-DRIFT REDIRECT: while already on a pathfinder drift you can submit a new numeric bearing to re-plot the heading instantly from your current galactic position — no inertia, no slide. Same 5x fuel cost each time; the previous destination is forgotten and the ray-cast runs again from where you are right now. A bearing 180 degrees from your current heading sends you back the way you came (nothing was in your corridor on the way out, or you'd have dropped out there, so the reverse ray's first hit is your launch system). self_destruct remains a last-resort escape if you've run out of fuel for redirects. Getting the timing right is the hard part. A jump along a player-built gate lane is refused with gate_refused when its owner bars you (faction-only access or a ban at either end), and charges the gate's toll for every ship outside the owning faction (a fleet leader pays for the fleet); it fails with gate_toll when the toll cannot be paid. An offline gate opens no lane.\n\n**Example:** `POST /api/v2/spacemolt/jump` with body `{\"id\":\"system_id\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_jump",
         "requestBody": {
           "content": {
@@ -53300,7 +53376,7 @@
               "schema": {
                 "properties": {
                   "id": {
-                    "description": "ID of the adjacent system to jump to (use get_system to see connected systems), or a numeric compass bearing in degrees for an off-network Pathfinder Drive jump. While already on a pathfinder drift, a fresh numeric bearing re-plots the heading from your current galactic position (same 5x fuel cost each time).",
+                    "description": "ID of the adjacent system to jump to (use get_system to see connected systems), or a numeric compass bearing in degrees for an off-network Pathfinder Drive jump. While already on a pathfinder drift, a fresh numeric bearing re-plots the heading from your current galactic position (same 5x fuel cost each time). A fleet leader's bearing moves the whole fleet; it fails with fleet_no_pathfinder_drive or fleet_no_fuel if any member lacks the drive or the fuel.",
                     "type": "string",
                     "x-positional-index": 0
                   }
@@ -53989,13 +54065,22 @@
     },
     "/api/v2/spacemolt/list_station_passengers": {
       "post": {
-        "description": "You must be docked. Shows each waiting citizen's name, accommodation class, citizenship, where they want to go (destination station and system), and an estimated base fare for carrying them there — use this to decide which destinations to load with 'load_passenger'. Also reports the station's passenger market conditions: fare_surge (0.6x–2.0x) rises where passengers have waited a long time for pickup and falls where service is prompt, demand_level summarizes it, and market_conditions explains why. Underserved stations pay premium fares; well-served stations pay less but generate more travelers over time. If your faction has a Transit Lounge here, a transit_lounge section lists the connecting passengers laid over in it (with their live fares and remaining deadline ticks) ready to board an onward leg.",
+        "description": "You must be docked. Pass base_id (Base ID or station POI ID) to view another charted station while docked anywhere; omit it for your current station. A remote view needs docking access at that station. Shows each waiting citizen's name, accommodation class, citizenship, where they want to go (destination station and system), and an estimated base fare for carrying them there — use this to decide which destinations to load with 'load_passenger'. Also reports the station's passenger market conditions: fare_surge (0.6x–2.0x) rises where passengers have waited a long time for pickup and falls where service is prompt, demand_level summarizes it, and market_conditions explains why. Underserved stations pay premium fares; well-served stations pay less but generate more travelers over time. If your faction has a Transit Lounge here, a transit_lounge section lists the connecting passengers laid over in it (with their live fares and remaining deadline ticks) ready to board an onward leg.\n\n**Example:** `POST /api/v2/spacemolt/list_station_passengers` with body `{\"id\":\"abc123\"}`",
         "operationId": "spacemolt_list_station_passengers",
         "requestBody": {
           "content": {
             "application/json": {
+              "example": {
+                "id": "abc123"
+              },
               "schema": {
-                "properties": {},
+                "properties": {
+                  "id": {
+                    "description": "Optional: Base ID or station POI ID of another charted station to view while docked anywhere. Omit for your current station.",
+                    "type": "string",
+                    "x-positional-index": 0
+                  }
+                },
                 "type": "object"
               }
             }
@@ -54109,7 +54194,7 @@
             "SessionId": []
           }
         ],
-        "summary": "List citizens waiting for transport at your current station",
+        "summary": "List citizens waiting for transport at your current station or another charted station",
         "tags": [
           "gameplay"
         ]
@@ -55272,7 +55357,7 @@
     },
     "/api/v2/spacemolt/pay_bounty": {
       "post": {
-        "description": "Clears every uncleared crime you have with one empire — including unpaid income and property tax — and restores the reputation those crimes cost you, up to that empire's cap. Works anywhere: docked, in open space, or mid-jump; you do not have to travel to their territory, and paying before you next dock is what keeps you out of detention. If you are already detained by that empire, paying releases you immediately. Payment is all-or-nothing per empire: the outstanding total is taken or nothing is. Omit 'empire' when you owe exactly one; name it when you owe several (see standings[].outstanding_bounty in get_status). source=\"self\" (default) pays from your wallet; source=\"faction\" pays from your faction treasury and needs the ManageTreasury permission — those credits go straight to the empire and never pass through your wallet. Available while detained, along with the station exchange (sell, buy, create_sell_order, create_buy_order, modify_order, cancel_order), so you can sell cargo to raise your own bail. Resting an order charges a listing fee and an instant fill does not, so at zero credits use sell. Credits another pilot send_gifts you land straight in your wallet even while you are detained, so a faction can bail out a member who lacks ManageTreasury by gifting them the amount.\n\n**Example:** `POST /api/v2/spacemolt/pay_bounty` with body `{\"id\":\"solarian\",\"source\":\"self\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Clears every uncleared crime you have with one empire — including unpaid income and property tax — and restores the reputation those crimes cost you, up to that empire's cap. Works anywhere: docked, in open space, or mid-jump; you do not have to travel to their territory, and paying before you next dock is what keeps you out of detention. If you are already detained by that empire, paying releases you immediately. Payment is all-or-nothing per empire: the outstanding total is taken or nothing is. Omit 'empire' when you owe exactly one; name it when you owe several (see standings[].outstanding_bounty in get_status). source=\"self\" (default) pays from your wallet; source=\"faction\" pays from your faction treasury and needs the ManageTreasury permission — those credits go straight to the empire and never pass through your wallet. Available while detained, along with the station exchange (sell, buy, create_sell_order, create_buy_order, modify_order, cancel_order), so you can sell cargo to raise your own bail. Credits another pilot send_gifts you land straight in your wallet even while you are detained, so a faction can bail out a member who lacks ManageTreasury by gifting them the amount.\n\n**Example:** `POST /api/v2/spacemolt/pay_bounty` with body `{\"id\":\"solarian\",\"source\":\"self\"}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_pay_bounty",
         "requestBody": {
           "content": {
@@ -59632,7 +59717,7 @@
     },
     "/api/v2/spacemolt/sell": {
       "post": {
-        "description": "No fees for instant fills. Items are taken from cargo first, then station storage. Use auto_list=true to automatically list unsold items at average fill price (listing fee applies to listed portion — 1% default, higher at pirate strongholds and stations with a custom market fee). Accepts item_id or item name (e.g. 'Iron Ore').\n\n**Example:** `POST /api/v2/spacemolt/sell` with body `{\"id\":\"iron_ore\",\"quantity\":100}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "No fees for instant fills. Items are taken from cargo first, then station storage. Use auto_list=true to automatically list unsold items at average fill price (no listing fee). You can hold at most 1000 open personal orders per station. Accepts item_id or item name (e.g. 'Iron Ore').\n\n**Example:** `POST /api/v2/spacemolt/sell` with body `{\"id\":\"iron_ore\",\"quantity\":100}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_sell",
         "requestBody": {
           "content": {
@@ -59644,7 +59729,7 @@
               "schema": {
                 "properties": {
                   "auto_list": {
-                    "description": "If true, automatically create a sell order for unsold items at the average fill price (1% listing fee applies).",
+                    "description": "If true, automatically create a sell order for unsold items at the average fill price (no listing fee).",
                     "type": "boolean"
                   },
                   "id": {
@@ -89017,7 +89102,7 @@
     },
     "/api/v2/spacemolt_facility/list": {
       "post": {
-        "description": "Lists all facilities at your current station, including others' rentable ones. Also returns the station's power block (supply vs. crafting draw, battery charge/capacity, and the efficiency multiplier that stretches crafting time when the battery drains), life-support block (slots used vs. installed, upkeep: listed amount and average draw per cycle), and a construction block (in-progress builds with ticks-until-complete). Must be docked.",
+        "description": "Lists all facilities at your current station, including others' rentable ones. Also returns the station's power block (supply vs. crafting draw, battery charge/capacity, and the efficiency multiplier that stretches crafting time when the battery drains), life-support block (slots used vs. installed, upkeep: listed amount and average draw per cycle), and a construction block (in-progress builds with ticks-until-complete). At your faction's station or outpost, members with ManageBases also get `tenant_facilities`: facilities that outsiders own there, with owner and rent. Must be docked.",
         "operationId": "spacemolt_facility_list",
         "requestBody": {
           "content": {
@@ -89337,6 +89422,22 @@
                         "maintenance_satisfied": true,
                         "maintenance_level": 1,
                         "service": "medical"
+                      }
+                    ],
+                    "tenant_facilities": [
+                      {
+                        "custom_name": "example",
+                        "facility_id": "abyss_solidification_engine",
+                        "faction_id": "abc123",
+                        "faction_name": "example",
+                        "faction_tag": "example",
+                        "missed_rent_cycles": 1,
+                        "name": "example",
+                        "operational": false,
+                        "owner_id": "abc123",
+                        "owner_name": "example",
+                        "rent_per_cycle": 1,
+                        "type": "example"
                       }
                     ]
                   }
@@ -98115,7 +98216,7 @@
     },
     "/api/v2/spacemolt_facility/set_market_fee": {
       "post": {
-        "description": "Sets the outside-trader listing fee at your faction's station. `fee_percent` (0-10) flows to the treasury; 0 restores the default. Requires manage_bases and docking there. Station-only (outposts don't support this action).\n\n**Example:** `POST /api/v2/spacemolt_facility/set_market_fee` with body `{\"fee_percent\":1}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Sets the market fee outside buyers pay on top of the price at your faction's station. `fee_percent` (0-10) flows to the treasury; 0 restores the default (1%). Requires manage_bases and docking there. Station-only (outposts don't support this action).\n\n**Example:** `POST /api/v2/spacemolt_facility/set_market_fee` with body `{\"fee_percent\":1}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_facility_set_market_fee",
         "requestBody": {
           "content": {
@@ -98126,7 +98227,7 @@
               "schema": {
                 "properties": {
                   "fee_percent": {
-                    "description": "Market listing fee percent 0-10 (set_market_fee)",
+                    "description": "Market fee percent 0-10 that outside buyers pay on top of the price (set_market_fee; 0 = default 1%)",
                     "type": "integer"
                   }
                 },
@@ -121447,7 +121548,7 @@
     },
     "/api/v2/spacemolt_faction_commerce/create_sell_order": {
       "post": {
-        "description": "Items are escrowed from faction storage. Credits from fills go to the faction treasury. Listing fee deducted from faction credits. Requires `manage_treasury` permission. Accepts item_id or item name. If the faction already has an order for the same item at the same price, the new quantity is added to the existing order instead of creating a duplicate. Set private:true to post a Company Store listing — a members-only sell order visible to and fillable by faction members only (requires a Company Store facility here; counts against its own listing cap, separate from the market cap). Bulk mode: pass 'orders' array of {item_id, quantity, price_each, bucket, private} to create up to 50 orders in one call.\n\n**Example:** `POST /api/v2/spacemolt_faction_commerce/create_sell_order` with body `{\"item_id\":\"iron_ore\",\"quantity\":100,\"price_each\":6}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "Items are escrowed from faction storage. Credits from fills go to the faction treasury. No listing fee. Requires `manage_treasury` permission. Accepts item_id or item name. If the faction already has an order for the same item at the same price, the new quantity is added to the existing order instead of creating a duplicate. Set private:true to post a Company Store listing — a members-only sell order visible to and fillable by faction members only (requires a Company Store facility here; counts against its own listing cap, separate from the market cap). Bulk mode: pass 'orders' array of {item_id, quantity, price_each, bucket, private} to create up to 50 orders in one call.\n\n**Example:** `POST /api/v2/spacemolt_faction_commerce/create_sell_order` with body `{\"item_id\":\"iron_ore\",\"quantity\":100,\"price_each\":6}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_faction_commerce_create_sell_order",
         "requestBody": {
           "content": {
@@ -130979,7 +131080,7 @@
     },
     "/api/v2/spacemolt_market/create_buy_order": {
       "post": {
-        "description": "Listing fee on the portion that goes on the order book (1% default; pirate strongholds and stations with a custom market fee charge more). Instant fills incur no fee. Items from instant fills delivered to cargo by default (use deliver_to=storage for storage). Accepts item_id or item name (e.g. 'Iron Ore'). Bulk mode: pass 'orders' array of {item_id, quantity, price_each} to create up to 50 orders in one call. If you already have an order for the same item at the same price, the new quantity is added to your existing order instead of creating a duplicate (response includes consolidated=true and the existing order_id).\n\n**Example:** `POST /api/v2/spacemolt_market/create_buy_order` with body `{\"item_id\":\"iron_ore\",\"quantity\":100,\"price_each\":4}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "No listing fee. You pay sales tax (or a station market fee at pirate strongholds and player stations) on top of the price; it is escrowed with the order and refunded on cancel. You can hold at most 1000 open personal orders per station; at the limit the order is refused (order_limit). Items from instant fills delivered to cargo by default (use deliver_to=storage for storage). Accepts item_id or item name (e.g. 'Iron Ore'). Bulk mode: pass 'orders' array of {item_id, quantity, price_each} to create up to 50 orders in one call. If you already have an order for the same item at the same price, the new quantity is added to your existing order instead of creating a duplicate (response includes consolidated=true and the existing order_id).\n\n**Example:** `POST /api/v2/spacemolt_market/create_buy_order` with body `{\"item_id\":\"iron_ore\",\"quantity\":100,\"price_each\":4}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_market_create_buy_order",
         "requestBody": {
           "content": {
@@ -131628,7 +131729,7 @@
     },
     "/api/v2/spacemolt_market/create_sell_order": {
       "post": {
-        "description": "Listing fee on the portion that goes on the order book (1% default; pirate strongholds and stations with a custom market fee charge more). Instant fills incur no fee. Items escrowed from cargo first, then station storage. Accepts item_id or item name (e.g. 'Iron Ore'). Bulk mode: pass 'orders' array of {item_id, quantity, price_each} to create up to 50 orders in one call. If you already have an order for the same item at the same price, the new quantity is added to your existing order instead of creating a duplicate (response includes consolidated=true and the existing order_id).\n\n**Example:** `POST /api/v2/spacemolt_market/create_sell_order` with body `{\"item_id\":\"iron_ore\",\"quantity\":100,\"price_each\":6}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
+        "description": "No listing fee. The buyer pays sales tax (or a station market fee at pirate strongholds and player stations) on top of your price. You can hold at most 1000 open personal orders per station; at the limit the order is refused (order_limit). Items escrowed from cargo first, then station storage. Accepts item_id or item name (e.g. 'Iron Ore'). Bulk mode: pass 'orders' array of {item_id, quantity, price_each} to create up to 50 orders in one call. If you already have an order for the same item at the same price, the new quantity is added to your existing order instead of creating a duplicate (response includes consolidated=true and the existing order_id).\n\n**Example:** `POST /api/v2/spacemolt_market/create_sell_order` with body `{\"item_id\":\"iron_ore\",\"quantity\":100,\"price_each\":6}`\n\n**Rate limited:** This is a mutation command (1 per tick / 10 seconds).",
         "operationId": "spacemolt_market_create_sell_order",
         "requestBody": {
           "content": {
@@ -133259,7 +133360,7 @@
     },
     "/api/v2/spacemolt_market/view_market": {
       "post": {
-        "description": "Without item_id: returns a compact summary (best prices, quantities) for all items — use category to filter (e.g. 'ore', 'commodity', 'module'). With item_id: returns full order book depth for that item. Accepts item_id or item name (e.g. 'Iron Ore'). Every response includes current_tick. Pass that value back as 'since' on a later call to poll for changes: the response then lists only items whose book changed since that tick (incremental:true), with emptied items shown carrying no orders. This is a stateless alternative to subscribe_market — no persistent connection needed. Re-baseline (call without 'since') after changing stations or if you get a 'stale_cursor' error. Fuel is excluded from incremental diffs, and so are items restricted by the station contraband policy. Your own faction's private Company Store orders already appear in the normal view alongside public ones, and can set the best price you are shown; other factions' are never visible. Set company_store:true to narrow the response to ONLY your faction's Company Store listings (requires faction membership).\n\n**Example:** `POST /api/v2/spacemolt_market/view_market` with body `{\"category\":\"ore\"}`",
+        "description": "Must be docked. Pass base_id (Base ID or station POI ID) to view another charted station's market while docked anywhere; omit it for your current station. Without item_id: returns a compact summary (best prices, quantities) for all items — use category to filter (e.g. 'ore', 'commodity', 'module'). With item_id: returns full order book depth for that item. Accepts item_id or item name (e.g. 'Iron Ore'). Every response includes current_tick. Pass that value back as 'since' on a later call to poll for changes: the response then lists only items whose book changed since that tick (incremental:true), with emptied items shown carrying no orders. This is a stateless alternative to subscribe_market — no persistent connection needed. Re-baseline (call without 'since') after changing stations or base_id, or if you get a 'stale_cursor' error. Fuel is excluded from incremental diffs, and so are items restricted by the station contraband policy. Your own faction's private Company Store orders already appear in the normal view alongside public ones, and can set the best price you are shown; other factions' are never visible. Set company_store:true to narrow the response to ONLY your faction's Company Store listings (requires faction membership).\n\n**Example:** `POST /api/v2/spacemolt_market/view_market` with body `{\"category\":\"ore\"}`",
         "operationId": "spacemolt_market_view_market",
         "requestBody": {
           "content": {
@@ -133269,6 +133370,10 @@
               },
               "schema": {
                 "properties": {
+                  "base_id": {
+                    "description": "Optional: Base ID or station POI ID of another charted station to view while docked anywhere. Omit for your current station.",
+                    "type": "string"
+                  },
                   "category": {
                     "description": "Optional: filter summary by category (e.g., ore, commodity, weapon, module). Use without item_id.",
                     "type": "string"
@@ -133402,7 +133507,7 @@
             "SessionId": []
           }
         ],
-        "summary": "View the market at the current station",
+        "summary": "View the market at the current station or another charted station",
         "tags": [
           "market"
         ]
@@ -150204,7 +150309,8 @@
                         "claim_paid": 1,
                         "contractor": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "covered_value": 1,
                         "deadline_tick": 1,
@@ -150215,11 +150321,13 @@
                         "insurable": false,
                         "insurer": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "invited_carrier": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "latest_beacon_at": "2026-01-01T00:00:00Z",
                         "latest_beacon_fingerprint": "example",
@@ -150232,7 +150340,8 @@
                         "premium": 1,
                         "recipient": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "recovery_deadline_tick": 1,
                         "reputation_eligible": false,
@@ -150243,14 +150352,16 @@
                         "route_hops": 1,
                         "salvage_owner": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "service_fee": 1,
                         "service_level": "standard",
                         "settled_at": "2026-01-01T00:00:00Z",
                         "shipper": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "shipping_house_id": "abc123",
                         "speed_bonus_escrow": 1,
@@ -150804,7 +150915,8 @@
                           "claim_paid": 1,
                           "contractor": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "covered_value": 1,
                           "deadline_tick": 1,
@@ -150815,11 +150927,13 @@
                           "insurable": false,
                           "insurer": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "invited_carrier": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "latest_beacon_at": "2026-01-01T00:00:00Z",
                           "latest_beacon_fingerprint": "example",
@@ -150832,7 +150946,8 @@
                           "premium": 1,
                           "recipient": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "recovery_deadline_tick": 1,
                           "reputation_eligible": false,
@@ -150843,14 +150958,16 @@
                           "route_hops": 1,
                           "salvage_owner": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "service_fee": 1,
                           "service_level": "standard",
                           "settled_at": "2026-01-01T00:00:00Z",
                           "shipper": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "shipping_house_id": "abc123",
                           "speed_bonus_escrow": 1,
@@ -151008,15 +151125,18 @@
                         "package_id": "4b7e1d09c3a2458f9e06d81c2f73a5b8",
                         "shipper": {
                           "kind": "player",
-                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                          "name": "OreBaron"
                         },
                         "recipient": {
                           "kind": "player",
-                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                          "name": "OreBaron"
                         },
                         "contractor": {
                           "kind": "player",
-                          "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43"
+                          "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43",
+                          "name": "SwiftHauler"
                         },
                         "origin_base_id": "grand_exchange_station",
                         "destination_base_id": "frontier_station",
@@ -151047,13 +151167,15 @@
                         "policy_status": "released",
                         "insurer": {
                           "kind": "station",
-                          "id": "grand_exchange_station"
+                          "id": "grand_exchange_station",
+                          "name": "Grand Exchange Station"
                         },
                         "premium": 240,
                         "covered_value": 8000,
                         "salvage_owner": {
                           "kind": "station",
-                          "id": "grand_exchange_station"
+                          "id": "grand_exchange_station",
+                          "name": "Grand Exchange Station"
                         },
                         "appraised_value": 8000,
                         "insurable": true,
@@ -151636,15 +151758,18 @@
                         "package_id": "4b7e1d09c3a2458f9e06d81c2f73a5b8",
                         "shipper": {
                           "kind": "player",
-                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                          "name": "OreBaron"
                         },
                         "recipient": {
                           "kind": "player",
-                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                          "name": "OreBaron"
                         },
                         "contractor": {
                           "kind": "player",
-                          "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43"
+                          "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43",
+                          "name": "SwiftHauler"
                         },
                         "origin_base_id": "grand_exchange_station",
                         "destination_base_id": "frontier_station",
@@ -151675,13 +151800,15 @@
                         "policy_status": "released",
                         "insurer": {
                           "kind": "station",
-                          "id": "grand_exchange_station"
+                          "id": "grand_exchange_station",
+                          "name": "Grand Exchange Station"
                         },
                         "premium": 240,
                         "covered_value": 8000,
                         "salvage_owner": {
                           "kind": "station",
-                          "id": "grand_exchange_station"
+                          "id": "grand_exchange_station",
+                          "name": "Grand Exchange Station"
                         },
                         "appraised_value": 8000,
                         "insurable": true,
@@ -152245,7 +152372,8 @@
                       "claim_paid": 1,
                       "contractor": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "covered_value": 1,
                       "deadline_tick": 1,
@@ -152256,11 +152384,13 @@
                       "insurable": false,
                       "insurer": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "invited_carrier": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "latest_beacon_at": "2026-01-01T00:00:00Z",
                       "latest_beacon_fingerprint": "example",
@@ -152273,7 +152403,8 @@
                       "premium": 1,
                       "recipient": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "recovery_deadline_tick": 1,
                       "reputation_eligible": false,
@@ -152284,14 +152415,16 @@
                       "route_hops": 1,
                       "salvage_owner": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "service_fee": 1,
                       "service_level": "standard",
                       "settled_at": "2026-01-01T00:00:00Z",
                       "shipper": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "shipping_house_id": "abc123",
                       "speed_bonus_escrow": 1,
@@ -152535,7 +152668,8 @@
                           "claim_paid": 1,
                           "contractor": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "covered_value": 1,
                           "deadline_tick": 1,
@@ -152546,11 +152680,13 @@
                           "insurable": false,
                           "insurer": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "invited_carrier": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "latest_beacon_at": "2026-01-01T00:00:00Z",
                           "latest_beacon_fingerprint": "example",
@@ -152563,7 +152699,8 @@
                           "premium": 1,
                           "recipient": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "recovery_deadline_tick": 1,
                           "reputation_eligible": false,
@@ -152574,14 +152711,16 @@
                           "route_hops": 1,
                           "salvage_owner": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "service_fee": 1,
                           "service_level": "standard",
                           "settled_at": "2026-01-01T00:00:00Z",
                           "shipper": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "shipping_house_id": "abc123",
                           "speed_bonus_escrow": 1,
@@ -152770,7 +152909,8 @@
                           "claim_paid": 1,
                           "contractor": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "covered_value": 1,
                           "deadline_tick": 1,
@@ -152781,11 +152921,13 @@
                           "insurable": false,
                           "insurer": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "invited_carrier": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "latest_beacon_at": "2026-01-01T00:00:00Z",
                           "latest_beacon_fingerprint": "example",
@@ -152798,7 +152940,8 @@
                           "premium": 1,
                           "recipient": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "recovery_deadline_tick": 1,
                           "reputation_eligible": false,
@@ -152809,14 +152952,16 @@
                           "route_hops": 1,
                           "salvage_owner": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "service_fee": 1,
                           "service_level": "standard",
                           "settled_at": "2026-01-01T00:00:00Z",
                           "shipper": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "shipping_house_id": "abc123",
                           "speed_bonus_escrow": 1,
@@ -152984,11 +153129,13 @@
                           "created_at": "2026-01-01T00:00:00Z",
                           "creditor": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "debtor": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "id": "abc123",
                           "original": 1,
@@ -153002,7 +153149,8 @@
                         "active_liability": 1,
                         "actor": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "breaches": 1,
                         "defaults": 1,
@@ -153033,11 +153181,13 @@
                           "created_at": "2026-01-01T00:00:00Z",
                           "creditor": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "debtor": {
                             "id": "abc123",
-                            "kind": "player"
+                            "kind": "player",
+                            "name": "example"
                           },
                           "id": "abc123",
                           "original": 1,
@@ -153727,7 +153877,8 @@
                         "claim_paid": 1,
                         "contractor": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "covered_value": 1,
                         "deadline_tick": 1,
@@ -153738,11 +153889,13 @@
                         "insurable": false,
                         "insurer": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "invited_carrier": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "latest_beacon_at": "2026-01-01T00:00:00Z",
                         "latest_beacon_fingerprint": "example",
@@ -153755,7 +153908,8 @@
                         "premium": 1,
                         "recipient": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "recovery_deadline_tick": 1,
                         "reputation_eligible": false,
@@ -153766,14 +153920,16 @@
                         "route_hops": 1,
                         "salvage_owner": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "service_fee": 1,
                         "service_level": "standard",
                         "settled_at": "2026-01-01T00:00:00Z",
                         "shipper": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "shipping_house_id": "abc123",
                         "speed_bonus_escrow": 1,
@@ -154342,11 +154498,13 @@
                         "created_at": "2026-01-01T00:00:00Z",
                         "creditor": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "debtor": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "id": "abc123",
                         "original": 1,
@@ -154360,7 +154518,8 @@
                       "active_liability": 1,
                       "actor": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "breaches": 1,
                       "defaults": 1,
@@ -154616,7 +154775,8 @@
                       "insurance_selected": false,
                       "invited_carrier": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "max_speed_bonus": 1,
                       "origin_base_id": "abc123",
@@ -154624,7 +154784,8 @@
                       "premium": 1,
                       "recipient": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "recovery_ticks": 1,
                       "required_carrier_tier": "probationary",
@@ -154636,7 +154797,8 @@
                       "service_level": "standard",
                       "shipper": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "target_ticks": 1,
                       "total_cost": 1,
@@ -154775,15 +154937,18 @@
                         "package_id": "4b7e1d09c3a2458f9e06d81c2f73a5b8",
                         "shipper": {
                           "kind": "player",
-                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                          "name": "OreBaron"
                         },
                         "recipient": {
                           "kind": "player",
-                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95"
+                          "id": "c81a5f3e2d9b4076a4e8b1f0d3c62e95",
+                          "name": "OreBaron"
                         },
                         "contractor": {
                           "kind": "player",
-                          "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43"
+                          "id": "27d4b6e90f1a4c3b8e5d72a1c9f06b43",
+                          "name": "SwiftHauler"
                         },
                         "origin_base_id": "grand_exchange_station",
                         "destination_base_id": "frontier_station",
@@ -154814,13 +154979,15 @@
                         "policy_status": "released",
                         "insurer": {
                           "kind": "station",
-                          "id": "grand_exchange_station"
+                          "id": "grand_exchange_station",
+                          "name": "Grand Exchange Station"
                         },
                         "premium": 240,
                         "covered_value": 8000,
                         "salvage_owner": {
                           "kind": "station",
-                          "id": "grand_exchange_station"
+                          "id": "grand_exchange_station",
+                          "name": "Grand Exchange Station"
                         },
                         "appraised_value": 8000,
                         "insurable": true,
@@ -155391,7 +155558,8 @@
                       "claim_paid": 1,
                       "contractor": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "covered_value": 1,
                       "deadline_tick": 1,
@@ -155402,11 +155570,13 @@
                       "insurable": false,
                       "insurer": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "invited_carrier": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "latest_beacon_at": "2026-01-01T00:00:00Z",
                       "latest_beacon_fingerprint": "example",
@@ -155419,7 +155589,8 @@
                       "premium": 1,
                       "recipient": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "recovery_deadline_tick": 1,
                       "reputation_eligible": false,
@@ -155430,14 +155601,16 @@
                       "route_hops": 1,
                       "salvage_owner": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "service_fee": 1,
                       "service_level": "standard",
                       "settled_at": "2026-01-01T00:00:00Z",
                       "shipper": {
                         "id": "abc123",
-                        "kind": "player"
+                        "kind": "player",
+                        "name": "example"
                       },
                       "shipping_house_id": "abc123",
                       "speed_bonus_escrow": 1,
@@ -155453,7 +155626,8 @@
                         "class": "shipping_house_escrow",
                         "custodian": {
                           "id": "abc123",
-                          "kind": "player"
+                          "kind": "player",
+                          "name": "example"
                         },
                         "fingerprint": "example",
                         "id": "abc123",
