@@ -3831,7 +3831,10 @@ export type FacilityDefSummary = {
     faction_medical_supply_item?: string;
     faction_medical_units_per_item?: number;
     faction_service?: string;
-    labor_cost: number;
+    /**
+     * Labor credits this facility type charges. Production facilities and recyclers (category production) pay it per production run from the owner's wallet or faction treasury. Infrastructure, service, defense and ranch types pay it per facility cycle (100 ticks) when the station or the station's owning faction runs them. Omitted for types that never pay labor, such as faction and personal facilities.
+     */
+    labor_cost?: number;
     level: number;
     /**
      * Average units of each upkeep item this facility destroys per facility cycle (100 ticks), keyed by item ID (fuel for station-tank fuel). Whole units are drawn on rotating cycles. Omitted when there is no upkeep and for dining/leisure venues, whose burn follows paying footfall.
@@ -3883,7 +3886,10 @@ export type FacilityDefinition = {
     fuel_output?: boolean;
     id: string;
     is_recycler?: boolean;
-    labor_cost: number;
+    /**
+     * Labor credits this facility type charges: per production run for category production (recyclers included), per facility cycle (100 ticks) for infrastructure, service, defense and ranch. Omitted for types that never pay labor, such as faction and personal facilities.
+     */
+    labor_cost?: number;
     leisure_points?: number;
     level: number;
     life_support_draw?: number;
@@ -4511,7 +4517,10 @@ export type FacilityTypeDetailResponse = {
     faction_service?: string;
     hint?: string;
     kind: 'detail';
-    labor_cost: number;
+    /**
+     * Labor credits this facility type charges. Production facilities and recyclers (category production) pay it per production run from the owner's wallet or faction treasury. Infrastructure, service, defense and ranch types pay it per facility cycle (100 ticks) when the station or the station's owning faction runs them. Omitted for types that never pay labor, such as faction and personal facilities.
+     */
+    labor_cost?: number;
     level: number;
     lore?: string;
     /**
@@ -6358,6 +6367,10 @@ export type FreightDebt = {
      */
     creditor: ShipmentActor;
     /**
+     * Credits of outstanding still paid to the creditor. Payments beyond it are removed from circulation. Present only when the creditor station paid part of an insurance claim and the game created the rest: on the carrier's freight:<shipment_id> default debt and the shipper's claim:<shipment_id> debt. Absent on every other debt, where every payment goes to the creditor.
+     */
+    creditor_due?: number;
+    /**
      * The carrier that owes the debt: the contract's contractor.
      */
     debtor: ShipmentActor;
@@ -7563,6 +7576,10 @@ export type JobView = {
      * ID of the package this job packs or unpacks. Set only on package jobs.
      */
     package_id?: string;
+    /**
+     * Why the job did not advance on the last tick; omitted when it advanced or only waited its turn. not_docked: player left the base. damaged: facility damaged. under_construction: facility still building. rent_unpaid: rent unpaid. no_faction_storage: no faction storage. storage_full: destination storage full. fuel_full: fuel tank full. no_fuel_bunker: no fuel bunker. mint_cap: reserve at mint cap. no_workers: no station workforce. owner_unavailable: owner cannot be paid. not_active, docked, moving, in_battle, no_crew, pilot_action, cargo_full: Field Workshop pauses; see get_ship field_workshop.pause_reason.
+     */
+    pause_reason?: 'not_docked' | 'damaged' | 'under_construction' | 'rent_unpaid' | 'no_faction_storage' | 'storage_full' | 'fuel_full' | 'no_fuel_bunker' | 'mint_cap' | 'no_workers' | 'owner_unavailable' | 'not_active' | 'docked' | 'moving' | 'in_battle' | 'no_crew' | 'pilot_action' | 'cargo_full';
     /**
      * Queue order within the venue. A lower position runs first.
      */
@@ -12968,6 +12985,10 @@ export type ShipmentContract = {
      */
     claim_paid?: number;
     /**
+     * Credits of claim_paid the insurer station paid from its own wallet. The rest of claim_paid was created by the game because the station could not cover it. Absent (0) when no claim was paid or the station paid none of it.
+     */
+    claim_station_paid?: number;
+    /**
      * Player or faction carrier that accepted the contract. Absent while the listing is still posted and on a listing canceled or expired before anyone accepted it.
      */
     contractor?: ShipmentActor;
@@ -12992,7 +13013,7 @@ export type ShipmentContract = {
      */
     failure_debt: number;
     /**
-     * Shipment contract ID. Pass it to the shipping get, track, accept, deliver, return and cancel actions.
+     * Shipment contract ID. Pass it to the shipping get, track, accept, deliver, return, reclaim and cancel actions.
      */
     id: string;
     /**
@@ -13031,6 +13052,14 @@ export type ShipmentContract = {
      * Sealed package this contract moves. The package travels as the item package_<package_id>.
      */
     package_id: string;
+    /**
+     * Time package_recovery was set. Absent when package_recovery is absent.
+     */
+    package_recovered_at?: string;
+    /**
+     * How the shipper got a defaulted contract's sealed package back. reclaimed: the shipper took it from station storage. returned: whoever held it handed it back at the origin, which cleared the carrier's freight debt for this contract. Either way an insured shipper repaid claim_paid to the insurer, and any shortfall became the shipper's freight debt. Absent while the claim is open and on every status except defaulted.
+     */
+    package_recovery?: 'reclaimed' | 'returned';
     /**
      * Insurance policy state. none: uninsured (every station supply run). pending: insured and posted. active: insured and in transit. released: delivered. expired: returned, or canceled before acceptance. claimed: breached or defaulted, and the shipper received claim_paid.
      */
@@ -13104,7 +13133,7 @@ export type ShipmentContract = {
      */
     speed_bonus_escrow: number;
     /**
-     * Lifecycle state. posted: listed and not accepted. in_transit: accepted. delivered: handed over at the destination, on time or late. returned: handed back at the origin. breached: the seal was opened or the carrying ship was captured. defaulted: the package was lost or the recovery window closed. canceled: the shipper canceled or the listing expired before anyone accepted it. All states except posted and in_transit are final.
+     * Lifecycle state. posted: listed and not accepted. in_transit: accepted. delivered: handed over at the destination, on time or late. returned: handed back at the origin. breached: the seal was opened or the carrying ship was captured. defaulted: the package was lost or the recovery window closed; while the package stays sealed the shipper can still reclaim it or the carrier return it (see package_recovery). canceled: the shipper canceled or the listing expired before anyone accepted it. All states except posted and in_transit are final.
      */
     status: 'posted' | 'in_transit' | 'delivered' | 'returned' | 'breached' | 'defaulted' | 'canceled';
     /**
@@ -13198,7 +13227,7 @@ export type ShippingActiveContract = {
      */
     last_known_location?: string;
     /**
-     * True when the current tick is past contract.deadline_tick. The reward is forfeited and a deliver or return now costs late_fee_if_delivered_now. Always false while posted.
+     * True when the current tick is past contract.deadline_tick. The reward is forfeited and a deliver or return now costs late_fee_if_delivered_now. Always false while posted or defaulted.
      */
     late: boolean;
     /**
@@ -13222,7 +13251,7 @@ export type ShippingActiveContract = {
      */
     package_in_your_cargo: boolean;
     /**
-     * Credits the carrier gets for a deliver at the current tick: contract.reward_escrow plus the speed bonus earned now (full max_speed_bonus at or before target_tick, decaying linearly and rounded down to 0 at deadline_tick). 0 while posted and once late.
+     * Credits the carrier gets for a deliver at the current tick: contract.reward_escrow plus the speed bonus earned now (full max_speed_bonus at or before target_tick, decaying linearly and rounded down to 0 at deadline_tick). 0 while posted, once late and for a defaulted contract.
      */
     payout_if_delivered_now: number;
     /**
@@ -13230,15 +13259,15 @@ export type ShippingActiveContract = {
      */
     role: 'carrier' | 'shipper' | 'recipient' | 'invited_carrier';
     /**
-     * contract.deadline_tick minus the current tick: ticks left for an on-time delivery. Negative once passed. 0 while the contract is posted.
+     * contract.deadline_tick minus the current tick: ticks left for an on-time delivery. Negative once passed. 0 while the contract is posted or defaulted.
      */
     ticks_to_deadline: number;
     /**
-     * contract.recovery_deadline_tick minus the current tick: ticks left for a late deliver or return before the contract defaults. 0 while the contract is posted.
+     * contract.recovery_deadline_tick minus the current tick: ticks left for a late deliver or return before the contract defaults. 0 while the contract is posted or defaulted.
      */
     ticks_to_recovery_deadline: number;
     /**
-     * contract.target_tick minus the current tick: ticks left at the full speed bonus. Negative once passed. 0 while the contract is posted.
+     * contract.target_tick minus the current tick: ticks left at the full speed bonus. Negative once passed. 0 while the contract is posted or defaulted.
      */
     ticks_to_target: number;
 };
@@ -13253,7 +13282,7 @@ export type ShippingActiveResponse = {
      */
     message?: string;
     /**
-     * Every posted or in_transit contract you or your faction is party to, soonest deadline_tick first; posted contracts (no deadline yet) come last. Empty, never null, when there are none.
+     * Every posted or in_transit contract you or your faction is party to, plus each defaulted contract you shipped whose sealed package you can still reclaim, soonest deadline_tick first; posted contracts (no deadline yet) come last. Empty, never null, when there are none.
      */
     shipments: Array<ShippingActiveContract>;
     /**
@@ -13558,22 +13587,34 @@ export type ShippingResponse = ({
 } & ShippingProfileResponse) | ({
     action: 'pay_debt';
 } & ShippingDebtPaymentResponse) | ({
-    action: 'cancel' | 'deliver' | 'return';
+    action: 'cancel' | 'deliver' | 'reclaim' | 'return';
 } & ShippingSettlementResponse);
 
 export type ShippingSettlementResponse = {
     /**
-     * Which shipping action settled the contract: deliver (the carrier handed the package over at the destination station), return (the carrier surrendered it at the origin station) or cancel (the shipper withdrew a posting no carrier had accepted).
+     * Which shipping action settled the contract: deliver (the carrier handed the package over at the destination station), return (the carrier surrendered it at the origin station), cancel (the shipper withdrew a posting no carrier had accepted) or reclaim (the shipper took a defaulted contract's sealed package from station storage).
      */
-    action: 'deliver' | 'return' | 'cancel';
+    action: 'deliver' | 'return' | 'cancel' | 'reclaim';
     /**
      * Credits paid to the carrier (the contractor) for an on-time deliver: base_reward plus the speed bonus earned at the delivery tick. The bonus is the full max_speed_bonus at or before target_tick and decays linearly (rounded down) to 0 at deadline_tick. Same value as contract.carrier_payout. Omitted (0) for a late deliver, for return and for cancel.
      */
     carrier_payout?: number;
     /**
-     * The contract after settlement. status is delivered, returned or canceled and reward_escrow and speed_bonus_escrow are now 0; after cancel premium is also 0 because it was refunded. The sealed manifest (appraisal_lines) is always omitted.
+     * Credits of that payout the shipper could not cover, now owed by the shipper as freight debt to the insurer (debt ID claim:<shipment_id>, payable with pay_debt). Omitted (0) when the shipper repaid it all.
+     */
+    claim_debt?: number;
+    /**
+     * Credits of the insurance payout (contract.claim_paid) the shipper paid back to the insurer station because the package came back by reclaim or a return after default. claim_repaid + claim_debt = claim_paid. Omitted (0) when the contract paid no claim and on every other settlement.
+     */
+    claim_repaid?: number;
+    /**
+     * The contract after settlement. After reclaim or a return after default status stays defaulted and package_recovery is set. Otherwise status is delivered, returned or canceled and reward_escrow and speed_bonus_escrow are now 0; after cancel premium is also 0 because it was refunded. The sealed manifest (appraisal_lines) is always omitted.
      */
     contract: ShipmentContract;
+    /**
+     * Credits of the carrier's freight debt for this contract that a return after default cleared. Omitted (0) on every other settlement.
+     */
+    debt_cleared?: number;
     /**
      * Late fee in credits now owed by the carrier as freight debt to the insurer station (or to the shipping house station when the contract is uninsured). Only a late deliver or a late return creates it: 10% of (base_reward plus max_speed_bonus) with a minimum of 100 and a maximum of 2500 and never more than half of the contract's failure_debt. Omitted when 0: always for an on-time settlement and for cancel.
      */
@@ -28099,7 +28140,7 @@ export type SpacemoltShippingAcceptData = {
          */
         carrier?: 'player' | 'faction';
         /**
-         * Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id.
+         * Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id.
          */
         shipment_id: string;
     };
@@ -28174,7 +28215,7 @@ export type SpacemoltShippingActiveResponse = SpacemoltShippingActiveResponses[k
 export type SpacemoltShippingCancelData = {
     body?: {
         /**
-         * Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id.
+         * Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id.
          */
         shipment_id: string;
     };
@@ -28214,11 +28255,11 @@ export type SpacemoltShippingCancelResponse = SpacemoltShippingCancelResponses[k
 export type SpacemoltShippingDeliverData = {
     body?: {
         /**
-         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id.
+         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
          */
         package_id?: string;
         /**
-         * Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id.
+         * Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id.
          */
         shipment_id?: string;
     };
@@ -28258,11 +28299,11 @@ export type SpacemoltShippingDeliverResponse = SpacemoltShippingDeliverResponses
 export type SpacemoltShippingGetData = {
     body?: {
         /**
-         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id.
+         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
          */
         package_id?: string;
         /**
-         * Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id.
+         * Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id.
          */
         shipment_id?: string;
     };
@@ -28546,7 +28587,7 @@ export type SpacemoltShippingPostData = {
          */
         max_total_cost?: number;
         /**
-         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id.
+         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
          */
         package_id: string;
         /**
@@ -28676,7 +28717,7 @@ export type SpacemoltShippingQuoteData = {
          */
         invited_carrier_type?: 'player' | 'faction';
         /**
-         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id.
+         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
          */
         package_id: string;
         /**
@@ -28743,14 +28784,58 @@ export type SpacemoltShippingQuoteResponses = {
 
 export type SpacemoltShippingQuoteResponse = SpacemoltShippingQuoteResponses[keyof SpacemoltShippingQuoteResponses];
 
-export type SpacemoltShippingReturnData = {
+export type SpacemoltShippingReclaimData = {
     body?: {
         /**
-         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id.
+         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
          */
         package_id?: string;
         /**
-         * Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id.
+         * Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id.
+         */
+        shipment_id?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/reclaim';
+};
+
+export type SpacemoltShippingReclaimErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingReclaimResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingSettlementResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingSettlementResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingReclaimResponse = SpacemoltShippingReclaimResponses[keyof SpacemoltShippingReclaimResponses];
+
+export type SpacemoltShippingReturnData = {
+    body?: {
+        /**
+         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
+         */
+        package_id?: string;
+        /**
+         * Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id.
          */
         shipment_id?: string;
     };
@@ -28794,11 +28879,11 @@ export type SpacemoltShippingTrackData = {
          */
         limit?: number;
         /**
-         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id.
+         * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
          */
         package_id?: string;
         /**
-         * Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id.
+         * Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id.
          */
         shipment_id?: string;
     };

@@ -1282,26 +1282,26 @@ export interface SpacemoltShipListShipForSaleParams {
 export interface SpacemoltShippingAcceptParams {
   /** Prime carrier accepting the contract: you personally (player, default) or your current faction. The selected actor permanently owns the consequences. Self-shipping bypasses standing and tier liability limits but earns no carrier reputation; unpaid freight debt still blocks acceptance. */
   carrier?: "player" | "faction";
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id: string;
 }
 
 export interface SpacemoltShippingCancelParams {
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id: string;
 }
 
 export interface SpacemoltShippingDeliverParams {
-  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
   package_id?: string;
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id?: string;
 }
 
 export interface SpacemoltShippingGetParams {
-  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
   package_id?: string;
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id?: string;
 }
 
@@ -1365,7 +1365,7 @@ export interface SpacemoltShippingPostParams {
   invited_carrier_type?: "player" | "faction";
   /** Optional post guard. The contract is rejected if the recomputed fees, reward escrow, and premium exceed this amount. */
   max_total_cost?: number;
-  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
   package_id: string;
   /** Player, faction, or station ID matching recipient_type; a station takes either the base ID or the station POI ID. */
   recipient_id?: string;
@@ -1401,7 +1401,7 @@ export interface SpacemoltShippingQuoteParams {
   invited_carrier_id?: string;
   /** Invited prime carrier kind when visibility=invited. */
   invited_carrier_type?: "player" | "faction";
-  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
   package_id: string;
   /** Player, faction, or station ID matching recipient_type; a station takes either the base ID or the station POI ID. */
   recipient_id?: string;
@@ -1421,19 +1421,26 @@ export interface SpacemoltShippingQuoteParams {
   visibility?: "public" | "faction" | "allies" | "invited";
 }
 
-export interface SpacemoltShippingReturnParams {
-  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+export interface SpacemoltShippingReclaimParams {
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
   package_id?: string;
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
+  shipment_id?: string;
+}
+
+export interface SpacemoltShippingReturnParams {
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
+  package_id?: string;
+  /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id?: string;
 }
 
 export interface SpacemoltShippingTrackParams {
   /** Maximum recent beacon events returned by track. */
   limit?: number;
-  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, and return it identifies the contract by the sealed box you are holding, instead of shipment_id. */
+  /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
   package_id?: string;
-  /** Freight contract ID for get, track, accept, deliver, return, or cancel. get, track, deliver, and return also accept a package ID here, or in package_id. */
+  /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id?: string;
 }
 
@@ -2680,6 +2687,8 @@ export interface Commands {
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     quote(params: SpacemoltShippingQuoteParams, requestId?: string): Promise<QueryResult<ShippingQuoteResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    reclaim(params?: SpacemoltShippingReclaimParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     return(params?: SpacemoltShippingReturnParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     track(params?: SpacemoltShippingTrackParams, requestId?: string): Promise<QueryResult<ShippingTrackResponse>>;
@@ -3087,6 +3096,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       post: bind("spacemolt_shipping", "post"),
       profile: bind("spacemolt_shipping", "profile"),
       quote: bind("spacemolt_shipping", "quote"),
+      reclaim: bind("spacemolt_shipping", "reclaim"),
       return: bind("spacemolt_shipping", "return"),
       track: bind("spacemolt_shipping", "track"),
     },
