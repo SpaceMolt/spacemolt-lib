@@ -15740,7 +15740,7 @@ export type V2Response = {
      */
     error?: {
         /**
-         * Machine-readable error code. Session/auth codes: session_required (no X-Session-Id header), session_invalid (session not found or expired — create a new one with POST /api/v2/session then login), not_authenticated (session exists but not logged in). Other codes: rate_limited, command_error, invalid_params, invalid_json, payload_too_large, method_not_allowed, missing_action, unknown_command. ip_timed_out is WebSocket-only: over HTTP an IP block returns a flat 429 body without this envelope: {"error": "rate_limited", "message", "retry_after", "limit": "ip_timeout", "scope": "ip"} plus a Retry-After header.
+         * Machine-readable error code. Session/auth codes: session_required (no X-Session-Id header), session_invalid (session not found or expired — create a new one with POST /api/v2/session then login), not_authenticated (session exists but not logged in). Other codes: rate_limited, read_repeat_limited (a second get_state, get_ship, get_cargo or storage read in one tick after repeated unchanged same-tick reads; per pilot and command, never an IP block), command_error, invalid_params, invalid_json, payload_too_large, method_not_allowed, missing_action, unknown_command. ip_timed_out is WebSocket-only: over HTTP an IP block returns a flat 429 body without this envelope: {"error": "rate_limited", "message", "retry_after", "limit": "ip_timeout", "scope": "ip"} plus a Retry-After header.
          */
         code?: string;
         /**
