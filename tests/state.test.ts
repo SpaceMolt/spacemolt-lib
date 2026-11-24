@@ -53,6 +53,17 @@ test('seed populates sections and reports them changed', () => {
   );
 });
 
+test('re-seeding an equal snapshot reports no change and keeps section objects', () => {
+  const cache = new StateCache();
+  cache.seed(SNAPSHOT);
+  const before = cache.ship;
+  expect(cache.seed(structuredClone(SNAPSHOT))).toEqual([]);
+  expect(cache.ship).toBe(before);
+  const changed = cache.seed({ ...structuredClone(SNAPSHOT), ship: ship({ class_id: 'shuttle', fuel: 90 }) });
+  expect(changed).toEqual(['ship']);
+  expect(cache.ship?.fuel).toBe(90);
+});
+
 test('applyDelta replaces present sections and leaves absent ones untouched', () => {
   const cache = new StateCache();
   cache.seed(SNAPSHOT);
@@ -735,6 +746,25 @@ test('a fleet dock carrying base_id skips the reconcile', async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   expect(account.location?.docked_at).toBe('earth_station_base');
+  expect(statusCalls).toBe(0);
+});
+
+// The server follows a Pathfinder arrival with a full state delta, so the
+// arrival push needs no get_status round trip of its own.
+test('a pathfinder arrival skips the reconcile', async () => {
+  const { account, socket } = await seededAccount();
+  let statusCalls = 0;
+  socket.onClientSend = (frame) => {
+    if (frame.action === 'get_status') statusCalls++;
+  };
+
+  socket.serverSend({
+    type: 'ok',
+    payload: { action: 'pathfinder_arrival', system: 'Alpha Centauri', system_id: 'alpha_centauri' },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(account.location?.system_id).toBe('alpha_centauri');
   expect(statusCalls).toBe(0);
 });
 

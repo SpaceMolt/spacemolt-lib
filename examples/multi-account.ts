@@ -33,8 +33,8 @@ console.log(`catalog ${catalog.version}: ${catalog.ships.length} ships`);
 // Drive each account independently.
 await Promise.all(
   client.accounts().map(async (account) => {
-    const status = await account.commands.spacemolt.get_status();
-    console.log(`${account.player?.username}: ${JSON.stringify(status.structuredContent)}`);
+    // State is cached after login; reading it costs no request.
+    console.log(`${account.player?.username}: ${account.credits} credits at ${account.location?.system_id}`);
   }),
 );
 
