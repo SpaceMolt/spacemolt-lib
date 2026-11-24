@@ -498,7 +498,7 @@ export function emitCommandsDoc(spec: OpenAPISpec, actions: ActionDef[]): string
   out += '```ts\n';
   out += `await account.commands.<tool>.<action>(params);\n`;
   out += `await account.commands.spacemolt.jump({ id: 'sol' });          // mutation\n`;
-  out += `const status = await account.commands.spacemolt.get_status();  // query\n`;
+  out += `const route = await account.commands.spacemolt.find_route({ id: 'sol' });  // query\n`;
   out += '```\n\n';
   out += `- **query** — resolves immediately. \`structuredContent\` is typed to the response shown after \`→\` (the command facade returns \`QueryResult<ResponseType>\`, so no cast). Grep \`src/generated/openapi/types.gen.ts\` for the shape.\n`;
   out += `- **mutation** — queued for the next game tick. \`await\` resolves when the action actually executes (which can be several ticks later for \`travel\`/\`jump\`), and the local state cache is already updated by then. Mutations are serialized one-in-flight per account. \`delta.details\` is typed to the response shown after \`→\` (the facade returns \`MutationResult<DetailsType>\`) — the rest of \`delta\` is the generic state-delta shape shared by every mutation.\n\n`;

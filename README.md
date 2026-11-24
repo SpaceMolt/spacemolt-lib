@@ -46,7 +46,7 @@ console.log(account.credits, account.location?.system_id, account.cargo);
 
 // Typed, generated command methods grouped by tool:
 await account.commands.spacemolt.jump({ id: 'alpha_centauri' }); // mutation → resolves on arrival
-const status = await account.commands.spacemolt.get_status();    // query → resolves immediately
+const route = await account.commands.spacemolt.find_route({ id: 'sol' }); // query → resolves immediately
 
 // Live events:
 account.on('chat_message', (m) => console.log(`[${m.channel}] ${m.sender}: ${m.content}`));
@@ -86,6 +86,11 @@ Every game command is one of two kinds, classified straight from the spec
   `travel`/`jump`), and the local state cache is already updated by the time it
   returns. Mutations are serialized per account by default, matching the server's
   one-action-per-tick rule, and `rate_limited` responses are retried for you.
+  Read state from the cache (`account.state`, `account.ship`, …), not with
+  `get_status`: the cache is seeded after login and every mutation updates it.
+  A second `get_status`, `get_ship`, `get_cargo` or storage read in one tick can
+  fail with `read_repeat_limited`. It is not retried: read the cache, or retry
+  next tick.
   A `per_ip` rate limit pauses every account on the same client until its
   `retry_after` passes, so sibling accounts do not escalate it to an IP timeout.
 
@@ -139,7 +144,7 @@ account.player, account.ship, account.location, account.cargo, account.skills, a
 account.prizeRecoveries;   // active intact-ship recovery operations
 account.hasPendingAction;  // true while a tick-deferred action is queued
 account.onStateChange((sections) => console.log('changed:', sections));
-await account.refresh();   // force a fresh canonical snapshot
+await account.refresh();   // force a fresh snapshot — only after an event that sends no delta, never in a loop
 ```
 
 ### Live events

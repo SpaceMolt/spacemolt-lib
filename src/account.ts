@@ -1350,7 +1350,9 @@ export class Account {
           system_id: payload.system_id,
           system_name: payload.system,
         });
-        reconcile = true;
+        // The server follows a Pathfinder arrival with a full state delta on
+        // every transport, so a snapshot read here would only be discarded.
+        reconcile = payload.action === 'jumped';
         break;
       }
       case 'travel':

@@ -22,12 +22,23 @@ function copySection<S extends StateSection>(target: GameState, source: GameStat
 export class StateCache {
   private state: GameState = {};
 
-  /** Replace the cache from a canonical full snapshot (e.g. `get_status`). */
+  /**
+   * Replace the cache from a canonical full snapshot (e.g. `get_status`).
+   * Returns only the sections whose content differs from the cache; an equal
+   * section keeps its old object, so a periodic refresh that finds nothing new
+   * wakes no listener (and no listener re-reads the server for it).
+   */
   seed(snapshot: V2GameState): StateSection[] {
     const next: GameState = {};
     const changed: StateSection[] = [];
     for (const section of STATE_SECTIONS) {
-      if (copySection(next, snapshot, section)) changed.push(section);
+      if (!copySection(next, snapshot, section)) continue;
+      const prev = this.state[section];
+      if (prev !== undefined && JSON.stringify(prev) === JSON.stringify(next[section])) {
+        Object.assign(next, { [section]: prev });
+      } else {
+        changed.push(section);
+      }
     }
     this.state = next;
     return changed;

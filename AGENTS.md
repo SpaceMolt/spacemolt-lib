@@ -62,7 +62,7 @@ Every command is a typed method on a connected `Account`, grouped by tool:
 
 ```ts
 await account.commands.spacemolt.jump({ id: 'sol' });        // mutation
-const status = await account.commands.spacemolt.get_status(); // query
+const route = await account.commands.spacemolt.find_route({ id: 'sol' }); // query
 ```
 
 - **Queries** resolve immediately with the server's `structuredContent`.
@@ -86,6 +86,12 @@ and server push) — read it without a round-trip:
 account.credits, account.ship, account.location, account.cargo, account.skills;
 account.on('mining_yield', (y) => console.log(y.quantity, y.resource_id));
 ```
+
+Do not poll `get_status` (or `get_ship`, `get_cargo`, storage reads) to watch
+state: the cache already holds it. Game state changes once per 10-second tick.
+A second read of one of these in a tick, repeated for unchanged data, fails
+with `read_repeat_limited`. It is not retried for you: read the cache, or try
+again next tick.
 
 Push payloads are typed. Most come from the server's published schema; the `ok`
 and `fleet` families are hand-written unions, because the server publishes those

@@ -10,7 +10,7 @@ Every command is a typed method on a connected `Account`, grouped by tool:
 ```ts
 await account.commands.<tool>.<action>(params);
 await account.commands.spacemolt.jump({ id: 'sol' });          // mutation
-const status = await account.commands.spacemolt.get_status();  // query
+const route = await account.commands.spacemolt.find_route({ id: 'sol' });  // query
 ```
 
 - **query** — resolves immediately. `structuredContent` is typed to the response shown after `→` (the command facade returns `QueryResult<ResponseType>`, so no cast). Grep `src/generated/openapi/types.gen.ts` for the shape.
