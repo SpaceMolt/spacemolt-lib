@@ -2145,11 +2145,15 @@ export type CargoItem = {
 
 export type CarrierCapacity = {
     /**
+     * Most in_transit contracts the carrier can hold at this tier: 2 probationary, 4 licensed, 8 trusted. Absent for prime (no limit).
+     */
+    active_contract_limit?: number;
+    /**
      * Number of in_transit contracts the carrier holds. Same as the profile's active_contracts.
      */
     active_contracts: number;
     /**
-     * Always true: the number of contracts a carrier can hold has no cap. Only liability is limited.
+     * True for a prime carrier: it can hold any number of contracts. False otherwise: see active_contract_limit.
      */
     active_contracts_unlimited: boolean;
     /**
@@ -2175,6 +2179,10 @@ export type CarrierCapacity = {
 };
 
 export type CarrierProfile = {
+    /**
+     * End of the 12-hour acceptance cooldown that 3 breaches, defaults or claimed packages opened within 24 hours start. The carrier cannot accept contracts before this time. A time in the past means the cooldown is over. Absent when no cooldown was ever started.
+     */
+    acceptance_blocked_until?: string;
     /**
      * Number of in_transit contracts this carrier holds.
      */
@@ -2220,6 +2228,14 @@ export type CarrierProfile = {
      */
     priority_deliveries: number;
     /**
+     * Times of this carrier's breaches, defaults and claimed packages opened in the last 7 days, oldest first. Each counts toward the acceptance cooldown. A listing's max_recent_defaults counts them. Absent when there are none.
+     */
+    recent_failures?: Array<string>;
+    /**
+     * On-time reputation-eligible deliveries still needed to win back one tier lost to a breach or default. Absent (0) when no lost tier is pending.
+     */
+    recovery_deliveries_remaining?: number;
+    /**
      * Count of packages handed back to the shipper at the origin, on time or late.
      */
     returns: number;
@@ -2228,7 +2244,7 @@ export type CarrierProfile = {
      */
     successful_deliveries: number;
     /**
-     * Carrier standing. It sets which risk_band the carrier can accept and its liability limits. An on-time reputation-eligible delivery raises it when both thresholds are met: licensed 5 deliveries and 250 credits delivered, trusted 20 and 250000, prime 50 and 2000000. Each breach or default drops it one tier. A new carrier starts probationary.
+     * Carrier standing. It sets which risk_band the carrier can accept and its liability limits. An on-time reputation-eligible delivery raises it when both thresholds are met: licensed 5 deliveries and 250 credits delivered, trusted 20 and 250000, prime 50 and 2000000. Each breach or default drops it one tier, and each lost tier then takes 10 more on-time reputation-eligible deliveries to win back. A new carrier starts probationary.
      */
     tier: 'probationary' | 'licensed' | 'trusted' | 'prime';
     /**
@@ -2255,7 +2271,7 @@ export type CarrierTierProgress = {
      */
     next_tier?: 'licensed' | 'trusted' | 'prime';
     /**
-     * required_delivered_value - delivered_value, never below 0. Promotion needs both remainders at 0 and happens on the next on-time reputation-eligible delivery. After a demotion both can already be 0.
+     * required_delivered_value - delivered_value, never below 0. Promotion needs both remainders at 0 and happens on the next on-time reputation-eligible delivery. After a breach or default both can already be 0: the lost tier then comes back only when the profile recovery_deliveries_remaining reaches 0.
      */
     remaining_delivered_value: number;
     /**
@@ -6494,6 +6510,12 @@ export type GateStatus = {
      * Facility cycles of upkeep this end has in faction storage. Omitted when 0 or not built.
      */
     upkeep_cycles_covered?: number;
+    /**
+     * Item ID to the quantity faction storage is short of for the first upkeep cycle it cannot cover. Omitted until built or when storage covers the full lookahead.
+     */
+    upkeep_short?: {
+        [key: string]: number;
+    };
 };
 
 export type GeneratorResponse = {
@@ -13041,6 +13063,10 @@ export type ShipmentContract = {
      */
     listing_expires_at: string;
     /**
+     * Most breaches, defaults and claimed packages opened in the last 7 days (the carrier's recent_failures) a carrier can have and still accept this listing. Set by the shipper at posting. Absent means no limit.
+     */
+    max_recent_defaults?: number;
+    /**
      * Extra credits the shipper offers for speed. The carrier earns all of it through target_tick. It then falls linearly (rounded down) to 0 at deadline_tick. 0 on station supply runs.
      */
     max_speed_bonus: number;
@@ -13291,6 +13317,21 @@ export type ShippingActiveResponse = {
     tick: number;
 };
 
+export type ShippingBlockListResponse = {
+    /**
+     * Which shipping action returned the list: block_carrier, unblock_carrier or list_blocked.
+     */
+    action: 'block_carrier' | 'unblock_carrier' | 'list_blocked';
+    /**
+     * Carriers the shipper refuses after the action, sorted by kind then ID. They cannot see or accept its posted listings. A blocked faction also covers its members hauling as themselves. Empty, never null, when nobody is blocked.
+     */
+    blocked: Array<ShipmentActor>;
+    /**
+     * Whose block list this is: you as a player or your current faction.
+     */
+    shipper: ShipmentActor;
+};
+
 export type ShippingContractResponse = {
     /**
      * Which shipping action returned the contract: post (you listed it), get (you looked it up) or accept (you took it as carrier).
@@ -13488,6 +13529,10 @@ export type ShippingQuote = {
      */
     invited_carrier?: ShipmentActor;
     /**
+     * Most breaches, defaults and claimed packages opened in the last 7 days (the carrier's recent_failures) a carrier can have and still accept the listing, as sent in the request. The posted contract keeps the same value. Absent means no limit.
+     */
+    max_recent_defaults?: number;
+    /**
      * Extra credits you offer for a fast delivery, as sent in the request (speed_bonus). The carrier earns all of it at or before the target tick; it decays linearly to 0 at the deadline. 0 when you offer no bonus.
      */
     max_speed_bonus: number;
@@ -13588,7 +13633,9 @@ export type ShippingResponse = ({
     action: 'pay_debt';
 } & ShippingDebtPaymentResponse) | ({
     action: 'cancel' | 'deliver' | 'reclaim' | 'return';
-} & ShippingSettlementResponse);
+} & ShippingSettlementResponse) | ({
+    action: 'block_carrier' | 'list_blocked' | 'unblock_carrier';
+} & ShippingBlockListResponse);
 
 export type ShippingSettlementResponse = {
     /**
@@ -28212,6 +28259,54 @@ export type SpacemoltShippingActiveResponses = {
 
 export type SpacemoltShippingActiveResponse = SpacemoltShippingActiveResponses[keyof SpacemoltShippingActiveResponses];
 
+export type SpacemoltShippingBlockCarrierData = {
+    body?: {
+        /**
+         * For block_carrier and unblock_carrier: the player or faction ID. shipper=player|faction selects whose block list to edit.
+         */
+        blocked_carrier_id: string;
+        /**
+         * For block_carrier and unblock_carrier: kind of carrier to keep off your listings.
+         */
+        blocked_carrier_type: 'player' | 'faction';
+        /**
+         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy.
+         */
+        shipper?: 'player' | 'faction';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/block_carrier';
+};
+
+export type SpacemoltShippingBlockCarrierErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingBlockCarrierResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingBlockListResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingBlockListResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingBlockCarrierResponse = SpacemoltShippingBlockCarrierResponses[keyof SpacemoltShippingBlockCarrierResponses];
+
 export type SpacemoltShippingCancelData = {
     body?: {
         /**
@@ -28516,6 +28611,44 @@ export type SpacemoltShippingListAllResponses = {
 
 export type SpacemoltShippingListAllResponse = SpacemoltShippingListAllResponses[keyof SpacemoltShippingListAllResponses];
 
+export type SpacemoltShippingListBlockedData = {
+    body?: {
+        /**
+         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy.
+         */
+        shipper?: 'player' | 'faction';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/list_blocked';
+};
+
+export type SpacemoltShippingListBlockedErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingListBlockedResponses = {
+    /**
+     * Result. structuredContent type: ShippingBlockListResponse
+     */
+    200: V2Response & {
+        structuredContent?: ShippingBlockListResponse;
+    };
+};
+
+export type SpacemoltShippingListBlockedResponse = SpacemoltShippingListBlockedResponses[keyof SpacemoltShippingListBlockedResponses];
+
 export type SpacemoltShippingPayDebtData = {
     body?: {
         /**
@@ -28583,6 +28716,10 @@ export type SpacemoltShippingPostData = {
          */
         invited_carrier_type?: 'player' | 'faction';
         /**
+         * For quote/post: refuse carriers with more than this many breaches, defaults and claimed packages opened in the last 7 days. Omit for no limit.
+         */
+        max_recent_defaults?: number;
+        /**
          * Optional post guard. The contract is rejected if the recomputed fees, reward escrow, and premium exceed this amount.
          */
         max_total_cost?: number;
@@ -28603,7 +28740,7 @@ export type SpacemoltShippingPostData = {
          */
         service_level?: 'standard' | 'priority';
         /**
-         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury.
+         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy.
          */
         shipper?: 'player' | 'faction';
         /**
@@ -28717,6 +28854,10 @@ export type SpacemoltShippingQuoteData = {
          */
         invited_carrier_type?: 'player' | 'faction';
         /**
+         * For quote/post: refuse carriers with more than this many breaches, defaults and claimed packages opened in the last 7 days. Omit for no limit.
+         */
+        max_recent_defaults?: number;
+        /**
          * Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id.
          */
         package_id: string;
@@ -28733,7 +28874,7 @@ export type SpacemoltShippingQuoteData = {
          */
         service_level?: 'standard' | 'priority';
         /**
-         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury.
+         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy.
          */
         shipper?: 'player' | 'faction';
         /**
@@ -28917,6 +29058,54 @@ export type SpacemoltShippingTrackResponses = {
 };
 
 export type SpacemoltShippingTrackResponse = SpacemoltShippingTrackResponses[keyof SpacemoltShippingTrackResponses];
+
+export type SpacemoltShippingUnblockCarrierData = {
+    body?: {
+        /**
+         * For block_carrier and unblock_carrier: the player or faction ID. shipper=player|faction selects whose block list to edit.
+         */
+        blocked_carrier_id: string;
+        /**
+         * For block_carrier and unblock_carrier: kind of carrier to keep off your listings.
+         */
+        blocked_carrier_type: 'player' | 'faction';
+        /**
+         * Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy.
+         */
+        shipper?: 'player' | 'faction';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v2/spacemolt_shipping/unblock_carrier';
+};
+
+export type SpacemoltShippingUnblockCarrierErrors = {
+    /**
+     * Bad request — invalid params, unknown command, or game error
+     */
+    400: unknown;
+    /**
+     * Not authenticated — missing or invalid session
+     */
+    401: unknown;
+    /**
+     * Rate limited — mutations allow 1 per tick (10 seconds)
+     */
+    429: unknown;
+};
+
+export type SpacemoltShippingUnblockCarrierResponses = {
+    /**
+     * Result. structuredContent: V2GameState post-mutation delta (changed player/ship/cargo/missions sections); the command result is under `details` (ShippingBlockListResponse)
+     */
+    200: V2Response & {
+        structuredContent?: V2GameState & {
+            details?: ShippingBlockListResponse;
+        };
+    };
+};
+
+export type SpacemoltShippingUnblockCarrierResponse = SpacemoltShippingUnblockCarrierResponses[keyof SpacemoltShippingUnblockCarrierResponses];
 
 export type SpacemoltSocialCaptainsLogAddData = {
     body?: {

@@ -231,6 +231,7 @@ import type {
   SetStatusResponse,
   ShipLicenseResponse,
   ShippingActiveResponse,
+  ShippingBlockListResponse,
   ShippingContractResponse,
   ShippingDebtPaymentResponse,
   ShippingListResponse,
@@ -1286,6 +1287,15 @@ export interface SpacemoltShippingAcceptParams {
   shipment_id: string;
 }
 
+export interface SpacemoltShippingBlockCarrierParams {
+  /** For block_carrier and unblock_carrier: the player or faction ID. shipper=player|faction selects whose block list to edit. */
+  blocked_carrier_id: string;
+  /** For block_carrier and unblock_carrier: kind of carrier to keep off your listings. */
+  blocked_carrier_type: "player" | "faction";
+  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy. */
+  shipper?: "player" | "faction";
+}
+
 export interface SpacemoltShippingCancelParams {
   /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id: string;
@@ -1345,6 +1355,11 @@ export interface SpacemoltShippingListAllParams {
   sort?: "reward" | "distance" | "age";
 }
 
+export interface SpacemoltShippingListBlockedParams {
+  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy. */
+  shipper?: "player" | "faction";
+}
+
 export interface SpacemoltShippingPayDebtParams {
   /** Debt payment amount for pay_debt. Omit to pay the full outstanding balance. */
   amount?: number;
@@ -1363,6 +1378,8 @@ export interface SpacemoltShippingPostParams {
   invited_carrier_id?: string;
   /** Invited prime carrier kind when visibility=invited. */
   invited_carrier_type?: "player" | "faction";
+  /** For quote/post: refuse carriers with more than this many breaches, defaults and claimed packages opened in the last 7 days. Omit for no limit. */
+  max_recent_defaults?: number;
   /** Optional post guard. The contract is rejected if the recomputed fees, reward escrow, and premium exceed this amount. */
   max_total_cost?: number;
   /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
@@ -1373,7 +1390,7 @@ export interface SpacemoltShippingPostParams {
   recipient_type?: "player" | "faction" | "station";
   /** Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus. */
   service_level?: "standard" | "priority";
-  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. */
+  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy. */
   shipper?: "player" | "faction";
   /** Where the sealed package currently sits at the origin station (cargo by default). */
   source?: "cargo" | "storage" | "faction";
@@ -1401,6 +1418,8 @@ export interface SpacemoltShippingQuoteParams {
   invited_carrier_id?: string;
   /** Invited prime carrier kind when visibility=invited. */
   invited_carrier_type?: "player" | "faction";
+  /** For quote/post: refuse carriers with more than this many breaches, defaults and claimed packages opened in the last 7 days. Omit for no limit. */
+  max_recent_defaults?: number;
   /** Sealed package ID, either the bare package ID or the package:<id> cargo item form. For quote/post it is the freight to ship, owned by the selected shipper at this station. For get, track, deliver, return, and reclaim it identifies the contract by the sealed box, instead of shipment_id. */
   package_id: string;
   /** Player, faction, or station ID matching recipient_type; a station takes either the base ID or the station POI ID. */
@@ -1409,7 +1428,7 @@ export interface SpacemoltShippingQuoteParams {
   recipient_type?: "player" | "faction" | "station";
   /** Delivery timing tier only: standard, or priority for a tighter deadline. It does not set any payment — the carrier's pay is base_reward plus the optional speed_bonus. */
   service_level?: "standard" | "priority";
-  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. */
+  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy. */
   shipper?: "player" | "faction";
   /** Where the sealed package currently sits at the origin station (cargo by default). */
   source?: "cargo" | "storage" | "faction";
@@ -1442,6 +1461,15 @@ export interface SpacemoltShippingTrackParams {
   package_id?: string;
   /** Freight contract ID for get, track, accept, deliver, return, reclaim, or cancel. get, track, deliver, return, and reclaim also accept a package ID here, or in package_id. */
   shipment_id?: string;
+}
+
+export interface SpacemoltShippingUnblockCarrierParams {
+  /** For block_carrier and unblock_carrier: the player or faction ID. shipper=player|faction selects whose block list to edit. */
+  blocked_carrier_id: string;
+  /** For block_carrier and unblock_carrier: kind of carrier to keep off your listings. */
+  blocked_carrier_type: "player" | "faction";
+  /** Who posts and funds the contract: you personally (player, default) or your current faction. Faction posting requires manage_treasury. For block_carrier, unblock_carrier and list_blocked it selects whose block list; a faction list needs the leader or Manage Diplomacy. */
+  shipper?: "player" | "faction";
 }
 
 export interface SpacemoltShipPlaceShipBuyOrderParams {
@@ -2669,6 +2697,8 @@ export interface Commands {
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     active(requestId?: string): Promise<QueryResult<ShippingActiveResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    block_carrier(params: SpacemoltShippingBlockCarrierParams, requestId?: string): Promise<MutationResult<ShippingBlockListResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     cancel(params: SpacemoltShippingCancelParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     deliver(params?: SpacemoltShippingDeliverParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
@@ -2678,6 +2708,8 @@ export interface Commands {
     list(params?: SpacemoltShippingListParams, requestId?: string): Promise<QueryResult<ShippingListResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     list_all(params?: SpacemoltShippingListAllParams, requestId?: string): Promise<QueryResult<ShippingListResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    list_blocked(params?: SpacemoltShippingListBlockedParams, requestId?: string): Promise<QueryResult<ShippingBlockListResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     pay_debt(params?: SpacemoltShippingPayDebtParams, requestId?: string): Promise<MutationResult<ShippingDebtPaymentResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
@@ -2692,6 +2724,8 @@ export interface Commands {
     return(params?: SpacemoltShippingReturnParams, requestId?: string): Promise<MutationResult<ShippingSettlementResponse>>;
     /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
     track(params?: SpacemoltShippingTrackParams, requestId?: string): Promise<QueryResult<ShippingTrackResponse>>;
+    /** Quote, post, haul, track, and settle sealed-package freight contracts through station mission services */
+    unblock_carrier(params: SpacemoltShippingUnblockCarrierParams, requestId?: string): Promise<MutationResult<ShippingBlockListResponse>>;
   };
   spacemolt_social: {
     /** Add an entry to your captain's log (personal journal) */
@@ -3087,11 +3121,13 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
     spacemolt_shipping: {
       accept: bind("spacemolt_shipping", "accept"),
       active: bindBare("spacemolt_shipping", "active"),
+      block_carrier: bind("spacemolt_shipping", "block_carrier"),
       cancel: bind("spacemolt_shipping", "cancel"),
       deliver: bind("spacemolt_shipping", "deliver"),
       get: bind("spacemolt_shipping", "get"),
       list: bind("spacemolt_shipping", "list"),
       list_all: bind("spacemolt_shipping", "list_all"),
+      list_blocked: bind("spacemolt_shipping", "list_blocked"),
       pay_debt: bind("spacemolt_shipping", "pay_debt"),
       post: bind("spacemolt_shipping", "post"),
       profile: bind("spacemolt_shipping", "profile"),
@@ -3099,6 +3135,7 @@ export function buildCommands(dispatch: CommandDispatch): unknown {
       reclaim: bind("spacemolt_shipping", "reclaim"),
       return: bind("spacemolt_shipping", "return"),
       track: bind("spacemolt_shipping", "track"),
+      unblock_carrier: bind("spacemolt_shipping", "unblock_carrier"),
     },
     spacemolt_social: {
       captains_log_add: bind("spacemolt_social", "captains_log_add"),
